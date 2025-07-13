@@ -1,0 +1,5 @@
+# On veut tout autoriser dans Cursor
+# Donc on ne met rien ici, ou on autorise .env.local si on a une règle générique
+
+.env*
+!.env.local
