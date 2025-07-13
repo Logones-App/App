@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 type Organization = Database['public']['Tables']['organizations']['Row'];
 
@@ -11,6 +12,7 @@ export const useUserOrganizations = (userId?: string) => {
     queryFn: async () => {
       if (!userId) return [];
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('users_organizations')
         .select(`
@@ -41,6 +43,7 @@ export const useOrganization = (organizationId?: string) => {
     queryFn: async () => {
       if (!organizationId) return null;
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
@@ -52,6 +55,54 @@ export const useOrganization = (organizationId?: string) => {
       return data;
     },
     enabled: !!organizationId,
+  });
+};
+
+// Hook pour récupérer l'organisation active (avec isolation multi-tenant)
+export const useCurrentOrganization = () => {
+  const { currentOrganization, userRole } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['current-organization', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return null;
+
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', currentOrganization.id)
+        .eq('deleted', false)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrganization?.id,
+  });
+};
+
+// Hook pour récupérer les données avec isolation multi-tenant
+export const useMultiTenantData = <T>(
+  queryKey: string[],
+  queryFn: (organizationId: string) => Promise<T>,
+  options?: {
+    enabled?: boolean;
+    staleTime?: number;
+  }
+) => {
+  const { currentOrganization, userRole } = useAuthStore();
+  
+  return useQuery({
+    queryKey: [...queryKey, currentOrganization?.id],
+    queryFn: () => {
+      if (!currentOrganization?.id) {
+        throw new Error('No organization selected');
+      }
+      return queryFn(currentOrganization.id);
+    },
+    enabled: !!currentOrganization?.id && (options?.enabled ?? true),
+    staleTime: options?.staleTime,
   });
 };
 
@@ -67,6 +118,7 @@ export const useCreateOrganization = () => {
       logo_url?: string;
       settings?: Record<string, any>;
     }) => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('organizations')
         .insert(organization)
@@ -99,6 +151,7 @@ export const useUpdateOrganization = () => {
       logo_url?: string;
       settings?: Record<string, any>;
     }) => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('organizations')
         .update(updates)

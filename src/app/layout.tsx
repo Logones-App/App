@@ -4,7 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_CONFIG } from "@/config/app-config";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { AuthProvider } from "@/components/providers/auth-provider";
+import { AuthProvider, RoleInitializer } from "@/components/providers/auth-provider";
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import "./globals.css";
 
@@ -20,7 +20,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange enableSystem={false}>
           <QueryProvider>
             <AuthProvider>
-              <LoadingProvider>{children}</LoadingProvider>
+              <RoleInitializer>
+                <LoadingProvider>{children}</LoadingProvider>
+              </RoleInitializer>
               <Toaster />
             </AuthProvider>
           </QueryProvider>

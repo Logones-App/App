@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, createServiceClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
 
 type UserRole = Database['public']['Tables']['users_roles']['Row'];
+type Organization = Database['public']['Tables']['organizations']['Row'];
 
 // Query pour récupérer l'utilisateur
 export const useUser = () => {
@@ -40,13 +41,103 @@ export const useUserRoles = (userId?: string) => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('users_roles')
-        .select('role')
+        .select('role, organization_id')
         .eq('user_id', userId);
 
       if (error) throw error;
-      return data?.map((ur: { role: string }) => ur.role) || [];
+      return data || [];
     },
     enabled: !!userId,
+  });
+};
+
+// Fonction pour créer un system_admin automatiquement
+const createSystemAdmin = async (userId: string) => {
+  try {
+    console.log("Création automatique d'un system_admin pour:", userId);
+    const supabase = createServiceClient();
+    
+    const { data, error } = await supabase
+      .from('users_roles')
+      .insert({
+        user_id: userId,
+        role: 'system_admin'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Erreur création system_admin:", error);
+      return null;
+    }
+    
+    console.log("System_admin créé avec succès:", data);
+    return { role: 'system_admin', organizationId: null };
+  } catch (error) {
+    console.error("Erreur lors de la création system_admin:", error);
+    return null;
+  }
+};
+
+// Query pour récupérer le rôle principal de l'utilisateur
+export const useUserMainRole = (userId?: string) => {
+  const { setUserRole, setCurrentOrganization } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['user-main-role', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+
+      try {
+        const response = await fetch('/api/auth/roles');
+        const data = await response.json();
+        
+        if (data.role === 'system_admin') {
+          setUserRole('system_admin');
+          setCurrentOrganization(null);
+          return { role: 'system_admin', organizationId: null };
+        }
+        
+        if (data.role === 'org_admin') {
+          setUserRole('org_admin');
+          setCurrentOrganization(data.organization);
+          return { 
+            role: 'org_admin', 
+            organizationId: data.organizationId,
+            organization: data.organization
+          };
+        }
+        
+        return null;
+        
+      } catch (error) {
+        console.error("Erreur lors de l'appel API roles:", error);
+        return null;
+      }
+    },
+    enabled: !!userId,
+    staleTime: 0,
+  });
+};
+
+// Query pour récupérer toutes les organisations (system_admin uniquement)
+export const useAllOrganizations = () => {
+  const { userRole } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['all-organizations'],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('deleted', false)
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: userRole === 'system_admin',
   });
 };
 
@@ -151,16 +242,25 @@ export const useRegister = () => {
 
         if (orgError) throw orgError;
 
-        // Ajouter l'utilisateur comme admin de l'organisation
+        // Ajouter l'utilisateur comme org_admin dans users_roles
         const { error: roleError } = await supabase
           .from('users_roles')
           .insert({
             user_id: data.user.id,
-            role: 'org_admin',
-            organization_id: orgData.id,
+            role: 'org_admin'
           });
 
         if (roleError) throw roleError;
+
+        // Ajouter l'utilisateur à l'organisation dans users_organizations
+        const { error: orgLinkError } = await supabase
+          .from('users_organizations')
+          .insert({
+            user_id: data.user.id,
+            organization_id: orgData.id,
+          });
+
+        if (orgLinkError) throw orgLinkError;
       }
 
       // Synchroniser avec Zustand

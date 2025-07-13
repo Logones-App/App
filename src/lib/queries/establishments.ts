@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 
 type Establishment = Database['public']['Tables']['establishments']['Row'];
@@ -11,6 +11,7 @@ export const useOrganizationEstablishments = (organizationId?: string) => {
     queryFn: async () => {
       if (!organizationId) return [];
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('establishments')
         .select('*')
@@ -32,6 +33,7 @@ export const useEstablishment = (establishmentId?: string) => {
     queryFn: async () => {
       if (!establishmentId) return null;
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('establishments')
         .select('*')
@@ -53,6 +55,7 @@ export const useEstablishmentBySlug = (slug?: string) => {
     queryFn: async () => {
       if (!slug) return null;
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('establishments')
         .select('*')
@@ -89,6 +92,7 @@ export const useCreateEstablishment = () => {
       seo_description?: string;
       is_public?: boolean;
     }) => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('establishments')
         .insert(establishment)
@@ -130,6 +134,7 @@ export const useUpdateEstablishment = () => {
       seo_description?: string;
       is_public?: boolean;
     }) => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('establishments')
         .update(updates)

@@ -49,6 +49,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("Middleware - User:", user?.email, "Path:", request.nextUrl.pathname);
+
   // If there's no user and the user is not on the auth pages, redirect to login
   if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
     const redirectUrl = request.nextUrl.clone()
@@ -61,6 +63,65 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)
+  }
+
+  // Gestion des rôles et URLs multi-tenant
+  if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const pathname = request.nextUrl.pathname;
+    console.log("Middleware - Checking roles for user:", user.email);
+    
+    // Vérifier si c'est un system_admin
+    const { data: systemAdminRole, error: systemError } = await supabase
+      .from('users_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'system_admin')
+      .single();
+
+    console.log("Middleware - System admin check:", { systemAdminRole, systemError });
+
+    if (systemAdminRole) {
+      console.log("Middleware - User is system_admin");
+      // System admin peut accéder à /dashboard et /dashboard/org/[id]
+      if (pathname === '/dashboard' || pathname === '/dashboard/default') {
+        // Vue globale pour system admin
+        return supabaseResponse;
+      } else if (pathname.startsWith('/dashboard/org/')) {
+        // Vue d'une organisation spécifique pour system admin
+        return supabaseResponse;
+      }
+    } else {
+      console.log("Middleware - User is not system_admin, checking org_admin");
+      // Vérifier si c'est un org_admin
+      const { data: orgRole, error: orgError } = await supabase
+        .from('users_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('deleted', false)
+        .single();
+
+      console.log("Middleware - Org admin check:", { orgRole, orgError });
+
+      if (orgRole) {
+        console.log("Middleware - User is org_admin");
+        // Org admin ne peut accéder qu'à /dashboard (URL masquée)
+        if (pathname === '/dashboard') {
+          return supabaseResponse;
+        } else if (pathname.startsWith('/dashboard/org/')) {
+          // Rediriger vers /dashboard pour org admin
+          const redirectUrl = request.nextUrl.clone();
+          redirectUrl.pathname = '/dashboard';
+          return NextResponse.redirect(redirectUrl);
+        }
+      } else {
+        console.log("Middleware - User has no role, redirecting to unauthorized");
+      }
+    }
+
+    // Si aucun rôle trouvé, rediriger vers unauthorized
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/unauthorized';
+    return NextResponse.redirect(redirectUrl);
   }
 
   return supabaseResponse

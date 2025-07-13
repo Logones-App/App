@@ -4,6 +4,11 @@
 
 Ce document détaille la nouvelle architecture d'authentification proposée pour remplacer le système actuel basé sur LegendState. La nouvelle stack utilise **Zustand** pour l'état client, **TanStack Query** pour le cache et les données serveur, et **Supabase** pour l'authentification et le realtime.
 
+> **📝 Note importante** : Pour la synchronisation entre client et serveur, voir les documents :
+>
+> - [ROLES-CLIENT-SERVER-SYNC-SOLUTION.md](./ROLES-CLIENT-SERVER-SYNC-SOLUTION.md) - Solution pour la détection des rôles
+> - [SESSION-CLIENT-SERVER-SYNC-SOLUTION.md](./SESSION-CLIENT-SERVER-SYNC-SOLUTION.md) - Solution pour la récupération de session
+
 ## 🏗️ Architecture Proposée
 
 ### Stack Technique
@@ -104,8 +109,8 @@ src/
 
 ```typescript
 // lib/stores/auth-store.ts
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 interface User {
   id: string;
@@ -144,15 +149,15 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       // Actions
-      setUser: user =>
+      setUser: (user) =>
         set({
           user,
           isAuthenticated: !!user,
         }),
 
-      setSession: session => set({ session }),
+      setSession: (session) => set({ session }),
 
-      setLoading: loading => set({ isLoading: loading }),
+      setLoading: (loading) => set({ isLoading: loading }),
 
       logout: () =>
         set({
@@ -171,9 +176,9 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'auth-store',
-    }
-  )
+      name: "auth-store",
+    },
+  ),
 );
 ```
 
@@ -181,16 +186,16 @@ export const useAuthStore = create<AuthState>()(
 
 ```typescript
 // lib/queries/auth.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Query pour récupérer l'utilisateur
 export const useUser = () => {
   const { setUser, setLoading } = useAuthStore();
 
   return useQuery({
-    queryKey: ['user'],
+    queryKey: ["user"],
     queryFn: async () => {
       const {
         data: { user },
@@ -212,17 +217,14 @@ export const useUser = () => {
 // Query pour récupérer les rôles
 export const useUserRoles = (userId?: string) => {
   return useQuery({
-    queryKey: ['user-roles', userId],
+    queryKey: ["user-roles", userId],
     queryFn: async () => {
       if (!userId) return [];
 
-      const { data, error } = await supabase
-        .from('users_roles')
-        .select('role')
-        .eq('user_id', userId);
+      const { data, error } = await supabase.from("users_roles").select("role").eq("user_id", userId);
 
       if (error) throw error;
-      return data?.map(ur => ur.role) || [];
+      return data?.map((ur) => ur.role) || [];
     },
     enabled: !!userId,
   });
@@ -249,10 +251,10 @@ export const useLogin = () => {
 
       return data;
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       // Invalider et refetch les queries
-      queryClient.invalidateQueries(['user']);
-      queryClient.invalidateQueries(['user-roles']);
+      queryClient.invalidateQueries(["user"]);
+      queryClient.invalidateQueries(["user-roles"]);
     },
   });
 };
@@ -280,18 +282,18 @@ export const useLogout = () => {
 
 ```typescript
 // lib/queries/organizations.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
 
 // Query pour récupérer l'organisation de l'utilisateur
 export const useUserOrganization = (userId?: string) => {
   return useQuery({
-    queryKey: ['user-organization', userId],
+    queryKey: ["user-organization", userId],
     queryFn: async () => {
       if (!userId) return null;
 
       const { data, error } = await supabase
-        .from('users_organizations')
+        .from("users_organizations")
         .select(
           `
           organization_id,
@@ -302,11 +304,11 @@ export const useUserOrganization = (userId?: string) => {
             logo_url,
             settings
           )
-        `
+        `,
         )
-        .eq('user_id', userId)
-        .eq('deleted', false)
-        .eq('organizations.deleted', false)
+        .eq("user_id", userId)
+        .eq("deleted", false)
+        .eq("organizations.deleted", false)
         .single();
 
       if (error) throw error;
@@ -319,13 +321,9 @@ export const useUserOrganization = (userId?: string) => {
 // Query pour récupérer toutes les organisations (system_admin)
 export const useAllOrganizations = () => {
   return useQuery({
-    queryKey: ['all-organizations'],
+    queryKey: ["all-organizations"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('deleted', false)
-        .order('name');
+      const { data, error } = await supabase.from("organizations").select("*").eq("deleted", false).order("name");
 
       if (error) throw error;
       return data || [];
@@ -339,19 +337,19 @@ export const useOrganizationsRealtime = () => {
 
   useEffect(() => {
     const channel = supabase
-      .channel('organizations-changes')
+      .channel("organizations-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'organizations',
+          event: "*",
+          schema: "public",
+          table: "organizations",
         },
         () => {
           // Invalider les queries d'organisations
-          queryClient.invalidateQueries(['user-organization']);
-          queryClient.invalidateQueries(['all-organizations']);
-        }
+          queryClient.invalidateQueries(["user-organization"]);
+          queryClient.invalidateQueries(["all-organizations"]);
+        },
       )
       .subscribe();
 
@@ -364,44 +362,40 @@ export const useOrganizationsRealtime = () => {
 
 ```typescript
 // app/middleware.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Ignorer les assets statiques
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/favicon.ico')
-  ) {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon.ico")) {
     return NextResponse.next();
   }
 
   // Gestion de la localisation
   const pathnameHasLocale = /^\/(?:fr|en)(?:\/|$)/.test(pathname);
   if (!pathnameHasLocale) {
-    const locale = 'fr';
+    const locale = "fr";
     const newUrl = new URL(`/${locale}${pathname}`, request.url);
     return NextResponse.redirect(newUrl);
   }
 
   // Extraire la locale et le chemin
-  const locale = pathname.split('/')[1];
-  const pathWithoutLocale = pathname.replace(`/${locale}`, '');
+  const locale = pathname.split("/")[1];
+  const pathWithoutLocale = pathname.replace(`/${locale}`, "");
 
   // Routes publiques
   if (
-    pathWithoutLocale.startsWith('/auth') ||
-    pathWithoutLocale.startsWith('/unauthorized') ||
-    pathWithoutLocale === '/'
+    pathWithoutLocale.startsWith("/auth") ||
+    pathWithoutLocale.startsWith("/unauthorized") ||
+    pathWithoutLocale === "/"
   ) {
     return NextResponse.next();
   }
 
   // Protection des routes
-  if (pathWithoutLocale.startsWith('/dashboard') || pathWithoutLocale.startsWith('/admin')) {
+  if (pathWithoutLocale.startsWith("/dashboard") || pathWithoutLocale.startsWith("/admin")) {
     const supabase = createClient(request);
     const {
       data: { user },
@@ -409,7 +403,7 @@ export async function middleware(request: NextRequest) {
 
     if (!user) {
       const redirectUrl = new URL(`/${locale}/auth/login`, request.url);
-      redirectUrl.searchParams.set('redirectTo', pathname);
+      redirectUrl.searchParams.set("redirectTo", pathname);
       return NextResponse.redirect(redirectUrl);
     }
   }
@@ -418,7 +412,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
 ```
 
@@ -426,8 +420,8 @@ export const config = {
 
 ```typescript
 // app/api/auth/me/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -438,17 +432,14 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     // Récupérer les rôles de l'utilisateur
-    const { data: roles, error: rolesError } = await supabase
-      .from('users_roles')
-      .select('role')
-      .eq('user_id', user.id);
+    const { data: roles, error: rolesError } = await supabase.from("users_roles").select("role").eq("user_id", user.id);
 
     if (rolesError) {
-      return NextResponse.json({ error: 'Erreur base de données' }, { status: 500 });
+      return NextResponse.json({ error: "Erreur base de données" }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -457,10 +448,10 @@ export async function GET(request: NextRequest) {
         email: user.email,
         user_metadata: user.user_metadata,
       },
-      roles: roles?.map(r => r.role) || [],
+      roles: roles?.map((r) => r.role) || [],
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
 ```

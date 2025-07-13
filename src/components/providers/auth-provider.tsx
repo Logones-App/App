@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { createClient } from "@/lib/supabase/client";
+import { useUserMainRole } from "@/lib/queries/auth";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -16,38 +17,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     console.log("AuthProvider mounted");
 
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient();
-        console.log("Checking Supabase session...");
-
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error("Session error:", error);
-        } else {
-          console.log("Session result:", session ? "Found" : "None");
-          if (session) {
-            setUser(session.user);
-            setSession(session);
-          }
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Auth check error:", error);
-        setLoading(false);
-      }
-    };
-
-    // Délai pour éviter les problèmes de rendu
-    const timer = setTimeout(checkAuth, 500);
-
-    // Écouter les changements d'authentification
     const supabase = createClient();
+    console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+    // Écouter les changements d'authentification en premier
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -63,14 +36,69 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSession(null);
         setLoading(false);
         router.push("/auth/v1/login");
+      } else if (event === "INITIAL_SESSION") {
+        // Gérer la session initiale
+        console.log("Initial session:", session);
+        if (session) {
+          setUser(session.user);
+          setSession(session);
+        }
+        setLoading(false);
       }
     });
 
+    // Vérifier la session actuelle
+    const checkCurrentSession = async () => {
+      try {
+        console.log("Checking current session...");
+
+        // Vérifier les cookies d'abord
+        const cookies = document.cookie;
+        console.log("Available cookies:", cookies);
+
+        // Vérifier la session via l'API route côté serveur
+        try {
+          const response = await fetch("/api/auth/session");
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Session API result:", data);
+            if (data.user) {
+              setUser(data.user);
+              setSession(data.session);
+            }
+          } else {
+            console.log("Session API error:", response.status);
+          }
+        } catch (apiError) {
+          console.error("Session API error:", apiError);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Session check error:", error);
+        setUser(null);
+        setSession(null);
+        setLoading(false);
+      }
+    };
+
+    // Exécuter la vérification
+    checkCurrentSession();
+
     return () => {
-      clearTimeout(timer);
       subscription.unsubscribe();
     };
   }, [setUser, setSession, setLoading, router]);
+
+  return <>{children}</>;
+}
+
+// Composant pour initialiser les rôles et l'organisation
+export function RoleInitializer({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
+
+  // Initialiser le rôle et l'organisation quand l'utilisateur est connecté
+  useUserMainRole(user?.id);
 
   return <>{children}</>;
 }
