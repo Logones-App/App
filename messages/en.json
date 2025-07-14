@@ -26,5 +26,31 @@
   "HomePage": {
     "title": "Welcome to your dashboard",
     "about": "About"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to your management space",
+    "stats": {
+      "organizations": "Organizations",
+      "establishments": "Establishments",
+      "reservations": "Reservations",
+      "revenue": "Revenue",
+      "active_organizations": "Active organizations",
+      "created_establishments": "Created establishments",
+      "today_reservations": "Today's reservations",
+      "this_month": "This month"
+    },
+    "quick_actions": {
+      "title": "Quick Actions",
+      "description": "Quickly access main features",
+      "manage_establishments": "Manage establishments",
+      "view_reservations": "View reservations",
+      "manage_team": "Manage team"
+    },
+    "organizations": {
+      "title": "Organizations",
+      "description": "Your organizations and their information",
+      "no_organizations": "No organizations found"
+    }
   }
 } 

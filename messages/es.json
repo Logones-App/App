@@ -26,5 +26,31 @@
   "HomePage": {
     "title": "Bienvenido a tu panel de control",
     "about": "Acerca de"
+  },
+  "dashboard": {
+    "title": "Panel de control",
+    "welcome": "Bienvenido a tu espacio de gestión",
+    "stats": {
+      "organizations": "Organizaciones",
+      "establishments": "Establecimientos",
+      "reservations": "Reservas",
+      "revenue": "Ingresos",
+      "active_organizations": "Organizaciones activas",
+      "created_establishments": "Establecimientos creados",
+      "today_reservations": "Reservas de hoy",
+      "this_month": "Este mes"
+    },
+    "quick_actions": {
+      "title": "Acciones rápidas",
+      "description": "Accede rápidamente a las funciones principales",
+      "manage_establishments": "Gestionar establecimientos",
+      "view_reservations": "Ver reservas",
+      "manage_team": "Gestionar equipo"
+    },
+    "organizations": {
+      "title": "Organizaciones",
+      "description": "Tus organizaciones y su información",
+      "no_organizations": "No se encontraron organizaciones"
+    }
   }
 } 

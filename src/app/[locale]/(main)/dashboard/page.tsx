@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUserOrganizations } from "@/lib/queries/organizations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,57 +12,58 @@ type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { data: organizations = [] } = useUserOrganizations(user?.id);
+  const t = useTranslations("dashboard");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-muted-foreground">Bienvenue dans votre espace de gestion</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("welcome")}</p>
       </div>
 
       {/* Statistiques rapides */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Organisations</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("stats.organizations")}</CardTitle>
             <Building2 className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{organizations.length}</div>
-            <p className="text-muted-foreground text-xs">Organisations actives</p>
+            <p className="text-muted-foreground text-xs">{t("stats.active_organizations")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Établissements</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("stats.establishments")}</CardTitle>
             <Building2 className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
-            <p className="text-muted-foreground text-xs">Établissements créés</p>
+            <p className="text-muted-foreground text-xs">{t("stats.created_establishments")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Réservations</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("stats.reservations")}</CardTitle>
             <Calendar className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
-            <p className="text-muted-foreground text-xs">Réservations aujourd'hui</p>
+            <p className="text-muted-foreground text-xs">{t("stats.today_reservations")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenus</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("stats.revenue")}</CardTitle>
             <TrendingUp className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">€0</div>
-            <p className="text-muted-foreground text-xs">Ce mois-ci</p>
+            <p className="text-muted-foreground text-xs">{t("stats.this_month")}</p>
           </CardContent>
         </Card>
       </div>
@@ -70,29 +72,29 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Actions rapides</CardTitle>
-            <CardDescription>Accédez rapidement aux fonctionnalités principales</CardDescription>
+            <CardTitle>{t("quick_actions.title")}</CardTitle>
+            <CardDescription>{t("quick_actions.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
               <Building2 className="h-4 w-4" />
-              <span>Gérer les établissements</span>
+              <span>{t("quick_actions.manage_establishments")}</span>
             </div>
             <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
               <Calendar className="h-4 w-4" />
-              <span>Voir les réservations</span>
+              <span>{t("quick_actions.view_reservations")}</span>
             </div>
             <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
               <Users className="h-4 w-4" />
-              <span>Gérer l'équipe</span>
+              <span>{t("quick_actions.manage_team")}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Organisations</CardTitle>
-            <CardDescription>Vos organisations et leurs informations</CardDescription>
+            <CardTitle>{t("organizations.title")}</CardTitle>
+            <CardDescription>{t("organizations.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             {organizations.length > 0 ? (
@@ -108,7 +110,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground py-4 text-center">Aucune organisation trouvée</p>
+              <p className="text-muted-foreground py-4 text-center">{t("organizations.no_organizations")}</p>
             )}
           </CardContent>
         </Card>

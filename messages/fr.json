@@ -26,5 +26,31 @@
   "HomePage": {
     "title": "Bienvenue dans votre dashboard",
     "about": "À propos"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bienvenue dans votre espace de gestion",
+    "stats": {
+      "organizations": "Organisations",
+      "establishments": "Établissements",
+      "reservations": "Réservations",
+      "revenue": "Revenus",
+      "active_organizations": "Organisations actives",
+      "created_establishments": "Établissements créés",
+      "today_reservations": "Réservations aujourd'hui",
+      "this_month": "Ce mois-ci"
+    },
+    "quick_actions": {
+      "title": "Actions rapides",
+      "description": "Accédez rapidement aux fonctionnalités principales",
+      "manage_establishments": "Gérer les établissements",
+      "view_reservations": "Voir les réservations",
+      "manage_team": "Gérer l'équipe"
+    },
+    "organizations": {
+      "title": "Organisations",
+      "description": "Vos organisations et leurs informations",
+      "no_organizations": "Aucune organisation trouvée"
+    }
   }
 } 
