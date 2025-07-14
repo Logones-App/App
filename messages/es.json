@@ -1,0 +1,30 @@
+{
+  "navigation": {
+    "dashboard": "Panel de control",
+    "organizations": "Organizaciones",
+    "users": "Usuarios",
+    "establishments": "Establecimientos",
+    "team": "Equipo",
+    "settings": "Configuración",
+    "system": "Sistema"
+  },
+  "roles": {
+    "system_admin": "Administrador del Sistema",
+    "org_admin": "Administrador de Organización",
+    "user": "Usuario"
+  },
+  "loading": {
+    "system_admin": "Cargando espacio de administrador...",
+    "org_admin": "Cargando tu espacio de trabajo...",
+    "generic": "Cargando..."
+  },
+  "workspace": {
+    "welcome": "Bienvenido a tu espacio de trabajo",
+    "system_overview": "Vista general del sistema",
+    "org_overview": "Vista general de tu organización"
+  },
+  "HomePage": {
+    "title": "Bienvenido a tu panel de control",
+    "about": "Acerca de"
+  }
+} 

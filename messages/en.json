@@ -1,0 +1,30 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "organizations": "Organizations",
+    "users": "Users",
+    "establishments": "Establishments",
+    "team": "Team",
+    "settings": "Settings",
+    "system": "System"
+  },
+  "roles": {
+    "system_admin": "System Administrator",
+    "org_admin": "Organization Administrator",
+    "user": "User"
+  },
+  "loading": {
+    "system_admin": "Loading administrator space...",
+    "org_admin": "Loading your workspace...",
+    "generic": "Loading..."
+  },
+  "workspace": {
+    "welcome": "Welcome to your workspace",
+    "system_overview": "System overview",
+    "org_overview": "Your organization overview"
+  },
+  "HomePage": {
+    "title": "Welcome to your dashboard",
+    "about": "About"
+  }
+} 

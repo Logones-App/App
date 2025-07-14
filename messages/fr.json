@@ -1,0 +1,30 @@
+{
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "organizations": "Organisations",
+    "users": "Utilisateurs",
+    "establishments": "Établissements",
+    "team": "Équipe",
+    "settings": "Paramètres",
+    "system": "Système"
+  },
+  "roles": {
+    "system_admin": "Administrateur Système",
+    "org_admin": "Administrateur Organisation",
+    "user": "Utilisateur"
+  },
+  "loading": {
+    "system_admin": "Chargement de l'espace administrateur...",
+    "org_admin": "Chargement de votre espace de travail...",
+    "generic": "Chargement..."
+  },
+  "workspace": {
+    "welcome": "Bienvenue dans votre espace de travail",
+    "system_overview": "Vue d'ensemble du système",
+    "org_overview": "Vue d'ensemble de votre organisation"
+  },
+  "HomePage": {
+    "title": "Bienvenue dans votre dashboard",
+    "about": "À propos"
+  }
+} 

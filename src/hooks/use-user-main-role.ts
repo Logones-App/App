@@ -36,7 +36,7 @@ export function useUserMainRole() {
         
         // Test 1: Lecture des rôles system_admin
         const { data: systemRoles, error: systemError } = await supabase
-          .from('users_roles')
+          .from('users_organizations')
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'system_admin');

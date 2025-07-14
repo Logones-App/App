@@ -4,7 +4,6 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
 
-type UserRole = Database['public']['Tables']['users_roles']['Row'];
 type Organization = Database['public']['Tables']['organizations']['Row'];
 
 // Query pour récupérer l'utilisateur
@@ -29,54 +28,6 @@ export const useUser = () => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-};
-
-// Query pour récupérer les rôles
-export const useUserRoles = (userId?: string) => {
-  return useQuery({
-    queryKey: ['user-roles', userId],
-    queryFn: async () => {
-      if (!userId) return [];
-
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('users_roles')
-        .select('role, organization_id')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!userId,
-  });
-};
-
-// Fonction pour créer un system_admin automatiquement
-const createSystemAdmin = async (userId: string) => {
-  try {
-    console.log("Création automatique d'un system_admin pour:", userId);
-    const supabase = createServiceClient();
-    
-    const { data, error } = await supabase
-      .from('users_roles')
-      .insert({
-        user_id: userId,
-        role: 'system_admin'
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error("Erreur création system_admin:", error);
-      return null;
-    }
-    
-    console.log("System_admin créé avec succès:", data);
-    return { role: 'system_admin', organizationId: null };
-  } catch (error) {
-    console.error("Erreur lors de la création system_admin:", error);
-    return null;
-  }
 };
 
 // Query pour récupérer le rôle principal de l'utilisateur
@@ -268,16 +219,6 @@ export const useRegister = () => {
           .single();
 
         if (orgError) throw orgError;
-
-        // Ajouter l'utilisateur comme org_admin dans users_roles
-        const { error: roleError } = await supabase
-          .from('users_roles')
-          .insert({
-            user_id: data.user.id,
-            role: 'org_admin'
-          });
-
-        if (roleError) throw roleError;
 
         // Ajouter l'utilisateur à l'organisation dans users_organizations
         const { error: orgLinkError } = await supabase
