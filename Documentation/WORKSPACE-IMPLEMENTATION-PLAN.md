@@ -245,7 +245,7 @@ export const useAuthStore = create<AuthState>()(
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
 
-  return (
+    return (
     <div>
       <h1>{t("title")}</h1>
       <p>{t("description")}</p>
