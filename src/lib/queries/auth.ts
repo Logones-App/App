@@ -89,16 +89,42 @@ export const useUserMainRole = (userId?: string) => {
       if (!userId) return null;
 
       try {
-        const response = await fetch('/api/auth/roles');
+        // Solution principale : utiliser l'API route
+        console.log('🔍 Récupération des rôles via API...');
+        
+        const response = await fetch('/api/auth/roles', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Important pour inclure les cookies
+        });
+        
+        console.log('🔍 API response status:', response.status);
+        console.log('🔍 API response headers:', Object.fromEntries(response.headers.entries()));
+        
+        if (!response.ok) {
+          console.error('❌ API response not ok:', response.status, response.statusText);
+          
+          // Essayer de lire le contenu de la réponse pour le diagnostic
+          const errorText = await response.text();
+          console.error('❌ API error content:', errorText);
+          
+          return null;
+        }
+        
         const data = await response.json();
+        console.log('🔍 API response data:', data);
         
         if (data.role === 'system_admin') {
+          console.log('✅ System admin trouvé via API!');
           setUserRole('system_admin');
           setCurrentOrganization(null);
           return { role: 'system_admin', organizationId: null };
         }
         
         if (data.role === 'org_admin') {
+          console.log('✅ Org admin trouvé via API!');
           setUserRole('org_admin');
           setCurrentOrganization(data.organization);
           return { 
@@ -108,10 +134,11 @@ export const useUserMainRole = (userId?: string) => {
           };
         }
         
+        console.log('⚠️ Aucun rôle trouvé via API');
         return null;
         
       } catch (error) {
-        console.error("Erreur lors de l'appel API roles:", error);
+        console.error("❌ Error:", error);
         return null;
       }
     },

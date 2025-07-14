@@ -535,33 +535,6 @@ export type Database = {
           },
         ]
       }
-      features: {
-        Row: {
-          category: string
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          category?: string
-          created_at?: string | null
-          description?: string | null
-          id: string
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       menus: {
         Row: {
           created_at: string | null
@@ -1765,51 +1738,6 @@ export type Database = {
           },
         ]
       }
-      user_features: {
-        Row: {
-          created_at: string | null
-          enabled: boolean
-          feature_id: string
-          id: string
-          organization_id: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          enabled?: boolean
-          feature_id: string
-          id?: string
-          organization_id?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          enabled?: boolean
-          feature_id?: string
-          id?: string
-          organization_id?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_features_feature_id_fkey"
-            columns: ["feature_id"]
-            isOneToOne: false
-            referencedRelation: "features"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_features_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       users: {
         Row: {
           avatar_url: string | null
@@ -1910,36 +1838,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users_roles: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          role: string
-          updated_at: string | null
-          updated_by: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          role: string
-          updated_at?: string | null
-          updated_by?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          role?: string
-          updated_at?: string | null
-          updated_by?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       vat_rate: {
         Row: {
@@ -2649,33 +2547,6 @@ export type Database = {
           },
         ]
       }
-      org_admin_permissions: {
-        Row: {
-          enabled: boolean | null
-          feature_category: string | null
-          feature_id: string | null
-          feature_name: string | null
-          organization_id: string | null
-          organization_name: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_features_feature_id_fkey"
-            columns: ["feature_id"]
-            isOneToOne: false
-            referencedRelation: "features"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_features_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       recent_stock_movements_view: {
         Row: {
           created_at: string | null
@@ -2756,33 +2627,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      system_admin_permissions: {
-        Row: {
-          enabled: boolean | null
-          feature_category: string | null
-          feature_id: string | null
-          feature_name: string | null
-          organization_id: string | null
-          organization_name: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_features_feature_id_fkey"
-            columns: ["feature_id"]
-            isOneToOne: false
-            referencedRelation: "features"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_features_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

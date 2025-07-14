@@ -12,22 +12,21 @@ export async function GET() {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
-    // Vérifier si c'est un system_admin
-    const { data: systemAdminRole, error: systemError } = await supabase
-      .from('users_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'system_admin')
-      .single();
+    console.log('API - User metadata:', user.user_metadata);
+    console.log('API - App metadata:', user.app_metadata);
 
-    if (systemAdminRole) {
+    // Vérifier si c'est un system_admin via les métadonnées
+    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    
+    if (systemRole === 'system_admin') {
+      console.log('API - User is system_admin (from metadata)');
       return NextResponse.json({ 
         role: 'system_admin', 
         organizationId: null 
       });
     }
 
-    // Vérifier si c'est un org_admin
+    // Vérifier si c'est un org_admin via users_organizations
     const { data: orgRole, error: orgError } = await supabase
       .from('users_organizations')
       .select(`
@@ -38,6 +37,8 @@ export async function GET() {
       .eq('deleted', false)
       .single();
 
+    console.log('API - Org role check:', { orgRole, orgError });
+
     if (orgRole) {
       return NextResponse.json({ 
         role: 'org_admin', 
@@ -45,6 +46,8 @@ export async function GET() {
         organization: orgRole.organizations
       });
     }
+
+    // Si aucun rôle trouvé, retourner null
     return NextResponse.json({ role: null });
 
   } catch (error) {

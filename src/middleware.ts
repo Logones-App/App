@@ -70,18 +70,11 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     console.log("Middleware - Checking roles for user:", user.email);
     
-    // Vérifier si c'est un system_admin
-    const { data: systemAdminRole, error: systemError } = await supabase
-      .from('users_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'system_admin')
-      .single();
-
-    console.log("Middleware - System admin check:", { systemAdminRole, systemError });
-
-    if (systemAdminRole) {
-      console.log("Middleware - User is system_admin");
+    // Vérifier si c'est un system_admin via les métadonnées
+    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    
+    if (systemRole === 'system_admin') {
+      console.log("Middleware - User is system_admin (from metadata)");
       // System admin peut accéder à /dashboard et /dashboard/org/[id]
       if (pathname === '/dashboard' || pathname === '/dashboard/default') {
         // Vue globale pour system admin
@@ -104,14 +97,9 @@ export async function middleware(request: NextRequest) {
 
       if (orgRole) {
         console.log("Middleware - User is org_admin");
-        // Org admin ne peut accéder qu'à /dashboard (URL masquée)
-        if (pathname === '/dashboard') {
+        // Org admin peut accéder à /dashboard et ses sous-routes
+        if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
           return supabaseResponse;
-        } else if (pathname.startsWith('/dashboard/org/')) {
-          // Rediriger vers /dashboard pour org admin
-          const redirectUrl = request.nextUrl.clone();
-          redirectUrl.pathname = '/dashboard';
-          return NextResponse.redirect(redirectUrl);
         }
       } else {
         console.log("Middleware - User has no role, redirecting to unauthorized");
