@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
 
@@ -14,6 +17,7 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { cn, getInitials } from "@/lib/utils";
+import { useLogout } from "@/lib/queries/auth";
 
 export function AccountSwitcher({
   users,
@@ -27,6 +31,20 @@ export function AccountSwitcher({
   }>;
 }) {
   const [activeUser, setActiveUser] = useState(users[0]);
+  const router = useRouter();
+  const logoutMutation = useLogout();
+  const t = useTranslations("user_menu");
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+      toast.success(t("logout_success"));
+      router.push("/auth/v1/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error(t("logout_error"));
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -71,9 +89,13 @@ export function AccountSwitcher({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <LogOut />
-          Log out
+        <DropdownMenuItem
+          onClick={handleLogout}
+          disabled={logoutMutation.isPending}
+          className="text-red-600 focus:text-red-600"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          {logoutMutation.isPending ? t("logout_loading") : t("logout")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

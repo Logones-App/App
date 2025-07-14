@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { createClient } from "@/lib/supabase/client";
 import { useUserMainRole } from "@/lib/queries/auth";
@@ -12,7 +11,6 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const { setUser, setSession, setLoading } = useAuthStore();
-  const router = useRouter();
 
   useEffect(() => {
     console.log("AuthProvider mounted");
@@ -20,24 +18,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const supabase = createClient();
     console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-    // Écouter les changements d'authentification en premier
+    // Écouter les changements d'authentification
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
 
       if (event === "SIGNED_IN" && session) {
+        console.log("🔐 Connexion détectée");
         setUser(session.user);
         setSession(session);
         setLoading(false);
-        router.push("/dashboard");
       } else if (event === "SIGNED_OUT") {
+        console.log("🔐 Déconnexion détectée");
         setUser(null);
         setSession(null);
         setLoading(false);
-        router.push("/auth/v1/login");
       } else if (event === "INITIAL_SESSION") {
-        // Gérer la session initiale
         console.log("Initial session:", session);
         if (session) {
           setUser(session.user);
@@ -51,10 +48,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const checkCurrentSession = async () => {
       try {
         console.log("Checking current session...");
-
-        // Vérifier les cookies d'abord
-        const cookies = document.cookie;
-        console.log("Available cookies:", cookies);
 
         // Vérifier la session via l'API route côté serveur
         try {
@@ -88,7 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setUser, setSession, setLoading, router]);
+  }, [setUser, setSession, setLoading]);
 
   return <>{children}</>;
 }

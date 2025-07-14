@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -16,6 +17,9 @@ const FormSchema = z.object({
 });
 
 export function ForgotPasswordForm() {
+  const t = useTranslations("auth.forgot_password");
+  const tv = useTranslations("auth.validation");
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -32,14 +36,14 @@ export function ForgotPasswordForm() {
 
       if (error) {
         console.error("Reset password error:", error);
-        toast.error("Erreur lors de l'envoi de l'email. Veuillez réessayer.");
+        toast.error(t("errors.generic"));
       } else {
-        toast.success("Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
+        toast.success(t("success"));
         form.reset();
       }
     } catch (error) {
       console.error("Reset password error:", error);
-      toast.error("Erreur lors de l'envoi de l'email. Veuillez réessayer.");
+      toast.error(t("errors.generic"));
     }
   };
 
@@ -51,21 +55,21 @@ export function ForgotPasswordForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Adresse email</FormLabel>
+              <FormLabel>{t("email_label")}</FormLabel>
               <FormControl>
-                <Input id="email" type="email" placeholder="votre@email.com" autoComplete="email" {...field} />
+                <Input id="email" type="email" placeholder={t("email_placeholder")} autoComplete="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button className="w-full" type="submit">
-          Envoyer le lien de réinitialisation
+          {t("send_reset_link")}
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
           <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
-            Retour à la connexion
+            {t("back_to_login")}
           </Link>
         </div>
       </form>

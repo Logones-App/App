@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUserMainRole } from "@/lib/queries/auth";
 

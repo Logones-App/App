@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -26,6 +27,9 @@ const FormSchema = z
 
 export function ResetPasswordForm() {
   const router = useRouter();
+  const t = useTranslations("auth.reset_password");
+  const tv = useTranslations("auth.validation");
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -43,14 +47,14 @@ export function ResetPasswordForm() {
 
       if (error) {
         console.error("Update password error:", error);
-        toast.error("Erreur lors de la réinitialisation du mot de passe. Veuillez réessayer.");
+        toast.error(t("errors.generic"));
       } else {
-        toast.success("Mot de passe mis à jour avec succès !");
+        toast.success(t("success"));
         router.push("/auth/v1/login");
       }
     } catch (error) {
       console.error("Update password error:", error);
-      toast.error("Erreur lors de la réinitialisation du mot de passe. Veuillez réessayer.");
+      toast.error(t("errors.generic"));
     }
   };
 
@@ -62,9 +66,15 @@ export function ResetPasswordForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nouveau mot de passe</FormLabel>
+              <FormLabel>{t("password_label")}</FormLabel>
               <FormControl>
-                <Input id="password" type="password" placeholder="••••••••" autoComplete="new-password" {...field} />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder={t("password_placeholder")}
+                  autoComplete="new-password"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -75,12 +85,12 @@ export function ResetPasswordForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirmer le nouveau mot de passe</FormLabel>
+              <FormLabel>{t("confirm_password_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("confirm_password_placeholder")}
                   autoComplete="new-password"
                   {...field}
                 />
@@ -90,12 +100,12 @@ export function ResetPasswordForm() {
           )}
         />
         <Button className="w-full" type="submit">
-          Mettre à jour le mot de passe
+          {t("reset_button")}
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
           <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
-            Retour à la connexion
+            {t("back_to_login")}
           </Link>
         </div>
       </form>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -33,6 +34,8 @@ export function RegisterFormV1() {
   const router = useRouter();
   const registerMutation = useRegister();
   const { setUser } = useAuthStore();
+  const t = useTranslations("auth.register");
+  const tv = useTranslations("auth.validation");
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -57,20 +60,20 @@ export function RegisterFormV1() {
       });
 
       setUser(result.user);
-      toast.success("Compte créé avec succès ! Redirection...");
+      toast.success(t("success"));
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Register error:", error);
 
       // Messages d'erreur plus spécifiques
       if (error?.message?.includes("User already registered")) {
-        toast.error("Un compte avec cet email existe déjà.");
+        toast.error(t("errors.email_already_exists"));
       } else if (error?.message?.includes("Password should be at least")) {
-        toast.error("Le mot de passe doit contenir au moins 8 caractères.");
+        toast.error(t("errors.weak_password"));
       } else if (error?.message?.includes("Invalid email")) {
-        toast.error("Adresse email invalide.");
+        toast.error(tv("email_invalid"));
       } else {
-        toast.error("Erreur lors de l'inscription. Veuillez réessayer.");
+        toast.error(t("errors.generic"));
       }
     }
   };
@@ -84,12 +87,12 @@ export function RegisterFormV1() {
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Prénom</FormLabel>
+                <FormLabel>{t("firstname_label")}</FormLabel>
                 <FormControl>
                   <Input
                     id="firstName"
                     type="text"
-                    placeholder="Jean"
+                    placeholder={t("firstname_placeholder")}
                     autoComplete="given-name"
                     disabled={registerMutation.isPending}
                     {...field}
@@ -104,12 +107,12 @@ export function RegisterFormV1() {
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nom</FormLabel>
+                <FormLabel>{t("lastname_label")}</FormLabel>
                 <FormControl>
                   <Input
                     id="lastName"
                     type="text"
-                    placeholder="Dupont"
+                    placeholder={t("lastname_placeholder")}
                     autoComplete="family-name"
                     disabled={registerMutation.isPending}
                     {...field}
@@ -125,12 +128,12 @@ export function RegisterFormV1() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Adresse email</FormLabel>
+              <FormLabel>{t("email_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder={t("email_placeholder")}
                   autoComplete="email"
                   disabled={registerMutation.isPending}
                   {...field}
@@ -165,12 +168,12 @@ export function RegisterFormV1() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mot de passe</FormLabel>
+              <FormLabel>{t("password_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("password_placeholder")}
                   autoComplete="new-password"
                   disabled={registerMutation.isPending}
                   {...field}
@@ -185,12 +188,12 @@ export function RegisterFormV1() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirmer le mot de passe</FormLabel>
+              <FormLabel>{t("confirm_password_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("confirm_password_placeholder")}
                   autoComplete="new-password"
                   disabled={registerMutation.isPending}
                   {...field}
@@ -204,17 +207,17 @@ export function RegisterFormV1() {
           {registerMutation.isPending ? (
             <>
               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-              Création...
+              {t("register_loading")}
             </>
           ) : (
-            "Créer le compte"
+            t("register_button")
           )}
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
-          Déjà un compte ?{" "}
+          {t("already_have_account")}{" "}
           <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
-            Se connecter
+            {t("login_link")}
           </Link>
         </div>
       </form>

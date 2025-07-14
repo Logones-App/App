@@ -29,28 +29,164 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "welcome": "Welcome to your management space",
+    "welcome": "Welcome to your workspace",
     "stats": {
       "organizations": "Organizations",
       "establishments": "Establishments",
       "reservations": "Reservations",
       "revenue": "Revenue",
-      "active_organizations": "Active organizations",
-      "created_establishments": "Created establishments",
-      "today_reservations": "Today's reservations",
-      "this_month": "This month"
+      "active_organizations": "active organizations",
+      "created_establishments": "created establishments",
+      "today_reservations": "reservations today",
+      "this_month": "this month"
     },
     "quick_actions": {
       "title": "Quick Actions",
       "description": "Quickly access main features",
       "manage_establishments": "Manage establishments",
       "view_reservations": "View reservations",
-      "manage_team": "Manage team"
+      "manage_team": "Manage team",
+      "add_organization": "Add organization",
+      "view_analytics": "View analytics"
     },
     "organizations": {
-      "title": "Organizations",
-      "description": "Your organizations and their information",
+      "title": "Your Organizations",
+      "description": "Manage your organizations and their settings",
       "no_organizations": "No organizations found"
+    }
+  },
+  "establishments": {
+    "title": "Establishments",
+    "description": "Manage your restaurants and establishments",
+    "new_establishment": "New establishment",
+    "organization": {
+      "title": "Organization",
+      "description": "Select the organization to see its establishments"
+    },
+    "status": {
+      "public": "Public",
+      "private": "Private"
+    },
+    "empty": {
+      "title": "No establishments",
+      "description": "You haven't created any establishments in this organization yet.",
+      "create_first": "Create your first establishment"
+    }
+  },
+  "admin": {
+    "users": {
+      "title": "User Management",
+      "description": "Manage users and their roles in the system"
+    }
+  },
+  "user_menu": {
+    "account": "Account",
+    "billing": "Billing",
+    "notifications": "Notifications",
+    "logout": "Sign out",
+    "logout_loading": "Signing out...",
+    "logout_success": "Successfully signed out!",
+    "logout_error": "Error signing out. Please try again."
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "subtitle": "Welcome back. Enter your email and password, let's hope you remember them this time.",
+      "welcome_message": "Hello again",
+      "login_to_continue": "Login to continue",
+      "email_label": "Email address",
+      "email_placeholder": "your@email.com",
+      "password_label": "Password",
+      "password_placeholder": "••••••••",
+      "remember_me": "Remember me for 30 days",
+      "forgot_password": "Forgot password?",
+      "login_button": "Sign in",
+      "login_loading": "Signing in...",
+      "continue_with_google": "Continue with Google",
+      "no_account": "Don't have an account?",
+      "create_account": "Register",
+      "errors": {
+        "invalid_credentials": "Invalid email or password.",
+        "email_not_confirmed": "Please confirm your email before signing in.",
+        "generic": "Login error. Please try again."
+      },
+      "success": "Login successful! Redirecting..."
+    },
+    "register": {
+      "title": "Register",
+      "subtitle": "Create your account to get started",
+      "welcome_message": "Join us",
+      "create_account_message": "Create your account to get started",
+      "firstname_label": "First name",
+      "firstname_placeholder": "Your first name",
+      "lastname_label": "Last name",
+      "lastname_placeholder": "Your last name",
+      "email_label": "Email address",
+      "email_placeholder": "your@email.com",
+      "password_label": "Password",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirm password",
+      "confirm_password_placeholder": "••••••••",
+      "terms_agreement": "I agree to the terms of service",
+      "register_button": "Create account",
+      "register_loading": "Creating account...",
+      "continue_with_google": "Continue with Google",
+      "already_have_account": "Already have an account?",
+      "login_link": "Sign in",
+      "errors": {
+        "email_already_exists": "This email address is already in use.",
+        "weak_password": "Password must contain at least 6 characters.",
+        "passwords_dont_match": "Passwords do not match.",
+        "generic": "Error creating account. Please try again."
+      },
+      "success": "Account created successfully! Please check your email."
+    },
+    "forgot_password": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email to receive a reset link",
+      "welcome_message": "Forgot password?",
+      "reset_message": "No problem. Enter your email and we'll send you a reset link.",
+      "email_label": "Email address",
+      "email_placeholder": "your@email.com",
+      "send_reset_link": "Send reset link",
+      "sending": "Sending...",
+      "back_to_login": "Back to login",
+      "errors": {
+        "email_not_found": "No account found with this email address.",
+        "generic": "Error sending. Please try again."
+      },
+      "success": "Reset link sent! Please check your email."
+    },
+    "reset_password": {
+      "title": "Reset password",
+      "subtitle": "Enter your new password",
+      "welcome_message": "New password",
+      "reset_message": "Enter your new password below.",
+      "password_label": "New password",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirm new password",
+      "confirm_password_placeholder": "••••••••",
+      "reset_button": "Reset password",
+      "resetting": "Resetting...",
+      "back_to_login": "Back to login",
+      "errors": {
+        "invalid_token": "The reset link is invalid or has expired.",
+        "weak_password": "Password must contain at least 6 characters.",
+        "passwords_dont_match": "Passwords do not match.",
+        "generic": "Error resetting password. Please try again."
+      },
+      "success": "Password reset successfully! You can now sign in."
+    },
+    "validation": {
+      "email_required": "Email address is required.",
+      "email_invalid": "Please enter a valid email address.",
+      "password_required": "Password is required.",
+      "password_min_length": "Password must contain at least 6 characters.",
+      "firstname_required": "First name is required.",
+      "lastname_required": "Last name is required.",
+      "confirm_password_required": "Password confirmation is required.",
+      "passwords_must_match": "Passwords must match.",
+      "terms_required": "You must accept the terms of service."
     }
   }
 } 

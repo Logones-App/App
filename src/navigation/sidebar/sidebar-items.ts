@@ -105,10 +105,14 @@ export const sidebarItems: NavGroup[] = [
         comingSoon: true,
       },
       {
+        title: "Establishments",
+        url: "/dashboard/establishments",
+        icon: ShoppingBag,
+      },
+      {
         title: "Users",
-        url: "/users",
+        url: "/dashboard/admin/users",
         icon: Users,
-        comingSoon: true,
       },
       {
         title: "Roles",

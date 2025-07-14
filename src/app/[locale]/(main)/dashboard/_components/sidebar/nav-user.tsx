@@ -1,6 +1,9 @@
 "use client";
 
 import { EllipsisVertical, CircleUser, CreditCard, MessageSquareDot, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -14,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { getInitials } from "@/lib/utils";
+import { useLogout } from "@/lib/queries/auth";
 
 export function NavUser({
   user,
@@ -25,6 +29,20 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
+  const logoutMutation = useLogout();
+  const t = useTranslations("user_menu");
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+      toast.success(t("logout_success"));
+      router.push("/auth/v1/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error(t("logout_error"));
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -67,22 +85,33 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <CircleUser />
-                Account
+                <CircleUser className="mr-2 h-4 w-4" />
+                {t("account")}
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <CreditCard />
-                Billing
+                <CreditCard className="mr-2 h-4 w-4" />
+                {t("billing")}
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <MessageSquareDot />
-                Notifications
+                <MessageSquareDot className="mr-2 h-4 w-4" />
+                {t("notifications")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOut />
-              Log out
+            <DropdownMenuItem disabled={logoutMutation.isPending} className="p-0 text-red-600 focus:text-red-600">
+              <button
+                onClick={(e) => {
+                  console.log("🖱️ Bouton logout cliqué!", e);
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleLogout();
+                }}
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-sm"
+                disabled={logoutMutation.isPending}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {logoutMutation.isPending ? t("logout_loading") : t("logout")}
+              </button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

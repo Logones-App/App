@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +25,8 @@ export function LoginFormV1() {
   const router = useRouter();
   const loginMutation = useLogin();
   const { setUser } = useAuthStore();
+  const t = useTranslations("auth.login");
+  const tv = useTranslations("auth.validation");
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -42,18 +45,18 @@ export function LoginFormV1() {
       });
 
       setUser(result.user);
-      toast.success("Connexion réussie ! Redirection...");
+      toast.success(t("success"));
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
 
       // Messages d'erreur plus spécifiques
       if (error?.message?.includes("Invalid login credentials")) {
-        toast.error("Email ou mot de passe incorrect.");
+        toast.error(t("errors.invalid_credentials"));
       } else if (error?.message?.includes("Email not confirmed")) {
-        toast.error("Veuillez confirmer votre email avant de vous connecter.");
+        toast.error(t("errors.email_not_confirmed"));
       } else {
-        toast.error("Erreur de connexion. Veuillez réessayer.");
+        toast.error(t("errors.generic"));
       }
     }
   };
@@ -66,12 +69,12 @@ export function LoginFormV1() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Adresse email</FormLabel>
+              <FormLabel>{t("email_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder={t("email_placeholder")}
                   autoComplete="email"
                   disabled={loginMutation.isPending}
                   {...field}
@@ -86,12 +89,12 @@ export function LoginFormV1() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mot de passe</FormLabel>
+              <FormLabel>{t("password_label")}</FormLabel>
               <FormControl>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("password_placeholder")}
                   autoComplete="current-password"
                   disabled={loginMutation.isPending}
                   {...field}
@@ -117,11 +120,11 @@ export function LoginFormV1() {
                   />
                 </FormControl>
                 <FormLabel htmlFor="login-remember" className="text-muted-foreground text-sm font-medium">
-                  Se souvenir de moi pendant 30 jours
+                  {t("remember_me")}
                 </FormLabel>
               </div>
               <Link href="/auth/v1/forgot-password" className="text-primary text-sm font-medium hover:underline">
-                Mot de passe oublié ?
+                {t("forgot_password")}
               </Link>
             </FormItem>
           )}
@@ -130,17 +133,17 @@ export function LoginFormV1() {
           {loginMutation.isPending ? (
             <>
               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-              Connexion...
+              {t("login_loading")}
             </>
           ) : (
-            "Se connecter"
+            t("login_button")
           )}
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
-          Pas encore de compte ?{" "}
+          {t("no_account")}{" "}
           <Link href="/auth/v1/register" className="text-primary font-medium hover:underline">
-            Créer un compte
+            {t("create_account")}
           </Link>
         </div>
       </form>

@@ -24,33 +24,169 @@
     "org_overview": "Vue d'ensemble de votre organisation"
   },
   "HomePage": {
-    "title": "Bienvenue dans votre dashboard",
+    "title": "Bienvenue sur votre tableau de bord",
     "about": "À propos"
   },
   "dashboard": {
     "title": "Tableau de bord",
-    "welcome": "Bienvenue dans votre espace de gestion",
+    "welcome": "Bienvenue dans votre espace de travail",
     "stats": {
       "organizations": "Organisations",
       "establishments": "Établissements",
       "reservations": "Réservations",
       "revenue": "Revenus",
-      "active_organizations": "Organisations actives",
-      "created_establishments": "Établissements créés",
-      "today_reservations": "Réservations aujourd'hui",
-      "this_month": "Ce mois-ci"
+      "active_organizations": "organisations actives",
+      "created_establishments": "établissements créés",
+      "today_reservations": "réservations aujourd'hui",
+      "this_month": "ce mois"
     },
     "quick_actions": {
       "title": "Actions rapides",
       "description": "Accédez rapidement aux fonctionnalités principales",
       "manage_establishments": "Gérer les établissements",
       "view_reservations": "Voir les réservations",
-      "manage_team": "Gérer l'équipe"
+      "manage_team": "Gérer l'équipe",
+      "add_organization": "Ajouter une organisation",
+      "view_analytics": "Voir les analyses"
     },
     "organizations": {
-      "title": "Organisations",
-      "description": "Vos organisations et leurs informations",
+      "title": "Vos organisations",
+      "description": "Gérez vos organisations et leurs paramètres",
       "no_organizations": "Aucune organisation trouvée"
+    }
+  },
+  "establishments": {
+    "title": "Établissements",
+    "description": "Gérez vos restaurants et établissements",
+    "new_establishment": "Nouvel établissement",
+    "organization": {
+      "title": "Organisation",
+      "description": "Sélectionnez l'organisation pour voir ses établissements"
+    },
+    "status": {
+      "public": "Public",
+      "private": "Privé"
+    },
+    "empty": {
+      "title": "Aucun établissement",
+      "description": "Vous n'avez pas encore créé d'établissement dans cette organisation.",
+      "create_first": "Créer votre premier établissement"
+    }
+  },
+  "admin": {
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "description": "Gérez les utilisateurs et leurs rôles dans le système"
+    }
+  },
+  "user_menu": {
+    "account": "Compte",
+    "billing": "Facturation",
+    "notifications": "Notifications",
+    "logout": "Se déconnecter",
+    "logout_loading": "Déconnexion...",
+    "logout_success": "Déconnexion réussie !",
+    "logout_error": "Erreur lors de la déconnexion. Veuillez réessayer."
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "subtitle": "Bon retour. Entrez votre email et mot de passe, espérons que vous vous en souvenez cette fois.",
+      "welcome_message": "Bonjour à nouveau",
+      "login_to_continue": "Connectez-vous pour continuer",
+      "email_label": "Adresse email",
+      "email_placeholder": "votre@email.com",
+      "password_label": "Mot de passe",
+      "password_placeholder": "••••••••",
+      "remember_me": "Se souvenir de moi pendant 30 jours",
+      "forgot_password": "Mot de passe oublié ?",
+      "login_button": "Se connecter",
+      "login_loading": "Connexion...",
+      "continue_with_google": "Continuer avec Google",
+      "no_account": "Pas encore de compte ?",
+      "create_account": "Créer un compte",
+      "errors": {
+        "invalid_credentials": "Email ou mot de passe incorrect.",
+        "email_not_confirmed": "Veuillez confirmer votre email avant de vous connecter.",
+        "generic": "Erreur de connexion. Veuillez réessayer."
+      },
+      "success": "Connexion réussie ! Redirection..."
+    },
+    "register": {
+      "title": "Inscription",
+      "subtitle": "Créez votre compte pour commencer",
+      "welcome_message": "Rejoignez-nous",
+      "create_account_message": "Créez votre compte pour commencer",
+      "firstname_label": "Prénom",
+      "firstname_placeholder": "Votre prénom",
+      "lastname_label": "Nom",
+      "lastname_placeholder": "Votre nom",
+      "email_label": "Adresse email",
+      "email_placeholder": "votre@email.com",
+      "password_label": "Mot de passe",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirmer le mot de passe",
+      "confirm_password_placeholder": "••••••••",
+      "terms_agreement": "J'accepte les conditions d'utilisation",
+      "register_button": "Créer un compte",
+      "register_loading": "Création du compte...",
+      "continue_with_google": "Continuer avec Google",
+      "already_have_account": "Vous avez déjà un compte ?",
+      "login_link": "Se connecter",
+      "errors": {
+        "email_already_exists": "Cette adresse email est déjà utilisée.",
+        "weak_password": "Le mot de passe doit contenir au moins 6 caractères.",
+        "passwords_dont_match": "Les mots de passe ne correspondent pas.",
+        "generic": "Erreur lors de la création du compte. Veuillez réessayer."
+      },
+      "success": "Compte créé avec succès ! Vérifiez votre email."
+    },
+    "forgot_password": {
+      "title": "Mot de passe oublié",
+      "subtitle": "Entrez votre email pour recevoir un lien de réinitialisation",
+      "welcome_message": "Mot de passe oublié ?",
+      "reset_message": "Pas de problème. Entrez votre email et nous vous enverrons un lien de réinitialisation.",
+      "email_label": "Adresse email",
+      "email_placeholder": "votre@email.com",
+      "send_reset_link": "Envoyer le lien de réinitialisation",
+      "sending": "Envoi...",
+      "back_to_login": "Retour à la connexion",
+      "errors": {
+        "email_not_found": "Aucun compte trouvé avec cette adresse email.",
+        "generic": "Erreur lors de l'envoi. Veuillez réessayer."
+      },
+      "success": "Lien de réinitialisation envoyé ! Vérifiez votre email."
+    },
+    "reset_password": {
+      "title": "Réinitialiser le mot de passe",
+      "subtitle": "Entrez votre nouveau mot de passe",
+      "welcome_message": "Nouveau mot de passe",
+      "reset_message": "Entrez votre nouveau mot de passe ci-dessous.",
+      "password_label": "Nouveau mot de passe",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirmer le nouveau mot de passe",
+      "confirm_password_placeholder": "••••••••",
+      "reset_button": "Réinitialiser le mot de passe",
+      "resetting": "Réinitialisation...",
+      "back_to_login": "Retour à la connexion",
+      "errors": {
+        "invalid_token": "Le lien de réinitialisation est invalide ou a expiré.",
+        "weak_password": "Le mot de passe doit contenir au moins 6 caractères.",
+        "passwords_dont_match": "Les mots de passe ne correspondent pas.",
+        "generic": "Erreur lors de la réinitialisation. Veuillez réessayer."
+      },
+      "success": "Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter."
+    },
+    "validation": {
+      "email_required": "L'adresse email est requise.",
+      "email_invalid": "Veuillez entrer une adresse email valide.",
+      "password_required": "Le mot de passe est requis.",
+      "password_min_length": "Le mot de passe doit contenir au moins 6 caractères.",
+      "firstname_required": "Le prénom est requis.",
+      "lastname_required": "Le nom est requis.",
+      "confirm_password_required": "La confirmation du mot de passe est requise.",
+      "passwords_must_match": "Les mots de passe doivent correspondre.",
+      "terms_required": "Vous devez accepter les conditions d'utilisation."
     }
   }
 } 

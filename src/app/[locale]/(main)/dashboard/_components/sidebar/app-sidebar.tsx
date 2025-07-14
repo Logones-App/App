@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
-import { rootUser } from "@/data/users";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
@@ -56,6 +56,24 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuthStore();
+
+  // Créer l'objet user pour NavUser
+  const currentUser = user
+    ? {
+        name:
+          `${user.user_metadata?.firstname || ""} ${user.user_metadata?.lastname || ""}`.trim() ||
+          user.email ||
+          "Utilisateur",
+        email: user.email || "",
+        avatar: user.user_metadata?.avatar_url || "",
+      }
+    : {
+        name: "Utilisateur",
+        email: "",
+        avatar: "",
+      };
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -76,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={rootUser} />
+        <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
   );

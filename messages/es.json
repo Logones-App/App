@@ -29,28 +29,164 @@
   },
   "dashboard": {
     "title": "Panel de control",
-    "welcome": "Bienvenido a tu espacio de gestión",
+    "welcome": "Bienvenido a tu espacio de trabajo",
     "stats": {
       "organizations": "Organizaciones",
       "establishments": "Establecimientos",
       "reservations": "Reservas",
       "revenue": "Ingresos",
-      "active_organizations": "Organizaciones activas",
-      "created_establishments": "Establecimientos creados",
-      "today_reservations": "Reservas de hoy",
-      "this_month": "Este mes"
+      "active_organizations": "organizaciones activas",
+      "created_establishments": "establecimientos creados",
+      "today_reservations": "reservas hoy",
+      "this_month": "este mes"
     },
     "quick_actions": {
       "title": "Acciones rápidas",
       "description": "Accede rápidamente a las funciones principales",
       "manage_establishments": "Gestionar establecimientos",
       "view_reservations": "Ver reservas",
-      "manage_team": "Gestionar equipo"
+      "manage_team": "Gestionar equipo",
+      "add_organization": "Añadir organización",
+      "view_analytics": "Ver análisis"
     },
     "organizations": {
-      "title": "Organizaciones",
-      "description": "Tus organizaciones y su información",
+      "title": "Tus organizaciones",
+      "description": "Gestiona tus organizaciones y sus configuraciones",
       "no_organizations": "No se encontraron organizaciones"
+    }
+  },
+  "establishments": {
+    "title": "Establecimientos",
+    "description": "Gestiona tus restaurantes y establecimientos",
+    "new_establishment": "Nuevo establecimiento",
+    "organization": {
+      "title": "Organización",
+      "description": "Selecciona la organización para ver sus establecimientos"
+    },
+    "status": {
+      "public": "Público",
+      "private": "Privado"
+    },
+    "empty": {
+      "title": "Sin establecimientos",
+      "description": "Aún no has creado ningún establecimiento en esta organización.",
+      "create_first": "Crea tu primer establecimiento"
+    }
+  },
+  "admin": {
+    "users": {
+      "title": "Gestión de usuarios",
+      "description": "Gestiona usuarios y sus roles en el sistema"
+    }
+  },
+  "user_menu": {
+    "account": "Cuenta",
+    "billing": "Facturación",
+    "notifications": "Notificaciones",
+    "logout": "Cerrar sesión",
+    "logout_loading": "Cerrando sesión...",
+    "logout_success": "¡Sesión cerrada exitosamente!",
+    "logout_error": "Error al cerrar sesión. Por favor inténtalo de nuevo."
+  },
+  "auth": {
+    "login": {
+      "title": "Iniciar sesión",
+      "subtitle": "Bienvenido de nuevo. Introduce tu email y contraseña, esperemos que los recuerdes esta vez.",
+      "welcome_message": "Hola de nuevo",
+      "login_to_continue": "Inicia sesión para continuar",
+      "email_label": "Dirección de email",
+      "email_placeholder": "tu@email.com",
+      "password_label": "Contraseña",
+      "password_placeholder": "••••••••",
+      "remember_me": "Recordarme durante 30 días",
+      "forgot_password": "¿Olvidaste tu contraseña?",
+      "login_button": "Iniciar sesión",
+      "login_loading": "Iniciando sesión...",
+      "continue_with_google": "Continuar con Google",
+      "no_account": "¿No tienes una cuenta?",
+      "create_account": "Registrarse",
+      "errors": {
+        "invalid_credentials": "Email o contraseña incorrectos.",
+        "email_not_confirmed": "Por favor confirma tu email antes de iniciar sesión.",
+        "generic": "Error de inicio de sesión. Por favor inténtalo de nuevo."
+      },
+      "success": "¡Inicio de sesión exitoso! Redirigiendo..."
+    },
+    "register": {
+      "title": "Registrarse",
+      "subtitle": "Crea tu cuenta para comenzar",
+      "welcome_message": "Únete a nosotros",
+      "create_account_message": "Crea tu cuenta para comenzar",
+      "firstname_label": "Nombre",
+      "firstname_placeholder": "Tu nombre",
+      "lastname_label": "Apellido",
+      "lastname_placeholder": "Tu apellido",
+      "email_label": "Dirección de email",
+      "email_placeholder": "tu@email.com",
+      "password_label": "Contraseña",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirmar contraseña",
+      "confirm_password_placeholder": "••••••••",
+      "terms_agreement": "Acepto los términos de servicio",
+      "register_button": "Crear cuenta",
+      "register_loading": "Creando cuenta...",
+      "continue_with_google": "Continuar con Google",
+      "already_have_account": "¿Ya tienes una cuenta?",
+      "login_link": "Iniciar sesión",
+      "errors": {
+        "email_already_exists": "Esta dirección de email ya está en uso.",
+        "weak_password": "La contraseña debe contener al menos 6 caracteres.",
+        "passwords_dont_match": "Las contraseñas no coinciden.",
+        "generic": "Error al crear la cuenta. Por favor inténtalo de nuevo."
+      },
+      "success": "¡Cuenta creada exitosamente! Por favor revisa tu email."
+    },
+    "forgot_password": {
+      "title": "Olvidé mi contraseña",
+      "subtitle": "Introduce tu email para recibir un enlace de restablecimiento",
+      "welcome_message": "¿Olvidaste tu contraseña?",
+      "reset_message": "No hay problema. Introduce tu email y te enviaremos un enlace de restablecimiento.",
+      "email_label": "Dirección de email",
+      "email_placeholder": "tu@email.com",
+      "send_reset_link": "Enviar enlace de restablecimiento",
+      "sending": "Enviando...",
+      "back_to_login": "Volver al inicio de sesión",
+      "errors": {
+        "email_not_found": "No se encontró ninguna cuenta con esta dirección de email.",
+        "generic": "Error al enviar. Por favor inténtalo de nuevo."
+      },
+      "success": "¡Enlace de restablecimiento enviado! Por favor revisa tu email."
+    },
+    "reset_password": {
+      "title": "Restablecer contraseña",
+      "subtitle": "Introduce tu nueva contraseña",
+      "welcome_message": "Nueva contraseña",
+      "reset_message": "Introduce tu nueva contraseña a continuación.",
+      "password_label": "Nueva contraseña",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirmar nueva contraseña",
+      "confirm_password_placeholder": "••••••••",
+      "reset_button": "Restablecer contraseña",
+      "resetting": "Restableciendo...",
+      "back_to_login": "Volver al inicio de sesión",
+      "errors": {
+        "invalid_token": "El enlace de restablecimiento es inválido o ha expirado.",
+        "weak_password": "La contraseña debe contener al menos 6 caracteres.",
+        "passwords_dont_match": "Las contraseñas no coinciden.",
+        "generic": "Error al restablecer la contraseña. Por favor inténtalo de nuevo."
+      },
+      "success": "¡Contraseña restablecida exitosamente! Ya puedes iniciar sesión."
+    },
+    "validation": {
+      "email_required": "La dirección de email es obligatoria.",
+      "email_invalid": "Por favor introduce una dirección de email válida.",
+      "password_required": "La contraseña es obligatoria.",
+      "password_min_length": "La contraseña debe contener al menos 6 caracteres.",
+      "firstname_required": "El nombre es obligatorio.",
+      "lastname_required": "El apellido es obligatorio.",
+      "confirm_password_required": "La confirmación de contraseña es obligatoria.",
+      "passwords_must_match": "Las contraseñas deben coincidir.",
+      "terms_required": "Debes aceptar los términos de servicio."
     }
   }
 } 

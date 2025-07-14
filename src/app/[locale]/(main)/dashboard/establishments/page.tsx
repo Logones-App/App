@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Building2, Edit, Trash2 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUserOrganizations } from "@/lib/queries/organizations";
@@ -16,6 +17,7 @@ type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
 export default function EstablishmentsPage() {
   const { user } = useAuthStore();
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>(undefined);
+  const t = useTranslations("establishments");
 
   // Récupérer les organisations de l'utilisateur
   const { data: organizations = [], isLoading: orgLoading } = useUserOrganizations(user?.id);
@@ -42,12 +44,12 @@ export default function EstablishmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Établissements</h1>
-          <p className="text-muted-foreground">Gérez vos restaurants et établissements</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("description")}</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Nouvel établissement
+          {t("new_establishment")}
         </Button>
       </div>
 
@@ -55,8 +57,8 @@ export default function EstablishmentsPage() {
       {organizations.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Organisation</CardTitle>
-            <CardDescription>Sélectionnez l'organisation pour voir ses établissements</CardDescription>
+            <CardTitle>{t("organization.title")}</CardTitle>
+            <CardDescription>{t("organization.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-2">
@@ -101,7 +103,7 @@ export default function EstablishmentsPage() {
                 {establishment.phone && <p className="text-muted-foreground text-sm">📞 {establishment.phone}</p>}
                 <div className="flex gap-2">
                   <Badge variant={establishment.is_public ? "default" : "secondary"}>
-                    {establishment.is_public ? "Public" : "Privé"}
+                    {establishment.is_public ? t("status.public") : t("status.private")}
                   </Badge>
                   {establishment.slug && <Badge variant="outline">/{establishment.slug}</Badge>}
                 </div>
@@ -115,13 +117,11 @@ export default function EstablishmentsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="text-muted-foreground mb-4 h-12 w-12" />
-            <h3 className="mb-2 text-lg font-semibold">Aucun établissement</h3>
-            <p className="text-muted-foreground mb-4 text-center">
-              Vous n'avez pas encore créé d'établissement dans cette organisation.
-            </p>
+            <h3 className="mb-2 text-lg font-semibold">{t("empty.title")}</h3>
+            <p className="text-muted-foreground mb-4 text-center">{t("empty.description")}</p>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Créer votre premier établissement
+              {t("empty.create_first")}
             </Button>
           </CardContent>
         </Card>
