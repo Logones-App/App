@@ -13,7 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useLogin } from "@/lib/queries/auth";
-import { useUserMainRole } from "@/lib/queries/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 const FormSchema = z.object({
@@ -28,9 +27,6 @@ export function LoginFormV1() {
   const { setUser, user, isAuthenticated } = useAuthStore();
   const t = useTranslations("auth.login");
   const tv = useTranslations("auth.validation");
-
-  // Récupérer le rôle après connexion
-  const { data: userMainRole } = useUserMainRole(isAuthenticated && user?.id ? user.id : undefined);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -50,9 +46,6 @@ export function LoginFormV1() {
 
       setUser(result.user);
       toast.success(t("success"));
-
-      // Attendre que les rôles soient chargés
-      console.log("🔄 Attente du chargement des rôles...");
 
       // Attendre un peu pour que l'état soit mis à jour
       await new Promise((resolve) => setTimeout(resolve, 500));

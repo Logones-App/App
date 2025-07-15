@@ -15,10 +15,10 @@ import { APP_CONFIG } from "@/config/app-config";
 import { systemAdminSidebarItems } from "@/navigation/sidebar/sidebar-items-system-admin";
 import { orgAdminSidebarItems } from "@/navigation/sidebar/sidebar-items-org-admin";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUserMainRole } from "@/hooks/use-user-main-role";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
+import { NavMain } from "@/app/[locale]/(main)/dashboard1/_components/sidebar/nav-main";
+import { NavUser } from "@/app/[locale]/(main)/dashboard1/_components/sidebar/nav-user";
 
 const data = {
   navSecondary: [
@@ -59,7 +59,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuthStore();
-  const { role } = useUserMainRole();
+  const { role } = useUserMetadata();
 
   // Sélectionner les sidebar-items selon le rôle
   const getSidebarItems = () => {

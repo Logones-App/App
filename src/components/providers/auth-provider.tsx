@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { createClient } from "@/lib/supabase/client";
-import { useUserMainRole } from "@/lib/queries/auth";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -88,10 +87,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 // Composant pour initialiser les rôles et l'organisation
 export function RoleInitializer({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
-
-  // Initialiser le rôle et l'organisation quand l'utilisateur est connecté
-  useUserMainRole(user?.id);
-
+  // Le middleware gère maintenant les rôles automatiquement
   return <>{children}</>;
 }
