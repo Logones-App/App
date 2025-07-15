@@ -12,13 +12,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
-import { systemAdminSidebarItems } from "@/navigation/sidebar/sidebar-items-system-admin";
-import { orgAdminSidebarItems } from "@/navigation/sidebar/sidebar-items-org-admin";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUserMetadata } from "@/hooks/use-user-metadata";
+import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
-import { NavMain } from "@/app/[locale]/(main)/dashboard1/_components/sidebar/nav-main";
-import { NavUser } from "@/app/[locale]/(main)/dashboard1/_components/sidebar/nav-user";
+import { NavMain } from "./nav-main";
+import { NavUser } from "./nav-user";
 
 const data = {
   navSecondary: [
@@ -59,20 +57,6 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuthStore();
-  const { role } = useUserMetadata();
-
-  // Sélectionner les sidebar-items selon le rôle
-  const getSidebarItems = () => {
-    if (role === "system_admin") {
-      return systemAdminSidebarItems;
-    } else if (role === "org_admin") {
-      return orgAdminSidebarItems;
-    }
-    // Fallback par défaut
-    return orgAdminSidebarItems;
-  };
-
-  const sidebarItems = getSidebarItems();
 
   // Créer l'objet user pour NavUser
   const currentUser = user

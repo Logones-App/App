@@ -1,72 +1,119 @@
-export default function OrgDashboardPage() {
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useUserOrganizations } from "@/lib/queries/organizations";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2, Users, Calendar, TrendingUp } from "lucide-react";
+import type { Database } from "@/lib/supabase/database.types";
+
+type Organization = Database["public"]["Tables"]["organizations"]["Row"];
+
+export default function DashboardPage() {
+  const { user } = useAuthStore();
+  const { data: organizations = [] } = useUserOrganizations(user?.id);
+  const t = useTranslations("dashboard");
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard Restaurant</h1>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("welcome")}</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="font-semibold">Établissements</h3>
-          <p className="text-2xl font-bold">3</p>
-          <p className="text-muted-foreground text-sm">Établissements actifs</p>
-        </div>
+      {/* Statistiques rapides */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("stats.organizations")}</CardTitle>
+            <Building2 className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{organizations.length}</div>
+            <p className="text-muted-foreground text-xs">{t("stats.active_organizations")}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="font-semibold">Réservations</h3>
-          <p className="text-2xl font-bold">45</p>
-          <p className="text-muted-foreground text-sm">Réservations aujourd'hui</p>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("stats.establishments")}</CardTitle>
+            <Building2 className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-muted-foreground text-xs">{t("stats.created_establishments")}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="font-semibold">Menus</h3>
-          <p className="text-2xl font-bold">12</p>
-          <p className="text-muted-foreground text-sm">Menus actifs</p>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("stats.reservations")}</CardTitle>
+            <Calendar className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-muted-foreground text-xs">{t("stats.today_reservations")}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="font-semibold">Équipe</h3>
-          <p className="text-2xl font-bold">8</p>
-          <p className="text-muted-foreground text-sm">Membres de l'équipe</p>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("stats.revenue")}</CardTitle>
+            <TrendingUp className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€0</div>
+            <p className="text-muted-foreground text-xs">{t("stats.this_month")}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="mb-4 font-semibold">Réservations Récentes</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Table 4 - 20h00</span>
-              <span className="text-muted-foreground text-sm">4 personnes</span>
+      {/* Actions rapides */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("quick_actions.title")}</CardTitle>
+            <CardDescription>{t("quick_actions.description")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
+              <Building2 className="h-4 w-4" />
+              <span>{t("quick_actions.manage_establishments")}</span>
             </div>
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Table 2 - 19h30</span>
-              <span className="text-muted-foreground text-sm">2 personnes</span>
+            <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
+              <Calendar className="h-4 w-4" />
+              <span>{t("quick_actions.view_reservations")}</span>
             </div>
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Table 8 - 21h00</span>
-              <span className="text-muted-foreground text-sm">6 personnes</span>
+            <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
+              <Users className="h-4 w-4" />
+              <span>{t("quick_actions.manage_team")}</span>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-          <h3 className="mb-4 font-semibold">Établissements</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Restaurant Principal</span>
-              <span className="text-muted-foreground text-sm">Ouvert</span>
-            </div>
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Terrasse</span>
-              <span className="text-muted-foreground text-sm">Ouvert</span>
-            </div>
-            <div className="flex items-center justify-between rounded border p-2">
-              <span>Salle Privée</span>
-              <span className="text-muted-foreground text-sm">Réservée</span>
-            </div>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("organizations.title")}</CardTitle>
+            <CardDescription>{t("organizations.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {organizations.length > 0 ? (
+              <div className="space-y-2">
+                {organizations.map((org: Organization) => (
+                  <div key={org.id} className="flex items-center justify-between rounded-md border p-2">
+                    <div>
+                      <p className="font-medium">{org.name}</p>
+                      <p className="text-muted-foreground text-sm">{org.description}</p>
+                    </div>
+                    <span className="text-muted-foreground text-xs">/{org.slug}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground py-4 text-center">{t("organizations.no_organizations")}</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
