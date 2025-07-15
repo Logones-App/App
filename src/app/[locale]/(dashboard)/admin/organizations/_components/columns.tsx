@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Edit, Trash2, Users, Building } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Users, Building, CheckCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Database } from "@/lib/supabase/database.types";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { useRouter } from "next/navigation";
 
 // Utiliser le type généré par Supabase
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
@@ -94,37 +96,57 @@ export const columns: ColumnDef<Organization>[] = [
     header: "Actions",
     cell: ({ row }) => {
       const organization = row.original;
+      const { selectedOrganization, setSelectedOrganization } = useWorkspaceStore();
+      const router = useRouter();
+      const isSelected = selectedOrganization?.id === organization.id;
+
+      const handleSelectOrganization = () => {
+        setSelectedOrganization(organization);
+        router.push(`/admin/organizations/${organization.id}`);
+      };
 
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Ouvrir le menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
-              Modifier
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Users className="mr-2 h-4 w-4" />
-              Gérer les utilisateurs
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Building className="mr-2 h-4 w-4" />
-              Voir les établissements
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Supprimer
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleSelectOrganization}
+            variant={isSelected ? "default" : "outline"}
+            size="sm"
+            className="h-8"
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            {isSelected ? "Sélectionnée" : "Sélectionner"}
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Ouvrir le menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSelectOrganization}>
+                <Building className="mr-2 h-4 w-4" />
+                Gérer cette organisation
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Users className="mr-2 h-4 w-4" />
+                Gérer les utilisateurs
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       );
     },
   },
