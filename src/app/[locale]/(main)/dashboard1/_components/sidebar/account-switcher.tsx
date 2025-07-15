@@ -39,7 +39,7 @@ export function AccountSwitcher({
     try {
       await logoutMutation.mutateAsync();
       toast.success(t("logout_success"));
-      router.push("/auth/v1/login");
+      router.push("/auth/login");
     } catch (error) {
       console.error("Logout error:", error);
       toast.error(t("logout_error"));

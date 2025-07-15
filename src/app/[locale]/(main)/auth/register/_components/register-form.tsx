@@ -216,7 +216,7 @@ export function RegisterFormV1() {
 
         <div className="text-muted-foreground text-center text-sm">
           {t("already_have_account")}{" "}
-          <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
+          <Link href="/auth/login" className="text-primary font-medium hover:underline">
             {t("login_link")}
           </Link>
         </div>

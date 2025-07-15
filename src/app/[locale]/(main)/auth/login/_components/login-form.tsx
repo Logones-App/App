@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useLogin } from "@/lib/queries/auth";
+import { useUserMainRole } from "@/lib/queries/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 const FormSchema = z.object({
@@ -24,9 +25,12 @@ const FormSchema = z.object({
 export function LoginFormV1() {
   const router = useRouter();
   const loginMutation = useLogin();
-  const { setUser } = useAuthStore();
+  const { setUser, user, isAuthenticated } = useAuthStore();
   const t = useTranslations("auth.login");
   const tv = useTranslations("auth.validation");
+
+  // Récupérer le rôle après connexion
+  const { data: userMainRole } = useUserMainRole(isAuthenticated && user?.id ? user.id : undefined);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -46,7 +50,40 @@ export function LoginFormV1() {
 
       setUser(result.user);
       toast.success(t("success"));
-      router.push("/dashboard");
+
+      // Attendre que les rôles soient chargés
+      console.log("🔄 Attente du chargement des rôles...");
+
+      // Attendre un peu pour que l'état soit mis à jour
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Récupérer le rôle directement
+      const response = await fetch("/api/auth/roles", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const roleData = await response.json();
+        console.log("🔍 Rôle récupéré:", roleData);
+
+        if (roleData.role === "system_admin") {
+          console.log("✅ System admin détecté - redirection vers /admin");
+          router.push("/admin");
+        } else if (roleData.role === "org_admin") {
+          console.log("✅ Org admin détecté - redirection vers /dashboard");
+          router.push("/dashboard");
+        } else {
+          console.log("⚠️ Aucun rôle valide trouvé - redirection vers /unauthorized");
+          router.push("/unauthorized");
+        }
+      } else {
+        console.log("❌ Erreur lors de la récupération du rôle");
+        router.push("/unauthorized");
+      }
     } catch (error: any) {
       console.error("Login error:", error);
 
@@ -123,7 +160,7 @@ export function LoginFormV1() {
                   {t("remember_me")}
                 </FormLabel>
               </div>
-              <Link href="/auth/v1/forgot-password" className="text-primary text-sm font-medium hover:underline">
+              <Link href="/auth/forgot-password" className="text-primary text-sm font-medium hover:underline">
                 {t("forgot_password")}
               </Link>
             </FormItem>
@@ -142,7 +179,7 @@ export function LoginFormV1() {
 
         <div className="text-muted-foreground text-center text-sm">
           {t("no_account")}{" "}
-          <Link href="/auth/v1/register" className="text-primary font-medium hover:underline">
+          <Link href="/auth/register" className="text-primary font-medium hover:underline">
             {t("create_account")}
           </Link>
         </div>

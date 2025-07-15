@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/auth/v1/reset-password`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {
@@ -68,7 +68,7 @@ export function ForgotPasswordForm() {
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
-          <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
+          <Link href="/auth/login" className="text-primary font-medium hover:underline">
             {t("back_to_login")}
           </Link>
         </div>

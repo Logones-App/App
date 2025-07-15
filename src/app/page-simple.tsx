@@ -8,13 +8,13 @@ export default function HomePageSimple() {
         <p className="text-lg text-gray-600">Système de gestion pour restaurants</p>
         <div className="space-x-4">
           <Link
-            href="/auth/v1/login"
+            href="/auth/login"
             className="bg-primary text-primary-foreground hover:bg-primary/90 inline-block rounded-lg px-6 py-3"
           >
             Se connecter
           </Link>
           <Link
-            href="/auth/v1/register"
+            href="/auth/register"
             className="bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-block rounded-lg px-6 py-3"
           >
             S'inscrire

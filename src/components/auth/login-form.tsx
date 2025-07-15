@@ -4,7 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 import { useLogin } from "@/lib/queries/auth";
+import { useUserMainRole } from "@/lib/queries/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,6 +21,11 @@ const FormSchema = z.object({
 
 export function LoginForm() {
   const loginMutation = useLogin();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+
+  // Récupérer le rôle après connexion
+  const { data: userMainRole } = useUserMainRole(isAuthenticated && user?.id ? user.id : undefined);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -35,7 +43,18 @@ export function LoginForm() {
         password: data.password,
       });
 
-      toast.success("Connexion réussie !");
+      toast.success("Connexion réussie ! Redirection en cours...");
+
+      // Attendre un peu pour que les rôles soient chargés
+      setTimeout(() => {
+        if (userMainRole?.role === "system_admin") {
+          router.push("/admin");
+        } else if (userMainRole?.role === "org_admin") {
+          router.push("/dashboard");
+        } else {
+          router.push("/unauthorized");
+        }
+      }, 1000);
     } catch (error) {
       console.error("Erreur de connexion:", error);
       toast.error("Erreur de connexion. Vérifiez vos identifiants.");

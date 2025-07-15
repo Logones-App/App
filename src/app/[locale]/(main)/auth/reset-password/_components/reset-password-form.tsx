@@ -50,7 +50,7 @@ export function ResetPasswordForm() {
         toast.error(t("errors.generic"));
       } else {
         toast.success(t("success"));
-        router.push("/auth/v1/login");
+        router.push("/auth/login");
       }
     } catch (error) {
       console.error("Update password error:", error);
@@ -104,7 +104,7 @@ export function ResetPasswordForm() {
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">
-          <Link href="/auth/v1/login" className="text-primary font-medium hover:underline">
+          <Link href="/auth/login" className="text-primary font-medium hover:underline">
             {t("back_to_login")}
           </Link>
         </div>

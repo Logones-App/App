@@ -14,7 +14,7 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
   const pathname = usePathname();
 
   // Pages qui ne nécessitent pas d'authentification
-  const publicPages = ["/", "/test-auth", "/auth/v1/login", "/auth/v1/register"];
+  const publicPages = ["/", "/test-auth", "/auth/login", "/auth/register"];
   const isPublicPage = publicPages.some((page) => pathname?.startsWith(page));
 
   useEffect(() => {

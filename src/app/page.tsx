@@ -16,10 +16,10 @@ export default function HomePage() {
 
           <div className="flex justify-center gap-4">
             <Button asChild size="lg">
-              <Link href="/auth/v1/login">Se connecter</Link>
+              <Link href="/auth/login">Se connecter</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/auth/v1/register">Créer un compte</Link>
+              <Link href="/auth/register">Créer un compte</Link>
             </Button>
           </div>
         </div>

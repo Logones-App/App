@@ -11,11 +11,11 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col space-y-4">
-          <Link href="/auth/v1/login">
+          <Link href="/auth/login">
             <Button className="w-full">Se connecter</Button>
           </Link>
 
-          <Link href="/auth/v1/register">
+          <Link href="/auth/register">
             <Button variant="outline" className="w-full">
               Créer un compte
             </Button>

@@ -7,7 +7,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="relative container grid flex-col items-center justify-center lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <Link href="/auth/v1/login" className="absolute top-4 left-4 md:top-8 md:left-8">
+      <Link href="/auth/login" className="absolute top-4 left-4 md:top-8 md:left-8">
         ← {t("back_to_login")}
       </Link>
       <div className="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r">

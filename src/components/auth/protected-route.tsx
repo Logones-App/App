@@ -26,7 +26,7 @@ export function ProtectedRoute({ children, requiredRoles, fallback }: ProtectedR
     const timeout = setTimeout(() => {
       if (isLoading) {
         console.error("Auth loading timeout - forcing redirect to login");
-        router.push("/auth/v1/login");
+        router.push("/auth/login");
       }
     }, 30000);
 
@@ -52,7 +52,7 @@ export function ProtectedRoute({ children, requiredRoles, fallback }: ProtectedR
     // Si l'authentification est terminée et que l'utilisateur n'est pas connecté
     if (!isAuthenticated) {
       console.log("Not authenticated, redirecting to login");
-      router.push("/auth/v1/login");
+      router.push("/auth/login");
       return;
     }
 
