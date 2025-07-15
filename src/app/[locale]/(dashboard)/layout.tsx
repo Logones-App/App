@@ -10,8 +10,15 @@ import { AccountSwitcher } from "./_components/sidebar/account-switcher";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
 import { SearchDialog } from "./_components/sidebar/search-dialog";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
+import { getServerUserRole } from "@/lib/services/auth-server";
 
-export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function Layout({
+  children,
+  params,
+}: Readonly<{
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}>) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
@@ -19,9 +26,15 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
   const sidebarCollapsible = await getSidebarCollapsible();
   const contentLayout = await getContentLayout();
 
+  // Récupère le rôle côté serveur pour éviter le flash
+  const userRole = await getServerUserRole();
+
+  // Attend les paramètres
+  const { locale } = await params;
+
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar variant={sidebarVariant} collapsible={sidebarCollapsible} />
+      <AppSidebar variant={sidebarVariant} collapsible={sidebarCollapsible} userRole={userRole} locale={locale} />
       <SidebarInset
         className={cn(
           contentLayout === "centered" && "!mx-auto max-w-screen-2xl",

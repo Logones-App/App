@@ -1,7 +1,7 @@
 "use client";
 
 import { EllipsisVertical, CircleUser, CreditCard, MessageSquareDot, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -30,6 +30,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const router = useRouter();
+  const params = useParams();
   const logoutMutation = useLogout();
   const t = useTranslations("user_menu");
 
@@ -37,7 +38,8 @@ export function NavUser({
     try {
       await logoutMutation.mutateAsync();
       toast.success(t("logout_success"));
-      router.push("/auth/login");
+      const locale = params?.locale as string;
+      router.push(`/${locale}/auth/login`);
     } catch (error) {
       console.error("Logout error:", error);
       toast.error(t("logout_error"));

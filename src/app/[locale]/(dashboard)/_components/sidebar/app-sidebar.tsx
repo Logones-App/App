@@ -14,6 +14,8 @@ import {
 import { APP_CONFIG } from "@/config/app-config";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { getSidebarItemsByRole } from "@/navigation/sidebar/sidebar-items";
+import { useParams } from "next/navigation";
+import { type NavGroup } from "@/navigation/sidebar/sidebar-items";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
@@ -55,14 +57,23 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  userRole?: string | null;
+  locale?: string;
+}
+
+export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   const { user } = useAuthStore();
+  const params = useParams();
 
-  // Obtenir le rôle de l'utilisateur
-  const userRole = user?.user_metadata?.role || user?.app_metadata?.role;
+  // Utilise le rôle passé en props (SSR) ou le calcule côté client
+  const finalUserRole = userRole || user?.user_metadata?.role || user?.app_metadata?.role;
 
-  // Obtenir les items de sidebar selon le rôle
-  const sidebarItems = getSidebarItemsByRole(userRole);
+  // Utilise la locale passée en props ou depuis les paramètres
+  const finalLocale = locale || (params?.locale as string);
+
+  // Calcule les items côté client pour éviter les problèmes d'icônes
+  const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale);
 
   // Créer l'objet user pour NavUser
   const currentUser = user
