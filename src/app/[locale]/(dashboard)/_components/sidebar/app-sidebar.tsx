@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
+import { getSidebarItemsByRole } from "@/navigation/sidebar/sidebar-items";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
@@ -57,6 +57,12 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuthStore();
+
+  // Obtenir le rôle de l'utilisateur
+  const userRole = user?.user_metadata?.role || user?.app_metadata?.role;
+
+  // Obtenir les items de sidebar selon le rôle
+  const sidebarItems = getSidebarItemsByRole(userRole);
 
   // Créer l'objet user pour NavUser
   const currentUser = user

@@ -15,6 +15,13 @@ import {
   Lock,
   Fingerprint,
   SquareArrowUpRight,
+  Building2,
+  Settings,
+  BarChart3,
+  UserCheck,
+  Store,
+  Utensils,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,7 +48,145 @@ export interface NavGroup {
   items: NavMainItem[];
 }
 
-export const sidebarItems: NavGroup[] = [
+// Menus pour system_admin
+export const getSystemAdminSidebarItems = (): NavGroup[] => [
+  {
+    id: 1,
+    label: "Administration",
+    items: [
+      {
+        title: "Tableau de bord",
+        url: "/admin",
+        icon: Home,
+      },
+      {
+        title: "Organisations",
+        url: "/admin/organizations",
+        icon: Building2,
+      },
+      {
+        title: "Utilisateurs",
+        url: "/admin/users",
+        icon: Users,
+      },
+      {
+        title: "Statistiques",
+        url: "/admin/analytics",
+        icon: BarChart3,
+      },
+    ],
+  },
+  {
+    id: 2,
+    label: "Gestion",
+    items: [
+      {
+        title: "Paramètres",
+        url: "/admin/settings",
+        icon: Settings,
+      },
+      {
+        title: "Rôles & Permissions",
+        url: "/admin/roles",
+        icon: Lock,
+      },
+      {
+        title: "Audit",
+        url: "/admin/audit",
+        icon: Fingerprint,
+        comingSoon: true,
+      },
+    ],
+  },
+  {
+    id: 3,
+    label: "Support",
+    items: [
+      {
+        title: "Support",
+        url: "/admin/support",
+        icon: MessageSquare,
+        comingSoon: true,
+      },
+      {
+        title: "Documentation",
+        url: "/admin/docs",
+        icon: BookA,
+        comingSoon: true,
+      },
+    ],
+  },
+];
+
+// Menus pour org_admin
+export const getOrgAdminSidebarItems = (): NavGroup[] => [
+  {
+    id: 1,
+    label: "Restaurant",
+    items: [
+      {
+        title: "Tableau de bord",
+        url: "/dashboard",
+        icon: Home,
+      },
+      {
+        title: "Établissements",
+        url: "/dashboard/establishments",
+        icon: Store,
+      },
+      {
+        title: "Menus",
+        url: "/dashboard/menus",
+        icon: Utensils,
+      },
+      {
+        title: "Réservations",
+        url: "/dashboard/reservations",
+        icon: Calendar,
+      },
+    ],
+  },
+  {
+    id: 2,
+    label: "Gestion",
+    items: [
+      {
+        title: "Équipe",
+        url: "/dashboard/team",
+        icon: Users,
+      },
+      {
+        title: "Horaires",
+        url: "/dashboard/schedule",
+        icon: Clock,
+      },
+      {
+        title: "Analytics",
+        url: "/dashboard/analytics",
+        icon: BarChart3,
+      },
+    ],
+  },
+  {
+    id: 3,
+    label: "Configuration",
+    items: [
+      {
+        title: "Paramètres",
+        url: "/dashboard/settings",
+        icon: Settings,
+      },
+      {
+        title: "Profil",
+        url: "/dashboard/profile",
+        icon: UserCheck,
+      },
+    ],
+  },
+];
+
+// Menu par défaut (fallback)
+export const getDefaultSidebarItems = (): NavGroup[] => [
   {
     id: 1,
     label: "Dashboards",
@@ -71,7 +216,7 @@ export const sidebarItems: NavGroup[] = [
         icon: Fingerprint,
         subItems: [
           { title: "Login", url: "/auth/login", newTab: true },
-{ title: "Register", url: "/auth/register", newTab: true },
+          { title: "Register", url: "/auth/register", newTab: true },
         ],
       },
       {
@@ -135,3 +280,18 @@ export const sidebarItems: NavGroup[] = [
     ],
   },
 ];
+
+// Fonction pour obtenir les items selon le rôle
+export const getSidebarItemsByRole = (role?: string): NavGroup[] => {
+  switch (role) {
+    case "system_admin":
+      return getSystemAdminSidebarItems();
+    case "org_admin":
+      return getOrgAdminSidebarItems();
+    default:
+      return getDefaultSidebarItems();
+  }
+};
+
+// Export par défaut pour compatibilité
+export const sidebarItems = getDefaultSidebarItems();
