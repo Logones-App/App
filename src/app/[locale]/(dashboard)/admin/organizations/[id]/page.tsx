@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { establishmentsRealtimeService } from "@/lib/services/realtime/modules/establishments-realtime";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Database } from "@/lib/supabase/database.types";
@@ -94,6 +96,14 @@ export default function OrganizationManagementPage() {
           setEstablishments(establishmentsData || []);
           setEstablishmentsError(null);
         }
+
+        // 🔌 S'abonner au realtime pour les établissements
+        console.log("🔌 Configuration realtime pour les établissements...");
+        establishmentsRealtimeService.subscribeToOrganizationEstablishments(organizationId, (updatedEstablishments) => {
+          console.log("📡 Établissements mis à jour en temps réel:", updatedEstablishments);
+          setEstablishments(updatedEstablishments as Establishment[]);
+          toast.success("Établissements mis à jour en temps réel");
+        });
       } catch (err) {
         console.error("❌ Erreur inattendue:", err);
         setError("Erreur lors du chargement des données");
@@ -108,6 +118,8 @@ export default function OrganizationManagementPage() {
 
     // Cleanup lors du démontage
     return () => {
+      console.log("🔌 Nettoyage realtime...");
+      establishmentsRealtimeService.unsubscribe();
       clearSelectedOrganization();
     };
   }, [organizationId, supabase, setSelectedOrganization, clearSelectedOrganization]);

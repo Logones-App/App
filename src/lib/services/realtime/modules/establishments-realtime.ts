@@ -1,210 +1,117 @@
-import { realtimeService, type RealtimeMessage } from '../../realtimeService';
-import { toast } from 'sonner';
-import type { Database } from '@/lib/supabase/database.types';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
+import { useRealtimeStore } from '@/lib/stores/realtime-store';
 
-// Types Supabase
-type Establishment = Database['public']['Tables']['establishments']['Row'];
-type Menu = Database['public']['Tables']['menus']['Row'];
-type Order = Database['public']['Tables']['orders']['Row'];
+const supabase = createClient();
 
-export interface EstablishmentRealtimeEvent {
-  type: 'establishment_created' | 'establishment_updated' | 'establishment_deleted' | 'menu_updated' | 'status_changed' | 'order_received';
-  establishmentId: string;
-  data: Establishment | Menu | Order | null;
-  organizationId?: string;
-  userId?: string;
-  timestamp: string;
+export interface Establishment {
+  id: string;
+  name: string;
+  organization_id: string;
+  description?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  deleted: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-export class EstablishmentsRealtimeModule {
-  private subscriptionIds: string[] = [];
+export class EstablishmentsRealtimeService {
+  private channel: RealtimeChannel | null = null;
+  private organizationId: string | null = null;
 
-  /**
-   * S'abonner aux changements des établissements
-   */
-  subscribeToEstablishments(organizationId?: string, onEvent?: (event: EstablishmentRealtimeEvent) => void) {
-    const filter = organizationId ? `organization_id=eq.${organizationId}` : undefined;
+  constructor() {
+    this.setupRealtimeConnection();
+  }
+
+  private setupRealtimeConnection() {
+    const { isConnected } = useRealtimeStore.getState();
     
-    const subscriptionId = realtimeService.subscribeToTable(
-      'establishments',
-      '*',
-      filter,
-      (message: RealtimeMessage) => {
-        if (message.type === 'data_update') {
-          const payload = message.data;
-          const event: EstablishmentRealtimeEvent = {
-            type: this.getEventType(payload.eventType),
-            establishmentId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old,
-            organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            userId: payload.new?.user_id || payload.old?.user_id,
-            timestamp: new Date().toISOString()
-          };
-
-          this.handleEstablishmentEvent(event);
-          onEvent?.(event);
-        }
-      }
-    );
-
-    this.subscriptionIds.push(subscriptionId);
-    return subscriptionId;
+    if (!isConnected) {
+      console.log('🔌 Realtime non connecté, établissements realtime en attente...');
+      return;
+    }
   }
 
-  /**
-   * S'abonner aux changements de menus
-   */
-  subscribeToMenus(establishmentId: string, onEvent?: (event: EstablishmentRealtimeEvent) => void) {
-    const subscriptionId = realtimeService.subscribeToTable(
-      'menus',
-      '*',
-      `establishment_id=eq.${establishmentId}`,
-      (message: RealtimeMessage) => {
-        if (message.type === 'data_update') {
-          const payload = message.data;
-          const event: EstablishmentRealtimeEvent = {
-            type: 'menu_updated',
-            establishmentId,
-            data: payload.new || payload.old,
-            organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            userId: payload.new?.user_id || payload.old?.user_id,
-            timestamp: new Date().toISOString()
-          };
-
-          this.handleEstablishmentEvent(event);
-          onEvent?.(event);
-        }
-      }
-    );
-
-    this.subscriptionIds.push(subscriptionId);
-    return subscriptionId;
-  }
-
-  /**
-   * S'abonner aux commandes d'un établissement
-   */
-  subscribeToOrders(establishmentId: string, onEvent?: (event: EstablishmentRealtimeEvent) => void) {
-    const subscriptionId = realtimeService.subscribeToTable(
-      'orders',
-      '*',
-      `establishment_id=eq.${establishmentId}`,
-      (message: RealtimeMessage) => {
-        if (message.type === 'data_update') {
-          const payload = message.data;
-          const event: EstablishmentRealtimeEvent = {
-            type: 'order_received',
-            establishmentId,
-            data: payload.new || payload.old,
-            organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            userId: payload.new?.user_id || payload.old?.user_id,
-            timestamp: new Date().toISOString()
-          };
-
-          this.handleEstablishmentEvent(event);
-          onEvent?.(event);
-        }
-      }
-    );
-
-    this.subscriptionIds.push(subscriptionId);
-    return subscriptionId;
-  }
-
-  /**
-   * Envoyer une notification d'établissement
-   */
-  async sendEstablishmentNotification(
-    title: string,
-    message: string,
-    establishmentId: string,
-    organizationId?: string,
-    data?: Partial<Establishment>
+  public subscribeToOrganizationEstablishments(
+    organizationId: string,
+    onUpdate: (establishments: Establishment[]) => void
   ) {
-    await realtimeService.sendNotification(
-      title,
-      message,
-      { ...data, establishmentId },
-      undefined,
-      organizationId
-    );
+    this.organizationId = organizationId;
+    
+    const { isConnected } = useRealtimeStore.getState();
+    
+    if (!isConnected) {
+      console.log('🔌 Realtime non connecté, établissements realtime en attente...');
+      return;
+    }
+
+    // Se désabonner du canal précédent s'il existe
+    if (this.channel) {
+      this.unsubscribe();
+    }
+
+    console.log(`🔌 Abonnement realtime aux établissements de l'organisation: ${organizationId}`);
+
+    // S'abonner aux changements sur la table establishments
+    this.channel = supabase
+      .channel(`establishments-${organizationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'establishments',
+          filter: `organization_id=eq.${organizationId}`
+        },
+        async (payload: RealtimePostgresChangesPayload<any>) => {
+          console.log('📡 Établissement realtime reçu:', payload);
+          
+          try {
+            // Récupérer la liste mise à jour des établissements
+            const { data: establishments, error } = await supabase
+              .from('establishments')
+              .select('*')
+              .eq('organization_id', organizationId)
+              .eq('deleted', false)
+              .order('created_at', { ascending: false });
+
+            if (error) {
+              console.error('❌ Erreur lors de la récupération des établissements:', error);
+              return;
+            }
+
+            console.log('✅ Établissements mis à jour en temps réel:', establishments);
+            onUpdate(establishments || []);
+          } catch (error) {
+            console.error('❌ Erreur lors du traitement realtime:', error);
+          }
+        }
+      )
+      .subscribe((status: any) => {
+        console.log(`🔌 Statut abonnement établissements: ${status}`);
+      });
   }
 
-  /**
-   * Notifier une nouvelle commande
-   */
-  async notifyNewOrder(orderData: Partial<Order>) {
-    await realtimeService.sendNotification(
-      'Nouvelle commande',
-      `Nouvelle commande reçue`,
-      { orderData, type: 'new_order' },
-      undefined,
-      orderData.organization_id || undefined
-    );
-  }
-
-  /**
-   * Notifier un changement de statut
-   */
-  async notifyStatusChange(establishmentId: string, oldStatus: string, newStatus: string) {
-    await realtimeService.sendNotification(
-      'Changement de statut',
-      `Le statut de l'établissement a changé de ${oldStatus} à ${newStatus}`,
-      { establishmentId, oldStatus, newStatus, type: 'status_change' }
-    );
-  }
-
-  /**
-   * Gérer les événements d'établissement
-   */
-  private handleEstablishmentEvent(event: EstablishmentRealtimeEvent) {
-    switch (event.type) {
-      case 'establishment_created':
-        toast.success('Nouvel établissement créé');
-        break;
-      case 'establishment_updated':
-        toast.info('Établissement mis à jour');
-        break;
-      case 'establishment_deleted':
-        toast.warning('Établissement supprimé');
-        break;
-      case 'menu_updated':
-        toast.info('Menu mis à jour');
-        break;
-      case 'status_changed':
-        toast.info('Statut de l\'établissement modifié');
-        break;
-      case 'order_received':
-        toast.success('Nouvelle commande reçue');
-        break;
+  public unsubscribe() {
+    if (this.channel) {
+      console.log('🔌 Désabonnement des établissements realtime');
+      supabase.removeChannel(this.channel);
+      this.channel = null;
+      this.organizationId = null;
     }
   }
 
-  /**
-   * Déterminer le type d'événement
-   */
-  private getEventType(eventType: string): EstablishmentRealtimeEvent['type'] {
-    switch (eventType) {
-      case 'INSERT':
-        return 'establishment_created';
-      case 'UPDATE':
-        return 'establishment_updated';
-      case 'DELETE':
-        return 'establishment_deleted';
-      default:
-        return 'establishment_updated';
-    }
+  public getCurrentOrganizationId(): string | null {
+    return this.organizationId;
   }
 
-  /**
-   * Se désabonner de tous les abonnements
-   */
-  unsubscribe() {
-    this.subscriptionIds.forEach(id => {
-      realtimeService.unsubscribe(id);
-    });
-    this.subscriptionIds = [];
+  public isSubscribed(): boolean {
+    return this.channel !== null;
   }
 }
 
-export const establishmentsRealtime = new EstablishmentsRealtimeModule(); 
+// Instance singleton
+export const establishmentsRealtimeService = new EstablishmentsRealtimeService(); 
