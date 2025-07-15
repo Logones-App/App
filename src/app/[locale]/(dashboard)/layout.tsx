@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { AppSidebar } from "./_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { users } from "@/data/users";
 import { getSidebarVariant, getSidebarCollapsible, getContentLayout } from "@/lib/layout-preferences";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "./_components/sidebar/account-switcher";
@@ -19,8 +18,7 @@ export default async function Layout({
   children: ReactNode;
   params: Promise<{ locale: string }>;
 }>) {
-  const cookieStore = await cookies();
-  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+  const defaultOpen = true;
 
   const sidebarVariant = await getSidebarVariant();
   const sidebarCollapsible = await getSidebarCollapsible();
@@ -38,8 +36,6 @@ export default async function Layout({
       <SidebarInset
         className={cn(
           contentLayout === "centered" && "!mx-auto max-w-screen-2xl",
-          // Adds right margin for inset sidebar in centered layout up to 113rem.
-          // On wider screens with collapsed sidebar, removes margin and sets margin auto for alignment.
           "max-[113rem]:peer-data-[variant=inset]:!mr-2 min-[101rem]:peer-data-[variant=inset]:peer-data-[state=collapsed]:!mr-auto",
         )}
       >
@@ -51,9 +47,9 @@ export default async function Layout({
               <SearchDialog />
             </div>
             <div className="flex items-center gap-2">
-              <LayoutControls contentLayout={contentLayout} variant={sidebarVariant} collapsible={sidebarCollapsible} />
+              <LayoutControls />
               <ThemeSwitcher />
-              <AccountSwitcher users={users} />
+              <AccountSwitcher />
             </div>
           </div>
         </header>

@@ -1,103 +1,87 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-
-import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut, User, Building, Settings } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
-import { cn, getInitials } from "@/lib/utils";
-import { useLogout } from "@/lib/queries/auth";
+import { getInitials } from "@/lib/utils";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
+import { useState } from "react";
 
-export function AccountSwitcher({
-  users,
-}: {
-  readonly users: ReadonlyArray<{
-    readonly id: string;
-    readonly name: string;
-    readonly email: string;
-    readonly avatar: string;
-    readonly role: string;
-  }>;
-}) {
-  const [activeUser, setActiveUser] = useState(users[0]);
-  const router = useRouter();
-  const params = useParams();
-  const logoutMutation = useLogout();
-  const t = useTranslations("user_menu");
+export function AccountSwitcher() {
+  const { user, logout } = useAuthStore();
+  const { userMetadata } = useUserMetadata();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  if (!user) return null;
+
+  const initials = getInitials(user.email || "");
+  const userName =
+    userMetadata?.firstname && userMetadata?.lastname
+      ? `${userMetadata.firstname} ${userMetadata.lastname}`
+      : user.email;
+
+  const userRole = userMetadata?.role || "Utilisateur";
+  const organizationName = userRole === "system_admin" ? "Administration Système" : "Organisation";
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
     try {
-      await logoutMutation.mutateAsync();
-      toast.success(t("logout_success"));
-      const locale = params?.locale as string;
-      router.push(`/${locale}/auth/login`);
+      await logout();
     } catch (error) {
-      console.error("Logout error:", error);
-      toast.error(t("logout_error"));
+      console.error("Erreur lors de la déconnexion:", error);
+      setIsLoggingOut(false);
     }
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Avatar className="size-9 rounded-lg">
-          <AvatarImage src={activeUser.avatar || undefined} alt={activeUser.name} />
-          <AvatarFallback className="rounded-lg">{getInitials(activeUser.name)}</AvatarFallback>
-        </Avatar>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-56 space-y-1 rounded-lg" side="bottom" align="end" sideOffset={4}>
-        {users.map((user) => (
-          <DropdownMenuItem
-            key={user.email}
-            className={cn("p-0", user.id === activeUser.id && "bg-accent/50 border-l-primary border-l-2")}
-            onClick={() => setActiveUser(user)}
-          >
-            <div className="flex w-full items-center justify-between gap-2 px-1 py-1.5">
-              <Avatar className="size-9 rounded-lg">
-                <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user.name}</span>
-                <span className="truncate text-xs capitalize">{user.role}</span>
-              </div>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm leading-none font-medium">{userName}</p>
+              <p className="text-muted-foreground text-xs leading-none">{user.email}</p>
             </div>
-          </DropdownMenuItem>
-        ))}
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <BadgeCheck />
-            Account
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <CreditCard />
-            Billing
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Bell />
-            Notifications
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuItem>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profil</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Building className="mr-2 h-4 w-4" />
+          <span>{organizationName}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Paramètres</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleLogout}
-          disabled={logoutMutation.isPending}
-          className="text-red-600 focus:text-red-600"
-        >
+        <DropdownMenuItem onClick={handleLogout} className="text-red-600" disabled={isLoggingOut}>
           <LogOut className="mr-2 h-4 w-4" />
-          {logoutMutation.isPending ? t("logout_loading") : t("logout")}
+          <span>{isLoggingOut ? "Déconnexion..." : "Déconnexion"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

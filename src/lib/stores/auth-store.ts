@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
+import { createClient } from '@/lib/supabase/client';
 
 type Organization = Database['public']['Tables']['organizations']['Row'];
 
@@ -24,7 +25,7 @@ interface AuthState {
   setCurrentOrganization: (organization: Organization | null) => void;
   setUserRole: (role: 'system_admin' | 'org_admin' | null) => void;
   setAvailableOrganizations: (organizations: Organization[]) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   reset: () => void;
 }
 
@@ -62,16 +63,46 @@ export const useAuthStore = create<AuthState>()(
       setAvailableOrganizations: (organizations: Organization[]) => 
         set({ availableOrganizations: organizations }),
 
-      logout: () =>
-        set({
-          user: null,
-          session: null,
-          isAuthenticated: false,
-          isLoading: false,
-          currentOrganization: null,
-          userRole: null,
-          availableOrganizations: [],
-        }),
+      logout: async () => {
+        try {
+          const supabase = createClient();
+          
+          // Déconnexion de Supabase
+          const { error } = await supabase.auth.signOut();
+          
+          if (error) {
+            console.error('Erreur lors de la déconnexion:', error);
+          }
+          
+          // Nettoyer l'état local
+          set({
+            user: null,
+            session: null,
+            isAuthenticated: false,
+            isLoading: false,
+            currentOrganization: null,
+            userRole: null,
+            availableOrganizations: [],
+          });
+          
+          // Rediriger vers la page de connexion
+          if (typeof window !== 'undefined') {
+            window.location.href = '/fr/auth/login';
+          }
+        } catch (error) {
+          console.error('Erreur lors de la déconnexion:', error);
+          // En cas d'erreur, nettoyer quand même l'état local
+          set({
+            user: null,
+            session: null,
+            isAuthenticated: false,
+            isLoading: false,
+            currentOrganization: null,
+            userRole: null,
+            availableOrganizations: [],
+          });
+        }
+      },
 
       reset: () =>
         set({

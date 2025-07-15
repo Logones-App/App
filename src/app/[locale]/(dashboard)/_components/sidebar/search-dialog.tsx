@@ -1,76 +1,53 @@
 "use client";
-import * as React from "react";
 
-import { ChartPie, Grid2X2, ChartLine, ShoppingBag, BookA, Forklift, Search } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-
-const searchItems = [
-  { group: "Dashboards", icon: ChartPie, label: "Default" },
-  { group: "Dashboards", icon: Grid2X2, label: "CRM", disabled: true },
-  { group: "Dashboards", icon: ChartLine, label: "Analytics", disabled: true },
-  { group: "Dashboards", icon: ShoppingBag, label: "E-Commerce", disabled: true },
-  { group: "Dashboards", icon: BookA, label: "Academy", disabled: true },
-  { group: "Dashboards", icon: Forklift, label: "Logistics", disabled: true },
-  { group: "Authentication", label: "Login v1" },
-  { group: "Authentication", label: "Register v1" },
-];
+import { Search, Command } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 export function SearchDialog() {
-  const [open, setOpen] = React.useState(false);
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implémenter la logique de recherche
+    console.log("Recherche:", searchQuery);
+    setOpen(false);
+  };
 
   return (
-    <>
-      <div
-        className="text-muted-foreground flex cursor-pointer items-center gap-2 text-sm"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="size-4" />
-        Search
-        <kbd className="bg-muted inline-flex h-5 items-center gap-1 rounded border px-1.5 text-[10px] font-medium select-none">
-          <span className="text-xs">⌘</span>J
-        </kbd>
-      </div>
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search dashboards, users, and more…" />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {[...new Set(searchItems.map((item) => item.group))].map((group, i) => (
-            <React.Fragment key={group}>
-              {i !== 0 && <CommandSeparator />}
-              <CommandGroup heading={group} key={group}>
-                {searchItems
-                  .filter((item) => item.group === group)
-                  .map((item) => (
-                    <CommandItem className="!py-1.5" key={item.label} onSelect={() => setOpen(false)}>
-                      {item.icon && <item.icon />}
-                      <span>{item.label}</span>
-                      {/* {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>} */}
-                    </CommandItem>
-                  ))}
-              </CommandGroup>
-            </React.Fragment>
-          ))}
-        </CommandList>
-      </CommandDialog>
-    </>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Search className="h-4 w-4" />
+          <span className="sr-only">Rechercher</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Recherche</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Search className="text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Rechercher dans l'application..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="submit">Rechercher</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
