@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useParams } from "next/navigation";
 
 import { PlusCircleIcon, MailIcon, ChevronRight } from "lucide-react";
 
@@ -144,16 +145,21 @@ const NavItemCollapsed = ({
 export function NavMain({ items }: NavMainProps) {
   const path = usePathname();
   const { state, isMobile } = useSidebar();
+  const params = useParams();
+  const organizationId = params.id as string | undefined;
+
+  // Fonction utilitaire pour remplacer [organizationId] dans les URLs
+  const withOrgId = (url: string) => (organizationId ? url.replace("[organizationId]", organizationId) : url);
 
   const isItemActive = (url: string, subItems?: NavMainItem["subItems"]) => {
     if (subItems?.length) {
-      return subItems.some((sub) => path.startsWith(sub.url));
+      return subItems.some((sub) => path.startsWith(withOrgId(sub.url)));
     }
-    return path === url;
+    return path === withOrgId(url);
   };
 
   const isSubmenuOpen = (subItems?: NavMainItem["subItems"]) => {
-    return subItems?.some((sub) => path.startsWith(sub.url)) ?? false;
+    return subItems?.some((sub) => path.startsWith(withOrgId(sub.url))) ?? false;
   };
 
   return (
@@ -188,9 +194,26 @@ export function NavMain({ items }: NavMainProps) {
             <SidebarMenu>
               {group.items.map((item) =>
                 state === "collapsed" && !isMobile ? (
-                  <NavItemCollapsed key={item.title} item={item} isActive={isItemActive} />
+                  <NavItemCollapsed
+                    key={item.title}
+                    item={{
+                      ...item,
+                      url: withOrgId(item.url),
+                      subItems: item.subItems?.map((sub) => ({ ...sub, url: withOrgId(sub.url) })),
+                    }}
+                    isActive={isItemActive}
+                  />
                 ) : (
-                  <NavItemExpanded key={item.title} item={item} isActive={isItemActive} isSubmenuOpen={isSubmenuOpen} />
+                  <NavItemExpanded
+                    key={item.title}
+                    item={{
+                      ...item,
+                      url: withOrgId(item.url),
+                      subItems: item.subItems?.map((sub) => ({ ...sub, url: withOrgId(sub.url) })),
+                    }}
+                    isActive={isItemActive}
+                    isSubmenuOpen={isSubmenuOpen}
+                  />
                 ),
               )}
             </SidebarMenu>

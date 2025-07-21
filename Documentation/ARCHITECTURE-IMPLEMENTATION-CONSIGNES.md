@@ -253,3 +253,148 @@ src/app/[locale]/
 3. **Migrer les composants existants** vers la nouvelle architecture
 4. **Implémenter le filtrage des données** selon les rôles
 5. **Ajouter les fonctionnalités manquantes** (menus, réservations, etc.)
+
+## Convention multi-tenant : gestion de l’ID d’organisation
+
+- **L’ID d’organisation est la source de vérité pour charger les données métiers.**
+- **Pour system_admin** : l’ID d’organisation est toujours présent dans l’URL (`/admin/organizations/[organizationId]/...`).
+- **Pour org_admin** : l’ID d’organisation est déduit du profil utilisateur (métadonnées), jamais dans l’URL.
+- **Les composants/pages métiers sont partagés** entre system_admin et org_admin : ils reçoivent toujours un `organizationId` (depuis l’URL ou le profil user).
+- **Aucune dépendance à un state global d’orga** côté system_admin : tout passe par l’URL.
+- **Navigation** : le changement d’organisation se fait en changeant l’ID dans l’URL (ex : bouton « Gérer » dans la liste des organisations).
+- **Permissions** : sont calculées dynamiquement selon le rôle et l’ID d’orga fourni.
+
+> Cette convention garantit la cohérence, la sécurité et la simplicité du code multi-tenant.
+
+## Pages partagées multi-tenant & récupération de l’organizationId
+
+### 1. Structure partagée des pages métiers
+
+- **Toutes les pages métiers (établissements, menus, utilisateurs, etc.) doivent être factorisées dans un composant partagé** (ex : `EstablishmentsShared`).
+- Ce composant reçoit toujours un `organizationId` en prop.
+- Deux points d’entrée :
+  - **Pour system_admin** : l’ID d’organisation est extrait de l’URL (`/admin/organizations/[organizationId]/...`).
+  - **Pour org_admin** : l’ID d’organisation est récupéré dynamiquement côté client (voir ci-dessous).
+- Les pages Next.js restent des composants serveur, et délèguent la logique client à un composant client intermédiaire si besoin.
+
+### 2. Récupération de l’ID d’organisation
+
+- **Pour system_admin** : dans chaque page, extraire l’ID d’orga de l’URL avec `useParams` :
+  ```tsx
+  import { useParams } from "next/navigation";
+  const params = useParams();
+  const organizationId = params.id as string;
+  ```
+- **Pour org_admin** : utiliser le hook `useOrgaUserOrganizationId` qui va chercher l’ID d’orga unique de l’utilisateur connecté dans la table `users_organizations` :
+  ```tsx
+  import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+  const organizationId = useOrgaUserOrganizationId();
+  ```
+- **Pattern recommandé** : si la page a besoin de hooks React côté client, créer un composant client intermédiaire (ex : `EstablishmentsClient`) et l’utiliser dans la page serveur.
+
+### 3. Exemple de page partagée
+
+```tsx
+// page.tsx (serveur)
+import { EstablishmentsClient } from "./establishments-client";
+export default function EstablishmentsPage() {
+  return <EstablishmentsClient />;
+}
+
+// establishments-client.tsx (client)
+("use client");
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import { EstablishmentsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishments-shared";
+export function EstablishmentsClient() {
+  const organizationId = useOrgaUserOrganizationId();
+  return <EstablishmentsShared organizationId={organizationId || ""} />;
+}
+
+// _components/establishments/establishments-shared.tsx (client)
+("use client");
+import { useOrganizationEstablishments } from "@/lib/queries/establishments";
+export function EstablishmentsShared({ organizationId }: { organizationId: string }) {
+  const { data: establishments = [] } = useOrganizationEstablishments(organizationId);
+  // ... rendu de la liste ...
+}
+```
+
+### 4. Avantages
+
+- Factorisation maximale du code métier
+- Navigation et permissions cohérentes
+- Facile à étendre à d’autres entités (menus, utilisateurs, etc.)
+- Compatible avec les bonnes pratiques Next.js (app router, client/server)
+
+## Page d’établissement unique partagée (détail)
+
+### 1. Composant partagé
+
+- Créer un composant `EstablishmentDetailsShared` qui reçoit `establishmentId` et `organizationId` en props.
+- Ce composant affiche les détails de l’établissement (nom, adresse, description, etc.).
+
+### 2. Entrée org_admin (dashboard)
+
+- Dossier : `/dashboard/establishments/[id]/`
+- Page serveur : `page.tsx`
+- Composant client intermédiaire : `establishment-client.tsx` (utilise le hook `useOrgaUserOrganizationId`)
+- Exemple :
+
+```tsx
+// page.tsx (serveur)
+import { EstablishmentClient } from "./establishment-client";
+export default function EstablishmentPage() {
+  return <EstablishmentClient />;
+}
+
+// establishment-client.tsx (client)
+("use client");
+import { useParams } from "next/navigation";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import { EstablishmentDetailsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-details-shared";
+export function EstablishmentClient() {
+  const params = useParams();
+  const establishmentId = params.id as string;
+  const organizationId = useOrgaUserOrganizationId();
+  return <EstablishmentDetailsShared establishmentId={establishmentId} organizationId={organizationId || ""} />;
+}
+```
+
+### 3. Entrée system_admin (multi-tenant)
+
+- Dossier : `/admin/organizations/[id]/establishments/[establishmentId]/`
+- Page serveur : `page.tsx`
+- Composant client intermédiaire : `establishment-client.tsx` (utilise l’ID d’orga de l’URL)
+- Exemple :
+
+```tsx
+// page.tsx (serveur)
+import { EstablishmentClient } from "./establishment-client";
+export default function EstablishmentPage() {
+  return <EstablishmentClient />;
+}
+
+// establishment-client.tsx (client)
+("use client");
+import { useParams } from "next/navigation";
+import { EstablishmentDetailsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-details-shared";
+export function EstablishmentClient() {
+  const params = useParams();
+  const organizationId = params.id as string;
+  const establishmentId = params.establishmentId as string;
+  return <EstablishmentDetailsShared establishmentId={establishmentId} organizationId={organizationId} />;
+}
+```
+
+### 4. Navigation depuis la liste
+
+- Dans le composant de liste (`EstablishmentsShared`), ajouter un lien « Voir » qui pointe vers la page de détail :
+  - Pour org_admin : `/dashboard/establishments/[id]`
+  - Pour system_admin : `/admin/organizations/[organizationId]/establishments/[establishmentId]`
+- Utiliser le composant `Link` de Next.js pour la navigation.
+
+### 5. Avantages
+
+- Factorisation maximale (un seul composant métier pour le détail)
+- Navigation cohérente et DRY
+- Facile à étendre à d’autres entités (menus, utilisateurs, etc.)

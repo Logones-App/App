@@ -1,3 +1,19 @@
+# SaaS Dashboard Realtime
+
+## 🚦 Roadmap & Suivi
+
+- **Priorités immédiates :**
+  1. Audit RLS & associations system_admin
+  2. Généralisation du realtime à toutes les entités
+  3. Uniformisation UI & feedback utilisateur
+  4. Centralisation scripts & documentation
+  5. Tests automatisés et manuels
+
+- **Pour la liste détaillée des tâches :**
+  - Voir [`Documentation/a-garder/TODO.md`](Documentation/a-garder/TODO.md)
+
+---
+
 <div align="center">
   <strong>Next.js Admin Template built with TypeScript & Shadcn UI</strong><br />
   A modern admin dashboard template using Next.js 15, Tailwind CSS v4, App Router, TypeScript, and Shadcn UI.

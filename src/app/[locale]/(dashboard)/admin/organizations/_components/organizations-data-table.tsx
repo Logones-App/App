@@ -11,7 +11,6 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, TestTube, Building2 } from "lucide-react";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 
 // Utiliser le type généré par Supabase
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
@@ -42,7 +41,6 @@ const useAllOrganizations = () => {
 export function OrganizationsDataTable() {
   const { data: organizations = [], isLoading, error } = useAllOrganizations();
   const { subscribeToOrganizations, unsubscribe, sendOrganizationNotification } = useOrganizationsRealtime();
-  const { selectedOrganization } = useWorkspaceStore();
   const queryClient = useQueryClient();
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
@@ -247,12 +245,6 @@ export function OrganizationsDataTable() {
               className={`h-2 w-2 rounded-full ${isRealtimeConnected ? "bg-green-500" : "bg-gray-400"}`}
               title={isRealtimeConnected ? "Realtime connecté" : "Realtime déconnecté"}
             />
-            {selectedOrganization && (
-              <div className="flex items-center gap-2 text-sm text-blue-600">
-                <Building2 className="h-4 w-4" />
-                <span>Gestion: {selectedOrganization.name}</span>
-              </div>
-            )}
           </div>
         </div>
         <div className="flex gap-2">

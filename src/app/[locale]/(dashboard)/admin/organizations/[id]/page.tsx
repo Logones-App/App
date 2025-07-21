@@ -23,12 +23,12 @@ import {
   Globe,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { establishmentsRealtimeService } from "@/lib/services/realtime/modules/establishments-realtime";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Database } from "@/lib/supabase/database.types";
+import Link from "next/link";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
@@ -38,7 +38,6 @@ export default function OrganizationManagementPage() {
   const router = useRouter();
   const organizationId = params.id as string;
 
-  const { selectedOrganization, setSelectedOrganization, clearSelectedOrganization } = useWorkspaceStore();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +65,6 @@ export default function OrganizationManagementPage() {
         }
 
         setOrganization(orgData);
-        setSelectedOrganization(orgData);
 
         // Charger les établissements de cette organisation
         console.log("🔍 Chargement des établissements pour l'organisation:", organizationId);
@@ -120,9 +118,8 @@ export default function OrganizationManagementPage() {
     return () => {
       console.log("🔌 Nettoyage realtime...");
       establishmentsRealtimeService.unsubscribe();
-      clearSelectedOrganization();
     };
-  }, [organizationId, supabase, setSelectedOrganization, clearSelectedOrganization]);
+  }, [organizationId, supabase]);
 
   const handleBackToList = () => {
     router.push("/admin/organizations");
@@ -254,123 +251,23 @@ export default function OrganizationManagementPage() {
       </Card>
 
       {/* Onglets pour différentes sections */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="establishments">Établissements</TabsTrigger>
-          <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-          <TabsTrigger value="settings">Paramètres</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Établissements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{establishments.length}</div>
-                <p className="text-muted-foreground text-xs">
-                  établissement{establishments.length > 1 ? "s" : ""} actif{establishments.length > 1 ? "s" : ""}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Utilisateurs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">-</div>
-                <p className="text-muted-foreground text-xs">utilisateurs associés</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Statut</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Badge variant={organization.deleted ? "destructive" : "default"}>
-                  {organization.deleted ? "Inactive" : "Active"}
-                </Badge>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="establishments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Établissements de {organization.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {establishmentsError ? (
-                <div className="py-8 text-center">
-                  <AlertTriangle className="text-destructive mx-auto mb-2 h-8 w-8" />
-                  <p className="text-destructive mb-2 font-medium">Erreur de chargement</p>
-                  <p className="text-muted-foreground mb-4 text-sm">{establishmentsError}</p>
-                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                    Réessayer
-                  </Button>
-                </div>
-              ) : establishments.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center">
-                  Aucun établissement trouvé pour cette organisation
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {establishments.map((establishment) => (
-                    <div key={establishment.id} className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback>{establishment.name.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{establishment.name}</div>
-                          <div className="text-muted-foreground text-sm">
-                            {establishment.address || "Aucune adresse"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={establishment.deleted ? "destructive" : "default"}>
-                          {establishment.deleted ? "Inactif" : "Actif"}
-                        </Badge>
-                        <Button variant="outline" size="sm">
-                          Voir
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Utilisateurs de {organization.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-muted-foreground py-8 text-center">Gestion des utilisateurs à implémenter</div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paramètres de {organization.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-muted-foreground py-8 text-center">Paramètres de l'organisation à implémenter</div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="mt-6 flex gap-2">
+        <Link href={`/admin/organizations/${organizationId}/users`}>
+          <Button variant="outline">Utilisateurs</Button>
+        </Link>
+        <Link href={`/admin/organizations/${organizationId}/messages`}>
+          <Button variant="outline">Messages</Button>
+        </Link>
+        <Link href={`/admin/organizations/${organizationId}/message1`}>
+          <Button variant="outline">Message1</Button>
+        </Link>
+        <Link href={`/admin/organizations/${organizationId}/message2`}>
+          <Button variant="outline">Message2</Button>
+        </Link>
+        <Link href={`/admin/organizations/${organizationId}/settings`}>
+          <Button variant="outline">Paramètres</Button>
+        </Link>
+      </div>
     </div>
   );
 }

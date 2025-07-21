@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Edit, Trash2, Users, Building, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Users, Building, CheckCircle, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,6 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Database } from "@/lib/supabase/database.types";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useRouter } from "next/navigation";
 
 // Utiliser le type généré par Supabase
@@ -96,25 +95,17 @@ export const columns: ColumnDef<Organization>[] = [
     header: "Actions",
     cell: ({ row }) => {
       const organization = row.original;
-      const { selectedOrganization, setSelectedOrganization } = useWorkspaceStore();
       const router = useRouter();
-      const isSelected = selectedOrganization?.id === organization.id;
 
       const handleSelectOrganization = () => {
-        setSelectedOrganization(organization);
         router.push(`/admin/organizations/${organization.id}`);
       };
 
       return (
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleSelectOrganization}
-            variant={isSelected ? "default" : "outline"}
-            size="sm"
-            className="h-8"
-          >
+          <Button onClick={handleSelectOrganization} variant={"outline"} size="sm" className="h-8">
             <CheckCircle className="mr-2 h-4 w-4" />
-            {isSelected ? "Sélectionnée" : "Sélectionner"}
+            Gérer
           </Button>
 
           <DropdownMenu>
@@ -131,13 +122,25 @@ export const columns: ColumnDef<Organization>[] = [
                 <Building className="mr-2 h-4 w-4" />
                 Gérer cette organisation
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Edit className="mr-2 h-4 w-4" />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${organization.id}/users`)}>
                 <Users className="mr-2 h-4 w-4" />
                 Gérer les utilisateurs
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${organization.id}/messages`)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Messages
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${organization.id}/message1`)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Message1
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${organization.id}/message2`)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Message2
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${organization.id}/establishments`)}>
+                <Building className="mr-2 h-4 w-4" />
+                Établissements
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive">

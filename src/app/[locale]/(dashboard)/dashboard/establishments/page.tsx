@@ -1,16 +1,5 @@
-export default function EstablishmentsPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Mes Établissements</h1>
-        <button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2">
-          Nouvel Établissement
-        </button>
-      </div>
+import { EstablishmentsClient } from "./establishments-client";
 
-      <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-        <p className="text-muted-foreground">Page des établissements - À implémenter</p>
-      </div>
-    </div>
-  );
+export default function EstablishmentsPage() {
+  return <EstablishmentsClient />;
 }
