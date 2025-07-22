@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserMetadata, useUserPermissions } from "@/hooks/use-user-metadata";
 import { Shield, User, Settings, Plus, Edit, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface User {
   id: string;
@@ -25,6 +26,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const t = useTranslations("common");
 
   // Vérifier les permissions
   if (!hasPermission("manage_users")) {
@@ -38,7 +40,7 @@ export function UserManagement() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Vous n'avez pas les permissions nécessaires pour gérer les utilisateurs.
+            {t("error")}: Vous n'avez pas les permissions nécessaires pour gérer les utilisateurs.
           </p>
         </CardContent>
       </Card>
@@ -55,6 +57,8 @@ export function UserManagement() {
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs:", error);
+      // Feedback UI uniformisé
+      alert(t("loadError"));
     } finally {
       setLoading(false);
     }
@@ -112,7 +116,7 @@ export function UserManagement() {
         <CardContent>
           <div className="mb-4 flex items-center justify-between">
             <Button onClick={handleLoadUsers} disabled={loading}>
-              {loading ? "Chargement..." : "Charger les utilisateurs"}
+              {loading ? t("loading") : "Charger les utilisateurs"}
             </Button>
             <Button variant="outline">
               <Plus className="mr-2 h-4 w-4" />

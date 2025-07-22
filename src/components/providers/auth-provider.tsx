@@ -59,10 +59,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               setSession(data.session);
             }
           } else {
-            console.log("Session API error:", response.status);
+            console.log("Error checking session:", response.status);
           }
         } catch (apiError) {
-          console.error("Session API error:", apiError);
+          console.error("Error checking session:", apiError);
         }
 
         setLoading(false);

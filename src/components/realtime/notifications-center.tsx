@@ -16,10 +16,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeNotifications } from "@/hooks/use-realtime";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslations } from "next-intl";
 
 export function NotificationsCenter() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useRealtimeNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const t = useTranslations("common");
 
   // Fermer le menu après avoir cliqué sur une notification
   const handleNotificationClick = (notificationId: string) => {

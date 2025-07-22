@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
 import { Shield, User, Settings, Bell, Palette, Globe } from "lucide-react";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { useTranslations } from "next-intl";
 
 export function UserProfileCard() {
   const {
@@ -31,12 +32,14 @@ export function UserProfileCard() {
     await updatePreferences({ theme: newTheme });
   };
 
+  const t = useTranslations("common");
+
   if (!role) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Profil Utilisateur</CardTitle>
-          <CardDescription>Chargement...</CardDescription>
+          <CardDescription>{t("loading")}</CardDescription>
         </CardHeader>
       </Card>
     );

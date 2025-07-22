@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
 
 const FormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -22,6 +23,7 @@ export function LoginForm() {
   const loginMutation = useLogin();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+  const t = useTranslations("common");
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -39,7 +41,7 @@ export function LoginForm() {
         password: data.password,
       });
 
-      toast.success("Connexion réussie ! Redirection en cours...");
+      toast.success(t("loginSuccess"));
 
       // Attendre un peu pour que l'état soit mis à jour
       setTimeout(() => {
@@ -48,7 +50,7 @@ export function LoginForm() {
       }, 1000);
     } catch (error) {
       console.error("Erreur de connexion:", error);
-      toast.error("Erreur de connexion. Vérifiez vos identifiants.");
+      toast.error(t("error"));
     }
   };
 
@@ -107,7 +109,7 @@ export function LoginForm() {
           )}
         />
         <Button className="w-full" type="submit" disabled={loginMutation.isPending}>
-          {loginMutation.isPending ? "Connexion..." : "Login"}
+          {loginMutation.isPending ? t("loading") : "Login"}
         </Button>
       </form>
     </Form>

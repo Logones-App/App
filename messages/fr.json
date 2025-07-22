@@ -195,5 +195,17 @@
       "passwords_must_match": "Les mots de passe doivent correspondre.",
       "terms_required": "Vous devez accepter les conditions d'utilisation."
     }
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "loadError": "Erreur lors du chargement",
+    "saveSuccess": "Enregistré avec succès",
+    "deleteSuccess": "Suppression réussie",
+    "updateSuccess": "Mise à jour réussie",
+    "logoutSuccess": "Déconnexion réussie",
+    "loginSuccess": "Connexion réussie",
+    "unknownError": "Une erreur inconnue est survenue"
   }
 } 

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useTranslations } from "next-intl";
 
 interface RealtimeProviderProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface RealtimeProviderProps {
 export function RealtimeProvider({ children }: RealtimeProviderProps) {
   const { isConnected, connectionStatus, connect, disconnect } = useRealtime();
   const { user } = useAuthStore();
+  const t = useTranslations("common");
 
   // Initialiser la connexion realtime quand l'utilisateur est connecté
   useEffect(() => {

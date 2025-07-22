@@ -37,12 +37,12 @@ export default async function LocaleLayout({
           <QueryProvider>
             <AuthProvider>
               <RoleInitializer>
-                <LoadingProvider>
-                  <LocaleCookieSync />
-                  <NextIntlClientProvider locale={localeTyped} messages={messages}>
+                <NextIntlClientProvider locale={localeTyped} messages={messages}>
+                  <LoadingProvider>
+                    <LocaleCookieSync />
                     {children}
-                  </NextIntlClientProvider>
-                </LoadingProvider>
+                  </LoadingProvider>
+                </NextIntlClientProvider>
               </RoleInitializer>
               <Toaster />
             </AuthProvider>

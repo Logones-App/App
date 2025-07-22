@@ -195,5 +195,17 @@
       "passwords_must_match": "Passwords must match.",
       "terms_required": "You must accept the terms of service."
     }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "loadError": "Error while loading",
+    "saveSuccess": "Saved successfully",
+    "deleteSuccess": "Deleted successfully",
+    "updateSuccess": "Updated successfully",
+    "logoutSuccess": "Logged out successfully",
+    "loginSuccess": "Logged in successfully",
+    "unknownError": "An unknown error occurred"
   }
 } 

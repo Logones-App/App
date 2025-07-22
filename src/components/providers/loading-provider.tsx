@@ -3,6 +3,7 @@
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface LoadingProviderProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
   const { isLoading, user, isAuthenticated } = useAuthStore();
   const [showDebug, setShowDebug] = useState(false);
   const pathname = usePathname();
+  const t = useTranslations("common");
 
   // Pages qui ne nécessitent pas d'authentification
   const publicPages = ["/", "/test-auth", "/auth/login", "/auth/register"];
@@ -38,7 +40,7 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
       <div className="bg-background flex min-h-screen flex-col items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-          <p className="text-muted-foreground text-sm">Chargement...</p>
+          <p className="text-muted-foreground text-sm">{t("loading")}</p>
 
           {showDebug && (
             <div className="mt-4 rounded-lg border p-4 text-xs">

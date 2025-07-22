@@ -27,7 +27,7 @@ const FormSchema = z
 
 export function ResetPasswordForm() {
   const router = useRouter();
-  const t = useTranslations("auth.reset_password");
+  const t = useTranslations("common");
   const tv = useTranslations("auth.validation");
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -47,14 +47,14 @@ export function ResetPasswordForm() {
 
       if (error) {
         console.error("Update password error:", error);
-        toast.error(t("errors.generic"));
+        toast.error(t("error"));
       } else {
         toast.success(t("success"));
         router.push("/auth/login");
       }
     } catch (error) {
       console.error("Update password error:", error);
-      toast.error(t("errors.generic"));
+      toast.error(t("error"));
     }
   };
 
@@ -99,8 +99,8 @@ export function ResetPasswordForm() {
             </FormItem>
           )}
         />
-        <Button className="w-full" type="submit">
-          {t("reset_button")}
+        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? t("loading") : t("resetButton")}
         </Button>
 
         <div className="text-muted-foreground text-center text-sm">

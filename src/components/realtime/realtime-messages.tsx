@@ -8,10 +8,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtime } from "@/hooks/use-realtime";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslations } from "next-intl";
 
 export function RealtimeMessages() {
   const { messages, clearMessages } = useRealtime();
   const [isVisible, setIsVisible] = useState(false);
+  const t = useTranslations("common");
 
   // Afficher automatiquement quand il y a de nouveaux messages
   useEffect(() => {

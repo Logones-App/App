@@ -195,5 +195,13 @@
       "passwords_must_match": "Las contraseñas deben coincidir.",
       "terms_required": "Debes aceptar los términos de servicio."
     }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ha ocurrido un error.",
+    "success": "Operación exitosa.",
+    "loadError": "Error al cargar los datos.",
+    "loginSuccess": "¡Inicio de sesión exitoso!",
+    "logoutSuccess": "¡Sesión cerrada exitosamente!"
   }
 } 
