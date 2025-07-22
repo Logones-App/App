@@ -3,7 +3,7 @@ import { useEstablishment } from "@/lib/queries/establishments";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Package, List, UtensilsCrossed } from "lucide-react";
+import { Calendar, Clock, Package, List, UtensilsCrossed, Image, ArrowLeft } from "lucide-react";
 
 export function EstablishmentDetailsShared({
   establishmentId,
@@ -33,6 +33,17 @@ export function EstablishmentDetailsShared({
 
   return (
     <div className="space-y-6">
+      {/* Bouton de retour stylisé comme dans la page menus */}
+      <div className="flex items-center gap-4">
+        <Link
+          href={isSystemAdmin ? `/admin/organizations/${organizationId}/establishments` : `/dashboard/establishments`}
+        >
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour aux établissements
+          </Button>
+        </Link>
+      </div>
       <h1 className="text-3xl font-bold">{establishment.name}</h1>
 
       <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
@@ -83,6 +94,20 @@ export function EstablishmentDetailsShared({
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
               <List className="h-6 w-6" />
               <span>Catégories</span>
+            </Button>
+          </Link>
+
+          <Link href={getLink("slots")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <Clock className="h-6 w-6" />
+              <span>Gérer les créneaux</span>
+            </Button>
+          </Link>
+
+          <Link href={getLink("gallery")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <Image className="h-6 w-6" />
+              <span>Gérer la galerie photo</span>
             </Button>
           </Link>
         </div>

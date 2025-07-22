@@ -52,6 +52,28 @@ export function EstablishmentsShared({ organizationId }: { organizationId: strin
                     <Link href={detailHref} className="text-primary text-sm underline">
                       {t("view", { default: "Voir" })}
                     </Link>
+                    {/* Lien vers la gestion des créneaux horaires */}
+                    <Link
+                      href={
+                        isSystemAdmin
+                          ? `/admin/organizations/${organizationId}/establishments/${establishment.id}/slots`
+                          : `/dashboard/establishments/${establishment.id}/slots`
+                      }
+                      className="text-sm text-blue-600 underline"
+                    >
+                      Gérer les créneaux
+                    </Link>
+                    {/* Lien vers la gestion de la galerie photo */}
+                    <Link
+                      href={
+                        isSystemAdmin
+                          ? `/admin/organizations/${organizationId}/establishments/${establishment.id}/gallery`
+                          : `/dashboard/establishments/${establishment.id}/gallery`
+                      }
+                      className="text-sm text-pink-600 underline"
+                    >
+                      Gérer la galerie photo
+                    </Link>
                   </div>
                 </li>
               );
