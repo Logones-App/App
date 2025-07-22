@@ -23,9 +23,14 @@
     "system_overview": "Vue d'ensemble du système",
     "org_overview": "Vue d'ensemble de votre organisation"
   },
-  "HomePage": {
-    "title": "Bienvenue sur votre tableau de bord",
-    "about": "À propos"
+  "Home": {
+    "title": "Bienvenue sur Studio Admin",
+    "subtitle": "Plateforme de gestion pour restaurants",
+    "logout": "Se déconnecter",
+    "logoutLoading": "Déconnexion...",
+    "login": "Se connecter",
+    "register": "Créer un compte",
+    "ssrTest": "Test de l'authentification avec Supabase SSR"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -67,6 +72,8 @@
       "public": "Public",
       "private": "Privé"
     },
+    "view": "Voir",
+    "loading": "Chargement...",
     "empty": {
       "title": "Aucun établissement",
       "description": "Vous n'avez pas encore créé d'établissement dans cette organisation.",

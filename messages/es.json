@@ -23,9 +23,14 @@
     "system_overview": "Vista general del sistema",
     "org_overview": "Vista general de tu organización"
   },
-  "HomePage": {
-    "title": "Bienvenido a tu panel de control",
-    "about": "Acerca de"
+  "Home": {
+    "title": "Bienvenido a Studio Admin",
+    "subtitle": "Plataforma de gestión para restaurantes",
+    "logout": "Cerrar sesión",
+    "logoutLoading": "Cerrando sesión...",
+    "login": "Iniciar sesión",
+    "register": "Crear una cuenta",
+    "ssrTest": "Prueba de autenticación con Supabase SSR"
   },
   "dashboard": {
     "title": "Panel de control",
@@ -71,7 +76,9 @@
       "title": "Sin establecimientos",
       "description": "Aún no has creado ningún establecimiento en esta organización.",
       "create_first": "Crea tu primer establecimiento"
-    }
+    },
+    "view": "Ver",
+    "loading": "Cargando..."
   },
   "admin": {
     "users": {

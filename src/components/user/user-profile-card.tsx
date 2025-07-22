@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
 import { Shield, User, Settings, Bell, Palette, Globe } from "lucide-react";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export function UserProfileCard() {
   const {
@@ -28,11 +29,6 @@ export function UserProfileCard() {
   const handleThemeChange = async () => {
     const newTheme = preferences?.theme === "dark" ? "light" : "dark";
     await updatePreferences({ theme: newTheme });
-  };
-
-  const handleLanguageChange = async () => {
-    const newLanguage = preferences?.language === "fr" ? "en" : "fr";
-    await updatePreferences({ language: newLanguage });
   };
 
   if (!role) {
@@ -141,15 +137,7 @@ export function UserProfileCard() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Langue</label>
-              <div className="flex items-center space-x-2">
-                <span className="text-muted-foreground text-sm">
-                  {preferences?.language === "fr" ? "Français" : "English"}
-                </span>
-                <Button size="sm" variant="outline" onClick={handleLanguageChange}>
-                  <Globe className="mr-1 h-3 w-3" />
-                  Changer
-                </Button>
-              </div>
+              <LanguageSwitcher />
             </div>
           </div>
 

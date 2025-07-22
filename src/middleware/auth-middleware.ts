@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getLocale } from "next-intl/server";
-import { routing } from "@/i18n/routing";
+import { routing } from "../../i18n/routing";
 
 // ============================================================================
 // CONSTANTES
@@ -77,6 +77,11 @@ function getAuthorizedRoute(userRole: string): string {
   }
 }
 
+// Fonction utilitaire pour TS : vérifie et type la locale
+function isSupportedLocale(l: string): l is "fr" | "en" | "es" {
+  return routing.locales.includes(l as any);
+}
+
 // ============================================================================
 // MIDDLEWARE PRINCIPAL
 // ============================================================================
@@ -91,7 +96,10 @@ export async function authMiddleware(req: NextRequest) {
   
   // 2. Ajouter la locale si manquante
   if (!hasLocale(pathname)) {
-    return NextResponse.redirect(new URL(`/${routing.defaultLocale}${pathname}`, req.url));
+    // Vérifier le cookie NEXT_LOCALE
+    const cookieLocale = req.cookies.get('NEXT_LOCALE')?.value;
+    const supportedLocale = (cookieLocale && isSupportedLocale(cookieLocale)) ? cookieLocale : routing.defaultLocale;
+    return NextResponse.redirect(new URL(`/${String(supportedLocale)}${pathname}`, req.url));
   }
   
   // 3. Utiliser next-intl pour extraire la locale

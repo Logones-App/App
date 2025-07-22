@@ -2,8 +2,10 @@
 import { useOrganizationEstablishments } from "@/lib/queries/establishments";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export function EstablishmentsShared({ organizationId }: { organizationId: string }) {
+  const t = useTranslations("establishments");
   const { data: establishments = [], isLoading, error } = useOrganizationEstablishments(organizationId);
   const pathname = usePathname();
   const params = useParams();
@@ -14,18 +16,20 @@ export function EstablishmentsShared({ organizationId }: { organizationId: strin
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Établissements de l'organisation</h1>
+        <h1 className="text-3xl font-bold">{t("title")}</h1>
         <button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2">
-          Nouvel Établissement
+          {t("new_establishment")}
         </button>
       </div>
       <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
         {isLoading ? (
-          <p className="text-muted-foreground">Chargement...</p>
+          <p className="text-muted-foreground">{t("loading", { ns: "loading" })}</p>
         ) : error ? (
-          <p className="text-destructive">Erreur lors du chargement des établissements</p>
+          <p className="text-destructive">
+            {t("error_loading", { default: "Erreur lors du chargement des établissements" })}
+          </p>
         ) : establishments.length === 0 ? (
-          <p className="text-muted-foreground">Aucun établissement trouvé pour cette organisation.</p>
+          <p className="text-muted-foreground">{t("empty.description")}</p>
         ) : (
           <ul className="divide-border divide-y">
             {establishments.map((establishment) => {
@@ -46,7 +50,7 @@ export function EstablishmentsShared({ organizationId }: { organizationId: strin
                   </div>
                   <div className="flex gap-2">
                     <Link href={detailHref} className="text-primary text-sm underline">
-                      Voir
+                      {t("view", { default: "Voir" })}
                     </Link>
                   </div>
                 </li>

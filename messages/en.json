@@ -23,9 +23,14 @@
     "system_overview": "System overview",
     "org_overview": "Your organization overview"
   },
-  "HomePage": {
-    "title": "Welcome to your dashboard",
-    "about": "About"
+  "Home": {
+    "title": "Welcome to Studio Admin",
+    "subtitle": "Management platform for restaurants",
+    "logout": "Sign out",
+    "logoutLoading": "Signing out...",
+    "login": "Sign in",
+    "register": "Create an account",
+    "ssrTest": "Authentication test with Supabase SSR"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -67,6 +72,8 @@
       "public": "Public",
       "private": "Private"
     },
+    "view": "View",
+    "loading": "Loading...",
     "empty": {
       "title": "No establishments",
       "description": "You haven't created any establishments in this organization yet.",
