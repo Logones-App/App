@@ -2,7 +2,14 @@
 
 import { Search, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
@@ -28,6 +35,9 @@ export function SearchDialog() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Recherche</DialogTitle>
+          <DialogDescription>
+            Recherchez rapidement dans votre application pour trouver ce que vous cherchez.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="flex items-center space-x-2">

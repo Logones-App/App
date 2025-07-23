@@ -44,17 +44,14 @@ export const useRealtimeStore = create<RealtimeState>()(
       connect: async () => {
         const state = get();
         if (state.isConnected || state.connectionStatus === 'connecting') {
-          console.log("🔌 Déjà connecté ou en cours de connexion");
           return;
         }
 
-        console.log("🔌 Tentative de connexion realtime...");
         set({ connectionStatus: 'connecting' });
         
         try {
           // Ajouter un gestionnaire de messages global
           realtimeService.addMessageHandler('global', (message) => {
-            console.log("📨 Message realtime reçu:", message);
             get().addMessage(message);
             
             if (message.type === 'notification') {
@@ -62,13 +59,11 @@ export const useRealtimeStore = create<RealtimeState>()(
             }
           });
 
-          console.log("✅ Connexion realtime établie");
           set({ 
             isConnected: true, 
             connectionStatus: 'connected' 
           });
         } catch (error) {
-          console.error('❌ Erreur de connexion realtime:', error);
           set({ 
             isConnected: false, 
             connectionStatus: 'error' 
@@ -79,11 +74,9 @@ export const useRealtimeStore = create<RealtimeState>()(
       disconnect: () => {
         const state = get();
         if (!state.isConnected) {
-          console.log("🔌 Déjà déconnecté");
           return;
         }
 
-        console.log("🔌 Déconnexion realtime...");
         realtimeService.unsubscribeAll();
         realtimeService.removeMessageHandler('global');
         

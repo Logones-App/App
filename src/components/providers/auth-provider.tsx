@@ -12,75 +12,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { setUser, setSession, setLoading } = useAuthStore();
 
   useEffect(() => {
-    console.log("AuthProvider mounted");
-
     const supabase = createClient();
-    console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-    // Écouter les changements d'authentification
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
+    // Initialiser l'état d'authentification
+    const initializeAuth = async () => {
+      try {
+        // Vérifier la session actuelle
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-      if (event === "SIGNED_IN" && session) {
-        console.log("🔐 Connexion détectée");
-        setUser(session.user);
-        setSession(session);
-        setLoading(false);
-      } else if (event === "SIGNED_OUT") {
-        console.log("🔐 Déconnexion détectée");
-        setUser(null);
-        setSession(null);
-        setLoading(false);
-      } else if (event === "INITIAL_SESSION") {
-        console.log("Initial session:", session);
+        if (error) {
+          console.error("Erreur lors de la récupération de la session:", error);
+          return;
+        }
+
         if (session) {
           setUser(session.user);
           setSession(session);
+          setLoading(false);
+        } else {
+          setLoading(false);
         }
+      } catch (error) {
+        console.error("Erreur lors de l'initialisation de l'authentification:", error);
         setLoading(false);
       }
+    };
+
+    initializeAuth();
+
+    // Écouter les changements d'état d'authentification
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+      setSession(session);
+      setLoading(false);
     });
 
-    // Vérifier la session actuelle
-    const checkCurrentSession = async () => {
-      try {
-        console.log("Checking current session...");
-
-        // Vérifier la session via l'API route côté serveur
-        try {
-          const response = await fetch("/api/auth/session");
-          if (response.ok) {
-            const data = await response.json();
-            console.log("Session API result:", data);
-            if (data.user) {
-              setUser(data.user);
-              setSession(data.session);
-            }
-          } else {
-            console.log("Error checking session:", response.status);
-          }
-        } catch (apiError) {
-          console.error("Error checking session:", apiError);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Session check error:", error);
-        setUser(null);
-        setSession(null);
-        setLoading(false);
-      }
-    };
-
-    // Exécuter la vérification
-    checkCurrentSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [setUser, setSession, setLoading]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   return <>{children}</>;
 }

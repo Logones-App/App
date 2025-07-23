@@ -81,6 +81,45 @@
 
 ## 🔧 Bonnes Pratiques
 
+### Résolution des Modules Manquants
+
+**❌ NE JAMAIS FAIRE :**
+
+- Créer directement un fichier sans vérifier s'il existe
+- Supposer qu'un module n'existe pas
+- Dupliquer des fichiers existants
+
+**✅ TOUJOURS FAIRE :**
+
+#### **Étape 1 : Recherche Systématique**
+
+```bash
+# Rechercher le fichier dans tout le projet
+file_search "nom-du-fichier"
+grep_search "nom-du-fichier"
+
+# Vérifier les imports existants
+grep_search "import.*nom-du-fichier"
+```
+
+#### **Étape 2 : Vérification de l'Emplacement**
+
+- Le fichier existe-t-il ailleurs dans le projet ?
+- A-t-il été déplacé ou renommé ?
+- Y a-t-il des variantes du nom ?
+
+#### **Étape 3 : Correction de l'Import**
+
+- Modifier le chemin d'import vers l'emplacement correct
+- Utiliser le chemin relatif approprié
+- Vérifier la syntaxe d'import
+
+#### **Étape 4 : Création UNIQUEMENT si Nécessaire**
+
+- Créer le fichier SEULEMENT s'il n'existe vraiment nulle part
+- S'assurer qu'il s'agit d'un nouveau fichier requis
+- Documenter pourquoi le fichier est nécessaire
+
 ### Base de données
 
 1. **Vérifier la structure réelle** via `database.types.ts`

@@ -1201,6 +1201,8 @@ export type Database = {
           created_at: string | null
           critical_stock_threshold: number | null
           current_stock: number
+          deleted: boolean | null
+          establishment_id: string
           id: string
           last_updated_by: string | null
           low_stock_threshold: number | null
@@ -1216,6 +1218,8 @@ export type Database = {
           created_at?: string | null
           critical_stock_threshold?: number | null
           current_stock?: number
+          deleted?: boolean | null
+          establishment_id: string
           id?: string
           last_updated_by?: string | null
           low_stock_threshold?: number | null
@@ -1231,6 +1235,8 @@ export type Database = {
           created_at?: string | null
           critical_stock_threshold?: number | null
           current_stock?: number
+          deleted?: boolean | null
+          establishment_id?: string
           id?: string
           last_updated_by?: string | null
           low_stock_threshold?: number | null
@@ -1243,6 +1249,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_stocks_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_stocks_organization_id_fkey"
             columns: ["organization_id"]
@@ -2015,24 +2028,8 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: string
       }
-      get_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
       hard_delete_record: {
         Args: { table_name: string; record_id: string }
-        Returns: boolean
-      }
-      has_role: {
-        Args: { role_name: string }
-        Returns: boolean
-      }
-      is_org_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_system_admin: {
-        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       reserve_stock: {

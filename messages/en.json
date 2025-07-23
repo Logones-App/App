@@ -78,6 +78,15 @@
       "title": "No establishments",
       "description": "You haven't created any establishments in this organization yet.",
       "create_first": "Create your first establishment"
+    },
+    "days": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
     }
   },
   "admin": {

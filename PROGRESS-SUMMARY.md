@@ -1,220 +1,85 @@
-# Résumé des Progrès - Application SaaS Multi-tenant
+# Résumé des Progrès - Corrections Apportées
 
-## ✅ Accomplissements Réalisés
+## ✅ Problèmes Résolus
 
-### 1. Architecture et Structure
+### 1. Warning d'Accessibilité DialogContent
 
-- ✅ Migration de LegendState vers Zustand + TanStack Query
-- ✅ Architecture multi-tenant avec rôles (system_admin, org_admin, user)
-- ✅ Structure d'URL et de dossiers bien définie
-- ✅ Stores Zustand pour la gestion d'état globale
-- ✅ Queries TanStack Query pour la gestion des données
-- ✅ Providers React pour l'injection de dépendances
+**Problème** : Warning React "Missing `Description` or `aria-describedby={undefined}` for {DialogContent}"
 
-### 2. Authentification
+**Cause** : Les `DialogContent` utilisaient des paragraphes `<p>` pour les descriptions au lieu de `DialogDescription`
 
-- ✅ Système d'authentification complet avec Supabase
-- ✅ Pages de connexion, inscription, mot de passe oublié et réinitialisation
-- ✅ Intégration avec les pages existantes (v1)
-- ✅ Middleware d'authentification
-- ✅ Gestion des rôles et permissions
-- ✅ Stores d'authentification avec Zustand
-- ✅ Formulaires avec validation Zod et React Hook Form
+**Solution Appliquée** :
 
-### 3. Interface Utilisateur
+- ✅ Ajouté `DialogDescription` à l'import dans `products-shared.tsx`
+- ✅ Remplacé tous les `<p className="text-muted-foreground text-sm">` par `<DialogDescription>` dans les `DialogHeader`
+- ✅ Corrigé `search-dialog.tsx` avec la même approche
+- ✅ Vérifié que `command.tsx` et `alert-dialog.tsx` utilisaient déjà les bonnes pratiques
 
-- ✅ Composants UI avec shadcn/ui
-- ✅ Pages d'authentification complètes
-- ✅ Pages d'erreur (404, error globale)
-- ✅ Dashboard de base avec navigation
-- ✅ Formulaires avec validation
+**Fichiers Modifiés** :
 
-### 4. Gestion des Données
+- `src/app/[locale]/(dashboard)/_components/establishments/products-shared.tsx`
+- `src/app/[locale]/(dashboard)/_components/sidebar/search-dialog.tsx`
 
-- ✅ Queries pour les organisations et établissements
-- ✅ Types TypeScript complets
-- ✅ Intégration Supabase
-- ✅ Gestion des erreurs
+### 2. Erreur Supabase - Contrainte product_stocks_positive
 
-### 5. Sécurité
+**Problème** : Erreur 400 "new row for relation "product_stocks" violates check constraint "product_stocks_positive""
 
-- ✅ Middleware d'authentification
-- ✅ Validation des formulaires
-- ✅ Gestion des sessions
-- ✅ Protection des routes
+**Cause** : La mutation `associateProductMutation` définissait `current_stock: -1`, ce qui violait la contrainte de base de données
 
-## 🔄 En Cours
+**Solution Appliquée** :
 
-### 1. Configuration Supabase
+- ✅ Changé `current_stock: -1` en `current_stock: 0` dans la mutation
+- ✅ Créé des scripts de diagnostic pour vérifier la contrainte
+- ✅ Maintenu la logique métier (0 = pas de gestion de stock par défaut)
 
-- ⏳ Configuration de la base de données
-- ⏳ Variables d'environnement
-- ⏳ RLS (Row Level Security)
+**Fichiers Modifiés** :
 
-### 2. Fonctionnalités Métier
+- `src/app/[locale]/(dashboard)/_components/establishments/products-shared.tsx` (ligne ~183)
 
-- ⏳ Gestion des établissements
-- ⏳ Gestion des menus
-- ⏳ Système de réservations
-- ⏳ Gestion des stocks
+**Scripts Créés** :
+
+- `scripts/check-product-stocks-constraint.sql` - Diagnostic de la contrainte
+- `scripts/test-product-stocks-insertion.sql` - Test de l'insertion corrigée
+
+## 🔧 Détails Techniques
+
+### Contrainte product_stocks_positive
+
+La contrainte de base de données exige que `current_stock` soit ≥ 0. Notre correction utilise `0` comme valeur par défaut pour indiquer "pas de gestion de stock", ce qui respecte la contrainte tout en maintenant la logique métier.
+
+### Accessibilité Dialog
+
+Tous les `DialogContent` utilisent maintenant `DialogDescription` au lieu de paragraphes simples, ce qui améliore l'accessibilité pour les lecteurs d'écran et respecte les standards ARIA.
+
+## 🧪 Tests Recommandés
+
+1. **Test d'Accessibilité** :
+
+   - Vérifier que les warnings DialogContent ont disparu
+   - Tester avec un lecteur d'écran
+
+2. **Test de Mutation** :
+
+   - Associer un produit existant à un établissement
+   - Vérifier que l'insertion réussit sans erreur 400
+   - Confirmer que `current_stock` est bien défini à `0`
+
+3. **Test de Base de Données** :
+   - Exécuter `scripts/check-product-stocks-constraint.sql`
+   - Vérifier qu'aucune valeur négative n'existe dans `product_stocks`
 
 ## 📋 Prochaines Étapes
 
-### 1. Configuration et Déploiement
+- [ ] Tester les corrections en conditions réelles
+- [ ] Vérifier que toutes les fonctionnalités de gestion des stocks fonctionnent
+- [ ] Documenter les bonnes pratiques d'accessibilité pour l'équipe
+- [ ] Ajouter des tests automatisés pour ces cas d'usage
 
-- [ ] Configuration des variables d'environnement Supabase
-- [ ] Mise en place de la base de données
-- [ ] Configuration RLS
-- [ ] Déploiement initial
+## 🎯 Impact
 
-### 2. Fonctionnalités Métier
+Ces corrections améliorent :
 
-- [ ] CRUD complet pour les établissements
-- [ ] Gestion des menus et produits
-- [ ] Système de réservations
-- [ ] Gestion des stocks
-- [ ] Système de notifications
-
-### 3. Interface Utilisateur
-
-- [ ] Dashboard complet avec métriques
-- [ ] Pages d'administration
-- [ ] Interface de gestion des utilisateurs
-- [ ] Responsive design mobile
-
-### 4. Internationalisation
-
-- [ ] Configuration i18n
-- [ ] Traductions français/anglais
-- [ ] Gestion des formats (dates, nombres)
-
-### 5. Tests et Qualité
-
-- [ ] Tests unitaires
-- [ ] Tests d'intégration
-- [ ] Tests E2E
-- [ ] Linting et formatting
-
-### 6. Performance et Optimisation
-
-- [ ] Optimisation des requêtes
-- [ ] Mise en cache
-- [ ] Lazy loading
-- [ ] Compression et optimisation
-
-### 7. Sécurité Avancée
-
-- [ ] Audit de sécurité
-- [ ] Validation côté serveur
-- [ ] Protection CSRF
-- [ ] Rate limiting
-
-### 8. Monitoring et Analytics
-
-- [ ] Logging
-- [ ] Monitoring des erreurs
-- [ ] Analytics utilisateur
-- [ ] Métriques de performance
-
-## 🎯 Objectifs à Court Terme (1-2 semaines)
-
-1. **Configuration Supabase complète**
-
-   - Variables d'environnement
-   - Base de données
-   - RLS
-
-2. **CRUD Établissements**
-
-   - Création, lecture, modification, suppression
-   - Interface utilisateur complète
-   - Validation des données
-
-3. **Dashboard fonctionnel**
-
-   - Métriques de base
-   - Navigation complète
-   - Gestion des rôles
-
-4. **Tests de base**
-   - Tests unitaires critiques
-   - Tests d'intégration auth
-   - Configuration CI/CD
-
-## 🚀 Objectifs à Moyen Terme (1-2 mois)
-
-1. **Fonctionnalités métier complètes**
-
-   - Système de réservations
-   - Gestion des menus
-   - Gestion des stocks
-
-2. **Interface utilisateur avancée**
-
-   - Dashboard riche
-   - Pages d'administration
-   - Responsive design
-
-3. **Performance et sécurité**
-   - Optimisation complète
-   - Sécurité renforcée
-   - Monitoring
-
-## 📊 Métriques de Progression
-
-- **Architecture**: 90% ✅
-- **Authentification**: 95% ✅
-- **Interface de base**: 80% ✅
-- **Configuration**: 30% ⏳
-- **Fonctionnalités métier**: 20% ⏳
-- **Tests**: 10% ⏳
-- **Performance**: 40% ⏳
-
-## 🔧 Problèmes Identifiés
-
-1. **Configuration Supabase manquante**
-
-   - Variables d'environnement à configurer
-   - Base de données à initialiser
-
-2. **Tests manquants**
-
-   - Aucun test unitaire
-   - Pas de tests d'intégration
-
-3. **Documentation utilisateur**
-   - Guide d'utilisation manquant
-   - Documentation API incomplète
-
-## 📝 Notes Techniques
-
-### Architecture Actuelle
-
-```
-src/
-├── app/                    # Pages Next.js 13+
-├── components/             # Composants React
-├── lib/
-│   ├── stores/            # Stores Zustand
-│   ├── queries/           # Queries TanStack Query
-│   ├── supabase/          # Configuration Supabase
-│   └── utils/             # Utilitaires
-└── middleware.ts          # Middleware d'auth
-```
-
-### Technologies Utilisées
-
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **État**: Zustand, TanStack Query
-- **UI**: shadcn/ui, Tailwind CSS
-- **Backend**: Supabase (Auth, Database, Storage)
-- **Authentification**: Supabase Auth
-- **Base de données**: PostgreSQL (Supabase)
-
-### Points d'Amélioration Identifiés
-
-1. Optimisation des requêtes TanStack Query
-2. Gestion d'erreurs plus robuste
-3. Tests automatisés
-4. Documentation technique
-5. Performance et SEO
+- **Accessibilité** : Conformité aux standards ARIA
+- **Stabilité** : Élimination des erreurs de contrainte de base de données
+- **Expérience Utilisateur** : Suppression des warnings dans la console
+- **Maintenabilité** : Code plus robuste et conforme aux bonnes pratiques
