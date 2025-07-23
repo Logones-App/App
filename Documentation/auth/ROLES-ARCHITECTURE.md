@@ -8,119 +8,58 @@ L'application utilise un système de rôles multi-tenant avec trois niveaux d'ac
 
 - **`system_admin`** : Accès global à toutes les organisations
 - **`org_admin`** : Accès limité à une organisation spécifique
-- **`visiteur`** : Accès public sans authentification
+- **`user`** : Accès limité à ses organisations
 
-## Structure des Tables
+## Stockage des rôles
 
-### Table `users_roles`
+- **Les rôles sont désormais stockés uniquement dans les métadonnées Supabase** :
+  - `app_metadata.role` (prioritaire)
+  - `user_metadata.role` (fallback)
+- **Exemple** :
+  ```json
+  {
+    "app_metadata": { "role": "org_admin" },
+    "user_metadata": { "role": "org_admin" }
+  }
+  ```
+- **system_admin** : `role = 'system_admin'` dans les métadonnées
+- **org_admin** : `role = 'org_admin'` dans les métadonnées
+- **user** : `role = 'user'` ou absence de rôle explicite
 
-**Objectif** : Définir le type de rôle d'un utilisateur
+## Association à une organisation
 
-```sql
-users_roles {
-  id: string
-  user_id: string
-  role: string ('system_admin' | 'org_admin')
-  created_at: timestamp
-  created_by: string
-  updated_at: timestamp
-  updated_by: string
-}
-```
+- **L'association à une organisation se fait via la table `users_organizations`** :
+  - `user_id` (UUID de l'utilisateur)
+  - `organization_id` (UUID de l'organisation)
+  - `deleted` (soft delete)
+- **Un org_admin doit avoir** :
+  - Un enregistrement dans `users_organizations` avec le bon `organization_id` et `deleted = false`
+  - Le rôle `org_admin` dans ses métadonnées
+- **Un system_admin** n'a pas besoin d'association dans `users_organizations` (accès global)
 
-### Table `users_organizations`
+## Logique d'accès
 
-**Objectif** : Lier un utilisateur à une organisation spécifique
+- **system_admin** : accès global, détecté via les métadonnées
+- **org_admin** : accès limité à ses organisations, détecté via les métadonnées + association dans `users_organizations`
+- **user** : accès limité à ses organisations, détecté via association dans `users_organizations` (et éventuellement rôle dans les métadonnées)
 
-```sql
-users_organizations {
-  id: string
-  user_id: string
-  organization_id: string
-  created_at: timestamp
-  deleted: boolean
-  updated_at: timestamp
-}
-```
+## Points importants
 
-## Logique d'Association
+- **NE PAS** utiliser de table users_roles (supprimée)
+- **NE PAS** stocker le rôle dans `users_organizations` (sauf besoin spécifique de permissions granulaires)
+- **Vérifier les deux :**
+  - Métadonnées pour le rôle
+  - Association dans `users_organizations` pour l'accès aux données
 
-### Pour un `system_admin` :
+## Exemples d'usage
 
-```sql
--- users_roles
-{ user_id: "xxx", role: "system_admin" }
-
--- users_organizations
--- AUCUN enregistrement (pas d'organisation spécifique)
-```
-
-### Pour un `org_admin` :
-
-```sql
--- users_roles
-{ user_id: "xxx", role: "org_admin" }
-
--- users_organizations
-{ user_id: "xxx", organization_id: "org_123" }
-```
-
-### Pour un `visiteur` :
-
-```sql
--- users_roles
--- AUCUN enregistrement
-
--- users_organizations
--- AUCUN enregistrement
-```
-
-## Logique de Récupération des Rôles
-
-### Dans `useUserMainRole()` :
-
-1. **Vérifier `system_admin`** :
-
-   ```sql
-   SELECT role FROM users_roles
-   WHERE user_id = ? AND role = 'system_admin'
-   ```
-
-2. **Vérifier `org_admin`** :
-
-   ```sql
-   SELECT organization_id, organizations(*)
-   FROM users_organizations
-   WHERE user_id = ? AND deleted = false
-   ```
-
-3. **Fallback** : Si aucun rôle trouvé, créer automatiquement un `system_admin`
-
-## Points Importants
-
-### ⚠️ Erreurs à éviter :
-
-- **NE PAS** insérer `organization_id` dans `users_roles` (cette colonne n'existe pas)
-- **NE PAS** oublier de créer les deux enregistrements pour un `org_admin`
-- **NE PAS** confondre les tables : `users_roles` pour le type, `users_organizations` pour l'appartenance
-
-### ✅ Bonnes pratiques :
-
-- Toujours vérifier les deux tables pour déterminer le rôle
-- Utiliser `createServiceClient()` pour les opérations d'administration
-- Gérer les erreurs de contraintes uniques (user_id + role)
-
-## Exemples d'Usage
-
-### Création d'un `org_admin` :
+### Création d'un org_admin
 
 ```typescript
-// 1. Créer le rôle
-await supabase.from("users_roles").insert({
-  user_id: userId,
-  role: "org_admin",
+// 1. Définir le rôle dans les métadonnées
+await supabase.auth.admin.updateUserById(userId, {
+  app_metadata: { role: "org_admin" },
 });
-
 // 2. Lier à l'organisation
 await supabase.from("users_organizations").insert({
   user_id: userId,
@@ -128,34 +67,24 @@ await supabase.from("users_organizations").insert({
 });
 ```
 
-### Création d'un `system_admin` :
+### Création d'un system_admin
 
 ```typescript
-// Seulement dans users_roles
-await supabase.from("users_roles").insert({
-  user_id: userId,
-  role: "system_admin",
+// Définir le rôle dans les métadonnées
+await supabase.auth.admin.updateUserById(userId, {
+  app_metadata: { role: "system_admin" },
 });
 ```
 
-## Middleware et Sécurité
+## Middleware et sécurité
 
-Le middleware vérifie les rôles côté serveur pour :
-
-- Rediriger vers `/unauthorized` si pas de permissions
-- Permettre l'accès aux pages publiques pour les visiteurs
-- Isoler les données par organisation pour les `org_admin`
+- Le middleware vérifie les rôles côté serveur via les métadonnées
+- Pour org_admin, il vérifie aussi l'association dans `users_organizations`
+- Redirection vers `/unauthorized` si pas de permissions
 
 ## Migration et Maintenance
 
-### Ajouter un nouveau rôle :
-
-1. Ajouter le rôle dans `users_roles`
-2. Mettre à jour la logique de récupération dans `useUserMainRole()`
-3. Mettre à jour le middleware si nécessaire
-
-### Debugging :
-
-- Vérifier les logs dans `useUserMainRole()` pour voir quelle table est consultée
-- Utiliser les requêtes SQL directes dans Supabase pour vérifier les données
-- Contrôler les policies RLS qui peuvent bloquer les requêtes
+- Toujours vérifier les métadonnées ET l'association dans `users_organizations`
+- Utiliser `app_metadata.role` comme source de vérité pour le rôle
+- Ne jamais utiliser de table users_roles
+- Documenter toute logique spécifique de permissions granulaires

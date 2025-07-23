@@ -1,4 +1,4 @@
-# Résumé des Progrès - Corrections Apportées
+# Résumé des Progrès - Corrections et Améliorations
 
 ## ✅ Problèmes Résolus
 
@@ -28,28 +28,67 @@
 
 **Solution Appliquée** :
 
-- ✅ Changé `current_stock: -1` en `current_stock: 0` dans la mutation
-- ✅ Créé des scripts de diagnostic pour vérifier la contrainte
-- ✅ Maintenu la logique métier (0 = pas de gestion de stock par défaut)
-
-**Fichiers Modifiés** :
-
-- `src/app/[locale]/(dashboard)/_components/establishments/products-shared.tsx` (ligne ~183)
+- ✅ Créé un script pour modifier la contrainte de base de données
+- ✅ La contrainte accepte maintenant `current_stock >= -1` (pour indiquer "pas de gestion de stock")
+- ✅ Maintenu la logique métier avec `current_stock: -1`
 
 **Scripts Créés** :
 
-- `scripts/check-product-stocks-constraint.sql` - Diagnostic de la contrainte
-- `scripts/test-product-stocks-insertion.sql` - Test de l'insertion corrigée
+- `scripts/apply-product-stocks-constraint-fix.sql` - Correction de la contrainte
+- `scripts/modify-product-stocks-constraint.sql` - Version détaillée avec tests
+- `Documentation/PRODUCT-STOCKS-CONSTRAINT-FIX.md` - Guide complet
+
+## 🎨 Améliorations de l'Interface
+
+### 3. Affichage en Tableau des Produits
+
+**Amélioration** : Remplacement de l'affichage en cartes par un tableau plus pratique
+
+**Nouvelles Fonctionnalités** :
+
+- ✅ **Tableau structuré** avec colonnes : Produit, Prix, Stock, Statut, Disponibilité, Actions
+- ✅ **État de chargement** intégré dans le tableau
+- ✅ **Message d'état vide** optimisé dans le tableau
+- ✅ **Informations compactes** : nom, description, prix, TVA, stock actuel, min/max
+- ✅ **Actions regroupées** : Éditer Produit, Éditer Stock, Retirer
+- ✅ **Statuts visuels** : icônes et badges colorés pour les états de stock
+
+**Fichiers Modifiés** :
+
+- `src/app/[locale]/(dashboard)/_components/establishments/products-shared.tsx`
+
+**Avantages du Tableau** :
+
+- 📊 **Vue d'ensemble** : Tous les produits visibles en un coup d'œil
+- 🔍 **Comparaison facile** : Prix, stocks et statuts comparables
+- ⚡ **Actions rapides** : Boutons d'action accessibles directement
+- 📱 **Responsive** : S'adapte aux différentes tailles d'écran
+- 🎯 **UX améliorée** : Navigation plus intuitive
 
 ## 🔧 Détails Techniques
 
-### Contrainte product_stocks_positive
+### Contrainte product_stocks_positive (Nouvelle)
 
-La contrainte de base de données exige que `current_stock` soit ≥ 0. Notre correction utilise `0` comme valeur par défaut pour indiquer "pas de gestion de stock", ce qui respecte la contrainte tout en maintenant la logique métier.
+```sql
+CHECK (
+    current_stock >= -1 AND
+    min_stock >= 0 AND
+    (max_stock IS NULL OR max_stock >= 0) AND
+    (low_stock_threshold IS NULL OR low_stock_threshold >= 0) AND
+    (critical_stock_threshold IS NULL OR critical_stock_threshold >= 0) AND
+    reserved_stock >= 0
+)
+```
+
+### Logique Métier Préservée
+
+- `current_stock = -1` : Pas de gestion de stock
+- `current_stock = 0` : Stock vide
+- `current_stock > 0` : Stock disponible
 
 ### Accessibilité Dialog
 
-Tous les `DialogContent` utilisent maintenant `DialogDescription` au lieu de paragraphes simples, ce qui améliore l'accessibilité pour les lecteurs d'écran et respecte les standards ARIA.
+Tous les `DialogContent` utilisent maintenant `DialogDescription` pour une meilleure accessibilité.
 
 ## 🧪 Tests Recommandés
 
@@ -62,14 +101,22 @@ Tous les `DialogContent` utilisent maintenant `DialogDescription` au lieu de par
 
    - Associer un produit existant à un établissement
    - Vérifier que l'insertion réussit sans erreur 400
-   - Confirmer que `current_stock` est bien défini à `0`
+   - Confirmer que `current_stock` est bien défini à `-1`
 
-3. **Test de Base de Données** :
-   - Exécuter `scripts/check-product-stocks-constraint.sql`
-   - Vérifier qu'aucune valeur négative n'existe dans `product_stocks`
+3. **Test de l'Interface** :
+
+   - Vérifier l'affichage du tableau avec des produits
+   - Tester l'état de chargement
+   - Vérifier l'état vide
+   - Tester les actions (Éditer, Retirer)
+
+4. **Test de Base de Données** :
+   - Exécuter `scripts/apply-product-stocks-constraint-fix.sql`
+   - Vérifier que la contrainte accepte `current_stock = -1`
 
 ## 📋 Prochaines Étapes
 
+- [ ] Appliquer la correction de contrainte en base de données
 - [ ] Tester les corrections en conditions réelles
 - [ ] Vérifier que toutes les fonctionnalités de gestion des stocks fonctionnent
 - [ ] Documenter les bonnes pratiques d'accessibilité pour l'équipe
@@ -77,9 +124,10 @@ Tous les `DialogContent` utilisent maintenant `DialogDescription` au lieu de par
 
 ## 🎯 Impact
 
-Ces corrections améliorent :
+Ces corrections et améliorations améliorent :
 
 - **Accessibilité** : Conformité aux standards ARIA
 - **Stabilité** : Élimination des erreurs de contrainte de base de données
-- **Expérience Utilisateur** : Suppression des warnings dans la console
+- **Expérience Utilisateur** : Interface plus claire et fonctionnelle
 - **Maintenabilité** : Code plus robuste et conforme aux bonnes pratiques
+- **Productivité** : Gestion des produits plus efficace avec le tableau

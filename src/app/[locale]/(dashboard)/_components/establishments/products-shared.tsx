@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Plus, Edit, Trash2, Package, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { useOrganizationsRealtime } from "@/hooks/use-organizations-realtime";
+import { useProductsRealtime } from "@/hooks/use-products-realtime";
 import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
 
 // Types basés sur database.types.ts
@@ -36,7 +37,7 @@ interface ProductWithStock extends Product {
 }
 
 // Hook pour les produits en temps réel
-function useProductsRealtime(establishmentId: string, organizationId: string) {
+function useProductsData(establishmentId: string, organizationId: string) {
   const {
     data: products,
     isLoading,
@@ -72,9 +73,6 @@ function useProductsRealtime(establishmentId: string, organizationId: string) {
     },
   });
 
-  // Écouter les changements en temps réel
-  useOrganizationsRealtime();
-
   return { products, isLoading, error };
 }
 
@@ -84,22 +82,37 @@ const getStockStatus = (stock: ProductStock | null) => {
 
   const { current_stock, min_stock, low_stock_threshold, critical_stock_threshold } = stock;
 
-  if (current_stock <= 0) {
+  // Stock non géré (-1)
+  if (current_stock === -1) {
+    return { status: "not-managed", label: "Stock non géré", icon: XCircle, color: "text-gray-500" };
+  }
+
+  // Rupture de stock (0)
+  if (current_stock === 0) {
     return { status: "out-of-stock", label: "Rupture", icon: XCircle, color: "text-red-500" };
   }
 
+  // Stock négatif (erreur)
+  if (current_stock < 0) {
+    return { status: "error", label: "Erreur", icon: XCircle, color: "text-red-600" };
+  }
+
+  // Stock critique
   if (critical_stock_threshold && current_stock <= critical_stock_threshold) {
     return { status: "critical", label: "Critique", icon: AlertTriangle, color: "text-red-600" };
   }
 
+  // Stock faible
   if (low_stock_threshold && current_stock <= low_stock_threshold) {
     return { status: "low", label: "Faible", icon: AlertTriangle, color: "text-orange-500" };
   }
 
+  // Stock minimum
   if (current_stock <= min_stock) {
     return { status: "min", label: "Minimum", icon: AlertTriangle, color: "text-yellow-500" };
   }
 
+  // Stock OK
   return { status: "ok", label: "OK", icon: CheckCircle, color: "text-green-500" };
 };
 
@@ -111,7 +124,10 @@ export function ProductsShared({
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
-  const { products, isLoading, error } = useProductsRealtime(establishmentId, organizationId);
+  const { products, isLoading, error } = useProductsData(establishmentId, organizationId);
+
+  // Hook realtime pour les produits
+  const { forceRefresh } = useProductsRealtime(establishmentId, organizationId);
 
   // États pour les formulaires
   const [showAddForm, setShowAddForm] = useState(false);
@@ -315,18 +331,54 @@ export function ProductsShared({
   // Mutation pour modifier un produit
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, ...payload }: { id: string } & typeof editProductForm) => {
+      console.log("🔍 Debug updateProductMutation - id:", id, "payload:", payload);
+
       const supabase = createClient();
-      const { error } = await supabase.from("products").update(payload).eq("id", id);
-      if (error) throw error;
-      return { id, ...payload };
+
+      // 1. Vérifier d'abord si le produit existe et est accessible
+      const { data: existingProduct, error: selectError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (selectError) {
+        console.error("❌ Erreur lors de la vérification du produit:", selectError);
+        throw new Error(`Produit non trouvé ou inaccessible: ${selectError.message}`);
+      }
+
+      console.log("✅ Produit trouvé:", existingProduct);
+
+      // 2. Tenter la mise à jour
+      const { data, error, count } = await supabase.from("products").update(payload).eq("id", id).select();
+
+      if (error) {
+        console.error("❌ Erreur Supabase updateProduct:", error);
+        throw error;
+      }
+
+      console.log("✅ Résultat de la mise à jour:", { data, count });
+
+      if (!data || data.length === 0) {
+        console.error("❌ Aucune ligne mise à jour - problème de permissions RLS?");
+        throw new Error("Aucune modification effectuée - vérifiez les permissions");
+      }
+
+      console.log("✅ Produit mis à jour avec succès:", data[0]);
+      return data[0];
     },
     onSuccess: (updated) => {
+      console.log("✅ onSuccess updateProductMutation:", updated);
       queryClient.invalidateQueries({
         queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
       });
       queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
       setEditingProductId(null);
       setErrorMsg(null);
+    },
+    onError: (error) => {
+      console.error("❌ Erreur updateProductMutation:", error);
+      setErrorMsg(`Erreur lors de la modification du produit: ${error.message}`);
     },
   });
 
@@ -375,13 +427,25 @@ export function ProductsShared({
   };
 
   const startEditProduct = (product: Product) => {
+    console.log("🔍 Debug startEditProduct - product:", product);
+
     setEditingProductId(product.id);
+    setErrorMsg(null); // Réinitialiser les erreurs
+
     setEditProductForm({
-      name: product.name,
+      name: product.name || "",
       description: product.description || "",
-      price: product.price,
-      vat_rate: product.vat_rate,
-      is_available: product.is_available || false,
+      price: product.price || 0,
+      vat_rate: product.vat_rate || 20,
+      is_available: product.is_available ?? true,
+    });
+
+    console.log("✅ Formulaire d'édition initialisé:", {
+      name: product.name || "",
+      description: product.description || "",
+      price: product.price || 0,
+      vat_rate: product.vat_rate || 20,
+      is_available: product.is_available ?? true,
     });
   };
 
@@ -406,9 +470,28 @@ export function ProductsShared({
   };
 
   const saveProductEdit = () => {
-    if (editingProductId) {
-      updateProductMutation.mutate({ id: editingProductId, ...editProductForm });
+    console.log("🔍 Debug saveProductEdit - editingProductId:", editingProductId, "editProductForm:", editProductForm);
+
+    if (!editingProductId) {
+      console.error("❌ Pas d'ID de produit en cours d'édition");
+      setErrorMsg("Erreur: Aucun produit sélectionné pour modification");
+      return;
     }
+
+    if (!editProductForm.name.trim()) {
+      console.error("❌ Nom de produit vide");
+      setErrorMsg("Le nom du produit est obligatoire");
+      return;
+    }
+
+    if (editProductForm.price <= 0) {
+      console.error("❌ Prix invalide:", editProductForm.price);
+      setErrorMsg("Le prix doit être supérieur à 0");
+      return;
+    }
+
+    console.log("✅ Validation OK, lancement de la mutation");
+    updateProductMutation.mutate({ id: editingProductId, ...editProductForm });
   };
 
   const saveStockEdit = () => {
@@ -448,7 +531,17 @@ export function ProductsShared({
           <h2 className="text-2xl font-bold tracking-tight">Produits</h2>
           <p className="text-muted-foreground">Gérez les produits et leurs stocks pour cet établissement</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
+              Temps réel
+            </div>
+          </Badge>
+          <Button variant="outline" size="sm" onClick={forceRefresh}>
+            <Loader2 className="mr-1 h-3 w-3" />
+            Actualiser
+          </Button>
           <Dialog open={showAddProductsModal} onOpenChange={setShowAddProductsModal}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -513,119 +606,133 @@ export function ProductsShared({
         </Alert>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {products?.map((product) => {
-          const stockStatus = getStockStatus(product.stock);
-          const StatusIcon = stockStatus.icon;
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Produit</TableHead>
+              <TableHead>Prix</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead>Disponibilité</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Chargement des produits...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : products && products.length > 0 ? (
+              products.map((product) => {
+                const stockStatus = getStockStatus(product.stock);
+                const StatusIcon = stockStatus.icon;
 
-          return (
-            <Card key={product.id} className="relative">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <p className="text-muted-foreground mt-1 text-sm">{product.description}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <StatusIcon className={`h-4 w-4 ${stockStatus.color}`} />
-                    <Badge variant="outline" className="text-xs">
-                      {stockStatus.label}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-lg font-semibold">{product.price.toFixed(2)} €</span>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="secondary" className="text-xs">
-                      TVA {product.vat_rate}%
-                    </Badge>
-                    <Badge variant={product.is_available ? "default" : "secondary"}>
-                      {product.is_available ? "Disponible" : "Indisponible"}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="pt-0">
-                {product.stock && (
-                  <div className="mb-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Stock actuel:</span>
-                      <span className="font-medium">
-                        {product.stock.current_stock} {product.stock.unit}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Stock minimum:</span>
-                      <span className="font-medium">
-                        {product.stock.min_stock} {product.stock.unit}
-                      </span>
-                    </div>
-                    {product.stock.max_stock && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Stock maximum:</span>
-                        <span className="font-medium">
-                          {product.stock.max_stock} {product.stock.unit}
-                        </span>
+                return (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-muted-foreground text-sm">{product.description}</div>
                       </div>
-                    )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{product.price.toFixed(2)} €</div>
+                      <div className="text-muted-foreground text-sm">TVA {product.vat_rate}%</div>
+                    </TableCell>
+                    <TableCell>
+                      {product.stock ? (
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="font-medium">{product.stock.current_stock}</span> {product.stock.unit}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            Min: {product.stock.min_stock} {product.stock.unit}
+                            {product.stock.max_stock && ` | Max: ${product.stock.max_stock} ${product.stock.unit}`}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Pas de stock</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <StatusIcon className={`h-4 w-4 ${stockStatus.color}`} />
+                        <Badge variant="outline" className="text-xs">
+                          {stockStatus.label}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={product.is_available ? "default" : "secondary"}>
+                        {product.is_available ? "Disponible" : "Indisponible"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEditProduct(product)}
+                          disabled={editingProductId === product.id}
+                        >
+                          <Edit className="mr-1 h-3 w-3" />
+                          Produit
+                        </Button>
+                        {product.stock && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => startEditStock(product)}
+                            disabled={editingStockId === product.id}
+                          >
+                            <Package className="mr-1 h-3 w-3" />
+                            Stock
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => disassociateProductMutation.mutate(product.id)}
+                          disabled={disassociateProductMutation.isPending}
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Retirer
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <Package className="text-muted-foreground h-12 w-12" />
+                    <div>
+                      <h3 className="text-lg font-medium">Aucun produit associé</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Commencez par associer des produits existants ou créez de nouveaux produits.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => setShowAddProductsModal(true)}>
+                        Associer un produit
+                      </Button>
+                      <Button onClick={handleAdd}>Créer un produit</Button>
+                    </div>
                   </div>
-                )}
-
-                <Separator className="my-3" />
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => startEditProduct(product)}
-                    disabled={editingProductId === product.id}
-                  >
-                    <Edit className="mr-1 h-3 w-3" />
-                    Produit
-                  </Button>
-                  {product.stock && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => startEditStock(product)}
-                      disabled={editingStockId === product.id}
-                    >
-                      <Package className="mr-1 h-3 w-3" />
-                      Stock
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => disassociateProductMutation.mutate(product.id)}
-                    disabled={disassociateProductMutation.isPending}
-                  >
-                    <Trash2 className="mr-1 h-3 w-3" />
-                    Retirer
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
-
-      {products?.length === 0 && (
-        <div className="py-12 text-center">
-          <Package className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
-          <h3 className="mb-2 text-lg font-medium">Aucun produit associé</h3>
-          <p className="text-muted-foreground mb-4">
-            Commencez par associer des produits existants ou créez de nouveaux produits.
-          </p>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" onClick={() => setShowAddProductsModal(true)}>
-              Associer un produit
-            </Button>
-            <Button onClick={handleAdd}>Créer un produit</Button>
-          </div>
-        </div>
-      )}
 
       {/* Modal d'ajout de produit */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
@@ -793,6 +900,12 @@ export function ProductsShared({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {errorMsg && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{errorMsg}</AlertDescription>
+                </Alert>
+              )}
               <div>
                 <Label htmlFor="edit-name">Nom</Label>
                 <Input
@@ -844,6 +957,23 @@ export function ProductsShared({
                 <Button variant="outline" onClick={cancelEdit}>
                   Annuler
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    console.log("🔍 Test - État actuel:", {
+                      editingProductId,
+                      editProductForm,
+                      updateProductMutation: {
+                        isPending: updateProductMutation.isPending,
+                        isError: updateProductMutation.isError,
+                        error: updateProductMutation.error,
+                      },
+                    });
+                  }}
+                >
+                  Debug
+                </Button>
                 <Button onClick={saveProductEdit} disabled={updateProductMutation.isPending}>
                   {updateProductMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sauvegarder"}
                 </Button>
@@ -867,20 +997,65 @@ export function ProductsShared({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-current-stock">Stock actuel</Label>
-                  <Input
-                    id="edit-current-stock"
-                    type="number"
-                    value={editStockForm.current_stock}
-                    onChange={(e) =>
-                      setEditStockForm({ ...editStockForm, current_stock: parseInt(e.target.value) || 0 })
-                    }
-                  />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="edit-current-stock"
+                        type="number"
+                        min="-1"
+                        value={editStockForm.current_stock}
+                        onChange={(e) =>
+                          setEditStockForm({ ...editStockForm, current_stock: parseInt(e.target.value) || 0 })
+                        }
+                        placeholder="0 ou plus"
+                      />
+                      {editStockForm.current_stock === -1 && (
+                        <Badge variant="secondary" className="text-xs">
+                          Stock non géré
+                        </Badge>
+                      )}
+                      {editStockForm.current_stock === 0 && (
+                        <Badge variant="destructive" className="text-xs">
+                          Rupture
+                        </Badge>
+                      )}
+                      {editStockForm.current_stock > 0 && (
+                        <Badge variant="default" className="text-xs">
+                          En stock
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditStockForm({ ...editStockForm, current_stock: -1 })}
+                        className="text-xs"
+                      >
+                        Stock non géré (-1)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditStockForm({ ...editStockForm, current_stock: 0 })}
+                        className="text-xs"
+                      >
+                        Rupture (0)
+                      </Button>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      -1 = Stock non géré, 0 = Rupture, &gt;0 = Stock disponible
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="edit-min-stock">Stock minimum</Label>
                   <Input
                     id="edit-min-stock"
                     type="number"
+                    min="0"
                     value={editStockForm.min_stock}
                     onChange={(e) => setEditStockForm({ ...editStockForm, min_stock: parseInt(e.target.value) || 0 })}
                   />

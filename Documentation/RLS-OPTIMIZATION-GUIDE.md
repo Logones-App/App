@@ -1,3 +1,7 @@
+# ⚠️ NOTE IMPORTANTE
+
+> **Pour toute génération de script RLS, se référer exclusivement à `RLS-POLICIES-STANDARD.md` qui fait foi pour le standard universel du projet. Ce fichier est un guide d'optimisation et d'explication, pas un template direct.**
+
 # Guide d'Optimisation des Politiques RLS - Architecture Unifiée
 
 ## 📋 Résumé de la Solution
