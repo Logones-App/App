@@ -3,13 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { productsRealtime, type ProductsRealtimeEvent } from '@/lib/services/realtime/modules/products-realtime';
 import { createClient } from '@/lib/supabase/client';
 import type { Tables } from '@/lib/supabase/database.types';
+import type { ProductWithStock, ProductStockJoin } from '@/lib/types/database-extensions';
 
 type Product = Tables<'products'>;
 type ProductStock = Tables<'product_stocks'>;
-
-interface ProductWithStock extends Product {
-  stock: ProductStock | null;
-}
 
 export function useProductsRealtime(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
@@ -40,9 +37,25 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
       if (error) throw error;
 
       // Transformer les données pour correspondre au type ProductWithStock
-      const productsWithStock = (data || []).map((item: any) => ({
+      const productsWithStock = (data as ProductStockJoin[] || []).map((item) => ({
         ...item.product,
-        stock: item,
+        stock: {
+          id: item.id,
+          current_stock: item.current_stock,
+          min_stock: item.min_stock,
+          max_stock: item.max_stock,
+          low_stock_threshold: item.low_stock_threshold,
+          critical_stock_threshold: item.critical_stock_threshold,
+          unit: item.unit,
+          reserved_stock: item.reserved_stock,
+          establishment_id: item.establishment_id,
+          organization_id: item.organization_id,
+          product_id: item.product_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          deleted: item.deleted,
+          last_updated_by: item.last_updated_by,
+        },
       })) as ProductWithStock[];
 
       // Mettre à jour le cache React Query

@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import type { 
+  OrganizationWithUsers, 
+  UserOrganizationJoin, 
+  CreateOrganizationPayload, 
+  UpdateOrganizationPayload 
+} from '@/lib/types/database-extensions';
 
 type Organization = Database['public']['Tables']['organizations']['Row'];
 
@@ -30,7 +36,9 @@ export const useUserOrganizations = (userId?: string) => {
         .eq('deleted', false);
 
       if (error) throw error;
-      return data?.map((item: any) => item.organizations).filter(Boolean) || [];
+      return (data || [])
+        .map((item: { organizations: Partial<Organization> }) => item.organizations)
+        .filter(Boolean) || [];
     },
     enabled: !!userId,
   });

@@ -1,4 +1,4 @@
-import { routing } from "../../../i18n/routing";
+import { routing } from "@/i18n/routing";
 import { useParams, usePathname } from "next/navigation";
 
 export function LanguageSwitcher() {

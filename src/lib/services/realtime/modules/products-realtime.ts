@@ -44,8 +44,8 @@ class ProductsRealtime {
           // Filtrer côté client pour cet établissement et organisation
           const record = payload.new || payload.old;
           if (record && 
-              record.establishment_id === establishmentId && 
-              record.organization_id === organizationId) {
+              (record as any).establishment_id === establishmentId && 
+              (record as any).organization_id === organizationId) {
             
             const event: ProductsRealtimeEvent = {
               type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
@@ -54,7 +54,7 @@ class ProductsRealtime {
               oldRecord: payload.old
             };
             
-            console.log('📡 Product stocks realtime event:', event.type, record.id, record.establishment_id, record.organization_id);
+            console.log('📡 Product stocks realtime event:', event.type, (record as any).id, (record as any).establishment_id, (record as any).organization_id);
             this.notifyEventHandlers(event);
             onEvent?.(event);
           }
@@ -75,7 +75,7 @@ class ProductsRealtime {
         (payload) => {
           // Filtrer côté client pour cette organisation
           const record = payload.new || payload.old;
-          if (record && record.organization_id === organizationId) {
+          if (record && (record as any).organization_id === organizationId) {
             
             const event: ProductsRealtimeEvent = {
               type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
@@ -84,7 +84,7 @@ class ProductsRealtime {
               oldRecord: payload.old
             };
             
-            console.log('📡 Products realtime event:', event.type, record.id, record.organization_id);
+            console.log('📡 Products realtime event:', event.type, (record as any).id, (record as any).organization_id);
             this.notifyEventHandlers(event);
             onEvent?.(event);
           }

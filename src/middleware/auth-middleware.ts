@@ -1,6 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { getLocale } from "next-intl/server";
-import { routing } from "../../i18n/routing";
+import { NextRequest, NextResponse } from "next/server";
+import { routing } from "@/i18n/routing";
 
 // ============================================================================
 // CONSTANTES
@@ -105,7 +104,7 @@ export async function authMiddleware(req: NextRequest) {
   // 3. Utiliser next-intl pour extraire la locale
   let locale: string;
   try {
-    locale = await getLocale();
+    locale = await req.nextUrl.pathname.split('/')[1]; // Extract locale from pathname
   } catch (error) {
     locale = routing.defaultLocale;
   }

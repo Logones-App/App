@@ -99,13 +99,13 @@ export default function DashboardPage() {
           <CardContent>
             {organizations.length > 0 ? (
               <div className="space-y-2">
-                {organizations.map((org: Organization) => (
+                {organizations.map((org: Partial<Organization>) => (
                   <div key={org.id} className="flex items-center justify-between rounded-md border p-2">
                     <div>
-                      <p className="font-medium">{org.name}</p>
-                      <p className="text-muted-foreground text-sm">{org.description}</p>
+                      <p className="font-medium">{org.name || "Sans nom"}</p>
+                      <p className="text-muted-foreground text-sm">{org.description || "Aucune description"}</p>
                     </div>
-                    <span className="text-muted-foreground text-xs">/{org.slug}</span>
+                    <span className="text-muted-foreground text-xs">/{org.slug || "slug"}</span>
                   </div>
                 ))}
               </div>

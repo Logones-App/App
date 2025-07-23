@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,19 +23,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Plus, Edit, Trash2, Package, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Package, AlertTriangle, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { useProductsRealtime } from "@/hooks/use-products-realtime";
 import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
+import type {
+  ProductWithStock,
+  ProductStockJoin,
+  CreateProductPayload,
+  CreateProductStockPayload,
+} from "@/lib/types/database-extensions";
 
 // Types basés sur database.types.ts
 type Product = Tables<"products">;
 type ProductStock = Tables<"product_stocks">;
-type ProductInsert = TablesInsert<"products">;
-type ProductStockInsert = TablesInsert<"product_stocks">;
-
-interface ProductWithStock extends Product {
-  stock: ProductStock | null;
-}
+type ProductInsert = CreateProductPayload;
+type ProductStockInsert = CreateProductStockPayload;
 
 // Hook pour les produits en temps réel
 function useProductsData(establishmentId: string, organizationId: string) {
@@ -66,9 +69,25 @@ function useProductsData(establishmentId: string, organizationId: string) {
       if (error) throw error;
 
       // Transformer les données pour correspondre au type ProductWithStock
-      return (data || []).map((item: any) => ({
+      return ((data as ProductStockJoin[]) || []).map((item) => ({
         ...item.product,
-        stock: item,
+        stock: {
+          id: item.id,
+          current_stock: item.current_stock,
+          min_stock: item.min_stock,
+          max_stock: item.max_stock,
+          low_stock_threshold: item.low_stock_threshold,
+          critical_stock_threshold: item.critical_stock_threshold,
+          unit: item.unit,
+          reserved_stock: item.reserved_stock,
+          establishment_id: item.establishment_id,
+          organization_id: item.organization_id,
+          product_id: item.product_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          deleted: item.deleted,
+          last_updated_by: item.last_updated_by,
+        },
       })) as ProductWithStock[];
     },
   });
@@ -124,6 +143,7 @@ export function ProductsShared({
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { products, isLoading, error } = useProductsData(establishmentId, organizationId);
 
   // Hook realtime pour les produits
@@ -527,9 +547,15 @@ export function ProductsShared({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Produits</h2>
-          <p className="text-muted-foreground">Gérez les produits et leurs stocks pour cet établissement</p>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Produits</h2>
+            <p className="text-muted-foreground">Gérez les produits et leurs stocks pour cet établissement</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">

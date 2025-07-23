@@ -1,4 +1,10 @@
-import { DndContext, closestCenter, type UniqueIdentifier, type SensorDescriptor } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  type UniqueIdentifier,
+  type SensorDescriptor,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ColumnDef, flexRender, type Table as TanStackTable } from "@tanstack/react-table";
@@ -12,7 +18,7 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   dataIds?: UniqueIdentifier[];
   dndEnabled?: boolean;
-  handleDragEnd?: (event: any) => void;
+  handleDragEnd?: (event: DragEndEvent) => void;
   sensors?: SensorDescriptor<any>[];
   sortableId?: string;
 }

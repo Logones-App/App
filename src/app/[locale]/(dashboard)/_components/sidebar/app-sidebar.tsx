@@ -75,22 +75,6 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   // Calcule les items côté client pour éviter les problèmes d'icônes
   const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale);
 
-  // Créer l'objet user pour NavUser
-  const currentUser = user
-    ? {
-        name:
-          `${user.user_metadata?.firstname || ""} ${user.user_metadata?.lastname || ""}`.trim() ||
-          user.email ||
-          "Utilisateur",
-        email: user.email || "",
-        avatar: user.user_metadata?.avatar_url || "",
-      }
-    : {
-        name: "Utilisateur",
-        email: "",
-        avatar: "",
-      };
-
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -111,7 +95,7 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={currentUser} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

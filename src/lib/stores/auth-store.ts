@@ -7,9 +7,13 @@ interface AuthState {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  userRole?: string | null;
+  currentOrganization?: any | null;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
+  setUserRole: (role: string | null) => void;
+  setCurrentOrganization: (organization: any | null) => void;
   logout: () => Promise<void>;
   reset: () => void;
 }
@@ -21,6 +25,8 @@ export const useAuthStore = create<AuthState>()(
       session: null,
       isLoading: true,
       isAuthenticated: false,
+      userRole: null,
+      currentOrganization: null,
       setUser: (user: User | null) =>
         set({
           user,
@@ -28,6 +34,8 @@ export const useAuthStore = create<AuthState>()(
         }),
       setSession: (session: Session | null) => set({ session }),
       setLoading: (loading: boolean) => set({ isLoading: loading }),
+      setUserRole: (role: string | null) => set({ userRole: role }),
+      setCurrentOrganization: (organization: any | null) => set({ currentOrganization: organization }),
       logout: async () => {
         try {
           // Déconnexion de Supabase
@@ -56,6 +64,8 @@ export const useAuthStore = create<AuthState>()(
           session: null,
           isLoading: true,
           isAuthenticated: false,
+          userRole: null,
+          currentOrganization: null,
         }),
     }),
     {

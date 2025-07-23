@@ -62,7 +62,7 @@ export default function EstablishmentsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-2">
-              {organizations.map((org: Organization) => (
+              {organizations.map((org: Partial<Organization>) => (
                 <Button
                   key={org.id}
                   variant={selectedOrganizationId === org.id ? "default" : "outline"}
