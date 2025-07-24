@@ -1,12 +1,15 @@
 import { ReactNode } from "react";
+
 import { cookies } from "next/headers";
-import { AppSidebar } from "./_components/sidebar/app-sidebar";
+
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { users } from "@/data/users";
 import { getSidebarVariant, getSidebarCollapsible, getContentLayout } from "@/lib/layout-preferences";
 import { cn } from "@/lib/utils";
+
 import { AccountSwitcher } from "./_components/sidebar/account-switcher";
+import { AppSidebar } from "./_components/sidebar/app-sidebar";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
 import { SearchDialog } from "./_components/sidebar/search-dialog";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";

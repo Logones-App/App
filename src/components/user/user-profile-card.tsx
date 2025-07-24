@@ -1,13 +1,14 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Shield, User, Settings, Bell, Palette, Globe } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
-import { Shield, User, Settings, Bell, Palette, Globe } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { useTranslations } from "next-intl";
+import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
 
 export function UserProfileCard() {
   const {

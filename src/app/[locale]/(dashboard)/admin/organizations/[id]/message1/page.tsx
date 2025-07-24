@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/lib/supabase/database.types";
+
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { ColumnDef } from "@tanstack/react-table";
+import { Trash2, Plus } from "lucide-react";
+
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { Trash2, Plus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Database } from "@/lib/supabase/database.types";
 
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 
@@ -120,7 +123,7 @@ export default function Message1Page() {
       accessorKey: "content",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Contenu" />,
       cell: ({ row }) => (
-        <div className="max-w-md truncate" title={row.getValue("content") as string}>
+        <div className="max-w-md truncate" title={row.getValue("content")}>
           {row.getValue("content")}
         </div>
       ),
@@ -130,10 +133,10 @@ export default function Message1Page() {
       accessorKey: "organization_id",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Organisation" />,
       cell: ({ row }) => {
-        const orgId = row.getValue("organization_id") as string;
+        const orgId = row.getValue("organization_id");
         return orgId ? (
           <Badge variant="outline" className="font-mono text-xs">
-            {orgId.slice(0, 8)}...
+            {(orgId as string).slice(0, 8)}...
           </Badge>
         ) : (
           <span className="text-muted-foreground">-</span>

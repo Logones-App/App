@@ -1,27 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/database.types';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import type { 
-  OrganizationWithUsers, 
-  UserOrganizationJoin, 
-  CreateOrganizationPayload, 
-  UpdateOrganizationPayload 
-} from '@/lib/types/database-extensions';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-type Organization = Database['public']['Tables']['organizations']['Row'];
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
+import type {
+  OrganizationWithUsers,
+  UserOrganizationJoin,
+  CreateOrganizationPayload,
+  UpdateOrganizationPayload,
+} from "@/lib/types/database-extensions";
+
+type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 
 // Query pour récupérer les organisations de l'utilisateur
 export const useUserOrganizations = (userId?: string) => {
   return useQuery({
-    queryKey: ['user-organizations', userId],
+    queryKey: ["user-organizations", userId],
     queryFn: async () => {
       if (!userId) return [];
 
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('users_organizations')
-        .select(`
+        .from("users_organizations")
+        .select(
+          `
           organization_id,
           organizations (
             id,
@@ -31,14 +33,15 @@ export const useUserOrganizations = (userId?: string) => {
             logo_url,
             settings
           )
-        `)
-        .eq('user_id', userId)
-        .eq('deleted', false);
+        `,
+        )
+        .eq("user_id", userId)
+        .eq("deleted", false);
 
       if (error) throw error;
-      return (data || [])
-        .map((item: { organizations: Partial<Organization> }) => item.organizations)
-        .filter(Boolean) || [];
+      return (
+        (data || []).map((item: { organizations: Partial<Organization> }) => item.organizations).filter(Boolean) || []
+      );
     },
     enabled: !!userId,
   });
@@ -47,16 +50,16 @@ export const useUserOrganizations = (userId?: string) => {
 // Query pour récupérer une organisation spécifique
 export const useOrganization = (organizationId?: string) => {
   return useQuery({
-    queryKey: ['organization', organizationId],
+    queryKey: ["organization", organizationId],
     queryFn: async () => {
       if (!organizationId) return null;
 
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', organizationId)
-        .eq('deleted', false)
+        .from("organizations")
+        .select("*")
+        .eq("id", organizationId)
+        .eq("deleted", false)
         .single();
 
       if (error) throw error;
@@ -69,18 +72,18 @@ export const useOrganization = (organizationId?: string) => {
 // Hook pour récupérer l'organisation active (avec isolation multi-tenant)
 export const useCurrentOrganization = () => {
   const { currentOrganization, userRole } = useAuthStore();
-  
+
   return useQuery({
-    queryKey: ['current-organization', currentOrganization?.id],
+    queryKey: ["current-organization", currentOrganization?.id],
     queryFn: async () => {
       if (!currentOrganization?.id) return null;
 
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', currentOrganization.id)
-        .eq('deleted', false)
+        .from("organizations")
+        .select("*")
+        .eq("id", currentOrganization.id)
+        .eq("deleted", false)
         .single();
 
       if (error) throw error;
@@ -97,15 +100,15 @@ export const useMultiTenantData = <T>(
   options?: {
     enabled?: boolean;
     staleTime?: number;
-  }
+  },
 ) => {
   const { currentOrganization, userRole } = useAuthStore();
-  
+
   return useQuery({
     queryKey: [...queryKey, currentOrganization?.id],
     queryFn: () => {
       if (!currentOrganization?.id) {
-        throw new Error('No organization selected');
+        throw new Error("No organization selected");
       }
       return queryFn(currentOrganization.id);
     },
@@ -127,18 +130,14 @@ export const useCreateOrganization = () => {
       settings?: Record<string, any>;
     }) => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('organizations')
-        .insert(organization)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("organizations").insert(organization).select().single();
 
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       // Invalider les queries liées aux organisations
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ["user-organizations"] });
     },
   });
 };
@@ -160,20 +159,15 @@ export const useUpdateOrganization = () => {
       settings?: Record<string, any>;
     }) => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('organizations')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("organizations").update(updates).eq("id", id).select().single();
 
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       // Invalider les queries liées aux organisations
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] });
-      queryClient.invalidateQueries({ queryKey: ['organization', data.id] });
+      queryClient.invalidateQueries({ queryKey: ["user-organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["organization", data.id] });
     },
   });
-}; 
+};

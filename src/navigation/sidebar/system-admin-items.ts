@@ -1,21 +1,22 @@
-import { 
-  BarChart3, 
-  Building2, 
-  Settings, 
-  Users, 
-  Home, 
+import {
+  BarChart3,
+  Building2,
+  Settings,
+  Users,
+  Home,
   Activity,
   Shield,
   Database,
   FileText,
   Bell,
-  HelpCircle
+  HelpCircle,
 } from "lucide-react";
+
 import { type NavGroup } from "./sidebar-items";
 
 export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
   const baseUrl = locale ? `/${locale}` : "";
-  
+
   return [
     {
       id: 1,
@@ -185,4 +186,4 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
       ],
     },
   ];
-}; 
+};

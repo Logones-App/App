@@ -1,7 +1,9 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+
 import { OpeningHoursShared } from "@/app/[locale]/(dashboard)/_components/establishments/opening-hours-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+
 export function OpeningHoursClient() {
   const params = useParams();
   const establishmentId = params.id as string;

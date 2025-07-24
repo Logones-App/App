@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+
+import { useTranslations } from "next-intl";
+
 import { useRealtime } from "@/hooks/use-realtime";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useTranslations } from "next-intl";
 
 interface RealtimeProviderProps {
   children: React.ReactNode;

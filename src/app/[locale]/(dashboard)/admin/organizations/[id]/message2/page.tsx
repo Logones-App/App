@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/lib/supabase/database.types";
+
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { ColumnDef } from "@tanstack/react-table";
+import { Trash2, Plus, Building2 } from "lucide-react";
+
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { Trash2, Plus, Building2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Database } from "@/lib/supabase/database.types";
 
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
@@ -156,7 +159,7 @@ export default function Message2Page() {
       accessorKey: "content",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Contenu" />,
       cell: ({ row }) => (
-        <div className="max-w-md truncate" title={row.getValue("content") as string}>
+        <div className="max-w-md truncate" title={row.getValue("content")}>
           {row.getValue("content")}
         </div>
       ),
@@ -166,7 +169,7 @@ export default function Message2Page() {
       accessorKey: "organization",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Organisation" />,
       cell: ({ row }) => {
-        const organization = row.getValue("organization") as Organization | undefined;
+        const organization = row.getValue("organization") as OrganizationData;
         return organization ? (
           <div className="flex items-center gap-2">
             <Building2 className="text-muted-foreground h-4 w-4" />

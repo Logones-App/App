@@ -1,5 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
+
 import { EstablishmentSlotsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-slots-shared";
 
 export function EstablishmentSlotsClient() {

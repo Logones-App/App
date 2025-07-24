@@ -1,10 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { ColumnDef } from "@tanstack/react-table";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { MoreHorizontal, Edit, Trash2, Users, Building, CheckCircle, Mail } from "lucide-react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Edit, Trash2, Users, Building, CheckCircle, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import type { Database } from "@/lib/supabase/database.types";
-import { useRouter } from "next/navigation";
 
 // Utiliser le type généré par Supabase
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];

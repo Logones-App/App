@@ -1,5 +1,7 @@
 import Link from "next/link";
+
 import { useTranslations } from "next-intl";
+
 import { ResetPasswordForm } from "./_components/reset-password-form";
 
 export default function ResetPasswordPage() {

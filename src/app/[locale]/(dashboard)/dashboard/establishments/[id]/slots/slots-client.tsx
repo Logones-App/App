@@ -1,7 +1,8 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+
 import { EstablishmentSlotsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-slots-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 
 export function EstablishmentSlotsClient() {
   const params = useParams();

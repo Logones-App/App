@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session } from "@supabase/supabase-js";
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 interface AuthState {
   user: User | null;
@@ -46,8 +46,8 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
           });
-          if (typeof window !== 'undefined') {
-            window.location.href = '/fr/auth/login';
+          if (typeof window !== "undefined") {
+            window.location.href = "/fr/auth/login";
           }
         } catch (error) {
           set({
@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'auth-store',
-    }
-  )
-); 
+      name: "auth-store",
+    },
+  ),
+);

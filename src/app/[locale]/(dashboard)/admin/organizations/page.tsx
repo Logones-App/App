@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+
 import { OrganizationsDataTable } from "./_components/organizations-data-table";
 import { OrganizationsHeader } from "./_components/organizations-header";
 

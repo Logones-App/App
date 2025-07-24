@@ -1,11 +1,12 @@
 "use client";
 
-import { NotificationsCenter } from "@/components/realtime/notifications-center";
 import { RealtimeConnectionStatus } from "@/components/realtime/connection-status";
+import { NotificationsCenter } from "@/components/realtime/notifications-center";
+
 import { AccountSwitcher } from "./account-switcher";
-import { ThemeSwitcher } from "./theme-switcher";
-import { SearchDialog } from "./search-dialog";
 import { LayoutControls } from "./layout-controls";
+import { SearchDialog } from "./search-dialog";
+import { ThemeSwitcher } from "./theme-switcher";
 
 export function NavUser() {
   return (

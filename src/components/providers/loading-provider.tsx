@@ -1,9 +1,12 @@
 "use client";
 
-import { useAuthStore } from "@/lib/stores/auth-store";
 import { useEffect, useState } from "react";
+
 import { usePathname } from "next/navigation";
+
 import { useTranslations } from "next-intl";
+
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface LoadingProviderProps {
   children: React.ReactNode;

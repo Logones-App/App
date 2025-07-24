@@ -1,5 +1,8 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
+
+import { Globe } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Globe } from "lucide-react";
 
 const LANGUAGES = [
   { code: "fr", label: "Français" },

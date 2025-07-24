@@ -1,17 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
-import { useLogin } from "@/lib/queries/auth";
-import { useAuthStore } from "@/lib/stores/auth-store";
+
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useTranslations } from "next-intl";
+import { useLogin } from "@/lib/queries/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 const FormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),

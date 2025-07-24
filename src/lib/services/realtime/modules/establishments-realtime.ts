@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/client";
-import { useRealtimeStore } from "@/lib/stores/realtime-store";
 import { useEffect } from "react";
+
+import { useRealtimeStore } from "@/lib/stores/realtime-store";
+import { createClient } from "@/lib/supabase/client";
 
 export class EstablishmentsRealtimeModule {
   /**
@@ -27,7 +28,7 @@ export class EstablishmentsRealtimeModule {
           },
           (payload) => {
             // Gérer les changements d'établissements
-          }
+          },
         )
         .subscribe();
 
@@ -44,4 +45,4 @@ export const establishmentsRealtime = new EstablishmentsRealtimeModule();
 // Export du hook pour compatibilité
 export const useEstablishmentsRealtime = () => {
   establishmentsRealtime.useEstablishmentsRealtime();
-}; 
+};

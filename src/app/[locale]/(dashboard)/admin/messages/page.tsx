@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { Database } from "@/lib/supabase/database.types";
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 
@@ -62,10 +64,10 @@ export default function MessagesPage() {
 
           if (payload.eventType === "INSERT") {
             console.log("➕ Nouveau message:", payload.new);
-            setMessages((prev) => [payload.new as Message, ...prev]);
+            setMessages((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === "UPDATE") {
             console.log("✏️ Message modifié:", payload.new);
-            setMessages((prev) => prev.map((msg) => (msg.id === payload.new.id ? (payload.new as Message) : msg)));
+            setMessages((prev) => prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg)));
           } else if (payload.eventType === "DELETE") {
             console.log("🗑️ Message supprimé:", payload.old);
             setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
@@ -174,7 +176,7 @@ export default function MessagesPage() {
                           {message.deleted ? "Supprimé" : "Actif"}
                         </Badge>
                         {message.organization_id && (
-                          <Badge variant="outline">Org: {message.organization_id.slice(0, 8)}...</Badge>
+                          <Badge variant="outline">Org: {(message.organization_id as string).slice(0, 8)}...</Badge>
                         )}
                       </div>
                       <p className="mb-2 text-gray-800">{message.content}</p>

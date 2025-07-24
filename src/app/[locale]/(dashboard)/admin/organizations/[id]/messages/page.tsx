@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { Database } from "@/lib/supabase/database.types";
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 
@@ -148,7 +151,7 @@ export default function MessagesPage() {
                           {message.deleted ? "Supprimé" : "Actif"}
                         </Badge>
                         {message.organization_id && (
-                          <Badge variant="outline">Org: {message.organization_id.slice(0, 8)}...</Badge>
+                          <Badge variant="outline">Org: {(message.organization_id as string).slice(0, 8)}...</Badge>
                         )}
                       </div>
                       <p className="mb-2 text-gray-800">{message.content}</p>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUserOrganizations } from "@/lib/queries/organizations";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Users, Calendar, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUserOrganizations } from "@/lib/queries/organizations";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];

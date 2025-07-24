@@ -1,5 +1,7 @@
 "use client";
 
+import { useParams } from "next/navigation";
+
 import { Settings, CircleHelp, Search, Database, ClipboardList, File, Command } from "lucide-react";
 
 import {
@@ -14,7 +16,6 @@ import {
 import { APP_CONFIG } from "@/config/app-config";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { getSidebarItemsByRole } from "@/navigation/sidebar/sidebar-items";
-import { useParams } from "next/navigation";
 import { type NavGroup } from "@/navigation/sidebar/sidebar-items";
 
 import { NavMain } from "./nav-main";

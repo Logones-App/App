@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 
 import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -16,8 +17,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
-import { cn, getInitials } from "@/lib/utils";
 import { useLogout } from "@/lib/queries/auth";
+import { cn, getInitials } from "@/lib/utils";
 
 export function AccountSwitcher({
   users,

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Bell, Check, X, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeNotifications } from "@/hooks/use-realtime";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { useTranslations } from "next-intl";
 
 export function NotificationsCenter() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useRealtimeNotifications();

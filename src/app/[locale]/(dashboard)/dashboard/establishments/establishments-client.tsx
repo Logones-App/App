@@ -1,6 +1,6 @@
 "use client";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import { EstablishmentsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishments-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 
 export function EstablishmentsClient() {
   const organizationId = useOrgaUserOrganizationId();

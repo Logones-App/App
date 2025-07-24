@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import { Settings } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SidebarVariant, SidebarCollapsible, ContentLayout } from "@/lib/layout-preferences";
 import { setValueToCookie } from "@/server/server-actions";
-import { useState } from "react";
 
 // Valeurs par défaut (fallback si pas de cookie)
 const DEFAULT_VARIANT: SidebarVariant = "inset";

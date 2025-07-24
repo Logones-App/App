@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 import { Search, Command } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +14,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 
 export function SearchDialog() {
   const [open, setOpen] = useState(false);

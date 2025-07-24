@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+
 import { Plus, Building2, Edit, Trash2 } from "lucide-react";
-import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUserOrganizations } from "@/lib/queries/organizations";
-import { useOrganizationEstablishments } from "@/lib/queries/establishments";
+import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useOrganizationEstablishments } from "@/lib/queries/establishments";
+import { useUserOrganizations } from "@/lib/queries/organizations";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];

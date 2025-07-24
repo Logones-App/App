@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -22,13 +21,17 @@ import {
   Phone,
   Globe,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { useEstablishmentsRealtime } from "@/lib/services/realtime/modules/establishments-realtime";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEstablishmentsRealtime } from "@/lib/services/realtime/modules/establishments-realtime";
+import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
-import Link from "next/link";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 type Establishment = Database["public"]["Tables"]["establishments"]["Row"];

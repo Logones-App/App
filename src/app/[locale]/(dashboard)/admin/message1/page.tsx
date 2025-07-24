@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/lib/supabase/database.types";
+
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { ColumnDef } from "@tanstack/react-table";
+import { Trash2, Plus } from "lucide-react";
+
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { Trash2, Plus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Database } from "@/lib/supabase/database.types";
 
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 
@@ -67,10 +69,10 @@ export default function Message1Page() {
 
           if (payload.eventType === "INSERT") {
             console.log("➕ Nouveau message (Message1):", payload.new);
-            setMessages((prev) => [payload.new as Message, ...prev]);
+            setMessages((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === "UPDATE") {
             console.log("✏️ Message modifié (Message1):", payload.new);
-            setMessages((prev) => prev.map((msg) => (msg.id === payload.new.id ? (payload.new as Message) : msg)));
+            setMessages((prev) => prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg)));
           } else if (payload.eventType === "DELETE") {
             console.log("🗑️ Message supprimé (Message1):", payload.old);
             setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
@@ -158,7 +160,7 @@ export default function Message1Page() {
         const orgId = row.getValue("organization_id") as string;
         return orgId ? (
           <Badge variant="outline" className="font-mono text-xs">
-            {orgId.slice(0, 8)}...
+            {(orgId as string).slice(0, 8)}...
           </Badge>
         ) : (
           <span className="text-muted-foreground">-</span>
@@ -179,7 +181,9 @@ export default function Message1Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
+      cell: ({ row }) => (
+        <div className="text-sm">{new Date(row.getValue("created_at") as string).toLocaleString()}</div>
+      ),
       enableSorting: true,
     },
     {

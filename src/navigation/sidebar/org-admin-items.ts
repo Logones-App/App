@@ -1,22 +1,23 @@
-import { 
-  Home, 
-  Building2, 
-  Utensils, 
-  Calendar, 
-  Users, 
+import {
+  Home,
+  Building2,
+  Utensils,
+  Calendar,
+  Users,
   BarChart3,
   Settings,
   Bell,
   HelpCircle,
   FileText,
   ShoppingCart,
-  Clock
+  Clock,
 } from "lucide-react";
+
 import { type NavGroup } from "./sidebar-items";
 
 export const getOrgAdminSidebarItems = (locale?: string): NavGroup[] => {
   const baseUrl = locale ? `/${locale}` : "";
-  
+
   return [
     {
       id: 1,
@@ -221,4 +222,4 @@ export const getOrgAdminSidebarItems = (locale?: string): NavGroup[] => {
       ],
     },
   ];
-}; 
+};

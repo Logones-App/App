@@ -1,12 +1,14 @@
-import { useEffect, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { productsRealtime, type ProductsRealtimeEvent } from '@/lib/services/realtime/modules/products-realtime';
-import { createClient } from '@/lib/supabase/client';
-import type { Tables } from '@/lib/supabase/database.types';
-import type { ProductWithStock, ProductStockJoin } from '@/lib/types/database-extensions';
+import { useEffect, useCallback } from "react";
 
-type Product = Tables<'products'>;
-type ProductStock = Tables<'product_stocks'>;
+import { useQueryClient } from "@tanstack/react-query";
+
+import { productsRealtime, type ProductsRealtimeEvent } from "@/lib/services/realtime/modules/products-realtime";
+import { createClient } from "@/lib/supabase/client";
+import type { Tables } from "@/lib/supabase/database.types";
+import type { ProductWithStock, ProductStockJoin } from "@/lib/types/database-extensions";
+
+type Product = Tables<"products">;
+type ProductStock = Tables<"product_stocks">;
 
 export function useProductsRealtime(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
@@ -37,7 +39,7 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
       if (error) throw error;
 
       // Transformer les données pour correspondre au type ProductWithStock
-      const productsWithStock = (data as ProductStockJoin[] || []).map((item) => ({
+      const productsWithStock = ((data as ProductStockJoin[]) || []).map((item) => ({
         ...item.product,
         stock: {
           id: item.id,
@@ -61,24 +63,27 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
       // Mettre à jour le cache React Query
       queryClient.setQueryData(
         ["establishment-products-with-stocks", establishmentId, organizationId],
-        productsWithStock
+        productsWithStock,
       );
 
-      console.log('🔄 Products realtime: données rafraîchies', productsWithStock.length, 'produits');
+      console.log("🔄 Products realtime: données rafraîchies", productsWithStock.length, "produits");
     } catch (error) {
-      console.error('❌ Erreur lors du rafraîchissement des produits:', error);
+      console.error("❌ Erreur lors du rafraîchissement des produits:", error);
     }
   }, [establishmentId, organizationId, queryClient]);
 
   /**
    * Gestionnaire d'événements realtime
    */
-  const handleRealtimeEvent = useCallback((event: ProductsRealtimeEvent) => {
-    console.log('📡 Products realtime event:', event.type, event.table, event.record?.id);
-    
-    // Rafraîchir les données après chaque événement
-    refreshProducts();
-  }, [refreshProducts]);
+  const handleRealtimeEvent = useCallback(
+    (event: ProductsRealtimeEvent) => {
+      console.log("📡 Products realtime event:", event.type, event.table, event.record?.id);
+
+      // Rafraîchir les données après chaque événement
+      refreshProducts();
+    },
+    [refreshProducts],
+  );
 
   /**
    * S'abonner aux changements realtime
@@ -86,13 +91,13 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
   useEffect(() => {
     if (!establishmentId || !organizationId) return;
 
-    console.log('🔌 Products realtime: abonnement pour', establishmentId, organizationId);
+    console.log("🔌 Products realtime: abonnement pour", establishmentId, organizationId);
 
     // S'abonner aux changements
     const unsubscribe = productsRealtime.subscribeToEstablishmentProducts(
       establishmentId,
       organizationId,
-      handleRealtimeEvent
+      handleRealtimeEvent,
     );
 
     // Ajouter un gestionnaire d'événements global
@@ -100,7 +105,7 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
 
     // Nettoyage
     return () => {
-      console.log('🔌 Products realtime: désabonnement pour', establishmentId, organizationId);
+      console.log("🔌 Products realtime: désabonnement pour", establishmentId, organizationId);
       unsubscribe();
       removeEventHandler();
     };
@@ -115,6 +120,6 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
 
   return {
     forceRefresh,
-    refreshProducts
+    refreshProducts,
   };
-} 
+}

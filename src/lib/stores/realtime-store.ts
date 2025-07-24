@@ -1,20 +1,21 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import { realtimeService, type RealtimeMessage, type RealtimeSubscription } from '@/lib/services/realtimeService';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+import { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "@/lib/services/realtimeService";
 
 interface RealtimeState {
   // État de connexion
   isConnected: boolean;
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
-  
+  connectionStatus: "connecting" | "connected" | "disconnected" | "error";
+
   // Messages et notifications
   messages: RealtimeMessage[];
   notifications: RealtimeMessage[];
   unreadCount: number;
-  
+
   // Abonnements actifs
   subscriptions: RealtimeSubscription[];
-  
+
   // Actions
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -26,7 +27,7 @@ interface RealtimeState {
   clearNotifications: () => void;
   addSubscription: (subscription: RealtimeSubscription) => void;
   removeSubscription: (subscriptionId: string) => void;
-  setConnectionStatus: (status: RealtimeState['connectionStatus']) => void;
+  setConnectionStatus: (status: RealtimeState["connectionStatus"]) => void;
 }
 
 export const useRealtimeStore = create<RealtimeState>()(
@@ -34,7 +35,7 @@ export const useRealtimeStore = create<RealtimeState>()(
     (set, get) => ({
       // État initial
       isConnected: false,
-      connectionStatus: 'disconnected',
+      connectionStatus: "disconnected",
       messages: [],
       notifications: [],
       unreadCount: 0,
@@ -43,30 +44,30 @@ export const useRealtimeStore = create<RealtimeState>()(
       // Actions
       connect: async () => {
         const state = get();
-        if (state.isConnected || state.connectionStatus === 'connecting') {
+        if (state.isConnected || state.connectionStatus === "connecting") {
           return;
         }
 
-        set({ connectionStatus: 'connecting' });
-        
+        set({ connectionStatus: "connecting" });
+
         try {
           // Ajouter un gestionnaire de messages global
-          realtimeService.addMessageHandler('global', (message) => {
+          realtimeService.addMessageHandler("global", (message) => {
             get().addMessage(message);
-            
-            if (message.type === 'notification') {
+
+            if (message.type === "notification") {
               get().addNotification(message);
             }
           });
 
-          set({ 
-            isConnected: true, 
-            connectionStatus: 'connected' 
+          set({
+            isConnected: true,
+            connectionStatus: "connected",
           });
         } catch (error) {
-          set({ 
-            isConnected: false, 
-            connectionStatus: 'error' 
+          set({
+            isConnected: false,
+            connectionStatus: "error",
           });
         }
       },
@@ -78,46 +79,44 @@ export const useRealtimeStore = create<RealtimeState>()(
         }
 
         realtimeService.unsubscribeAll();
-        realtimeService.removeMessageHandler('global');
-        
+        realtimeService.removeMessageHandler("global");
+
         set({
           isConnected: false,
-          connectionStatus: 'disconnected',
-          subscriptions: []
+          connectionStatus: "disconnected",
+          subscriptions: [],
         });
       },
 
       addMessage: (message: RealtimeMessage) => {
         set((state) => ({
-          messages: [message, ...state.messages.slice(0, 99)] // Garder les 100 derniers messages
+          messages: [message, ...state.messages.slice(0, 99)], // Garder les 100 derniers messages
         }));
       },
 
       addNotification: (message: RealtimeMessage) => {
         set((state) => ({
           notifications: [message, ...state.notifications.slice(0, 49)], // Garder les 50 dernières notifications
-          unreadCount: state.unreadCount + 1
+          unreadCount: state.unreadCount + 1,
         }));
       },
 
       markAsRead: (messageId: string) => {
         set((state) => ({
-          notifications: state.notifications.map(notification => 
-            notification.id === messageId 
-              ? { ...notification, read: true }
-              : notification
+          notifications: state.notifications.map((notification) =>
+            notification.id === messageId ? { ...notification, read: true } : notification,
           ),
-          unreadCount: Math.max(0, state.unreadCount - 1)
+          unreadCount: Math.max(0, state.unreadCount - 1),
         }));
       },
 
       markAllAsRead: () => {
         set((state) => ({
-          notifications: state.notifications.map(notification => ({
+          notifications: state.notifications.map((notification) => ({
             ...notification,
-            read: true
+            read: true,
           })),
-          unreadCount: 0
+          unreadCount: 0,
         }));
       },
 
@@ -131,24 +130,24 @@ export const useRealtimeStore = create<RealtimeState>()(
 
       addSubscription: (subscription: RealtimeSubscription) => {
         set((state) => ({
-          subscriptions: [...state.subscriptions, subscription]
+          subscriptions: [...state.subscriptions, subscription],
         }));
       },
 
       removeSubscription: (subscriptionId: string) => {
         realtimeService.unsubscribe(subscriptionId);
-        
+
         set((state) => ({
-          subscriptions: state.subscriptions.filter(sub => sub.id !== subscriptionId)
+          subscriptions: state.subscriptions.filter((sub) => sub.id !== subscriptionId),
         }));
       },
 
-      setConnectionStatus: (status: RealtimeState['connectionStatus']) => {
+      setConnectionStatus: (status: RealtimeState["connectionStatus"]) => {
         set({ connectionStatus: status });
       },
     }),
     {
-      name: 'realtime-store',
-    }
-  )
-); 
+      name: "realtime-store",
+    },
+  ),
+);

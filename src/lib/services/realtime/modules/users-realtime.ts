@@ -1,12 +1,14 @@
-import { realtimeService, type RealtimeMessage } from '../../realtimeService';
-import { toast } from 'sonner';
-import type { Database } from '@/lib/supabase/database.types';
+import { toast } from "sonner";
+
+import type { Database } from "@/lib/supabase/database.types";
+
+import { realtimeService, type RealtimeMessage } from "../../realtimeService";
 
 // Types Supabase
-type User = Database['public']['Tables']['users']['Row'];
+type User = Database["public"]["Tables"]["users"]["Row"];
 
 export interface UserRealtimeEvent {
-  type: 'user_created' | 'user_updated' | 'user_deleted' | 'user_logged_in' | 'user_logged_out' | 'role_changed';
+  type: "user_created" | "user_updated" | "user_deleted" | "user_logged_in" | "user_logged_out" | "role_changed";
   userId: string;
   data: User | null;
   organizationId?: string;
@@ -20,26 +22,21 @@ export class UsersRealtimeModule {
    * S'abonner aux changements des utilisateurs
    */
   subscribeToUsers(onEvent?: (event: UserRealtimeEvent) => void) {
-    const subscriptionId = realtimeService.subscribeToTable(
-      'users',
-      '*',
-      undefined,
-      (message: RealtimeMessage) => {
-        if (message.type === 'data_update') {
-          const payload = message.data;
-          const event: UserRealtimeEvent = {
-            type: this.getEventType(payload.eventType),
-            userId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old,
-            organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            timestamp: new Date().toISOString()
-          };
+    const subscriptionId = realtimeService.subscribeToTable("users", "*", undefined, (message: RealtimeMessage) => {
+      if (message.type === "data_update") {
+        const payload = message.data;
+        const event: UserRealtimeEvent = {
+          type: this.getEventType(payload.eventType),
+          userId: payload.new?.id || payload.old?.id,
+          data: payload.new || payload.old,
+          organizationId: payload.new?.organization_id || payload.old?.organization_id,
+          timestamp: new Date().toISOString(),
+        };
 
-          this.handleUserEvent(event);
-          onEvent?.(event);
-        }
+        this.handleUserEvent(event);
+        onEvent?.(event);
       }
-    );
+    });
 
     this.subscriptionIds.push(subscriptionId);
     return subscriptionId;
@@ -50,24 +47,24 @@ export class UsersRealtimeModule {
    */
   subscribeToUserRoles(onEvent?: (event: UserRealtimeEvent) => void) {
     const subscriptionId = realtimeService.subscribeToTable(
-      'users_organizations',
-      '*',
+      "users_organizations",
+      "*",
       undefined,
       (message: RealtimeMessage) => {
-        if (message.type === 'data_update') {
+        if (message.type === "data_update") {
           const payload = message.data;
           const event: UserRealtimeEvent = {
-            type: 'role_changed',
+            type: "role_changed",
             userId: payload.new?.user_id || payload.old?.user_id,
             data: null, // Pas de données utilisateur directes ici
             organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           };
 
           this.handleUserEvent(event);
           onEvent?.(event);
         }
-      }
+      },
     );
 
     this.subscriptionIds.push(subscriptionId);
@@ -77,32 +74,18 @@ export class UsersRealtimeModule {
   /**
    * Envoyer une notification utilisateur
    */
-  async sendUserNotification(
-    title: string,
-    message: string,
-    userId: string,
-    data?: Partial<User>
-  ) {
-    await realtimeService.sendNotification(
-      title,
-      message,
-      { ...data, userId },
-      userId
-    );
+  async sendUserNotification(title: string, message: string, userId: string, data?: Partial<User>) {
+    await realtimeService.sendNotification(title, message, { ...data, userId }, userId);
   }
 
   /**
    * Envoyer une action utilisateur
    */
-  async sendUserAction(
-    action: string,
-    userId: string,
-    data?: Partial<User>
-  ) {
+  async sendUserAction(action: string, userId: string, data?: Partial<User>) {
     await realtimeService.sendUserAction(
       `Action utilisateur: ${action}`,
       `Action effectuée par l'utilisateur ${userId}`,
-      { action, userId, ...data }
+      { action, userId, ...data },
     );
   }
 
@@ -111,11 +94,11 @@ export class UsersRealtimeModule {
    */
   async notifyUserLogin(userId: string, userData: Partial<User>) {
     await realtimeService.sendNotification(
-      'Connexion utilisateur',
+      "Connexion utilisateur",
       `L'utilisateur ${userData.email} s'est connecté`,
-      { userId, userData, type: 'login' },
+      { userId, userData, type: "login" },
       undefined,
-      userData.organization_id || undefined
+      userData.organization_id || undefined,
     );
   }
 
@@ -124,11 +107,11 @@ export class UsersRealtimeModule {
    */
   async notifyUserLogout(userId: string, userData: Partial<User>) {
     await realtimeService.sendNotification(
-      'Déconnexion utilisateur',
+      "Déconnexion utilisateur",
       `L'utilisateur ${userData.email} s'est déconnecté`,
-      { userId, userData, type: 'logout' },
+      { userId, userData, type: "logout" },
       undefined,
-      userData.organization_id || undefined
+      userData.organization_id || undefined,
     );
   }
 
@@ -137,23 +120,23 @@ export class UsersRealtimeModule {
    */
   private handleUserEvent(event: UserRealtimeEvent) {
     switch (event.type) {
-      case 'user_created':
-        toast.success('Nouvel utilisateur créé');
+      case "user_created":
+        toast.success("Nouvel utilisateur créé");
         break;
-      case 'user_updated':
-        toast.info('Utilisateur mis à jour');
+      case "user_updated":
+        toast.info("Utilisateur mis à jour");
         break;
-      case 'user_deleted':
-        toast.warning('Utilisateur supprimé');
+      case "user_deleted":
+        toast.warning("Utilisateur supprimé");
         break;
-      case 'user_logged_in':
-        toast.success('Utilisateur connecté');
+      case "user_logged_in":
+        toast.success("Utilisateur connecté");
         break;
-      case 'user_logged_out':
-        toast.info('Utilisateur déconnecté');
+      case "user_logged_out":
+        toast.info("Utilisateur déconnecté");
         break;
-      case 'role_changed':
-        toast.info('Rôle utilisateur modifié');
+      case "role_changed":
+        toast.info("Rôle utilisateur modifié");
         break;
     }
   }
@@ -161,16 +144,16 @@ export class UsersRealtimeModule {
   /**
    * Déterminer le type d'événement
    */
-  private getEventType(eventType: string): UserRealtimeEvent['type'] {
+  private getEventType(eventType: string): UserRealtimeEvent["type"] {
     switch (eventType) {
-      case 'INSERT':
-        return 'user_created';
-      case 'UPDATE':
-        return 'user_updated';
-      case 'DELETE':
-        return 'user_deleted';
+      case "INSERT":
+        return "user_created";
+      case "UPDATE":
+        return "user_updated";
+      case "DELETE":
+        return "user_deleted";
       default:
-        return 'user_updated';
+        return "user_updated";
     }
   }
 
@@ -178,11 +161,11 @@ export class UsersRealtimeModule {
    * Se désabonner de tous les abonnements
    */
   unsubscribe() {
-    this.subscriptionIds.forEach(id => {
+    this.subscriptionIds.forEach((id) => {
       realtimeService.unsubscribe(id);
     });
     this.subscriptionIds = [];
   }
 }
 
-export const usersRealtime = new UsersRealtimeModule(); 
+export const usersRealtime = new UsersRealtimeModule();

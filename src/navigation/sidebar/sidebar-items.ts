@@ -1,9 +1,9 @@
 import { type LucideIcon } from "lucide-react";
 
 // Import des fonctions depuis les fichiers séparés
-import { getSystemAdminSidebarItems } from "./system-admin-items";
-import { getOrgAdminSidebarItems } from "./org-admin-items";
 import { getDefaultSidebarItems } from "./default-items";
+import { getOrgAdminSidebarItems } from "./org-admin-items";
+import { getSystemAdminSidebarItems } from "./system-admin-items";
 
 export interface NavSubItem {
   title: string;

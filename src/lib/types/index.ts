@@ -3,10 +3,10 @@
 // ============================================================================
 
 // Types de base Supabase
-export type { Tables, TablesInsert, TablesUpdate } from '@/lib/supabase/database.types';
+export type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
 // Types utilitaires et extensions
-export * from './database-extensions';
+export * from "./database-extensions";
 
 // ============================================================================
 // TYPES GLOBAUX DE L'APPLICATION
@@ -167,7 +167,7 @@ export type FilterFunction<T> = (item: T) => boolean;
  * Type pour les configurations d'environnement
  */
 export type EnvironmentConfig = {
-  NODE_ENV: 'development' | 'production' | 'test';
+  NODE_ENV: "development" | "production" | "test";
   NEXT_PUBLIC_SUPABASE_URL: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
@@ -242,4 +242,4 @@ export type ErrorMetrics = {
   timestamp: string;
   userId?: string;
   organizationId?: string;
-}; 
+};

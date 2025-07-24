@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { MessageSquare, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtime } from "@/hooks/use-realtime";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { useTranslations } from "next-intl";
 
 export function RealtimeMessages() {
   const { messages, clearMessages } = useRealtime();

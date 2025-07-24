@@ -1,35 +1,36 @@
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User } from "@supabase/supabase-js";
+
+import { createClient } from "@/lib/supabase/client";
 
 // Types pour les métadonnées
 export interface AppMetadata {
-  role: 'system_admin' | 'org_admin' | null;
+  role: "system_admin" | "org_admin" | null;
   provider: string;
   providers: string[];
-  subscription_tier: 'free' | 'premium' | 'enterprise';
+  subscription_tier: "free" | "premium" | "enterprise";
   permissions: string[];
   features: string[];
-  access_level: 'system' | 'organization' | 'user';
+  access_level: "system" | "organization" | "user";
   created_by: string;
   last_role_update: string;
 }
 
 export interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: 'fr' | 'en';
+  theme: "light" | "dark" | "auto";
+  language: "fr" | "en";
   notifications: {
     email: boolean;
     push: boolean;
     sms: boolean;
   };
   dashboard: {
-    layout: 'grid' | 'list' | 'compact';
-    default_view: 'overview' | 'analytics' | 'users' | 'settings';
+    layout: "grid" | "list" | "compact";
+    default_view: "overview" | "analytics" | "users" | "settings";
     refresh_interval: number;
   };
   accessibility: {
     high_contrast: boolean;
-    font_size: 'small' | 'medium' | 'large';
+    font_size: "small" | "medium" | "large";
     reduced_motion: boolean;
   };
 }
@@ -39,11 +40,11 @@ export interface UserProfile {
   bio: string;
   timezone: string;
   date_format: string;
-  time_format: '12h' | '24h';
+  time_format: "12h" | "24h";
 }
 
 export interface UserMetadata {
-  role: 'system_admin' | 'org_admin' | null;
+  role: "system_admin" | "org_admin" | null;
   firstname: string;
   lastname: string;
   email_verified: boolean;
@@ -62,14 +63,14 @@ export class MetadataService {
   static getAppMetadata(user: User): AppMetadata {
     const defaultAppMetadata: AppMetadata = {
       role: null,
-      provider: 'email',
-      providers: ['email'],
-      subscription_tier: 'free',
-      permissions: ['read'],
-      features: ['dashboard'],
-      access_level: 'user',
-      created_by: 'system',
-      last_role_update: new Date().toISOString()
+      provider: "email",
+      providers: ["email"],
+      subscription_tier: "free",
+      permissions: ["read"],
+      features: ["dashboard"],
+      access_level: "user",
+      created_by: "system",
+      last_role_update: new Date().toISOString(),
     };
 
     return { ...defaultAppMetadata, ...user.app_metadata };
@@ -81,37 +82,37 @@ export class MetadataService {
   static getUserMetadata(user: User): UserMetadata {
     const defaultUserMetadata: UserMetadata = {
       role: null,
-      firstname: '',
-      lastname: '',
+      firstname: "",
+      lastname: "",
       email_verified: false,
       preferences: {
-        theme: 'auto',
-        language: 'fr',
+        theme: "auto",
+        language: "fr",
         notifications: {
           email: true,
           push: false,
-          sms: false
+          sms: false,
         },
         dashboard: {
-          layout: 'grid',
-          default_view: 'overview',
-          refresh_interval: 30000
+          layout: "grid",
+          default_view: "overview",
+          refresh_interval: 30000,
         },
         accessibility: {
           high_contrast: false,
-          font_size: 'medium',
-          reduced_motion: false
-        }
+          font_size: "medium",
+          reduced_motion: false,
+        },
       },
       profile: {
         avatar_url: null,
-        bio: '',
-        timezone: 'Europe/Paris',
-        date_format: 'DD/MM/YYYY',
-        time_format: '24h'
+        bio: "",
+        timezone: "Europe/Paris",
+        date_format: "DD/MM/YYYY",
+        time_format: "24h",
       },
       last_login: new Date().toISOString(),
-      login_count: 0
+      login_count: 0,
     };
 
     return { ...defaultUserMetadata, ...user.user_metadata };
@@ -136,7 +137,7 @@ export class MetadataService {
   /**
    * Récupère le niveau d'accès de l'utilisateur
    */
-  static getAccessLevel(user: User): 'system' | 'organization' | 'user' {
+  static getAccessLevel(user: User): "system" | "organization" | "user" {
     const appMetadata = this.getAppMetadata(user);
     return appMetadata.access_level;
   }
@@ -144,10 +145,10 @@ export class MetadataService {
   /**
    * Récupère le rôle principal de l'utilisateur
    */
-  static getMainRole(user: User): 'system_admin' | 'org_admin' | null {
+  static getMainRole(user: User): "system_admin" | "org_admin" | null {
     const appMetadata = this.getAppMetadata(user);
     const userMetadata = this.getUserMetadata(user);
-    
+
     // Priorité à app_metadata (plus sécurisé)
     return appMetadata.role || userMetadata.role;
   }
@@ -171,25 +172,22 @@ export class MetadataService {
   /**
    * Met à jour les préférences utilisateur
    */
-  static async updateUserPreferences(
-    userId: string, 
-    preferences: Partial<UserPreferences>
-  ): Promise<boolean> {
+  static async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<boolean> {
     try {
       const { data, error } = await this.supabase.auth.updateUser({
         data: {
-          preferences: preferences
-        }
+          preferences: preferences,
+        },
       });
 
       if (error) {
-        console.error('Erreur lors de la mise à jour des préférences:', error);
+        console.error("Erreur lors de la mise à jour des préférences:", error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour des préférences:', error);
+      console.error("Erreur lors de la mise à jour des préférences:", error);
       return false;
     }
   }
@@ -197,25 +195,22 @@ export class MetadataService {
   /**
    * Met à jour le profil utilisateur
    */
-  static async updateUserProfile(
-    userId: string, 
-    profile: Partial<UserProfile>
-  ): Promise<boolean> {
+  static async updateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<boolean> {
     try {
       const { data, error } = await this.supabase.auth.updateUser({
         data: {
-          profile: profile
-        }
+          profile: profile,
+        },
       });
 
       if (error) {
-        console.error('Erreur lors de la mise à jour du profil:', error);
+        console.error("Erreur lors de la mise à jour du profil:", error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du profil:', error);
+      console.error("Erreur lors de la mise à jour du profil:", error);
       return false;
     }
   }
@@ -224,14 +219,14 @@ export class MetadataService {
    * Vérifie si l'utilisateur est un system admin
    */
   static isSystemAdmin(user: User): boolean {
-    return this.getMainRole(user) === 'system_admin';
+    return this.getMainRole(user) === "system_admin";
   }
 
   /**
    * Vérifie si l'utilisateur est un org admin
    */
   static isOrgAdmin(user: User): boolean {
-    return this.getMainRole(user) === 'org_admin';
+    return this.getMainRole(user) === "org_admin";
   }
 
   /**
@@ -247,6 +242,6 @@ export class MetadataService {
    */
   static getDisplayName(user: User): string {
     const fullName = this.getFullName(user);
-    return fullName || user.email || 'Utilisateur';
+    return fullName || user.email || "Utilisateur";
   }
-} 
+}

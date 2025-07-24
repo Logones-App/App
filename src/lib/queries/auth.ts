@@ -1,17 +1,18 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient, createServiceClient } from '@/lib/supabase/client';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import type { User, Session } from '@supabase/supabase-js';
-import type { Database } from '@/lib/supabase/database.types';
+import type { User, Session } from "@supabase/supabase-js";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-type Organization = Database['public']['Tables']['organizations']['Row'];
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { createClient, createServiceClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
+
+type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 
 // Query pour récupérer l'utilisateur
 export const useUser = () => {
   const { setUser, setLoading } = useAuthStore();
 
   return useQuery({
-    queryKey: ['user'],
+    queryKey: ["user"],
     queryFn: async () => {
       const supabase = createClient();
       const {
@@ -33,61 +34,60 @@ export const useUser = () => {
 // Query pour récupérer le rôle principal de l'utilisateur
 export const useUserMainRole = (userId?: string) => {
   const { setUserRole, setCurrentOrganization } = useAuthStore();
-  
+
   return useQuery({
-    queryKey: ['user-main-role', userId],
+    queryKey: ["user-main-role", userId],
     queryFn: async () => {
       if (!userId) return null;
 
       try {
         // Solution principale : utiliser l'API route
-        console.log('🔍 Récupération des rôles via API...');
-        
-        const response = await fetch('/api/auth/roles', {
-          method: 'GET',
+        console.log("🔍 Récupération des rôles via API...");
+
+        const response = await fetch("/api/auth/roles", {
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          credentials: 'include', // Important pour inclure les cookies
+          credentials: "include", // Important pour inclure les cookies
         });
-        
-        console.log('🔍 API response status:', response.status);
-        console.log('🔍 API response headers:', Object.fromEntries(response.headers.entries()));
-        
+
+        console.log("🔍 API response status:", response.status);
+        console.log("🔍 API response headers:", Object.fromEntries(response.headers.entries()));
+
         if (!response.ok) {
-          console.error('❌ API response not ok:', response.status, response.statusText);
-          
+          console.error("❌ API response not ok:", response.status, response.statusText);
+
           // Essayer de lire le contenu de la réponse pour le diagnostic
           const errorText = await response.text();
-          console.error('❌ API error content:', errorText);
-          
+          console.error("❌ API error content:", errorText);
+
           return null;
         }
-        
+
         const data = await response.json();
-        console.log('🔍 API response data:', data);
-        
-        if (data.role === 'system_admin') {
-          console.log('✅ System admin trouvé via API!');
-          setUserRole('system_admin');
+        console.log("🔍 API response data:", data);
+
+        if (data.role === "system_admin") {
+          console.log("✅ System admin trouvé via API!");
+          setUserRole("system_admin");
           setCurrentOrganization(null);
-          return { role: 'system_admin', organizationId: null };
+          return { role: "system_admin", organizationId: null };
         }
-        
-        if (data.role === 'org_admin') {
-          console.log('✅ Org admin trouvé via API!');
-          setUserRole('org_admin');
+
+        if (data.role === "org_admin") {
+          console.log("✅ Org admin trouvé via API!");
+          setUserRole("org_admin");
           setCurrentOrganization(data.organization);
-          return { 
-            role: 'org_admin', 
+          return {
+            role: "org_admin",
             organizationId: data.organizationId,
-            organization: data.organization
+            organization: data.organization,
           };
         }
-        
-        console.log('⚠️ Aucun rôle trouvé via API');
+
+        console.log("⚠️ Aucun rôle trouvé via API");
         return null;
-        
       } catch (error) {
         console.error("❌ Error:", error);
         return null;
@@ -101,21 +101,17 @@ export const useUserMainRole = (userId?: string) => {
 // Query pour récupérer toutes les organisations (system_admin uniquement)
 export const useAllOrganizations = () => {
   const { userRole } = useAuthStore();
-  
+
   return useQuery({
-    queryKey: ['all-organizations'],
+    queryKey: ["all-organizations"],
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('deleted', false)
-        .order('name');
+      const { data, error } = await supabase.from("organizations").select("*").eq("deleted", false).order("name");
 
       if (error) throw error;
       return data || [];
     },
-    enabled: userRole === 'system_admin',
+    enabled: userRole === "system_admin",
   });
 };
 
@@ -143,8 +139,8 @@ export const useLogin = () => {
     },
     onSuccess: () => {
       // Invalider les queries liées à l'utilisateur
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      queryClient.invalidateQueries({ queryKey: ['user-roles'] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["user-roles"] });
     },
   });
 };
@@ -163,7 +159,7 @@ export const useLogout = () => {
     onSuccess: () => {
       // Nettoyer Zustand
       logout();
-      
+
       // Nettoyer le cache
       queryClient.clear();
     },
@@ -176,21 +172,21 @@ export const useRegister = () => {
   const { setUser, setSession, setLoading } = useAuthStore();
 
   return useMutation({
-    mutationFn: async ({ 
-      email, 
-      password, 
-      firstName, 
-      lastName, 
-      organizationName 
-    }: { 
-      email: string; 
-      password: string; 
-      firstName: string; 
-      lastName: string; 
-      organizationName: string; 
+    mutationFn: async ({
+      email,
+      password,
+      firstName,
+      lastName,
+      organizationName,
+    }: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      organizationName: string;
     }) => {
       const supabase = createClient();
-      
+
       // Créer l'utilisateur
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -199,18 +195,21 @@ export const useRegister = () => {
           data: {
             first_name: firstName,
             last_name: lastName,
-          }
-        }
+          },
+        },
       });
 
       if (error) throw error;
 
       // Créer l'organisation
       if (data.user) {
-        const slug = organizationName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        
+        const slug = organizationName
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "");
+
         const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
+          .from("organizations")
           .insert({
             name: organizationName,
             slug: slug,
@@ -221,12 +220,10 @@ export const useRegister = () => {
         if (orgError) throw orgError;
 
         // Ajouter l'utilisateur à l'organisation dans users_organizations
-        const { error: orgLinkError } = await supabase
-          .from('users_organizations')
-          .insert({
-            user_id: data.user.id,
-            organization_id: orgData.id,
-          });
+        const { error: orgLinkError } = await supabase.from("users_organizations").insert({
+          user_id: data.user.id,
+          organization_id: orgData.id,
+        });
 
         if (orgLinkError) throw orgLinkError;
       }
@@ -240,8 +237,8 @@ export const useRegister = () => {
     },
     onSuccess: () => {
       // Invalider les queries liées à l'utilisateur
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      queryClient.invalidateQueries({ queryKey: ['user-roles'] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["user-roles"] });
     },
   });
-}; 
+};

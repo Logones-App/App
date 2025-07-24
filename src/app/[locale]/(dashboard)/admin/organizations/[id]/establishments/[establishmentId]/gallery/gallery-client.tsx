@@ -1,5 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
+
 import { EstablishmentGalleryShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-gallery-shared";
 
 export function EstablishmentGalleryClient() {

@@ -1,9 +1,10 @@
-import { createClient } from '@/lib/supabase/client';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel } from "@supabase/supabase-js";
+
+import { createClient } from "@/lib/supabase/client";
 
 export interface RealtimeMessage {
   id: string;
-  type: 'notification' | 'data_update' | 'user_action' | 'system';
+  type: "notification" | "data_update" | "user_action" | "system";
   title: string;
   message: string;
   data?: any;
@@ -31,14 +32,14 @@ class RealtimeService {
    */
   subscribeToTable(
     table: string,
-    event: 'INSERT' | 'UPDATE' | 'DELETE' | '*',
+    event: "INSERT" | "UPDATE" | "DELETE" | "*",
     filter?: string,
-    onMessage?: (message: RealtimeMessage) => void
+    onMessage?: (message: RealtimeMessage) => void,
   ): string {
-    const subscriptionId = `${table}_${event}_${filter || 'all'}`;
-    
+    const subscriptionId = `${table}_${event}_${filter || "all"}`;
+
     console.log(`🔔 Tentative d'abonnement à la table ${table} (${event})...`);
-    
+
     if (this.subscriptions.has(subscriptionId)) {
       console.log(`⚠️ Abonnement ${subscriptionId} déjà existant`);
       return subscriptionId;
@@ -47,30 +48,30 @@ class RealtimeService {
     const channel = this.supabase
       .channel(subscriptionId)
       .on(
-        'postgres_changes' as any,
+        "postgres_changes" as any,
         {
-          event: event === '*' ? '*' : event.toLowerCase(),
-          schema: 'public',
+          event: event === "*" ? "*" : event.toLowerCase(),
+          schema: "public",
           table: table,
-          filter: filter
+          filter: filter,
         },
         (payload: any) => {
           console.log(`📡 Événement reçu pour ${table}:`, payload);
-          
+
           const message: RealtimeMessage = {
             id: `${Date.now()}_${Math.random()}`,
-            type: 'data_update',
+            type: "data_update",
             title: `Mise à jour ${table}`,
             message: `${event} sur ${table}`,
             data: payload,
             timestamp: new Date().toISOString(),
             user_id: payload.new?.user_id || payload.old?.user_id,
-            organization_id: payload.new?.organization_id || payload.old?.organization_id
+            organization_id: payload.new?.organization_id || payload.old?.organization_id,
           };
 
           this.handleMessage(message);
           onMessage?.(message);
-        }
+        },
       )
       .subscribe((status) => {
         console.log(`📊 Statut de l'abonnement ${subscriptionId}:`, status);
@@ -81,7 +82,7 @@ class RealtimeService {
       channel,
       table,
       event,
-      filter
+      filter,
     };
 
     this.subscriptions.set(subscriptionId, subscription);
@@ -95,10 +96,10 @@ class RealtimeService {
   subscribeToNotifications(
     userId?: string,
     organizationId?: string,
-    onMessage?: (message: RealtimeMessage) => void
+    onMessage?: (message: RealtimeMessage) => void,
   ): string {
-    const subscriptionId = `notifications_${userId || 'all'}_${organizationId || 'all'}`;
-    
+    const subscriptionId = `notifications_${userId || "all"}_${organizationId || "all"}`;
+
     if (this.subscriptions.has(subscriptionId)) {
       return subscriptionId;
     }
@@ -106,20 +107,20 @@ class RealtimeService {
     const channel = this.supabase
       .channel(subscriptionId)
       .on(
-        'broadcast',
+        "broadcast",
         {
-          event: 'notifications'
+          event: "notifications",
         },
         (payload) => {
           const message: RealtimeMessage = {
             id: `${Date.now()}_${Math.random()}`,
-            type: 'notification',
-            title: payload.title || 'Nouvelle notification',
-            message: payload.message || '',
+            type: "notification",
+            title: payload.title || "Nouvelle notification",
+            message: payload.message || "",
             data: payload.data,
             timestamp: new Date().toISOString(),
             user_id: payload.user_id,
-            organization_id: payload.organization_id
+            organization_id: payload.organization_id,
           };
 
           // Filtrer par utilisateur/organisation si spécifié
@@ -132,13 +133,13 @@ class RealtimeService {
 
           this.handleMessage(message);
           onMessage?.(message);
-        }
+        },
       )
       .subscribe();
 
     const subscription: RealtimeSubscription = {
       id: subscriptionId,
-      channel
+      channel,
     };
 
     this.subscriptions.set(subscriptionId, subscription);
@@ -148,12 +149,9 @@ class RealtimeService {
   /**
    * S'abonner aux actions utilisateur
    */
-  subscribeToUserActions(
-    userId?: string,
-    onMessage?: (message: RealtimeMessage) => void
-  ): string {
-    const subscriptionId = `user_actions_${userId || 'all'}`;
-    
+  subscribeToUserActions(userId?: string, onMessage?: (message: RealtimeMessage) => void): string {
+    const subscriptionId = `user_actions_${userId || "all"}`;
+
     if (this.subscriptions.has(subscriptionId)) {
       return subscriptionId;
     }
@@ -161,19 +159,19 @@ class RealtimeService {
     const channel = this.supabase
       .channel(subscriptionId)
       .on(
-        'broadcast',
+        "broadcast",
         {
-          event: 'user_actions'
+          event: "user_actions",
         },
         (payload) => {
           const message: RealtimeMessage = {
             id: `${Date.now()}_${Math.random()}`,
-            type: 'user_action',
-            title: payload.title || 'Action utilisateur',
-            message: payload.message || '',
+            type: "user_action",
+            title: payload.title || "Action utilisateur",
+            message: payload.message || "",
             data: payload.data,
             timestamp: new Date().toISOString(),
-            user_id: payload.user_id
+            user_id: payload.user_id,
           };
 
           if (userId && message.user_id && message.user_id !== userId) {
@@ -182,13 +180,13 @@ class RealtimeService {
 
           this.handleMessage(message);
           onMessage?.(message);
-        }
+        },
       )
       .subscribe();
 
     const subscription: RealtimeSubscription = {
       id: subscriptionId,
-      channel
+      channel,
     };
 
     this.subscriptions.set(subscriptionId, subscription);
@@ -203,45 +201,40 @@ class RealtimeService {
     message: string,
     data?: any,
     userId?: string,
-    organizationId?: string
+    organizationId?: string,
   ): Promise<void> {
-    const channel = this.supabase.channel('notifications');
-    
+    const channel = this.supabase.channel("notifications");
+
     await channel.send({
-      type: 'broadcast',
-      event: 'notifications',
+      type: "broadcast",
+      event: "notifications",
       payload: {
         title,
         message,
         data,
         user_id: userId,
         organization_id: organizationId,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 
   /**
    * Envoyer une action utilisateur
    */
-  async sendUserAction(
-    title: string,
-    message: string,
-    data?: any,
-    userId?: string
-  ): Promise<void> {
-    const channel = this.supabase.channel('user_actions');
-    
+  async sendUserAction(title: string, message: string, data?: any, userId?: string): Promise<void> {
+    const channel = this.supabase.channel("user_actions");
+
     await channel.send({
-      type: 'broadcast',
-      event: 'user_actions',
+      type: "broadcast",
+      event: "user_actions",
       payload: {
         title,
         message,
         data,
         user_id: userId,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 
@@ -288,7 +281,7 @@ class RealtimeService {
       try {
         handler(message);
       } catch (error) {
-        console.error('Erreur dans le gestionnaire de message realtime:', error);
+        console.error("Erreur dans le gestionnaire de message realtime:", error);
       }
     });
   }
@@ -308,4 +301,4 @@ class RealtimeService {
   }
 }
 
-export const realtimeService = new RealtimeService(); 
+export const realtimeService = new RealtimeService();

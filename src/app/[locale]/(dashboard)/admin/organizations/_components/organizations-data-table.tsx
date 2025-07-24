@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { DataTable } from "@/components/data-table/data-table";
-import { columns } from "./columns";
-import { useOrganizationsRealtime } from "@/hooks/use-organizations-realtime";
-import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { toast } from "sonner";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, TestTube, Building2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { DataTable } from "@/components/data-table/data-table";
+import { Button } from "@/components/ui/button";
+import { useDataTableInstance } from "@/hooks/use-data-table-instance";
+import { useOrganizationsRealtime } from "@/hooks/use-organizations-realtime";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, TestTube, Building2 } from "lucide-react";
+
+import { columns } from "./columns";
 
 // Utiliser le type généré par Supabase
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];

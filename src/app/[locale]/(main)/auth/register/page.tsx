@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+
 import { Command } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui/button";
+
 import { RegisterFormV1 } from "./_components/register-form";
 
 export default function RegisterV1() {

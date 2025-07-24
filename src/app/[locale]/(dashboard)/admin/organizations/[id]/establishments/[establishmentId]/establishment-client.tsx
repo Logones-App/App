@@ -1,5 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
+
 import { EstablishmentDetailsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishment-details-shared";
 
 export function EstablishmentClient() {

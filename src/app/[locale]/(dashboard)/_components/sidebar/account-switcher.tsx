@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 import { LogOut, User, Building, Settings } from "lucide-react";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,10 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getInitials } from "@/lib/utils";
-import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
-import { useState } from "react";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { getInitials } from "@/lib/utils";
 
 export function AccountSwitcher() {
   const { user, logout } = useAuthStore();

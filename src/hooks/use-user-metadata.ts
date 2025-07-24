@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import { MetadataService, type UserPreferences, type UserProfile } from '@/lib/services/metadataService';
+import { useMemo } from "react";
+
+import { MetadataService, type UserPreferences, type UserProfile } from "@/lib/services/metadataService";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function useUserMetadata() {
   const { user } = useAuthStore();
@@ -15,11 +16,11 @@ export function useUserMetadata() {
         role: null,
         permissions: [],
         features: [],
-        accessLevel: 'user' as const,
+        accessLevel: "user" as const,
         isSystemAdmin: false,
         isOrgAdmin: false,
-        fullName: '',
-        displayName: '',
+        fullName: "",
+        displayName: "",
         hasPermission: () => false,
         hasFeature: () => false,
       };
@@ -136,4 +137,4 @@ export function useUserFeatures() {
     features,
     hasFeature,
   };
-} 
+}

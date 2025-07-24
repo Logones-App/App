@@ -1,4 +1,4 @@
-import type { Tables, TablesInsert, TablesUpdate } from '@/lib/supabase/database.types';
+import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
 // ============================================================================
 // TYPES POUR LES JOINTURES
@@ -7,36 +7,36 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/lib/supabase/database
 /**
  * Produit avec son stock associé
  */
-export type ProductWithStock = Tables<'products'> & {
-  stock: Tables<'product_stocks'> | null;
+export type ProductWithStock = Tables<"products"> & {
+  stock: Tables<"product_stocks"> | null;
 };
 
 /**
  * Organisation avec ses utilisateurs
  */
-export type OrganizationWithUsers = Tables<'organizations'> & {
-  users: Tables<'users'>[];
+export type OrganizationWithUsers = Tables<"organizations"> & {
+  users: Tables<"users">[];
 };
 
 /**
  * Établissement avec son organisation
  */
-export type EstablishmentWithOrganization = Tables<'establishments'> & {
-  organization: Tables<'organizations'>;
+export type EstablishmentWithOrganization = Tables<"establishments"> & {
+  organization: Tables<"organizations">;
 };
 
 /**
  * Réservation avec son établissement
  */
-export type BookingWithEstablishment = Tables<'bookings'> & {
-  establishment: Tables<'establishments'>;
+export type BookingWithEstablishment = Tables<"bookings"> & {
+  establishment: Tables<"establishments">;
 };
 
 /**
  * Menu avec ses produits
  */
-export type MenuWithProducts = Tables<'menus'> & {
-  products: Tables<'products'>[];
+export type MenuWithProducts = Tables<"menus"> & {
+  products: Tables<"products">[];
 };
 
 // ============================================================================
@@ -55,16 +55,16 @@ export type SupabaseResponse<T> = {
 /**
  * Réponse de jointure pour les produits avec stock
  */
-export type ProductStockJoin = Tables<'product_stocks'> & {
-  product: Tables<'products'>;
+export type ProductStockJoin = Tables<"product_stocks"> & {
+  product: Tables<"products">;
 };
 
 /**
  * Réponse de jointure pour les utilisateurs avec organisations
  */
 export type UserOrganizationJoin = {
-  organizations: Tables<'organizations'>;
-  users_organizations: Tables<'users_organizations'>;
+  organizations: Tables<"organizations">;
+  users_organizations: Tables<"users_organizations">;
 };
 
 // ============================================================================
@@ -74,38 +74,38 @@ export type UserOrganizationJoin = {
 /**
  * Payloads pour les produits
  */
-export type CreateProductPayload = TablesInsert<'products'>;
-export type UpdateProductPayload = TablesUpdate<'products'>;
+export type CreateProductPayload = TablesInsert<"products">;
+export type UpdateProductPayload = TablesUpdate<"products">;
 
 /**
  * Payloads pour les stocks de produits
  */
-export type CreateProductStockPayload = TablesInsert<'product_stocks'>;
-export type UpdateProductStockPayload = TablesUpdate<'product_stocks'>;
+export type CreateProductStockPayload = TablesInsert<"product_stocks">;
+export type UpdateProductStockPayload = TablesUpdate<"product_stocks">;
 
 /**
  * Payloads pour les organisations
  */
-export type CreateOrganizationPayload = TablesInsert<'organizations'>;
-export type UpdateOrganizationPayload = TablesUpdate<'organizations'>;
+export type CreateOrganizationPayload = TablesInsert<"organizations">;
+export type UpdateOrganizationPayload = TablesUpdate<"organizations">;
 
 /**
  * Payloads pour les établissements
  */
-export type CreateEstablishmentPayload = TablesInsert<'establishments'>;
-export type UpdateEstablishmentPayload = TablesUpdate<'establishments'>;
+export type CreateEstablishmentPayload = TablesInsert<"establishments">;
+export type UpdateEstablishmentPayload = TablesUpdate<"establishments">;
 
 /**
  * Payloads pour les réservations
  */
-export type CreateBookingPayload = TablesInsert<'bookings'>;
-export type UpdateBookingPayload = TablesUpdate<'bookings'>;
+export type CreateBookingPayload = TablesInsert<"bookings">;
+export type UpdateBookingPayload = TablesUpdate<"bookings">;
 
 /**
  * Payloads pour les menus
  */
-export type CreateMenuPayload = TablesInsert<'menus'>;
-export type UpdateMenuPayload = TablesUpdate<'menus'>;
+export type CreateMenuPayload = TablesInsert<"menus">;
+export type UpdateMenuPayload = TablesUpdate<"menus">;
 
 // ============================================================================
 // TYPES POUR LES ÉVÉNEMENTS REALTIME
@@ -115,7 +115,7 @@ export type UpdateMenuPayload = TablesUpdate<'menus'>;
  * Événement realtime de base
  */
 export type RealtimeEvent<T = any> = {
-  type: 'INSERT' | 'UPDATE' | 'DELETE';
+  type: "INSERT" | "UPDATE" | "DELETE";
   table: string;
   record: T;
   oldRecord?: T;
@@ -127,7 +127,7 @@ export type RealtimeEvent<T = any> = {
  */
 export type TableChangeEvent<T = any> = {
   table: string;
-  event: 'INSERT' | 'UPDATE' | 'DELETE';
+  event: "INSERT" | "UPDATE" | "DELETE";
   record: T;
   oldRecord?: T;
 };
@@ -136,7 +136,7 @@ export type TableChangeEvent<T = any> = {
  * Message realtime
  */
 export type RealtimeMessage<T = any> = {
-  type: 'notification' | 'user_action' | 'table_change';
+  type: "notification" | "user_action" | "table_change";
   payload: T;
   timestamp: string;
   userId?: string;
@@ -146,12 +146,12 @@ export type RealtimeMessage<T = any> = {
 /**
  * Événements spécifiques aux produits
  */
-export type ProductsRealtimeEvent = RealtimeEvent<Tables<'products'> | Tables<'product_stocks'>>;
+export type ProductsRealtimeEvent = RealtimeEvent<Tables<"products"> | Tables<"product_stocks">>;
 
 /**
  * Événements spécifiques aux organisations
  */
-export type OrganizationsRealtimeEvent = RealtimeEvent<Tables<'organizations'>>;
+export type OrganizationsRealtimeEvent = RealtimeEvent<Tables<"organizations">>;
 
 // ============================================================================
 // TYPES POUR LES FORMULAIRES
@@ -223,7 +223,7 @@ export type TableColumn<T> = {
   sortable?: boolean;
   filterable?: boolean;
   width?: string;
-  align?: 'left' | 'center' | 'right';
+  align?: "left" | "center" | "right";
 };
 
 /**
@@ -233,7 +233,7 @@ export type TableAction<T> = {
   label: string;
   icon?: React.ComponentType;
   onClick: (item: T) => void;
-  variant?: 'default' | 'destructive' | 'outline';
+  variant?: "default" | "destructive" | "outline";
   disabled?: (item: T) => boolean;
 };
 
@@ -255,34 +255,17 @@ export type PaginationOptions = {
 /**
  * Statut de stock
  */
-export type StockStatus = 
-  | 'no-stock'
-  | 'not-managed'
-  | 'out-of-stock'
-  | 'critical'
-  | 'low'
-  | 'min'
-  | 'ok'
-  | 'error';
+export type StockStatus = "no-stock" | "not-managed" | "out-of-stock" | "critical" | "low" | "min" | "ok" | "error";
 
 /**
  * Statut de réservation
  */
-export type BookingStatus = 
-  | 'pending'
-  | 'confirmed'
-  | 'cancelled'
-  | 'completed'
-  | 'no-show';
+export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no-show";
 
 /**
  * Statut de disponibilité
  */
-export type AvailabilityStatus = 
-  | 'available'
-  | 'unavailable'
-  | 'limited'
-  | 'out-of-stock';
+export type AvailabilityStatus = "available" | "unavailable" | "limited" | "out-of-stock";
 
 // ============================================================================
 // TYPES POUR LES CONFIGURATIONS
@@ -321,4 +304,4 @@ export type EstablishmentSettings = {
     };
   };
   services?: string[];
-}; 
+};

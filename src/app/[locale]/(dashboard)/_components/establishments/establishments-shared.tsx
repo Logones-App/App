@@ -1,8 +1,10 @@
 "use client";
-import { useOrganizationEstablishments } from "@/lib/queries/establishments";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
+
 import { useTranslations } from "next-intl";
+
+import { useOrganizationEstablishments } from "@/lib/queries/establishments";
 
 export function EstablishmentsShared({ organizationId }: { organizationId: string }) {
   const t = useTranslations("establishments");

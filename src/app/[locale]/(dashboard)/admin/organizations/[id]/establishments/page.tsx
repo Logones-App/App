@@ -1,5 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
+
 import { EstablishmentsShared } from "@/app/[locale]/(dashboard)/_components/establishments/establishments-shared";
 
 export default function OrganizationEstablishmentsPage() {

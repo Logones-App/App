@@ -1,20 +1,26 @@
 "use client";
+import { useEffect, useState, useCallback, useRef } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Edit, Trash2, Save, X } from "lucide-react";
-import { useEstablishmentBookingSlots } from "@/lib/queries/establishments";
-import { useTranslations } from "next-intl";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useCallback, useRef } from "react";
+
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Plus, Edit, Trash2, Save, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useEstablishmentBookingSlots } from "@/lib/queries/establishments";
+
+
+import { createClient } from "@/lib/supabase/client";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EstablishmentSlotsSharedProps {
   establishmentId: string;

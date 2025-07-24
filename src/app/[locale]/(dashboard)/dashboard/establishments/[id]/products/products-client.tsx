@@ -1,8 +1,10 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
-import { ProductsShared } from "@/app/[locale]/(dashboard)/_components/establishments/products-shared";
+
 import { Loader2 } from "lucide-react";
+
+import { ProductsShared } from "@/app/[locale]/(dashboard)/_components/establishments/products-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 
 export function ProductsClient() {
   const params = useParams();

@@ -1,9 +1,11 @@
 "use client";
-import { useEstablishment } from "@/lib/queries/establishments";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+
 import { Calendar, Clock, Package, List, UtensilsCrossed, Image, ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { useEstablishment } from "@/lib/queries/establishments";
 
 export function EstablishmentDetailsShared({
   establishmentId,

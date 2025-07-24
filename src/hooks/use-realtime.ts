@@ -1,8 +1,9 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { useRealtimeStore } from '@/lib/stores/realtime-store';
-import { realtimeService, type RealtimeMessage } from '@/lib/services/realtimeService';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useEffect, useCallback, useRef } from "react";
+
+import { useUserMetadata } from "@/hooks/use-user-metadata";
+import { realtimeService, type RealtimeMessage } from "@/lib/services/realtimeService";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useRealtimeStore } from "@/lib/stores/realtime-store";
 
 /**
  * Hook principal pour utiliser le realtime
@@ -24,7 +25,7 @@ export function useRealtime() {
     clearMessages,
     clearNotifications,
     addSubscription,
-    removeSubscription
+    removeSubscription,
   } = useRealtimeStore();
 
   const { user } = useAuthStore();
@@ -67,7 +68,7 @@ export function useRealtime() {
     clearMessages,
     clearNotifications,
     addSubscription,
-    removeSubscription
+    removeSubscription,
   };
 }
 
@@ -76,23 +77,16 @@ export function useRealtime() {
  */
 export function useTableSubscription(
   table: string,
-  event: 'INSERT' | 'UPDATE' | 'DELETE' | '*',
+  event: "INSERT" | "UPDATE" | "DELETE" | "*",
   filter?: string,
-  onMessage?: (message: RealtimeMessage) => void
+  onMessage?: (message: RealtimeMessage) => void,
 ) {
   const { addSubscription, removeSubscription } = useRealtimeStore();
 
   const subscribe = useCallback(() => {
-    const subscriptionId = realtimeService.subscribeToTable(
-      table,
-      event,
-      filter,
-      onMessage
-    );
+    const subscriptionId = realtimeService.subscribeToTable(table, event, filter, onMessage);
 
-    const subscription = realtimeService.getActiveSubscriptions().find(
-      sub => sub.id === subscriptionId
-    );
+    const subscription = realtimeService.getActiveSubscriptions().find((sub) => sub.id === subscriptionId);
 
     if (subscription) {
       addSubscription(subscription);
@@ -101,9 +95,12 @@ export function useTableSubscription(
     return subscriptionId;
   }, [table, event, filter, onMessage, addSubscription]);
 
-  const unsubscribe = useCallback((subscriptionId: string) => {
-    removeSubscription(subscriptionId);
-  }, [removeSubscription]);
+  const unsubscribe = useCallback(
+    (subscriptionId: string) => {
+      removeSubscription(subscriptionId);
+    },
+    [removeSubscription],
+  );
 
   return { subscribe, unsubscribe };
 }
@@ -116,23 +113,14 @@ export function useRealtimeNotifications() {
   const { user } = useAuthStore();
   const { userMetadata } = useUserMetadata();
 
-  const sendNotification = useCallback(async (
-    title: string,
-    message: string,
-    data?: any,
-    targetUserId?: string,
-    targetOrganizationId?: string
-  ) => {
-    if (!user) return;
+  const sendNotification = useCallback(
+    async (title: string, message: string, data?: any, targetUserId?: string, targetOrganizationId?: string) => {
+      if (!user) return;
 
-    await realtimeService.sendNotification(
-      title,
-      message,
-      data,
-      targetUserId,
-      targetOrganizationId
-    );
-  }, [user]);
+      await realtimeService.sendNotification(title, message, data, targetUserId, targetOrganizationId);
+    },
+    [user],
+  );
 
   return {
     notifications,
@@ -140,7 +128,7 @@ export function useRealtimeNotifications() {
     markAsRead,
     markAllAsRead,
     clearNotifications,
-    sendNotification
+    sendNotification,
   };
 }
 
@@ -150,20 +138,14 @@ export function useRealtimeNotifications() {
 export function useRealtimeUserActions() {
   const { user } = useAuthStore();
 
-  const sendUserAction = useCallback(async (
-    title: string,
-    message: string,
-    data?: any
-  ) => {
-    if (!user) return;
+  const sendUserAction = useCallback(
+    async (title: string, message: string, data?: any) => {
+      if (!user) return;
 
-    await realtimeService.sendUserAction(
-      title,
-      message,
-      data,
-      user.id
-    );
-  }, [user]);
+      await realtimeService.sendUserAction(title, message, data, user.id);
+    },
+    [user],
+  );
 
   return { sendUserAction };
 }
@@ -171,9 +153,7 @@ export function useRealtimeUserActions() {
 /**
  * Hook pour s'abonner aux notifications personnalisées
  */
-export function useNotificationSubscription(
-  onMessage?: (message: RealtimeMessage) => void
-) {
+export function useNotificationSubscription(onMessage?: (message: RealtimeMessage) => void) {
   const { user } = useAuthStore();
   const { addSubscription, removeSubscription } = useRealtimeStore();
 
@@ -181,12 +161,10 @@ export function useNotificationSubscription(
     const subscriptionId = realtimeService.subscribeToNotifications(
       user?.id,
       undefined, // Pas d'organization_id dans userMetadata pour l'instant
-      onMessage
+      onMessage,
     );
 
-    const subscription = realtimeService.getActiveSubscriptions().find(
-      sub => sub.id === subscriptionId
-    );
+    const subscription = realtimeService.getActiveSubscriptions().find((sub) => sub.id === subscriptionId);
 
     if (subscription) {
       addSubscription(subscription);
@@ -195,9 +173,12 @@ export function useNotificationSubscription(
     return subscriptionId;
   }, [user?.id, onMessage, addSubscription]);
 
-  const unsubscribe = useCallback((subscriptionId: string) => {
-    removeSubscription(subscriptionId);
-  }, [removeSubscription]);
+  const unsubscribe = useCallback(
+    (subscriptionId: string) => {
+      removeSubscription(subscriptionId);
+    },
+    [removeSubscription],
+  );
 
   return { subscribe, unsubscribe };
 }
@@ -205,21 +186,14 @@ export function useNotificationSubscription(
 /**
  * Hook pour s'abonner aux actions utilisateur
  */
-export function useUserActionSubscription(
-  onMessage?: (message: RealtimeMessage) => void
-) {
+export function useUserActionSubscription(onMessage?: (message: RealtimeMessage) => void) {
   const { user } = useAuthStore();
   const { addSubscription, removeSubscription } = useRealtimeStore();
 
   const subscribe = useCallback(() => {
-    const subscriptionId = realtimeService.subscribeToUserActions(
-      user?.id,
-      onMessage
-    );
+    const subscriptionId = realtimeService.subscribeToUserActions(user?.id, onMessage);
 
-    const subscription = realtimeService.getActiveSubscriptions().find(
-      sub => sub.id === subscriptionId
-    );
+    const subscription = realtimeService.getActiveSubscriptions().find((sub) => sub.id === subscriptionId);
 
     if (subscription) {
       addSubscription(subscription);
@@ -228,9 +202,12 @@ export function useUserActionSubscription(
     return subscriptionId;
   }, [user?.id, onMessage, addSubscription]);
 
-  const unsubscribe = useCallback((subscriptionId: string) => {
-    removeSubscription(subscriptionId);
-  }, [removeSubscription]);
+  const unsubscribe = useCallback(
+    (subscriptionId: string) => {
+      removeSubscription(subscriptionId);
+    },
+    [removeSubscription],
+  );
 
   return { subscribe, unsubscribe };
-} 
+}
