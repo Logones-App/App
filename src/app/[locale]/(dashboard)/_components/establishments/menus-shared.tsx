@@ -32,6 +32,10 @@ import {
 import { BackToEstablishmentButton } from "./BackToEstablishmentButton";
 import { Switch } from "@/components/ui/switch";
 import { useQuery } from "@tanstack/react-query";
+import { MenuCalendar } from "./menus-calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus } from "lucide-react";
+import { useEstablishmentMenusWithSchedules } from "@/lib/queries/establishments";
 
 function MenuProductsList({ menuId }: { menuId: string }) {
   const { data: products, isLoading, isError } = useMenuProducts(menuId);
@@ -302,19 +306,13 @@ function MenuFormModal({
   initialValues?: any;
 }) {
   const { register, handleSubmit, reset, setValue, watch } = useForm({
-    defaultValues: initialValues || { name: "", description: "", start_time: "", end_time: "", type: "" },
+    defaultValues: initialValues || { name: "", description: "", type: "" },
   });
-  const [permanent, setPermanent] = useState(!initialValues?.start_time && !initialValues?.end_time);
+  const [permanent, setPermanent] = useState(true);
   useEffect(() => {
-    reset(initialValues || { name: "", description: "", start_time: "", end_time: "", type: "" });
-    setPermanent(!initialValues?.start_time && !initialValues?.end_time);
+    reset(initialValues || { name: "", description: "", type: "" });
+    setPermanent(true);
   }, [initialValues, reset]);
-  useEffect(() => {
-    if (permanent) {
-      setValue("start_time", "");
-      setValue("end_time", "");
-    }
-  }, [permanent, setValue]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -329,10 +327,6 @@ function MenuFormModal({
             <label htmlFor="permanent-switch" className="text-sm">
               Carte permanente
             </label>
-          </div>
-          <div className="flex gap-2">
-            <Input {...register("start_time")} type="time" placeholder="Heure de début" disabled={permanent} />
-            <Input {...register("end_time")} type="time" placeholder="Heure de fin" disabled={permanent} />
           </div>
           <textarea {...register("description")} className="w-full rounded border p-2" placeholder="Description" />
           <div className="flex justify-end gap-2">
@@ -598,6 +592,7 @@ function MenuSchedulesList({ menuId, organizationId }: { menuId: string; organiz
 export function MenusShared({ establishmentId, organizationId }: { establishmentId: string; organizationId: string }) {
   const { data: menus, isLoading, isError } = useEstablishmentMenus(establishmentId, organizationId);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("menus");
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editMenu, setEditMenu] = useState<any>(null);
@@ -650,125 +645,170 @@ export function MenusShared({ establishmentId, organizationId }: { establishment
   }, [menus, activeMenuId]);
 
   const activeMenu = useMemo(() => menus?.find((m: any) => m.id === activeMenuId), [menus, activeMenuId]);
+  const { data: menusWithSchedules } = useEstablishmentMenusWithSchedules(establishmentId, organizationId);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
         <BackToEstablishmentButton establishmentId={establishmentId} organizationId={organizationId} />
-        <Button variant="default" size="sm" className="ml-auto" onClick={() => setShowMenuForm(true)}>
-          + Ajouter un menu
+        <Button onClick={() => setShowMenuForm(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Ajouter un menu
         </Button>
       </div>
 
-      {/* Tabs pour chaque menu */}
-      <div className="mb-4 flex gap-2 border-b pb-2">
-        {menus &&
-          menus.map((menu: any) => (
-            <button
-              key={menu.id}
-              className={`border-b-2 px-4 py-2 font-medium transition-colors ${
-                activeMenuId === menu.id
-                  ? "border-primary text-primary"
-                  : "text-muted-foreground hover:text-primary border-transparent"
-              }`}
-              onClick={() => setActiveMenuId(menu.id)}
-              type="button"
-            >
-              {menu.name || <span className="text-muted-foreground italic">(Sans nom)</span>}
-            </button>
-          ))}
-      </div>
-      <MenuFormModal open={showMenuForm} onOpenChange={setShowMenuForm} onSubmit={addMenuMutation.mutate} />
-      <MenuFormModal
-        open={!!editMenu}
-        onOpenChange={(v) => {
-          if (!v) setEditMenu(null);
-        }}
-        onSubmit={(data) => editMenuMutation.mutate({ ...data, id: editMenu.id })}
-        initialValues={editMenu}
-      />
-      {/* Card infos menu + actions */}
-      {activeMenu && (
-        <Card className="mb-4">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                {activeMenu.image_url && (
-                  <img
-                    src={activeMenu.image_url}
-                    alt={activeMenu.name || "Menu"}
-                    className="h-8 w-8 rounded object-cover"
-                  />
-                )}
-                <span>{activeMenu.name || <span className="text-muted-foreground italic">(Sans nom)</span>}</span>
-              </CardTitle>
-              <div className="text-muted-foreground mt-1 text-sm">{activeMenu.description}</div>
-              <div className="mt-2 flex gap-2 text-xs">
-                {activeMenu.type && <span className="bg-muted rounded px-2 py-0.5">Type : {activeMenu.type}</span>}
-                {activeMenu.is_active && <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Actif</span>}
-                {activeMenu.is_public && <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">Public</span>}
-                {typeof activeMenu.display_order === "number" && (
-                  <span className="bg-muted rounded px-2 py-0.5">Ordre : {activeMenu.display_order}</span>
-                )}
-                {!activeMenu.start_time && !activeMenu.end_time ? (
-                  <span className="bg-muted rounded px-2 py-0.5">Carte permanente</span>
-                ) : (
-                  <>
-                    {activeMenu.start_time && (
-                      <span className="bg-muted rounded px-2 py-0.5">Débute : {activeMenu.start_time}</span>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="menus">Menus</TabsTrigger>
+          <TabsTrigger value="products">Produits</TabsTrigger>
+          <TabsTrigger value="stocks">Stocks</TabsTrigger>
+          <TabsTrigger value="calendar">Calendrier</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="menus" className="space-y-4">
+          <div className="flex items-center gap-4">
+            <BackToEstablishmentButton establishmentId={establishmentId} organizationId={organizationId} />
+            <Button variant="default" size="sm" className="ml-auto" onClick={() => setShowMenuForm(true)}>
+              + Ajouter un menu
+            </Button>
+          </div>
+
+          {/* Tabs pour chaque menu */}
+          <div className="mb-4 flex gap-2 border-b pb-2">
+            {menus &&
+              menus.map((menu: any) => (
+                <button
+                  key={menu.id}
+                  className={`border-b-2 px-4 py-2 font-medium transition-colors ${
+                    activeMenuId === menu.id
+                      ? "border-primary text-primary"
+                      : "text-muted-foreground hover:text-primary border-transparent"
+                  }`}
+                  onClick={() => setActiveMenuId(menu.id)}
+                  type="button"
+                >
+                  {menu.name || <span className="text-muted-foreground italic">(Sans nom)</span>}
+                </button>
+              ))}
+          </div>
+          <MenuFormModal open={showMenuForm} onOpenChange={setShowMenuForm} onSubmit={addMenuMutation.mutate} />
+          <MenuFormModal
+            open={!!editMenu}
+            onOpenChange={(v) => {
+              if (!v) setEditMenu(null);
+            }}
+            onSubmit={(data) => editMenuMutation.mutate({ ...data, id: editMenu.id })}
+            initialValues={editMenu}
+          />
+          {/* Card infos menu + actions */}
+          {activeMenu && (
+            <Card className="mb-4">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    {activeMenu.image_url && (
+                      <img
+                        src={activeMenu.image_url}
+                        alt={activeMenu.name || "Menu"}
+                        className="h-8 w-8 rounded object-cover"
+                      />
                     )}
-                    {activeMenu.end_time && (
-                      <span className="bg-muted rounded px-2 py-0.5">Termine : {activeMenu.end_time}</span>
+                    <span>{activeMenu.name || <span className="text-muted-foreground italic">(Sans nom)</span>}</span>
+                  </CardTitle>
+                  <div className="text-muted-foreground mt-1 text-sm">{activeMenu.description}</div>
+                  <div className="mt-2 flex gap-2 text-xs">
+                    {activeMenu.type && <span className="bg-muted rounded px-2 py-0.5">Type : {activeMenu.type}</span>}
+                    {activeMenu.is_active && (
+                      <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Actif</span>
                     )}
-                  </>
-                )}
-              </div>
-              <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" title="Éditer le menu" onClick={() => setEditMenu(activeMenu)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <AlertDialog
-                open={deleteMenuId === activeMenu.id}
-                onOpenChange={(open) => !open && setDeleteMenuId(null)}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    title="Supprimer"
-                    onClick={() => setDeleteMenuId(activeMenu.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
+                    {activeMenu.is_public && (
+                      <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">Public</span>
+                    )}
+                    {typeof activeMenu.display_order === "number" && (
+                      <span className="bg-muted rounded px-2 py-0.5">Ordre : {activeMenu.display_order}</span>
+                    )}
+                    <span className="bg-muted rounded px-2 py-0.5">Carte permanente</span>
+                  </div>
+                  <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="icon" title="Éditer le menu" onClick={() => setEditMenu(activeMenu)}>
+                    <Pencil className="h-4 w-4" />
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Supprimer ce menu ?</AlertDialogTitle>
-                  </AlertDialogHeader>
-                  <div>Cette action est irréversible. Tous les liens avec les produits seront supprimés.</div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteMenuMutation.mutate(activeMenu.id)}>
-                      Supprimer
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardHeader>
-        </Card>
-      )}
-      {/* Tableau des produits du menu */}
-      {activeMenuId && <MenuProductsTable menuId={activeMenuId} onAddProduct={() => setShowAddProductModal(true)} />}
-      {/* Modale d'association produit/menu */}
-      <AddProductToMenuModal
-        menuId={activeMenuId!}
-        organizationId={organizationId}
-        open={showAddProductModal}
-        onOpenChange={setShowAddProductModal}
-      />
+                  <AlertDialog
+                    open={deleteMenuId === activeMenu.id}
+                    onOpenChange={(open) => !open && setDeleteMenuId(null)}
+                  >
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        title="Supprimer"
+                        onClick={() => setDeleteMenuId(activeMenu.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer ce menu ?</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <div>Cette action est irréversible. Tous les liens avec les produits seront supprimés.</div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteMenuMutation.mutate(activeMenu.id)}>
+                          Supprimer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardHeader>
+            </Card>
+          )}
+          {/* Tableau des produits du menu */}
+          {activeMenuId && (
+            <MenuProductsTable menuId={activeMenuId} onAddProduct={() => setShowAddProductModal(true)} />
+          )}
+          {/* Modale d'association produit/menu */}
+          <AddProductToMenuModal
+            menuId={activeMenuId!}
+            organizationId={organizationId}
+            open={showAddProductModal}
+            onOpenChange={setShowAddProductModal}
+          />
+        </TabsContent>
+
+        <TabsContent value="products" className="space-y-4">
+          <ProductsTab establishmentId={establishmentId} organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="stocks" className="space-y-4">
+          <StocksTab establishmentId={establishmentId} organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-4">
+          {menusWithSchedules && menusWithSchedules.length > 0 ? (
+            <MenuCalendar
+              menus={menusWithSchedules}
+              onDateClick={(date) => {
+                console.log("Date cliquée:", date);
+                // Ici on pourrait afficher les menus disponibles pour cette date
+              }}
+              onEventClick={(event) => {
+                console.log("Menu cliqué:", event.extendedProps.menu);
+                // Ici on pourrait naviguer vers le menu ou afficher ses détails
+              }}
+            />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground text-center">Aucun menu à afficher dans le calendrier.</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

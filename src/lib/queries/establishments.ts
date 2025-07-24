@@ -403,3 +403,48 @@ export const useUpdateEstablishment = () => {
     },
   });
 };
+
+export const useEstablishmentMenusWithSchedules = (establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["establishment-menus-with-schedules", establishmentId, organizationId],
+    queryFn: async () => {
+      if (!establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      
+      // Récupérer les menus
+      const { data: menus, error: menusError } = await supabase
+        .from("menus")
+        .select("*")
+        .eq("establishments_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("display_order", { ascending: true });
+      
+      if (menusError) throw menusError;
+      
+      // Récupérer les plannings pour tous les menus
+      const menuIds = (menus || []).map((m: any) => m.id);
+      let schedules: any[] = [];
+      
+      if (menuIds.length > 0) {
+        const { data: schedulesData, error: schedulesError } = await supabase
+          .from("menu_schedules")
+          .select("*")
+          .in("menu_id", menuIds)
+          .eq("deleted", false);
+        
+        if (schedulesError) throw schedulesError;
+        schedules = schedulesData || [];
+      }
+      
+      // Associer les plannings aux menus
+      const result = (menus || []).map((menu: any) => ({
+        ...menu,
+        schedules: schedules.filter((s: any) => s.menu_id === menu.id)
+      }));
+      
+      return result;
+    },
+    enabled: !!establishmentId && !!organizationId,
+  });
+};
