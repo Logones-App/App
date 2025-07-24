@@ -235,6 +235,99 @@ export const useEstablishmentProductsWithStocks = (establishmentId?: string, org
   });
 };
 
+// Query pour récupérer les menus d'un établissement
+export const useEstablishmentMenus = (establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["establishment-menus", establishmentId, organizationId],
+    queryFn: async () => {
+      if (!establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("menus")
+        .select("*")
+        .eq("establishments_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!establishmentId && !!organizationId,
+  });
+};
+
+// Query pour récupérer les produits d'un menu (avec prix spécifique)
+export const useMenuProducts = (menuId?: string) => {
+  return useQuery({
+    queryKey: ["menu-products", menuId],
+    queryFn: async () => {
+      if (!menuId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("menus_products")
+        .select(`
+          *,
+          product:products(*)
+        `)
+        .eq("menus_id", menuId)
+        .eq("deleted", false);
+      if (error) throw error;
+      // On retourne les infos du produit + le prix spécifique au menu
+      return (data || []).map((row: any) => ({
+        ...row.product,
+        menu_price: row.price,
+        menus_products_id: row.id,
+      }));
+    },
+    enabled: !!menuId,
+  });
+};
+
+// Query pour récupérer les produits en stock dans l'établissement mais non associés à un menu
+export const useEstablishmentProductsNotInMenus = (establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["establishment-products-not-in-menus", establishmentId, organizationId],
+    queryFn: async () => {
+      if (!establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      // Récupérer tous les produits en stock dans l'établissement
+      const { data: stocks, error: stocksError } = await supabase
+        .from("product_stocks")
+        .select("* , product:products(*)")
+        .eq("establishment_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .eq("product.deleted", false);
+      if (stocksError) throw stocksError;
+      // Récupérer tous les menus de l'établissement
+      const { data: menus, error: menusError } = await supabase
+        .from("menus")
+        .select("id")
+        .eq("establishments_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (menusError) throw menusError;
+      const menuIds = (menus || []).map((m: any) => m.id);
+      // Récupérer tous les produits associés à un menu
+      let productsInMenus: string[] = [];
+      if (menuIds.length > 0) {
+        const { data: menusProducts, error: mpError } = await supabase
+          .from("menus_products")
+          .select("products_id")
+          .in("menus_id", menuIds)
+          .eq("deleted", false);
+        if (mpError) throw mpError;
+        productsInMenus = (menusProducts || []).map((mp: any) => mp.products_id);
+      }
+      // Retourner les produits en stock qui ne sont dans aucun menu
+      return (stocks || [])
+        .filter((s: any) => s.product && !productsInMenus.includes(s.product_id))
+        .map((s: any) => ({ ...s.product, stock: s }));
+    },
+    enabled: !!establishmentId && !!organizationId,
+  });
+};
+
 // Mutation pour créer un établissement
 export const useCreateEstablishment = () => {
   const queryClient = useQueryClient();
