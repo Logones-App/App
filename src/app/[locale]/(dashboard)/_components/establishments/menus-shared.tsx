@@ -647,6 +647,22 @@ export function MenusShared({ establishmentId, organizationId }: { establishment
   const activeMenu = useMemo(() => menus?.find((m: any) => m.id === activeMenuId), [menus, activeMenuId]);
   const { data: menusWithSchedules } = useEstablishmentMenusWithSchedules(establishmentId, organizationId);
 
+  const handleDateClick = (date: Date) => {
+    console.log("Date clicked:", date);
+    // Vous pouvez ouvrir un modal de création de menu pour cette date
+    // Par exemple, si vous voulez créer un menu pour cette date, vous pouvez passer l'ID de l'établissement
+    // et l'organisation à la modal de création de menu.
+    // Pour l'instant, nous n'avons pas d'état pour la date sélectionnée, donc rien de spécifique ici.
+  };
+
+  const handleEventClick = (event: any) => {
+    console.log("Event clicked:", event);
+    // Vous pouvez ouvrir un modal de modification de menu pour cet événement
+    // Par exemple, si vous voulez modifier un menu existant, vous pouvez passer l'ID du menu
+    // et l'organisation à la modal de modification de menu.
+    // Pour l'instant, nous n'avons pas d'état pour l'événement sélectionné, donc rien de spécifique ici.
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -788,25 +804,12 @@ export function MenusShared({ establishmentId, organizationId }: { establishment
         </TabsContent>
 
         <TabsContent value="calendar" className="space-y-4">
-          {menusWithSchedules && menusWithSchedules.length > 0 ? (
-            <MenuCalendar
-              menus={menusWithSchedules}
-              onDateClick={(date) => {
-                console.log("Date cliquée:", date);
-                // Ici on pourrait afficher les menus disponibles pour cette date
-              }}
-              onEventClick={(event) => {
-                console.log("Menu cliqué:", event.extendedProps.menu);
-                // Ici on pourrait naviguer vers le menu ou afficher ses détails
-              }}
-            />
-          ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground text-center">Aucun menu à afficher dans le calendrier.</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Affichage du calendrier isolé sans props */}
+          <MenuCalendar
+            menus={menusWithSchedules || []}
+            onDateClick={handleDateClick}
+            onEventClick={handleEventClick}
+          />
         </TabsContent>
       </Tabs>
     </div>
