@@ -3,6 +3,7 @@ export { organizationsRealtime, type OrganizationRealtimeEvent } from "./organiz
 export { usersRealtime, type UserRealtimeEvent } from "./users-realtime";
 export { establishmentsRealtime, useEstablishmentsRealtime } from "./establishments-realtime";
 export { productsRealtime, type ProductsRealtimeEvent, type ProductWithStock } from "./products-realtime";
+export { bookingsRealtime, type BookingRealtimeEvent } from "./bookings-realtime";
 
 // Export du service principal
 export { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "../../realtimeService";

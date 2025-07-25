@@ -13,30 +13,26 @@ export function RealtimeConnectionStatus() {
       case "connected":
         return {
           icon: Wifi,
-          label: "Connecté",
           variant: "default" as const,
-          className: "text-green-600",
+          className: "bg-green-100 text-green-800 hover:bg-green-100",
         };
       case "connecting":
         return {
           icon: Loader2,
-          label: "Connexion...",
           variant: "secondary" as const,
-          className: "text-yellow-600 animate-spin",
+          className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 animate-pulse",
         };
       case "error":
         return {
           icon: AlertCircle,
-          label: "Erreur",
           variant: "destructive" as const,
-          className: "text-red-600",
+          className: "bg-red-100 text-red-800 hover:bg-red-100",
         };
       default:
         return {
           icon: WifiOff,
-          label: "Déconnecté",
-          variant: "outline" as const,
-          className: "text-gray-600",
+          variant: "secondary" as const,
+          className: "bg-gray-100 text-gray-600 hover:bg-gray-100",
         };
     }
   };
@@ -45,9 +41,20 @@ export function RealtimeConnectionStatus() {
   const Icon = config.icon;
 
   return (
-    <Badge variant={config.variant} className="flex items-center gap-1">
-      <Icon className={`h-3 w-3 ${config.className}`} />
-      <span className="text-xs">{config.label}</span>
+    <Badge
+      variant={config.variant}
+      className={`flex items-center justify-center p-1 ${config.className}`}
+      title={
+        connectionStatus === "connected"
+          ? "Temps réel actif"
+          : connectionStatus === "connecting"
+            ? "Connexion en cours..."
+            : connectionStatus === "error"
+              ? "Erreur de connexion"
+              : "Hors ligne"
+      }
+    >
+      <Icon className="h-3 w-3" />
     </Badge>
   );
 }

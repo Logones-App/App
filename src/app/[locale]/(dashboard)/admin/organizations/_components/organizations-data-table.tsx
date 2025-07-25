@@ -96,14 +96,14 @@ export function OrganizationsDataTable() {
         switch (event.type) {
           case "organization_created":
             console.log("➕ Nouvelle organisation créée");
-            toast.success("Nouvelle organisation créée");
+            // Le module gère déjà les toasts, pas besoin d'en ajouter ici
             // Invalider seulement si nécessaire
             queryClient.invalidateQueries({ queryKey: ["all-organizations"] });
             break;
 
           case "organization_updated":
             console.log("✏️ Organisation mise à jour:", event.organizationId);
-            toast.success("Organisation mise à jour");
+            // Le module gère déjà les toasts, pas besoin d'en ajouter ici
 
             // Mise à jour optimiste seulement si on a les données
             if (event.data) {
@@ -124,7 +124,7 @@ export function OrganizationsDataTable() {
 
           case "organization_deleted":
             console.log("🗑️ Organisation supprimée:", event.organizationId);
-            toast.success("Organisation supprimée");
+            // Le module gère déjà les toasts, pas besoin d'en ajouter ici
 
             // Mise à jour optimiste
             queryClient.setQueryData(["all-organizations"], (oldData: Organization[] | undefined) => {
@@ -137,13 +137,13 @@ export function OrganizationsDataTable() {
 
           case "user_added":
             console.log("👤 Utilisateur ajouté à l'organisation");
-            toast.info("Utilisateur ajouté à l'organisation");
+            // Le module gère déjà les toasts, pas besoin d'en ajouter ici
             // Pas besoin d'invalider pour les utilisateurs
             break;
 
           case "user_removed":
             console.log("👤 Utilisateur retiré de l'organisation");
-            toast.info("Utilisateur retiré de l'organisation");
+            // Le module gère déjà les toasts, pas besoin d'en ajouter ici
             // Pas besoin d'invalider pour les utilisateurs
             break;
         }
