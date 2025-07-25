@@ -151,7 +151,101 @@ import rrulePlugin from "@fullcalendar/rrule";
 
 ### Génération d'Événements
 
-#### Événements Récurrents Horaires
+#### ⚠️ APPROCHE PERSONNALISÉE (Non recommandée par FullCalendar)
+
+**Note importante** : La solution implémentée utilise une approche personnalisée qui génère des événements simples au lieu d'utiliser la récurrence native de FullCalendar (`rrule`). Cette approche a été choisie pour résoudre des problèmes d'affichage spécifiques, mais n'est pas la méthode recommandée par FullCalendar.
+
+**Pourquoi cette approche ?**
+
+- Résout le problème d'affichage en points dans la vue mois
+- Évite les bugs liés au plugin `rrule`
+- Simplifie la gestion des fuseaux horaires
+- Améliore la cohérence visuelle entre les vues
+
+**Inconvénients :**
+
+- Plus d'événements dans le DOM
+- Calcul à chaque changement de vue
+- Perte de la "récurrence native" FullCalendar
+
+#### Événements Récurrents Horaires (Approche Personnalisée)
+
+```typescript
+// Fonction pour générer les événements récurrents en événements simples
+function generateRecurringEvents(schedule: any, menu: any, currentView: string, currentDate: Date, color: string) {
+  const events: any[] = [];
+
+  // Obtenir la période visible
+  const { start: viewStart, end: viewEnd } = getVisiblePeriod(currentView, currentDate);
+
+  // Calculer toutes les occurrences dans la période visible
+  let checkDate = new Date(viewStart);
+  const endDate = new Date(viewEnd);
+
+  // Conversion correcte des jours de la semaine
+  // day_of_week: 1=lundi, 2=mardi, ..., 7=dimanche
+  // JavaScript: 0=dimanche, 1=lundi, ..., 6=samedi
+  const targetDay = schedule.day_of_week === 7 ? 0 : schedule.day_of_week;
+
+  while (checkDate <= endDate) {
+    if (checkDate.getDay() === targetDay) {
+      const eventDate = format(checkDate, "yyyy-MM-dd");
+
+      if (schedule.start_time && schedule.end_time) {
+        // Événement avec heures - adapter selon la vue
+        if (currentView === "dayGridMonth") {
+          // En vue mois : forcer allDay pour un affichage en bloc
+          events.push({
+            id: `${menu.id}-${schedule.id}-${eventDate}`,
+            title: `${menu.name} (${schedule.start_time}-${schedule.end_time})`,
+            start: eventDate,
+            allDay: true,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: "white",
+            extendedProps: {
+              menu,
+              schedule,
+              type: "recurrent-heures",
+              originalStart: schedule.start_time,
+              originalEnd: schedule.end_time,
+            },
+          });
+        } else {
+          // En vue semaine/jour : affichage horaire normal
+          events.push({
+            id: `${menu.id}-${schedule.id}-${eventDate}`,
+            title: menu.name,
+            start: `${eventDate}T${schedule.start_time}`,
+            end: `${eventDate}T${schedule.end_time}`,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: "white",
+            extendedProps: { menu, schedule, type: "recurrent-heures" },
+          });
+        }
+      } else {
+        // Événement all-day
+        events.push({
+          id: `${menu.id}-${schedule.id}-${eventDate}`,
+          title: menu.name,
+          start: eventDate,
+          allDay: true,
+          backgroundColor: color,
+          borderColor: color,
+          textColor: "white",
+          extendedProps: { menu, schedule, type: "recurrent-all-day" },
+        });
+      }
+    }
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
+
+  return events;
+}
+```
+
+#### Événements Récurrents Horaires (Approche Recommandée FullCalendar)
 
 ```typescript
 {
@@ -240,7 +334,8 @@ function normalizeTimeString(time?: string): string {
 #### 3. Affichage en Point dans Vue Mois
 
 **Comportement normal** : FullCalendar affiche les événements horaires en points en vue mois
-**Solution** : Utiliser la vue semaine/jour pour voir les blocs horaires
+**Solution recommandée** : Utiliser la vue semaine/jour pour voir les blocs horaires
+**Solution personnalisée** : Générer des événements `allDay: true` en vue mois avec les heures dans le titre
 
 #### 4. Décalage d'Heure
 
@@ -419,9 +514,12 @@ function getVisiblePeriod(viewType: string, currentDate: Date) {
 2. **Affichage** : Format local sans UTC pour FullCalendar
 3. **Dates de fin** : Toujours ajouter +1 jour pour inclure le dernier jour
 4. **Classification** : Automatique selon les propriétés du schedule
-5. **Récurrence** : Utiliser `rrule` avec `dtstart` local et `duration`
+5. **Récurrence** :
+   - **Approche recommandée** : Utiliser `rrule` avec `dtstart` local et `duration`
+   - **Approche personnalisée** : Générer des événements simples (voir section 4)
 6. **Debug** : Logs détaillés pour diagnostiquer les problèmes
 7. **Robustesse** : Gestion des cas limites (fin de mois, fuseaux, etc.)
+8. **Affichage adaptatif** : Adapter le format selon la vue (mois vs semaine/jour)
 
 ---
 
@@ -430,7 +528,8 @@ function getVisiblePeriod(viewType: string, currentDate: Date) {
 ### Problème 1 : Menu "Boissons" affiché à 00h00
 
 - **Cause** : Utilisation de `.toISOString()` générant UTC
-- **Solution** : Génération manuelle du format local pour `dtstart`
+- **Solution initiale** : Génération manuelle du format local pour `dtstart`
+- **Solution finale** : Approche personnalisée avec génération d'événements simples (voir section 4)
 
 ### Problème 2 : Carte du Midi (25-28) affichant seulement 25, 26, 27
 
@@ -446,6 +545,12 @@ function getVisiblePeriod(viewType: string, currentDate: Date) {
 
 - **Cause** : Confusion entre UTC et heure locale
 - **Solution** : Stockage local en base + format local pour FullCalendar
+
+### Problème 5 : Affichage en points pour les événements récurrents horaires
+
+- **Cause** : Comportement normal de FullCalendar en vue mois pour les événements avec heures
+- **Solution recommandée** : Accepter l'affichage en points ou utiliser les vues semaine/jour
+- **Solution personnalisée** : Générer des événements `allDay: true` en vue mois avec adaptation du titre
 
 ---
 

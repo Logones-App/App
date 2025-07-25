@@ -38,6 +38,80 @@ function getVisiblePeriod(view: string, date: Date) {
   }
 }
 
+// Fonction pour générer les événements récurrents en événements simples
+function generateRecurringEvents(schedule: any, menu: any, currentView: string, currentDate: Date, color: string) {
+  const events: any[] = [];
+
+  // Obtenir la période visible
+  const { start: viewStart, end: viewEnd } = getVisiblePeriod(currentView, currentDate);
+
+  // Calculer toutes les occurrences dans la période visible
+  let checkDate = new Date(viewStart);
+  const endDate = new Date(viewEnd);
+
+  // day_of_week: 1=lundi, 2=mardi, ..., 7=dimanche
+  // JavaScript: 0=dimanche, 1=lundi, ..., 6=samedi
+  // Conversion correcte : 1=lundi -> 1, 2=mardi -> 2, ..., 7=dimanche -> 0
+  const targetDay = schedule.day_of_week === 7 ? 0 : schedule.day_of_week; // Convertir en format JavaScript
+
+  while (checkDate <= endDate) {
+    if (checkDate.getDay() === targetDay) {
+      // C'est le bon jour de la semaine
+      const eventDate = format(checkDate, "yyyy-MM-dd");
+
+      if (schedule.start_time && schedule.end_time) {
+        // Événement avec heures - adapter selon la vue
+        if (currentView === "dayGridMonth") {
+          // En vue mois : forcer allDay pour un affichage en bloc
+          events.push({
+            id: `${menu.id}-${schedule.id}-${eventDate}`,
+            title: `${menu.name} (${schedule.start_time}-${schedule.end_time})`,
+            start: eventDate,
+            allDay: true,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: "white",
+            extendedProps: {
+              menu,
+              schedule,
+              type: "recurrent-heures",
+              originalStart: schedule.start_time,
+              originalEnd: schedule.end_time,
+            },
+          });
+        } else {
+          // En vue semaine/jour : affichage horaire normal
+          events.push({
+            id: `${menu.id}-${schedule.id}-${eventDate}`,
+            title: menu.name,
+            start: `${eventDate}T${schedule.start_time}`,
+            end: `${eventDate}T${schedule.end_time}`,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: "white",
+            extendedProps: { menu, schedule, type: "recurrent-heures" },
+          });
+        }
+      } else {
+        // Événement all-day
+        events.push({
+          id: `${menu.id}-${schedule.id}-${eventDate}`,
+          title: menu.name,
+          start: eventDate,
+          allDay: true,
+          backgroundColor: color,
+          borderColor: color,
+          textColor: "white",
+          extendedProps: { menu, schedule, type: "recurrent-all-day" },
+        });
+      }
+    }
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
+
+  return events;
+}
+
 // Fonction de préparation pour affichage
 function prepareScheduleForDisplay(schedule: any, view: string, date: Date, menuName?: string) {
   // 1. Classification du type
@@ -109,8 +183,10 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
   const events = useMemo(() => {
     if (!menus || menus.length === 0) return [];
     const events: any[] = [];
+
     menus.forEach((menu, index) => {
       const color = `hsl(${index * 60}, 70%, 50%)`;
+
       // Menu permanent (sans schedule)
       if (!menu.schedules || menu.schedules.length === 0) {
         const { start: periodStart, end: periodEnd } = getVisiblePeriod(currentView, currentDate);
@@ -127,11 +203,17 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
         });
         return;
       }
+
       // Cas 2 : Schedules associés
       menu.schedules.forEach((schedule: any, sidx: number) => {
         const display = prepareScheduleForDisplay(schedule, currentView, currentDate, menu.name);
+
         // Génération selon le type
-        if (display.type === "permanent" || display.type === "plage-all-day") {
+        if (display.type === "recurrent-heures" || display.type === "recurrent-all-day") {
+          // NOUVELLE LOGIQUE : Générer des événements simples au lieu d'utiliser rrule
+          const recurringEvents = generateRecurringEvents(schedule, menu, currentView, currentDate, color);
+          events.push(...recurringEvents);
+        } else if (display.type === "permanent" || display.type === "plage-all-day") {
           events.push({
             id: `${menu.id}-schedule-${sidx}`,
             title: menu.name,
@@ -154,54 +236,6 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
             borderColor: color,
             textColor: "white",
             extendedProps: { menu, schedule, type: display.type },
-          });
-        } else if (display.type === "recurrent-heures") {
-          // Récurrent hebdo avec heures
-          // Trouver le premier jour correspondant à day_of_week dans la période visible (mois courant)
-          const weekday = ["mo", "tu", "we", "th", "fr", "sa", "su"][(schedule.day_of_week ?? 1) - 1];
-          // Chercher la première date du bon jour dans le mois courant
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = now.getMonth();
-          // day_of_week: 1=lundi ... 7=dimanche
-          let firstDate = new Date(year, month, 1);
-          let jsDay = (schedule.day_of_week ?? 1) % 7;
-          while (firstDate.getDay() !== jsDay) {
-            firstDate.setDate(firstDate.getDate() + 1);
-          }
-          // Appliquer l'heure de début
-          const [h, m, s] = schedule.start_time
-            ? normalizeTimeString(schedule.start_time).split(":").map(Number)
-            : [0, 0, 0];
-          firstDate.setHours(h, m, s || 0, 0);
-          // dtstart au format local (YYYY-MM-DDTHH:mm:ss) sans Z
-          const pad = (n: number) => n.toString().padStart(2, "0");
-          const dtstart = `${firstDate.getFullYear()}-${pad(firstDate.getMonth() + 1)}-${pad(firstDate.getDate())}T${pad(h)}:${pad(m)}:${pad(s || 0)}`;
-          events.push({
-            id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
-            title: menu.name || "Menu",
-            rrule: {
-              freq: "weekly",
-              byweekday: weekday,
-              dtstart: dtstart,
-            },
-            duration:
-              schedule.start_time && schedule.end_time
-                ? (() => {
-                    const [h1, m1, s1] = normalizeTimeString(schedule.start_time || "00:00:00")
-                      .split(":")
-                      .map(Number);
-                    const [h2, m2, s2] = normalizeTimeString(schedule.end_time || "00:00:00")
-                      .split(":")
-                      .map(Number);
-                    const d = h2 * 60 + m2 - (h1 * 60 + m1);
-                    return `${String(Math.floor(d / 60)).padStart(2, "0")}:${String(d % 60).padStart(2, "0")}:00`;
-                  })()
-                : "01:00:00",
-            backgroundColor: "#F59E0B",
-            borderColor: "#F59E0B",
-            textColor: "white",
-            extendedProps: { menu, schedule, type: display?.type || "recurrent-heures" },
           });
         } else if (display.type === "ponctuel-heures") {
           // Ponctuel avec heures
@@ -231,6 +265,7 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
         }
       });
     });
+
     return events;
   }, [menus, currentView, currentDate]);
 
