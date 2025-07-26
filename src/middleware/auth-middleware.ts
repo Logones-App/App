@@ -9,6 +9,13 @@ const EXCLUDED_DOMAINS = [
   "logones.fr", // Domaine principal
 ];
 
+// Domaines personnalisés connus
+const CUSTOM_DOMAINS = [
+  "la-plank-des-gones.com",
+  "test-restaurant.logones.fr",
+  "demo-restaurant.logones.fr",
+];
+
 // Routes techniques à exclure
 const EXCLUDED_ROUTES = [
   "/api",
@@ -80,6 +87,13 @@ async function handleCustomDomain(req: NextRequest, hostname: string, pathname: 
     
     // Déterminer la locale
     const locale = pathname.startsWith("/en/") ? "en" : pathname.startsWith("/es/") ? "es" : "fr";
+    
+    // Si on est déjà sur le bon slug, ne pas rediriger
+    const currentPath = pathname.replace(`/${locale}`, "");
+    if (currentPath === `/${establishment.slug}` || currentPath.startsWith(`/${establishment.slug}/`)) {
+      console.log("✅ Middleware - Déjà sur le bon slug, passage direct");
+      return NextResponse.next();
+    }
     
     // Construire la nouvelle URL
     const newPath = `/${locale}/${establishment.slug}${pathname.replace(/^\/[a-z]{2}/, "")}`;
@@ -154,7 +168,7 @@ export async function authMiddleware(req: NextRequest) {
   }
 
   // 2. Gestion des domaines personnalisés (avant la locale)
-  if (!isExcludedDomain(hostname)) {
+  if (CUSTOM_DOMAINS.includes(hostname)) {
     return handleCustomDomain(req, hostname, pathname);
   }
 

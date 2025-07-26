@@ -31,10 +31,6 @@ export async function GET(
       return NextResponse.json({ error: "Establishment not found for this domain" }, { status: 404 });
     }
 
-    if (!establishment) {
-      return NextResponse.json({ error: "Establishment not found for this domain" }, { status: 404 });
-    }
-
     return NextResponse.json({ domain: customDomain, establishment });
   } catch (error) {
     console.error("API Error:", error);
