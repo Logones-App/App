@@ -1,171 +1,229 @@
-# SaaS Dashboard Realtime
+# Next.js Shadcn Admin Dashboard
 
-## 🚦 Roadmap & Suivi
+Un dashboard d'administration moderne et complet pour la gestion d'établissements, utilisateurs et statistiques, construit avec Next.js 15, Shadcn/ui, Supabase et internationalisation.
 
-- **Priorités immédiates :**
-  1. Audit RLS & associations system_admin
-  2. Généralisation du realtime à toutes les entités
-  3. Uniformisation UI & feedback utilisateur
-  4. Centralisation scripts & documentation
-  5. Tests automatisés et manuels
+## 🚀 Fonctionnalités
 
-- **Pour la liste détaillée des tâches :**
-  - Voir [`Documentation/a-garder/TODO.md`](Documentation/a-garder/TODO.md)
+### ✨ Interface Utilisateur
+- **Design moderne** avec Shadcn/ui et Tailwind CSS
+- **Thème sombre/clair** avec persistance
+- **Interface responsive** pour tous les appareils
+- **Animations fluides** et transitions
+- **Sidebar collapsible** avec navigation intelligente
 
----
+### 🔐 Authentification & Sécurité
+- **Authentification Supabase** complète
+- **Gestion des rôles** (System Admin, Org Admin, User)
+- **Protection des routes** avec middleware
+- **Sessions sécurisées** avec cookies HTTP-only
+- **RLS (Row Level Security)** pour la sécurité des données
 
-<div align="center">
-  <strong>Next.js Admin Template built with TypeScript & Shadcn UI</strong><br />
-  A modern admin dashboard template using Next.js 15, Tailwind CSS v4, App Router, TypeScript, and Shadcn UI.
-</div>
+### 🌍 Internationalisation
+- **Support multi-langues** (Français, Anglais, Espagnol)
+- **Changement de langue** en temps réel
+- **Traductions complètes** de l'interface
+- **URLs localisées** (`/fr/dashboard`, `/en/dashboard`)
 
-<br />
+### 📊 Gestion des Données
+- **Base de données Supabase** PostgreSQL
+- **Realtime updates** avec WebSockets
+- **Cache intelligent** avec React Query
+- **Optimistic updates** pour une UX fluide
 
-<div align="center">
-  <a href="https://next-shadcn-admin-dashboard.vercel.app">View Demo</a>
-</div>
+### 🏢 Multi-tenant
+- **Organisations multiples** avec isolation des données
+- **Custom domains** pour chaque organisation
+- **Gestion des utilisateurs** par organisation
+- **Statistiques isolées** par tenant
 
-<br />
+## 🛠️ Technologies
 
-<p align="center">
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Farhamkhnz%2Fnext-shadcn-admin-dashboard">
-    <img src="https://vercel.com/button" alt="Deploy with Vercel" />
-  </a>
-</p>
+- **Frontend**: Next.js 15, React 18, TypeScript
+- **UI**: Shadcn/ui, Tailwind CSS, Lucide Icons
+- **Backend**: Supabase (PostgreSQL, Auth, Realtime)
+- **State Management**: Zustand, React Query
+- **Internationalisation**: next-intl
+- **Déploiement**: Coolify (VPS)
 
-<br />
+## 📦 Installation
 
-<div align="center">
-  <img src="https://github.com/arhamkhnz/next-shadcn-admin-dashboard/blob/main/media/dashboard.png?version=5" alt="Dashboard Screenshot" width="75%">
-</div>
+### Prérequis
+- Node.js 18+ 
+- npm ou pnpm
+- Compte Supabase
 
-## Project Vision
-
-The goal is to create an open-source admin template that includes multiple example screens, prebuilt sections, and thoughtfully designed UI patterns, all supported by a clean architecture and proper project setup.
-
-It aims to serve as a strong starting point for SaaS platforms, internal dashboards, and admin panels, with built-in support for multi-tenancy, RBAC, and feature-based scaling.
-
-## Overview
-
-This project uses `Next.js 15 (App Router)`, `TypeScript`, `Tailwind CSS v4`, and `Shadcn UI` as the main stack.  
-It also includes `Zod` for validation, `ESLint` and `Prettier` for linting and formatting, and `Husky` for pre-commit hooks.  
-
-This will support `React Hook Form`, `Zustand`, `TanStack Table`, and other related utilities, and will be added with upcoming screens. RBAC (Role-Based Access Control) with config-driven UI and multi-tenant UI support are also planned as part of the feature roadmap.
-
-The current version uses the [Tweakcn Tangerine](https://tweakcn.com/) theme for UI.
-
-> Looking for a **Next 14 + Tailwind CSS v3** version instead?  
-> Check out the [`archive/next14-tailwindv3`](https://github.com/arhamkhnz/next-shadcn-admin-dashboard/tree/archive/next14-tailwindv3) branch.  
-> This branch uses a different color theme and is not actively maintained, though I'm trying to keep it updated with the latest changes and screens.
-
-## Screens
-
-✅ Available  
-🚧 Coming Soon
-
-### Dashboards
-- ✅ Default
-- 🚧 CRM
-- 🚧 Analytics
-- 🚧 eCommerce
-- 🚧 Academy
-- 🚧 Logistics
-
-### Pages
-- 🚧 Email
-- 🚧 Chat
-- 🚧 Calendar
-- 🚧 Kanban
-- 🚧 Invoice
-- 🚧 Users
-- 🚧 Roles
-- ✅ Authentication
-
-## Colocation File System Architecture
-
-The project follows a colocation-first file structure using the App Router. Feature-specific pages live alongside their components to maintain separation of concerns and reduce cross-import complexity.
-
-```txt
-src/
-├── app/                      # Next.js App Router entry
-│   ├── (external)/           # Public pages (e.g., marketing, feedback)
-│
-│   ├── (main)/               # Main application layout
-│   │   ├── dashboard/
-│   │   │   ├── layout.tsx    # Shared layout for dashboard routes
-│   │   │   ├── default/      # Default overview dashboard
-│   │   │   │   ├── components/
-│   │   │   │   └── page.tsx
-│   │   │   ├── ecommerce/
-│   │   │   │   ├── components/
-│   │   │   │   └── page.tsx
-│   │   │   ├── email/
-│   │   │   │   ├── components/
-│   │   │   │   └── page.tsx
-│   │   │   ├── users/
-│   │   │   │   ├── components/
-│   │   │   │   └── page.tsx
-│   │   │   ├── profile/
-│   │   │   │   ├── components/
-│   │   │   │   └── page.tsx
-│   ├── auth/                  # Auth section
-│   │   ├── layout.tsx  
-│   │   ├── login/
-│   │   │   ├── components/
-│   │   │   └── page.tsx
-│   │   ├── register/
-│   │   │   ├── components/
-│   │   │   └── page.tsx
-│   │   ├── components/        # Shared auth components (e.g., buttons)
-│
-├── components/
-│   ├── ui/                    # Reusable UI primitives (button, input, etc.)
-│   ├── common/                # Shared layout/global components used across multiple areas
-│
-├── middleware.ts              # Middleware for handling auth/redirects
-├── navigation/                # Navigation config for sidebar
-├── hooks/                     # Custom React hooks
-├── utils/                     # Utility/helper functions
-├── server/                    # Server-only functions and server actions
-├── config/                    # Project-wide configuration (e.g. theme, layout)
-├── constants/                 # Static values like roles, app-level enums, routes, dummy data
+### 1. Cloner le projet
+```bash
+git clone <repository-url>
+cd next-shadcn-admin-dashboard
 ```
 
-If you want to dive deeper into this architecture pattern, check out [this repo](https://github.com/arhamkhnz/next-colocation-template).
+### 2. Installer les dépendances
+```bash
+npm install
+```
 
-## Getting Started
+### 3. Configuration des variables d'environnement
+Créer un fichier `.env.local` :
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-To set up and run this admin dashboard locally, follow these steps:
+# Next.js
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=http://localhost:3000
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/arhamkhnz/next-shadcn-admin-dashboard.git
-   ```
-   
-2. **Install dependencies**
-   ```bash
-    npm install
-   ```
-   > While installing, you may be prompted to use the `--force` or `--legacy-peer-deps` flag.  
-   > This is expected and safe — it’s due to a dependency from the Shadcn registry that references a breaking library version.
+### 4. Configuration de la base de données
+Exécuter les scripts SQL dans `scripts/` pour configurer :
+- Tables et relations
+- RLS (Row Level Security)
+- Rôles et permissions
+- Données de test
 
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+### 5. Lancer en développement
+```bash
+npm run dev
+```
 
-Once running, the app will be available at [http://localhost:3000](http://localhost:3000)
+## 🏗️ Architecture
 
+### Structure des dossiers
+```
+src/
+├── app/                    # App Router Next.js
+│   ├── [locale]/          # Internationalisation
+│   │   ├── (dashboard)/   # Pages protégées
+│   │   ├── (main)/        # Pages publiques
+│   │   └── (root)/        # Layout racine
+│   └── api/               # API Routes
+├── components/            # Composants réutilisables
+│   ├── ui/               # Composants Shadcn/ui
+│   ├── providers/        # Providers React
+│   └── realtime/         # Composants temps réel
+├── lib/                  # Utilitaires et services
+│   ├── supabase/         # Configuration Supabase
+│   ├── services/         # Services métier
+│   └── stores/           # Stores Zustand
+└── hooks/                # Hooks personnalisés
+```
+
+### Système d'authentification
+1. **Middleware** vérifie les sessions
+2. **AuthProvider** gère l'état d'authentification
+3. **RLS** protège les données côté base
+4. **Cookies sécurisés** pour les sessions
+
+### Gestion des rôles
+- **System Admin** : Accès complet à toutes les organisations
+- **Org Admin** : Gestion de sa propre organisation
+- **User** : Accès limité aux données de son organisation
+
+## 🚀 Déploiement
+
+### Avec Coolify (Recommandé)
+1. Connecter le repository GitHub
+2. Configurer les variables d'environnement
+3. Déployer automatiquement
+
+### Variables d'environnement de production
+```env
+NODE_ENV=production
+NEXT_PUBLIC_SUPABASE_URL=your_production_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_production_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_production_service_role_key
+```
+
+## 📚 Scripts utiles
+
+### Base de données
+```bash
+# Vérifier le statut RLS
+npm run db:check-rls
+
+# Configurer les rôles
+npm run db:setup-roles
+
+# Ajouter des données de test
+npm run db:seed
+```
+
+### Développement
+```bash
+# Lancer en développement
+npm run dev
+
+# Build de production
+npm run build
+
+# Lancer en production locale
+npm start
+
+# Linting
+npm run lint
+```
+
+## 🔧 Configuration
+
+### Thème
+Le thème est configuré dans `src/components/providers/theme-provider.tsx` :
+- Mode sombre/clair
+- Persistance dans localStorage
+- Transition fluide
+
+### Internationalisation
+Les traductions sont dans `messages/` :
+- `fr.json` : Français
+- `en.json` : Anglais  
+- `es.json` : Espagnol
+
+### Realtime
+Configuration dans `src/lib/services/realtime/` :
+- Connexion automatique
+- Gestion des erreurs
+- Reconnexion automatique
+
+## 🐛 Dépannage
+
+### Erreurs courantes
+
+#### Erreur React #418
+- Vérifier la hiérarchie des layouts
+- S'assurer qu'il n'y a qu'un seul `<html>` et `<body>`
+
+#### Problèmes d'authentification
+- Vérifier les variables d'environnement Supabase
+- Contrôler la configuration RLS
+- Vérifier les cookies de session
+
+#### Erreurs de déploiement
+- Utiliser npm au lieu de pnpm
+- Vérifier les variables d'environnement
+- Contrôler les permissions de fichiers
+
+## 🤝 Contribution
+
+1. Fork le projet
+2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
+3. Commiter les changements (`git commit -m 'Add AmazingFeature'`)
+4. Pousser vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une Pull Request
+
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+## 🆘 Support
+
+Pour toute question ou problème :
+1. Vérifier la documentation
+2. Consulter les issues GitHub
+3. Créer une nouvelle issue si nécessaire
 
 ---
 
-> [!IMPORTANT]  
-> This project is frequently updated. If you’re working from a fork or previously cloned copy, check for the latest changes before syncing. Some updates may include breaking changes.
-
----
-
-Feel free to open issues, feature requests, or start a discussion if you'd like to contribute or suggest improvements.
-
-**Happy building!**
+**Développé avec ❤️ et Next.js**
 
 

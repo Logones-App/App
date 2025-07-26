@@ -10,6 +10,7 @@ import {
   FileText,
   Bell,
   HelpCircle,
+  Globe,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -78,6 +79,25 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
             {
               title: "Rôles et permissions",
               url: `${baseUrl}/admin/users/roles`,
+            },
+          ],
+        },
+        {
+          title: "Domaines",
+          url: `${baseUrl}/admin/domains`,
+          icon: Globe,
+          subItems: [
+            {
+              title: "Tous les domaines",
+              url: `${baseUrl}/admin/domains`,
+            },
+            {
+              title: "Nouveau domaine",
+              url: `${baseUrl}/admin/domains/new`,
+            },
+            {
+              title: "Configuration DNS",
+              url: `${baseUrl}/admin/domains/dns`,
             },
           ],
         },

@@ -1,132 +1,151 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { routing } from "@/i18n/routing";
 
-// ============================================================================
-// CONSTANTES
-// ============================================================================
+// Domaines exclus (domaine principal et développement)
+const EXCLUDED_DOMAINS = [
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "logones.fr", // Domaine principal
+];
 
-// Routes techniques (exclues du middleware)
+// Routes techniques à exclure
 const EXCLUDED_ROUTES = [
+  "/api",
+  "/_next",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
-  "/manifest.json",
-  "/api",
-  "/_next",
-  "/_vercel",
-  "/trpc",
 ];
 
-// Routes publiques (pas d'authentification requise)
+// Routes publiques (pas besoin d'authentification)
 const PUBLIC_ROUTES = [
-  "/", // Page d'accueil
-  "/auth/login",
-  "/auth/register",
-  "/auth/forgot-password",
-  "/auth/reset-password",
-  "/auth/logout", // Page de déconnexion
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/unauthorized",
 ];
-
-// ============================================================================
-// FONCTIONS UTILITAIRES
-// ============================================================================
 
 /**
- * Vérifie si une route est exclue du middleware
+ * Vérifie si une route est exclue
  */
 function isExcludedRoute(pathname: string): boolean {
-  return EXCLUDED_ROUTES.some((route) => pathname === route || pathname.startsWith(route + "/"));
+  return EXCLUDED_ROUTES.some(route => pathname.startsWith(route));
 }
 
 /**
- * Vérifie si une route est publique (auth, etc.)
+ * Vérifie si une route est publique
  */
 function isPublicRoute(pathname: string): boolean {
-  // Extraire la route sans la locale
-  const routeWithoutLocale = pathname.replace(/^\/[a-z]{2}\//, "/").replace(/^\/[a-z]{2}$/, "/");
+  return PUBLIC_ROUTES.some(route => pathname === route);
+}
 
-  return PUBLIC_ROUTES.some((route) => {
-    // Vérifier si la route correspond exactement ou commence par la route publique
-    return routeWithoutLocale === route || routeWithoutLocale.startsWith(route + "/");
+/**
+ * Vérifie si un domaine est exclu
+ */
+function isExcludedDomain(hostname: string): boolean {
+  return EXCLUDED_DOMAINS.some(domain => hostname.includes(domain));
+}
+
+/**
+ * Récupère l'établissement par domaine personnalisé
+ */
+async function getEstablishmentByDomain(domain: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://logones.fr'}/api/domains/${domain}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    return data.establishment;
+  } catch (error) {
+    console.error("Erreur lors de la récupération du domaine:", error);
+    return null;
+  }
+}
+
+/**
+ * Gère les domaines personnalisés
+ */
+async function handleCustomDomain(req: NextRequest, hostname: string, pathname: string) {
+  console.log("🌐 Middleware - Domaine personnalisé détecté:", hostname);
+  const establishment = await getEstablishmentByDomain(hostname);
+
+  if (establishment) {
+    console.log(" Middleware - Établissement trouvé:", establishment.slug);
+    
+    // Déterminer la locale
+    const locale = pathname.startsWith("/en/") ? "en" : pathname.startsWith("/es/") ? "es" : "fr";
+    
+    // Construire la nouvelle URL
+    const newPath = `/${locale}/${establishment.slug}${pathname.replace(/^\/[a-z]{2}/, "")}`;
+    const newUrl = new URL(newPath, `https://logones.fr`);
+    
+    console.log("🔄 Middleware - Redirection vers:", newUrl.toString());
+    return NextResponse.redirect(newUrl);
+  } else {
+    console.log("❌ Middleware - Domaine personnalisé non trouvé ou inactif.");
+    return NextResponse.redirect(new URL(`/${routing.defaultLocale}/404`, req.url));
+  }
+}
+
+/**
+ * Gère la locale
+ */
+function handleLocale(req: NextRequest, pathname: string) {
+  const pathnameHasLocale = routing.locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+
+  if (!pathnameHasLocale) {
+    const locale = routing.defaultLocale;
+    const newUrl = new URL(`/${locale}${pathname}`, req.url);
+    console.log("🌍 Middleware - Redirection vers locale:", newUrl.toString());
+    return NextResponse.redirect(newUrl);
+  }
+
+  return null; // Pas de redirection nécessaire
+}
+
+/**
+ * Vérifie l'authentification
+ */
+async function checkAuthentication(req: NextRequest, locale: string) {
+  const token = req.cookies.get("auth-token")?.value;
+  
+  if (!token) {
+    console.log("❌ Middleware - Pas de token, redirection vers login");
+    return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
+  }
+
+  // Vérification du token côté serveur
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://logones.fr'}/api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
+
+  if (!response.ok) {
+    console.log("❌ Middleware - Token invalide, redirection vers login");
+    return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
+  }
+
+  console.log("✅ Middleware - Authentification OK, passage direct");
+  return NextResponse.next();
 }
 
 /**
- * Vérifie si c'est une route de restaurant public (site public)
+ * Middleware d'authentification et de gestion des domaines personnalisés
  */
-function isRestaurantPublicRoute(pathname: string): boolean {
-  // Extraire la route sans la locale
-  const routeWithoutLocale = pathname.replace(/^\/[a-z]{2}\//, "/").replace(/^\/[a-z]{2}$/, "/");
-  
-  // Si c'est juste la racine, ce n'est pas un restaurant
-  if (routeWithoutLocale === "/") return false;
-  
-  // Si ça commence par /admin, /dashboard, /auth, ce n'est pas un restaurant
-  if (routeWithoutLocale.startsWith("/admin") || 
-      routeWithoutLocale.startsWith("/dashboard") || 
-      routeWithoutLocale.startsWith("/auth")) {
-    return false;
-  }
-  
-  // Sinon, c'est probablement un slug de restaurant
-  // Format attendu : /[slug] ou /[slug]/[page]
-  return /^\/[^\/]+$/.test(routeWithoutLocale) || /^\/[^\/]+\//.test(routeWithoutLocale);
-}
-
-/**
- * Vérifie si une route contient une locale
- */
-function hasLocale(pathname: string): boolean {
-  return routing.locales.some((locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`);
-}
-
-/**
- * Détermine la route autorisée selon le rôle
- */
-function getAuthorizedRoute(userRole: string): string {
-  switch (userRole) {
-    case "system_admin":
-      return "/admin";
-    case "org_admin":
-      return "/dashboard";
-    default:
-      return "/auth/login";
-  }
-}
-
-/**
- * Vérifie si l'utilisateur accède à sa route autorisée
- */
-function isAuthorizedRoute(pathname: string, userRole: string): boolean {
-  const authorizedRoute = getAuthorizedRoute(userRole);
-  
-  // Pour system_admin : doit accéder à /admin/*
-  if (userRole === "system_admin") {
-    return pathname.includes("/admin");
-  }
-  
-  // Pour org_admin : doit accéder à /dashboard/*
-  if (userRole === "org_admin") {
-    return pathname.includes("/dashboard");
-  }
-  
-  return false;
-}
-
-// Fonction utilitaire pour TS : vérifie et type la locale
-function isSupportedLocale(l: string): l is "fr" | "en" | "es" {
-  return routing.locales.includes(l as any);
-}
-
-// ============================================================================
-// MIDDLEWARE PRINCIPAL
-// ============================================================================
-
 export async function authMiddleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const hostname = req.headers.get("host") ?? "";
 
-  console.log("🔍 Middleware - Pathname:", pathname);
+  console.log("🔍 Middleware - Pathname:", pathname, "Hostname:", hostname);
 
   // 1. Routes techniques - passer directement
   if (isExcludedRoute(pathname)) {
@@ -134,81 +153,37 @@ export async function authMiddleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Ajouter la locale si manquante
-  if (!hasLocale(pathname)) {
-    console.log("🌍 Middleware - Locale manquante, redirection");
-    // Vérifier le cookie NEXT_LOCALE
-    const cookieLocale = req.cookies.get("NEXT_LOCALE")?.value;
-    const supportedLocale = cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : routing.defaultLocale;
-    return NextResponse.redirect(new URL(`/${String(supportedLocale)}${pathname}`, req.url));
+  // 2. Gestion des domaines personnalisés (avant la locale)
+  if (!isExcludedDomain(hostname)) {
+    return handleCustomDomain(req, hostname, pathname);
   }
 
-  // 3. Extraire la locale
-  let locale: string;
-  try {
-    locale = pathname.split("/")[1];
-    if (!isSupportedLocale(locale)) {
-      console.log("🌍 Middleware - Locale non supportée, redirection");
-      // Si la locale n'est pas supportée, rediriger vers la locale par défaut
-      return NextResponse.redirect(new URL(`/${routing.defaultLocale}${pathname.replace(`/${locale}`, "")}`, req.url));
-    }
-  } catch (error) {
-    locale = routing.defaultLocale;
-  }
+  // 3. Gestion de la locale
+  const localeRedirect = handleLocale(req, pathname);
+  if (localeRedirect) return localeRedirect;
 
+  // 4. Extraction de la locale
+  const locale = pathname.split("/")[1] ?? routing.defaultLocale;
   console.log("🌍 Middleware - Locale:", locale);
 
-  // 4. Routes publiques (auth, etc.) - passer directement
-  if (isPublicRoute(pathname)) {
+  // 5. Routes publiques - passage direct
+  const publicPath = pathname.replace(`/${locale}`, "");
+  if (isPublicRoute(publicPath)) {
     console.log("✅ Middleware - Route publique, passage direct");
     return NextResponse.next();
   }
 
-  // 5. Routes de restaurants publics - passer directement (pas d'authentification requise)
-  if (isRestaurantPublicRoute(pathname)) {
+  // 6. Routes restaurants publiques - passage direct
+  if (publicPath.includes("/") && !publicPath.startsWith("/admin") && !publicPath.startsWith("/dashboard")) {
     console.log("✅ Middleware - Route restaurant public, passage direct");
     return NextResponse.next();
   }
 
-  console.log("🔒 Middleware - Route protégée, vérification auth...");
-
-  // 6. Vérifier l'authentification et le rôle (seulement pour les routes protégées)
+  // 7. Vérification de l'authentification pour les routes protégées
   try {
-    const response = await fetch(`${req.nextUrl.origin}/api/auth/roles`, {
-      method: "GET",
-      headers: {
-        Cookie: req.headers.get("cookie") || "",
-      },
-    });
-
-    if (!response.ok) {
-      console.log("❌ Middleware - Auth échouée, redirection login");
-      return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
-    }
-
-    const roleData = await response.json();
-    console.log("👤 Middleware - Rôle détecté:", roleData.role);
-
-    // 7. Si pas de rôle - rediriger vers login
-    if (!roleData.role) {
-      console.log("❌ Middleware - Pas de rôle, redirection login");
-      return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
-    }
-
-    // 8. Déterminer la route autorisée
-    const authorizedRoute = getAuthorizedRoute(roleData.role);
-
-    // 9. Vérifier si l'utilisateur accède à sa route autorisée
-    if (isAuthorizedRoute(pathname, roleData.role)) {
-      console.log("✅ Middleware - Route autorisée, passage direct");
-      return NextResponse.next();
-    }
-
-    // 10. Rediriger vers la route autorisée
-    console.log("🔄 Middleware - Redirection vers route autorisée:", authorizedRoute);
-    return NextResponse.redirect(new URL(`/${locale}${authorizedRoute}`, req.url));
+    return await checkAuthentication(req, locale);
   } catch (error) {
-    console.error("❌ Middleware auth error:", error);
-    return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
+    console.error("❌ Middleware - Erreur d'authentification:", error);
+    return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
   }
 }
