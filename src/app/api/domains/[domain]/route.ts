@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DomainService } from "@/lib/services/domain-service";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
@@ -12,14 +11,23 @@ export async function GET(
       return NextResponse.json({ error: "Domain parameter is missing" }, { status: 400 });
     }
 
-    const domainService = new DomainService();
-    const customDomain = await domainService.getEstablishmentByDomain(domain);
+    const supabase = await createClient();
+    
+    // Récupérer le domaine personnalisé
+    const { data: customDomain, error: domainError } = await supabase
+      .from("custom_domains")
+      .select("*")
+      .eq("domain", domain)
+      .eq("is_active", true)
+      .eq("deleted", false)
+      .single();
 
-    if (!customDomain) {
+    if (domainError || !customDomain) {
+      console.error("Domain not found:", domainError);
       return NextResponse.json({ error: "Custom domain not found or inactive" }, { status: 404 });
     }
 
-    const supabase = await createClient();
+    // Récupérer l'établissement associé
     const { data: establishment, error: establishmentError } = await supabase
       .from("establishments")
       .select("name, slug")
