@@ -1,15 +1,4 @@
-# .nixpacks
-[phases.setup]
-nixPkgs = ["nodejs_22"]
-
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-cmds = ["npm run build"]
-
-[start]
-cmd = "npm start"# .nixpacks
+# Configuration Nixpacks pour forcer l'utilisation de npm
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
