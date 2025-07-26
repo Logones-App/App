@@ -1,0 +1,12 @@
+# Configuration Coolify
+build:
+  command: "npm ci && npm run build"
+  dockerfile: "Dockerfile"
+
+start:
+  command: "npm start"
+
+environment:
+  NODE_VERSION: "22"
+  NIXPACKS_DISABLE: "true"
+  NIXPACKS_NODE_PACKAGE_MANAGER: "npm"
