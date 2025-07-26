@@ -89,6 +89,36 @@
       "6": "Saturday"
     }
   },
+  "restaurant_public": {
+    "navigation": {
+      "menu": "Menu",
+      "reservations": "Reservations",
+      "contact": "Contact",
+      "about": "About"
+    },
+    "hero": {
+      "welcome": "Welcome to {name}",
+      "default_description": "Discover our authentic cuisine and unique flavors",
+      "view_menu": "View our menu",
+      "book_table": "Book a table"
+    },
+    "info": {
+      "address": "Address",
+      "hours": "Hours",
+      "contact": "Contact",
+      "address_not_available": "Address not available",
+      "hours_not_available": "Hours not available"
+    },
+    "opening_hours": {
+      "title": "Opening hours",
+      "not_available": "Hours not available"
+    },
+    "footer": {
+      "opening_hours": "Opening hours",
+      "not_available": "Hours not available",
+      "all_rights_reserved": "All rights reserved"
+    }
+  },
   "admin": {
     "users": {
       "title": "User Management",
@@ -206,6 +236,7 @@
     }
   },
   "common": {
+    "change_language": "Change language",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",

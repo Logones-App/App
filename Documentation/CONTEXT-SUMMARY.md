@@ -503,3 +503,379 @@ Un guide complet a été créé : `Documentation/REALTIME-IMPLEMENTATION-GUIDE.m
 ---
 
 **Le projet est maintenant stable avec une architecture claire, un système de rôles robuste et une implémentation realtime fonctionnelle !** 🚀
+
+## 🔐 **MIDDLEWARE D'AUTHENTIFICATION**
+
+### **Architecture Actuelle**
+
+Le middleware d'authentification gère la sécurité et les redirections de l'application SaaS multi-tenant avec une logique complète et robuste.
+
+### **Logique de Traitement**
+
+```typescript
+// Flux du middleware
+1. Routes techniques → Passer directement
+2. Locale manquante → Rediriger vers /fr/...
+3. Routes publiques (auth) → Passer directement
+4. Routes restaurants publics → Passer directement
+5. Routes protégées → Vérifier auth + rôles
+```
+
+### **Types de Routes**
+
+| Type de Route          | Exemples                         | Comportement          |
+| ---------------------- | -------------------------------- | --------------------- |
+| **Routes techniques**  | `/api`, `/_next`, `/favicon.ico` | ✅ Accès direct       |
+| **Routes publiques**   | `/auth/login`, `/auth/register`  | ✅ Accès direct       |
+| **Routes restaurants** | `/fr/[slug]`, `/fr/[slug]/menu`  | ✅ Accès direct       |
+| **Routes protégées**   | `/fr/dashboard/*`, `/fr/admin/*` | 🔒 Auth + rôle requis |
+
+### **Logique par Rôle**
+
+- **Déconnecté** : Accès aux sites publics + auth pages, redirection vers `/fr/auth/login` pour les routes protégées
+- **Org Admin** : Accès à `/fr/dashboard/*`, redirection vers `/fr/dashboard` si accès à `/fr/admin/*`
+- **System Admin** : Accès à `/fr/admin/*`, redirection vers `/fr/admin` si accès à `/fr/dashboard/*`
+
+### **API d'Authentification**
+
+- **Endpoint** : `/api/auth/roles` (GET avec cookies)
+- **Réponse** : `{ role: "system_admin" | "org_admin" | null }`
+- **Gestion d'erreur** : Redirection vers `/fr/auth/login` si échec
+
+### **Sécurité**
+
+- ✅ **Principe du moindre privilège** - Chaque rôle n'accède qu'à ses routes autorisées
+- ✅ **Défense en profondeur** - Vérification côté middleware ET côté composants
+- ✅ **Redirection automatique** - L'utilisateur est toujours dirigé vers sa zone autorisée
+- ✅ **Sites publics accessibles** - Les restaurants restent accessibles à tous
+
+---
+
+## 🚨 **PROBLÈMES RÉSOLUS**
+
+### **1. Détection des Rôles**
+
+- ✅ **Problème** : Hook client `useUserMainRole` ne détectait pas les rôles
+- ✅ **Solution** : API route côté serveur avec service role key
+- ✅ **Résultat** : Détection correcte des rôles `system_admin` et `org_admin`
+
+### **2. Redirections Incorrectes**
+
+- ✅ **Problème** : Redirections vers `/unauthorized` malgré authentification
+- ✅ **Solution** : Middleware et composants de protection unifiés
+- ✅ **Résultat** : Redirections appropriées selon les rôles
+
+### **3. Architecture Complexe**
+
+- ✅ **Problème** : LegendState + tables personnalisées + RLS complexe
+- ✅ **Solution** : Métadonnées Supabase natives + Zustand + TanStack Query
+- ✅ **Résultat** : Architecture simple, performante et maintenable
+
+### **4. Performance**
+
+- ✅ **Problème** : Requêtes DB multiples pour les rôles
+- ✅ **Solution** : Rôles dans le JWT + cache TanStack Query
+- ✅ **Résultat** : Performance optimisée avec lecture directe des métadonnées
+
+---
+
+## 🎯 **AVANTAGES DE LA NOUVELLE ARCHITECTURE**
+
+### **1. Performance**
+
+- ✅ **Rôles dans le JWT** : Pas de requêtes DB supplémentaires
+- ✅ **Cache optimisé** : TanStack Query avec stale time approprié
+- ✅ **Lecture directe** : Métadonnées disponibles immédiatement
+
+### **2. Sécurité**
+
+- ✅ **App metadata sécurisée** : Contrôlée par le serveur uniquement
+- ✅ **Priorité app_metadata** : Protection contre la manipulation
+- ✅ **Service role key** : Mises à jour sécurisées
+
+### **3. Simplicité**
+
+- ✅ **Moins de tables** : Suppression de `users_roles`
+- ✅ **Un seul système** : Métadonnées Supabase natives
+- ✅ **Code simplifié** : Moins de logique à maintenir
+
+### **4. Flexibilité**
+
+- ✅ **Permissions granulaires** : Array de permissions
+- ✅ **Features configurables** : Array de features
+- ✅ **Préférences extensibles** : Structure JSON complète
+
+### **5. Cohérence**
+
+- ✅ **Système natif Supabase** : Intégration parfaite
+- ✅ **Pas de duplication** : Un seul système de rôles
+- ✅ **Synchronisation automatique** : Métadonnées toujours à jour
+
+---
+
+## 🧪 **TESTS ET VALIDATION**
+
+### **Page de Test**
+
+- **URL** : `http://localhost:3001/dashboard/metadata-test`
+- **Fonctionnalités** : Affichage complet des métadonnées, permissions, features
+- **Statut** : ✅ Fonctionnel
+
+### **Logs de Validation**
+
+```
+API - User metadata: {
+  email_verified: true,
+  firstname: 'Phil',
+  lastname: 'Goddet',
+  role: 'system_admin'
+}
+
+API - App metadata: {
+  role: 'system_admin',
+  permissions: ['read', 'write', 'admin', 'manage_users', 'manage_organizations'],
+  features: ['dashboard', 'analytics', 'user_management', 'organization_management']
+}
+```
+
+---
+
+## 🔄 **IMPLÉMENTATION REALTIME RÉUSSIE**
+
+### **Contexte**
+
+L'utilisateur souhaitait implémenter le realtime Supabase sur une table pour tester le système. La table `messages` a été choisie comme exemple.
+
+### **Problèmes Rencontrés et Résolus**
+
+#### **1. Boucle Infinie dans React**
+
+- **Problème** : `Maximum update depth exceeded` causé par des dépendances circulaires
+- **Solution** :
+  - Utilisation de `useCallback` pour stabiliser les fonctions
+  - Suppression des fonctions `connect`/`disconnect` des dépendances `useEffect`
+  - Utilisation de `useRef` pour gérer les canaux realtime
+  - Dépendances vides pour le nettoyage
+
+#### **2. Gestion des Canaux Realtime**
+
+- **Problème** : Reconnexions répétées et canaux non fermés
+- **Solution** :
+  - Stockage du canal dans un `useRef`
+  - Nettoyage propre dans le `useEffect` cleanup
+  - Vérification de l'existence du canal avant fermeture
+
+#### **3. Structure de la Table**
+
+- **Problème** : Erreur "column title does not exist"
+- **Solution** : Vérification de la structure réelle de la table `messages`
+- **Résultat** : Colonnes correctes : `id`, `content`, `organization_id`, `deleted`, `created_at`, `updated_at`
+
+### **Architecture Finale Realtime**
+
+#### **Page avec Realtime**
+
+```typescript
+// src/app/[locale]/(dashboard)/admin/messages/page.tsx
+export default function MessagesPage() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const channelRef = useRef<any>(null);
+
+  // Chargement initial
+  const loadMessages = useCallback(async () => {
+    // ... logique de chargement
+  }, [supabase]);
+
+  // Configuration realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel("messages_realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          // Gestion des événements INSERT/UPDATE/DELETE
+        },
+      )
+      .subscribe((status) => {
+        setIsConnected(status === "SUBSCRIBED");
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [loadMessages]);
+}
+```
+
+#### **Store Zustand Amélioré**
+
+```typescript
+// src/lib/stores/realtime-store.ts
+export const useRealtimeStore = create<RealtimeState>()(
+  devtools((set, get) => ({
+    connect: async () => {
+      const state = get();
+      if (state.isConnected || state.connectionStatus === "connecting") {
+        return; // Éviter les connexions multiples
+      }
+      // ... logique de connexion
+    },
+
+    disconnect: () => {
+      const state = get();
+      if (!state.isConnected) {
+        return; // Éviter les déconnexions répétées
+      }
+      // ... logique de déconnexion
+    },
+  })),
+);
+```
+
+### **Configuration Supabase**
+
+#### **Activation du Realtime**
+
+```sql
+-- Activer le realtime sur la table messages
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+
+-- Vérifier l'activation
+SELECT * FROM pg_publication_tables WHERE pubname = 'supabase_realtime';
+```
+
+#### **Politiques RLS**
+
+```sql
+-- Politiques pour system_admin (accès complet)
+CREATE POLICY "system_admin_all_messages" ON messages
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM auth.users
+      WHERE auth.users.id = auth.uid()
+      AND auth.users.raw_user_meta_data->>'role' = 'system_admin'
+    )
+  );
+
+-- Politiques pour org_admin (accès limité)
+CREATE POLICY "org_admin_own_messages" ON messages
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM auth.users
+      WHERE auth.users.id = auth.uid()
+      AND auth.users.raw_user_meta_data->>'role' = 'org_admin'
+      AND messages.organization_id = (
+        SELECT organization_id FROM users_organizations
+        WHERE user_id = auth.uid()
+        LIMIT 1
+      )
+    )
+  );
+```
+
+### **Leçons Apprises**
+
+#### **1. Gestion des Dépendances React**
+
+- ✅ **Éviter les dépendances circulaires** dans `useEffect`
+- ✅ **Utiliser `useCallback`** pour stabiliser les fonctions
+- ✅ **Utiliser `useRef`** pour les références persistantes
+- ✅ **Dépendances vides** pour le nettoyage
+
+#### **2. Gestion des Canaux Supabase**
+
+- ✅ **Stockage du canal** dans une ref pour éviter les fuites mémoire
+- ✅ **Nettoyage propre** dans le cleanup du `useEffect`
+- ✅ **Vérification d'existence** avant fermeture
+
+#### **3. Gestion des États**
+
+- ✅ **État local** pour la connexion plutôt que global
+- ✅ **Vérifications de sécurité** dans les stores Zustand
+- ✅ **Logs détaillés** pour le débogage
+
+#### **4. Performance**
+
+- ✅ **Éviter les re-renders** inutiles
+- ✅ **Stabiliser les fonctions** avec `useCallback`
+- ✅ **Gérer les états de chargement** et d'erreur
+
+### **Guide de Réplication**
+
+Un guide complet a été créé : `Documentation/REALTIME-IMPLEMENTATION-GUIDE.md`
+
+**Contenu du guide :**
+
+- Configuration Supabase (realtime + RLS)
+- Template de page avec realtime
+- Gestion des événements (INSERT/UPDATE/DELETE)
+- Fonctions CRUD
+- Interface utilisateur
+- Exemple complet pour table "products"
+- Points clés et dépannage
+- Checklist de validation
+
+---
+
+## 🧹 **NETTOYAGE EFFECTUÉ**
+
+### **Dossiers Supprimés**
+
+- ✅ `src/app/[locale]/(main)/dashboard1/` (ancien dashboard)
+- ✅ `src/app/[locale]/(dashboard)/admin/notifications/` (page de test cassée)
+
+### **Résultat**
+
+- Architecture plus propre
+- Moins de code dupliqué
+- Structure claire et maintenable
+
+---
+
+## 📊 **STATUT ACTUEL**
+
+### **✅ Fonctionnel**
+
+- Système d'authentification avec rôles
+- Métadonnées utilisateur complètes
+- API routes sécurisées
+- Composants de protection
+- Realtime sur table `messages`
+- Guide d'implémentation realtime
+
+### **🔄 En Cours**
+
+- Tests sur d'autres tables
+- Optimisations de performance
+- Documentation continue
+
+### **📋 À Faire**
+
+- Implémentation realtime sur autres tables
+- Tests de charge
+- Monitoring et analytics
+
+---
+
+## 🎯 **PROCHAINES ÉTAPES**
+
+1. **Implémenter le realtime** sur d'autres tables importantes
+2. **Créer des composants réutilisables** pour les tables avec realtime
+3. **Ajouter des tests automatisés** pour le realtime
+4. **Optimiser les performances** pour de grandes quantités de données
+5. **Implémenter des notifications** en temps réel
+
+---
+
+**Le projet est maintenant stable avec une architecture claire, un système de rôles robuste et une implémentation realtime fonctionnelle !** 🚀

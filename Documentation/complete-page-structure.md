@@ -424,32 +424,49 @@ api/
 ### **🛡️ Middleware de Protection**
 
 ```typescript
-// middleware.ts
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+// src/middleware.ts
+export default async function middleware(req: NextRequest) {
+  return await authMiddleware(req);
+}
 
-  // Routes publiques
-  if (
-    pathname.startsWith('/fr/') &&
-    !pathname.includes('/admin/') &&
-    !pathname.includes('/dashboard/')
-  ) {
+// src/middleware/auth-middleware.ts
+export async function authMiddleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // 1. Routes techniques → Passer directement
+  if (isExcludedRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Routes admin système
-  if (pathname.startsWith('/fr/admin/')) {
-    return checkSystemAdminRole(request);
+  // 2. Locale manquante → Rediriger vers /fr/...
+  if (!hasLocale(pathname)) {
+    return NextResponse.redirect(new URL(`/${routing.defaultLocale}${pathname}`, req.url));
   }
 
-  // Routes admin organisation
-  if (pathname.startsWith('/fr/dashboard/')) {
-    return checkOrgAdminRole(request);
+  // 3. Routes publiques (auth) → Passer directement
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // 4. Routes restaurants publics → Passer directement
+  if (isRestaurantPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 5. Routes protégées → Vérifier auth + rôles
+  // Appel à /api/auth/roles pour vérifier l'authentification
+  // Redirection selon le rôle : system_admin → /admin, org_admin → /dashboard
 }
 ```
+
+### **🔍 Types de Routes**
+
+| Type de Route          | Exemples                         | Comportement          |
+| ---------------------- | -------------------------------- | --------------------- |
+| **Routes techniques**  | `/api`, `/_next`, `/favicon.ico` | ✅ Accès direct       |
+| **Routes publiques**   | `/auth/login`, `/auth/register`  | ✅ Accès direct       |
+| **Routes restaurants** | `/fr/[slug]`, `/fr/[slug]/menu`  | ✅ Accès direct       |
+| **Routes protégées**   | `/fr/dashboard/*`, `/fr/admin/*` | 🔒 Auth + rôle requis |
 
 ### **🔍 Vérifications par Type d'Utilisateur**
 

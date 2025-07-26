@@ -29,6 +29,36 @@ Bonjour ! Nous travaillons sur un projet SaaS multi-tenant pour la gestion de re
 6. **Multi-tenant** : Filtre par `organization_id` selon le rôle
 7. **TanStack Query v5** : Utilise `gcTime` (pas `cacheTime`)
 
+**🔐 MIDDLEWARE D'AUTHENTIFICATION (CRITIQUE) :**
+
+**Logique de redirection et d'accès :**
+
+```typescript
+// 1. Routes techniques → Passer directement
+// 2. Locale manquante → Rediriger vers /fr/...
+// 3. Routes publiques (auth) → Passer directement
+// 4. Routes restaurants publics → Passer directement
+// 5. Routes protégées → Vérifier auth + rôles
+```
+
+**Types de routes :**
+
+- **Routes techniques** : `/api`, `/_next`, `/favicon.ico` → ✅ Accès direct
+- **Routes publiques** : `/auth/login`, `/auth/register` → ✅ Accès direct
+- **Routes restaurants** : `/fr/[slug]`, `/fr/[slug]/menu` → ✅ Accès direct
+- **Routes protégées** : `/fr/dashboard/*`, `/fr/admin/*` → 🔒 Auth + rôle requis
+
+**Logique par rôle :**
+
+- **Déconnecté** : Accès aux sites publics + auth pages, redirection vers `/fr/auth/login` pour les routes protégées
+- **Org Admin** : Accès à `/fr/dashboard/*`, redirection vers `/fr/dashboard` si accès à `/fr/admin/*`
+- **System Admin** : Accès à `/fr/admin/*`, redirection vers `/fr/admin` si accès à `/fr/dashboard/*`
+
+**API d'authentification :**
+- **Endpoint** : `/api/auth/roles` (GET avec cookies)
+- **Réponse** : `{ role: "system_admin" | "org_admin" | null }`
+- **Gestion d'erreur** : Redirection vers `/fr/auth/login` si échec
+
 **🏗️ Architecture Realtime MODULAIRE (CRITIQUE) :**
 - **Architecture MODULAIRE par domaines** (pas générique)
 - **Modules spécialisés** : organizations-realtime.ts, users-realtime.ts, etc.
@@ -346,7 +376,7 @@ Projet SaaS restaurant multi-tenant (Next.js 15 + Supabase).
 **Documentation OBLIGATOIRE :**
 CONTEXT-SUMMARY.md, complete-page-structure.md, COLLABORATION_GUIDELINES.md, REALTIME-MODULAR-ARCHITECTURE.md
 
-**Architecture :** system_admin (/admin/_), org_admin (/dashboard/_), visitor (/[slug]/\*)
+**Architecture :** system*admin (/admin/*), org*admin (/dashboard/*), visitor (/[slug]/\*)
 
 Peux-tu commencer par lire la documentation ?
 
@@ -399,5 +429,5 @@ Ce message doit être mis à jour régulièrement pour refléter :
 
 **Fichier créé le :** 14 Juillet 2025
 **Dernière mise à jour :** 14 Juillet 2025
-**Version :** 4.0 (Avec standards de pages uniformes)
+**Version :** 5.0 (Avec middleware d'authentification)
 ```

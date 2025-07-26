@@ -338,30 +338,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 ```typescript
 // src/middleware.ts
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export default async function middleware(req: NextRequest) {
+  return await authMiddleware(req);
+}
 
-  // Pages publiques
-  if (publicPages.some((page) => pathname.startsWith(page))) {
+// src/middleware/auth-middleware.ts
+export async function authMiddleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // 1. Routes techniques → Passer directement
+  if (isExcludedRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Vérifier l'authentification
-  const user = await getUser(request);
-  if (!user) {
-    return NextResponse.redirect(new URL("/auth/v1/login", request.url));
+  // 2. Locale manquante → Rediriger vers /fr/...
+  if (!hasLocale(pathname)) {
+    return NextResponse.redirect(new URL(`/${routing.defaultLocale}${pathname}`, req.url));
   }
 
-  return NextResponse.next();
+  // 3. Routes publiques (auth) → Passer directement
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 4. Routes restaurants publics → Passer directement
+  if (isRestaurantPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 5. Routes protégées → Vérifier auth + rôles via API
+  // Appel à /api/auth/roles pour vérifier l'authentification
+  // Redirection selon le rôle : system_admin → /admin, org_admin → /dashboard
 }
 ```
 
 **Résultats obtenus :**
 
-- ✅ Middleware d'authentification fonctionnel
-- ✅ Protection des routes
-- ✅ Redirection des utilisateurs non connectés
-- ✅ Gestion des rôles
+- ✅ Middleware d'authentification fonctionnel avec logique complète
+- ✅ Protection des routes avec types de routes distincts
+- ✅ Redirection automatique selon les rôles
+- ✅ Gestion des locales et internationalisation
+- ✅ Sites publics accessibles sans authentification
 
 ---
 

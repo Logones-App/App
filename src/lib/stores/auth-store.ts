@@ -38,23 +38,26 @@ export const useAuthStore = create<AuthState>()(
       setCurrentOrganization: (organization: any | null) => set({ currentOrganization: organization }),
       logout: async () => {
         try {
-          // Déconnexion de Supabase
-          // ... (garde la logique existante)
+          // Nettoyer l'état local seulement
+          // La déconnexion Supabase est gérée par useLogout
           set({
             user: null,
             session: null,
             isAuthenticated: false,
             isLoading: false,
+            userRole: null,
+            currentOrganization: null,
           });
-          if (typeof window !== "undefined") {
-            window.location.href = "/fr/auth/login";
-          }
         } catch (error) {
+          console.error("Erreur lors du nettoyage de l'état:", error);
+          // Forcer le nettoyage même en cas d'erreur
           set({
             user: null,
             session: null,
             isAuthenticated: false,
             isLoading: false,
+            userRole: null,
+            currentOrganization: null,
           });
         }
       },

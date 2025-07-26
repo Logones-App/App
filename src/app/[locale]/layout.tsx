@@ -33,24 +33,18 @@ export default async function LocaleLayout({
   const messages = await getMessages({ locale: localeTyped });
 
   return (
-    <html lang={localeTyped} suppressHydrationWarning>
-      <body className="min-h-screen font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange enableSystem={false}>
-          <QueryProvider>
-            <AuthProvider>
-              <RoleInitializer>
-                <NextIntlClientProvider locale={localeTyped} messages={messages}>
-                  <LoadingProvider>
-                    <LocaleCookieSync />
-                    {children}
-                  </LoadingProvider>
-                </NextIntlClientProvider>
-              </RoleInitializer>
-              <Toaster />
-            </AuthProvider>
-          </QueryProvider>
-        </ThemeProvider>
-      </body>
-    </html>
+    <QueryProvider>
+      <AuthProvider>
+        <RoleInitializer>
+          <NextIntlClientProvider locale={localeTyped} messages={messages}>
+            <LoadingProvider>
+              <LocaleCookieSync />
+              {children}
+            </LoadingProvider>
+          </NextIntlClientProvider>
+        </RoleInitializer>
+        <Toaster />
+      </AuthProvider>
+    </QueryProvider>
   );
 }

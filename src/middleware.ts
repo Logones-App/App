@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import createMiddleware from "next-intl/middleware";
-
-import { routing } from "@/i18n/routing";
-
 import { authMiddleware } from "./middleware/auth-middleware";
 
-// Middleware combiné : internationalisation + authentification
+// Middleware d'authentification uniquement
 export default async function middleware(req: NextRequest) {
-  // D'abord appliquer le middleware d'authentification
-  const authResult = await authMiddleware(req);
-  if (authResult) {
-    return authResult;
-  }
-
-  // Ensuite appliquer le middleware d'internationalisation
-  const intlMiddleware = createMiddleware(routing);
-  return intlMiddleware(req);
+  return await authMiddleware(req);
 }
 
 export const config = {

@@ -73,40 +73,74 @@ const { data, error } = await supabase.auth.admin.updateUserById(userId, {
 ### **Middleware**
 
 ```typescript
-// ✅ Vérification côté serveur
-export async function middleware(request: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// ✅ Vérification côté serveur - Logique actuelle
+export async function authMiddleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-  if (!user) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
-  }
-
-  // Vérifier les rôles via métadonnées
-  const systemRole = user.app_metadata?.role || user.user_metadata?.role;
-
-  if (systemRole === "system_admin") {
-    // Accès autorisé
+  // 1. Routes techniques → Passer directement
+  if (isExcludedRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Vérifier org_admin via base de données
-  const { data: orgRole } = await supabase
-    .from("users_organizations")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .eq("deleted", false)
-    .single();
-
-  if (!orgRole) {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+  // 2. Locale manquante → Rediriger vers /fr/...
+  if (!hasLocale(pathname)) {
+    return NextResponse.redirect(new URL(`/${routing.defaultLocale}${pathname}`, req.url));
   }
 
-  return NextResponse.next();
+  // 3. Routes publiques (auth) → Passer directement
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 4. Routes restaurants publics → Passer directement
+  if (isRestaurantPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 5. Routes protégées → Vérifier auth + rôles via API
+  try {
+    const response = await fetch(`${req.nextUrl.origin}/api/auth/roles`, {
+      method: "GET",
+      headers: { Cookie: req.headers.get("cookie") || "" },
+    });
+
+    if (!response.ok) {
+      return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
+    }
+
+    const roleData = await response.json();
+
+    if (!roleData.role) {
+      return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
+    }
+
+    // Redirection selon le rôle
+    const authorizedRoute = getAuthorizedRoute(roleData.role);
+    if (pathname.includes(authorizedRoute)) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.redirect(new URL(`/${locale}${authorizedRoute}`, req.url));
+  } catch (error) {
+    return NextResponse.redirect(new URL(`/${locale}/auth/login`, req.url));
+  }
 }
 ```
+
+### **Types de Routes Gérées**
+
+| Type de Route          | Exemples                         | Comportement          |
+| ---------------------- | -------------------------------- | --------------------- |
+| **Routes techniques**  | `/api`, `/_next`, `/favicon.ico` | ✅ Accès direct       |
+| **Routes publiques**   | `/auth/login`, `/auth/register`  | ✅ Accès direct       |
+| **Routes restaurants** | `/fr/[slug]`, `/fr/[slug]/menu`  | ✅ Accès direct       |
+| **Routes protégées**   | `/fr/dashboard/*`, `/fr/admin/*` | 🔒 Auth + rôle requis |
+
+### **Logique de Redirection par Rôle**
+
+- **Déconnecté** : Redirection vers `/fr/auth/login`
+- **Org Admin** : Accès à `/fr/dashboard/*`, redirection vers `/fr/dashboard` si accès à `/fr/admin/*`
+- **System Admin** : Accès à `/fr/admin/*`, redirection vers `/fr/admin` si accès à `/fr/dashboard/*`
 
 ### **Composants de Protection**
 

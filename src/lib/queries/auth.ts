@@ -152,16 +152,45 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: async () => {
+      // 1. Déconnexion côté client Supabase
       const supabase = createClient();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
+      // 2. Déconnexion côté serveur via API
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la déconnexion côté serveur");
+      }
+
+      return { success: true };
     },
     onSuccess: () => {
-      // Nettoyer Zustand
+      // 3. Nettoyer Zustand
       logout();
 
-      // Nettoyer le cache
+      // 4. Nettoyer le cache TanStack Query
       queryClient.clear();
+
+      // 5. Redirection unifiée
+      if (typeof window !== "undefined") {
+        window.location.href = "/fr/auth/login";
+      }
+    },
+    onError: (error) => {
+      console.error("Erreur lors de la déconnexion:", error);
+      // Même en cas d'erreur, nettoyer l'état local
+      logout();
+      queryClient.clear();
+      if (typeof window !== "undefined") {
+        window.location.href = "/fr/auth/login";
+      }
     },
   });
 };

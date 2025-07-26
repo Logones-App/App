@@ -78,7 +78,46 @@
       "create_first": "Crea tu primer establecimiento"
     },
     "view": "Ver",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "days": {
+      "0": "Domingo",
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado"
+    }
+  },
+  "restaurant_public": {
+    "navigation": {
+      "menu": "Menú",
+      "reservations": "Reservas",
+      "contact": "Contacto",
+      "about": "Acerca de"
+    },
+    "hero": {
+      "welcome": "Bienvenido a {name}",
+      "default_description": "Descubre nuestra cocina auténtica y sabores únicos",
+      "view_menu": "Ver nuestro menú",
+      "book_table": "Reservar una mesa"
+    },
+    "info": {
+      "address": "Dirección",
+      "hours": "Horarios",
+      "contact": "Contacto",
+      "address_not_available": "Dirección no disponible",
+      "hours_not_available": "Horarios no disponibles"
+    },
+    "opening_hours": {
+      "title": "Horarios de apertura",
+      "not_available": "Horarios no disponibles"
+    },
+    "footer": {
+      "opening_hours": "Horarios de apertura",
+      "not_available": "Horarios no disponibles",
+      "all_rights_reserved": "Todos los derechos reservados"
+    }
   },
   "admin": {
     "users": {
@@ -197,6 +236,7 @@
     }
   },
   "common": {
+    "change_language": "Cambiar idioma",
     "loading": "Cargando...",
     "error": "Ha ocurrido un error.",
     "success": "Operación exitosa.",
