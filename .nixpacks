@@ -3,10 +3,14 @@
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm ci --only=production"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
 cmd = "npm start"
+
+[variables]
+NIXPACKS_NODE_PACKAGE_MANAGER = "npm"
+NODE_VERSION = "22"

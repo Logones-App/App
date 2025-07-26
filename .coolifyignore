@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+.pnpm-store
+node_modules
+.env.local
+.env.development
+.env.test 
