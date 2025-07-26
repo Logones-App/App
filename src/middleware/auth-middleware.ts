@@ -205,39 +205,39 @@ export async function authMiddleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Domaines personnalisés - REDIRECTION
-  if (!isExcludedDomain(hostname)) {
-    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
-    return handleCustomDomain(request, hostname, pathname);
-  }
-
-  // 3. Locale manquante - AJOUT
+  // 2. Locale manquante - AJOUT
   const localeRedirect = handleLocale(request, pathname);
   if (localeRedirect) {
     // console.log("🌍 [Middleware] Locale ajoutée");
     return localeRedirect;
   }
 
-  // 4. Extraction de la locale
+  // 3. Extraction de la locale
   const locale = extractLocale(pathname);
   const routeWithoutLocale = pathname.replace(`/${locale}`, "");
 
-  // 5. Routes publiques - PASSAGE DIRECT
+  // 4. Routes publiques - PASSAGE DIRECT
   if (isPublicRoute(routeWithoutLocale)) {
     // console.log("✅ [Middleware] Route publique - passage direct");
     return NextResponse.next();
   }
 
-  // 6. Routes protégées - VÉRIFICATION AUTH + RÔLES ⭐ CRITIQUE
-  if (isProtectedRoute(routeWithoutLocale)) {
-    // console.log("🔒 [Middleware] Route protégée - vérification auth");
-    return handleProtectedRoute(request, locale);
-  }
-
-  // 7. Routes restaurants publics - PASSAGE DIRECT
+  // 5. Routes restaurant public - PASSAGE DIRECT (AVANT les domaines personnalisés)
   if (isRestaurantPublicRoute(pathname)) {
     // console.log("🍽️ [Middleware] Route restaurant public - passage direct");
     return NextResponse.next();
+  }
+
+  // 6. Domaines personnalisés - REDIRECTION (APRÈS les routes restaurant public)
+  if (!isExcludedDomain(hostname)) {
+    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
+    return handleCustomDomain(request, hostname, pathname);
+  }
+
+  // 7. Routes protégées - VÉRIFICATION AUTH + RÔLES
+  if (isProtectedRoute(routeWithoutLocale)) {
+    // console.log("🔒 [Middleware] Route protégée - vérification auth");
+    return handleProtectedRoute(request, locale);
   }
 
   // 8. Route non reconnue - REDIRECTION LOGIN
