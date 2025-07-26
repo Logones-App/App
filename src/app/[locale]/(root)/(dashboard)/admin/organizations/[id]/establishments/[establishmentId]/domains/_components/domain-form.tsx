@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { useMutation, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -28,7 +28,7 @@ function useDomainValidation() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
-  const validateDomain = (domain: string) => {
+  const validateDomain = useCallback((domain: string) => {
     if (!domain.trim()) {
       setValidationError(null);
       setValidationWarnings([]);
@@ -56,7 +56,7 @@ function useDomainValidation() {
 
       setValidationWarnings(warnings);
     }
-  };
+  }, []);
 
   return { validationError, validationWarnings, validateDomain };
 }
@@ -76,7 +76,8 @@ function useAddDomainMutation(queryClient: QueryClient, establishmentId: string,
         toast.error(`Erreur lors de l'ajout: ${result.error}`);
       } else {
         toast.success("Domaine ajouté avec succès");
-        queryClient.invalidateQueries({ queryKey: ["custom-domains", establishmentId] });
+        // ❌ RETIRÉ - Cette ligne causait la boucle infinie
+        // queryClient.invalidateQueries({ queryKey: ["custom-domains", establishmentId] });
         onSuccess();
       }
     },
@@ -94,6 +95,7 @@ export function DomainForm({ establishment, establishmentId, onDomainAdded }: Do
   const { validationError, validationWarnings, validateDomain } = useDomainValidation();
   const addDomainMutation = useAddDomainMutation(queryClient, establishmentId, onDomainAdded);
 
+  // ✅ CORRIGÉ - useEffect avec useCallback pour éviter la boucle infinie
   useEffect(() => {
     validateDomain(newDomain);
   }, [newDomain, validateDomain]);

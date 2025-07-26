@@ -78,59 +78,6 @@ export class DomainService {
   }
 
   /**
-   * Valide la longueur d'un domaine
-   */
-  private validateDomainLength(domain: string): { isValid: boolean; error?: string } {
-    if (domain.length < 3) {
-      return { isValid: false, error: "Le domaine doit faire au moins 3 caractères" };
-    }
-    if (domain.length > 253) {
-      return { isValid: false, error: "Le domaine ne peut pas dépasser 253 caractères" };
-    }
-    return { isValid: true };
-  }
-
-  /**
-   * Valide le format de base d'un domaine
-   */
-  private validateDomainFormat(domain: string): { isValid: boolean; error?: string } {
-    // Format de base (lettres, chiffres, tirets, points) - validation manuelle pour éviter les problèmes de sécurité
-    const domainParts = domain.split(".");
-    for (const part of domainParts) {
-      if (part.length === 0) {
-        return { isValid: false, error: "Format de domaine invalide" };
-      }
-
-      // Vérifier que chaque partie commence et finit par une lettre ou chiffre
-      if (!/^[a-z0-9]/.test(part) || !/[a-z0-9]$/.test(part)) {
-        return { isValid: false, error: "Format de domaine invalide" };
-      }
-
-      // Vérifier que chaque partie ne contient que des lettres, chiffres et tirets
-      if (!/^[a-z0-9-]+$/.test(part)) {
-        return { isValid: false, error: "Format de domaine invalide" };
-      }
-    }
-    return { isValid: true };
-  }
-
-  /**
-   * Valide les parties d'un domaine
-   */
-  private validateDomainParts(domain: string): { isValid: boolean; error?: string } {
-    const parts = domain.split(".");
-    for (const part of parts) {
-      if (part.length === 0) {
-        return { isValid: false, error: "Le domaine ne peut pas contenir de points consécutifs" };
-      }
-      if (part.length > 63) {
-        return { isValid: false, error: "Chaque partie du domaine ne peut pas dépasser 63 caractères" };
-      }
-    }
-    return { isValid: true };
-  }
-
-  /**
    * Valide le format d'un domaine
    */
   validateDomain(domain: string): { isValid: boolean; error?: string } {
@@ -141,30 +88,32 @@ export class DomainService {
 
     const trimmedDomain = domain.trim().toLowerCase();
 
-    // Longueur
-    const lengthValidation = this.validateDomainLength(trimmedDomain);
-    if (!lengthValidation.isValid) {
-      return lengthValidation;
+    // ✅ REGEX ROBUSTE - Validation complète selon les standards RFC
+    const domainRegex = /^(https?:\/\/)?(www\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+
+    if (!domainRegex.test(trimmedDomain)) {
+      return {
+        isValid: false,
+        error: "Format de domaine invalide. Utilisez un format comme 'example.com' ou 'mon-restaurant.fr'",
+      };
     }
 
-    // Format de base
-    const formatValidation = this.validateDomainFormat(trimmedDomain);
-    if (!formatValidation.isValid) {
-      return formatValidation;
+    // Vérifications supplémentaires pour les cas spécifiques
+    if (trimmedDomain.includes("localhost") || trimmedDomain.includes("127.0.0.1")) {
+      return { isValid: false, error: "Les domaines de développement ne sont pas autorisés" };
     }
 
-    // Vérifier qu'il y a au moins un point (TLD)
-    if (!trimmedDomain.includes(".")) {
-      return { isValid: false, error: "Le domaine doit contenir au moins un point (ex: .com)" };
+    // Vérifier la longueur totale
+    if (trimmedDomain.length > 253) {
+      return { isValid: false, error: "Le domaine ne peut pas dépasser 253 caractères" };
     }
 
-    // Vérifier que ça ne commence ou finit pas par un tiret
-    if (trimmedDomain.startsWith("-") || trimmedDomain.endsWith("-")) {
-      return { isValid: false, error: "Le domaine ne peut pas commencer ou finir par un tiret" };
+    // Vérifier la longueur minimale
+    if (trimmedDomain.length < 3) {
+      return { isValid: false, error: "Le domaine doit faire au moins 3 caractères" };
     }
 
-    // Vérifier les parties du domaine
-    return this.validateDomainParts(trimmedDomain);
+    return { isValid: true };
   }
 
   /**

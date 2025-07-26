@@ -103,68 +103,54 @@ function handleLocale(request: NextRequest, pathname: string): NextResponse | nu
  */
 async function handleCustomDomain(request: NextRequest, hostname: string, pathname: string): Promise<NextResponse> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "https://logones.fr"}/api/domains/${hostname}`, {
-      method: "GET",
+    // Appel à l'API pour récupérer les informations du domaine
+    const domainResponse = await fetch(`${request.nextUrl.protocol}//${MAIN_DOMAIN}/api/domains/${hostname}`, {
+      headers: {
+        Cookie: request.headers.get("cookie") ?? "",
+      },
     });
 
-    if (!response.ok) {
-      console.log("❌ [Middleware] Domaine personnalisé non trouvé");
+    if (!domainResponse.ok) {
+      // Domaine non trouvé ou inactif
       return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
     }
 
-    const data = await response.json();
-    const establishment = data.establishment;
+    const domainData = await domainResponse.json();
 
-    if (!establishment) {
-      console.log("❌ [Middleware] Établissement non trouvé");
+    if (!domainData.establishment_slug) {
       return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
     }
 
-    // Déterminer la locale
-    const locale = pathname.startsWith("/en/") ? "en" : pathname.startsWith("/es/") ? "es" : "fr";
-
-    // Si on est déjà sur le bon slug, ne pas rediriger
-    const currentPath = pathname.replace(`/${locale}`, "");
-    if (currentPath === `/${establishment.slug}` || currentPath.startsWith(`/${establishment.slug}/`)) {
-      console.log("✅ [Middleware] Déjà sur le bon slug");
-      return NextResponse.next();
-    }
-
-    // Construire la nouvelle URL
-    const newPath = `/${locale}/${establishment.slug}${pathname.replace(/^\/[a-z]{2}/, "")}`;
-    const newUrl = new URL(newPath, `https://logones.fr`);
-
-    console.log(`🔄 [Middleware] Redirection vers: ${newUrl.toString()}`);
+    // Rediriger vers la page publique de l'établissement
+    const newUrl = new URL(`/${DEFAULT_LOCALE}/${domainData.establishment_slug}`, request.url);
     return NextResponse.redirect(newUrl);
   } catch (error) {
-    console.error("❌ [Middleware] Erreur domaine personnalisé:", error);
+    console.error("Erreur lors de la gestion du domaine personnalisé:", error);
     return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
   }
 }
 
 /**
- * Gère les routes protégées
+ * Gère les routes protégées avec authentification
  */
 async function handleProtectedRoute(request: NextRequest, locale: string): Promise<NextResponse> {
   try {
-    // Vérifier l'authentification via l'API
-    const response = await fetch(`${request.nextUrl.origin}/api/auth/roles`, {
-      method: "GET",
+    // Appel à l'API d'authentification
+    const response = await fetch(`${request.nextUrl.protocol}//${request.headers.get("host")}/api/auth/roles`, {
       headers: {
         Cookie: request.headers.get("cookie") ?? "",
       },
     });
 
     if (!response.ok) {
-      console.log("❌ [Middleware] API auth non accessible");
       return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
     }
 
     const roleData = await response.json();
-    console.log(`🔍 [Middleware] Rôle détecté: ${roleData.role}`);
+    // console.log(`🔍 [Middleware] Rôle détecté: ${roleData.role}`);
 
     if (!roleData.role) {
-      console.log("❌ [Middleware] Aucun rôle détecté");
+      // console.log("❌ [Middleware] Aucun rôle détecté");
       return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
     }
 
@@ -172,17 +158,17 @@ async function handleProtectedRoute(request: NextRequest, locale: string): Promi
     const authorizedRoute = getAuthorizedRoute(roleData.role);
     const currentPath = request.nextUrl.pathname.replace(`/${locale}`, "");
 
-    console.log(`🔍 [Middleware] Route autorisée pour ${roleData.role}: ${authorizedRoute}`);
-    console.log(`🔍 [Middleware] Chemin actuel: ${currentPath}`);
+    // console.log(`🔍 [Middleware] Route autorisée pour ${roleData.role}: ${authorizedRoute}`);
+    // console.log(`🔍 [Middleware] Chemin actuel: ${currentPath}`);
 
     // Vérifier si l'utilisateur accède à sa route autorisée
     if (currentPath.startsWith(authorizedRoute)) {
-      console.log("✅ [Middleware] Accès autorisé");
+      // console.log("✅ [Middleware] Accès autorisé");
       return NextResponse.next();
     }
 
     // Rediriger vers la route autorisée
-    console.log(`🔄 [Middleware] Redirection vers: /${locale}${authorizedRoute}`);
+    // console.log(`🔄 [Middleware] Redirection vers: /${locale}${authorizedRoute}`);
     return NextResponse.redirect(new URL(`/${locale}${authorizedRoute}`, request.url));
   } catch (error) {
     console.error("❌ [Middleware] Erreur auth:", error);
@@ -211,24 +197,24 @@ export async function authMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") ?? "";
 
-  console.log(`🔍 [Middleware] ${request.method} ${pathname} (${hostname})`);
+  // console.log(`🔍 [Middleware] ${request.method} ${pathname} (${hostname})`);
 
   // 1. Routes techniques - PASSAGE DIRECT
   if (isTechnicalRoute(pathname)) {
-    console.log("✅ [Middleware] Route technique - passage direct");
+    // console.log("✅ [Middleware] Route technique - passage direct");
     return NextResponse.next();
   }
 
   // 2. Domaines personnalisés - REDIRECTION
   if (!isExcludedDomain(hostname)) {
-    console.log("🌐 [Middleware] Domaine personnalisé détecté");
+    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
     return handleCustomDomain(request, hostname, pathname);
   }
 
   // 3. Locale manquante - AJOUT
   const localeRedirect = handleLocale(request, pathname);
   if (localeRedirect) {
-    console.log("🌍 [Middleware] Locale ajoutée");
+    // console.log("🌍 [Middleware] Locale ajoutée");
     return localeRedirect;
   }
 
@@ -238,23 +224,23 @@ export async function authMiddleware(request: NextRequest) {
 
   // 5. Routes publiques - PASSAGE DIRECT
   if (isPublicRoute(routeWithoutLocale)) {
-    console.log("✅ [Middleware] Route publique - passage direct");
+    // console.log("✅ [Middleware] Route publique - passage direct");
     return NextResponse.next();
   }
 
   // 6. Routes protégées - VÉRIFICATION AUTH + RÔLES ⭐ CRITIQUE
   if (isProtectedRoute(routeWithoutLocale)) {
-    console.log("🔒 [Middleware] Route protégée - vérification auth");
+    // console.log("🔒 [Middleware] Route protégée - vérification auth");
     return handleProtectedRoute(request, locale);
   }
 
   // 7. Routes restaurants publics - PASSAGE DIRECT
   if (isRestaurantPublicRoute(pathname)) {
-    console.log("🍽️ [Middleware] Route restaurant public - passage direct");
+    // console.log("🍽️ [Middleware] Route restaurant public - passage direct");
     return NextResponse.next();
   }
 
   // 8. Route non reconnue - REDIRECTION LOGIN
-  console.log("❌ [Middleware] Route non reconnue - redirection login");
+  // console.log("❌ [Middleware] Route non reconnue - redirection login");
   return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
 }

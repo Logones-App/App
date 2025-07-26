@@ -1,5 +1,7 @@
 "use client";
 
+import { useParams } from "next/navigation";
+
 import { useQuery } from "@tanstack/react-query";
 
 import { useEstablishment } from "@/lib/queries/establishments";
@@ -10,32 +12,37 @@ import { DomainList } from "./_components/domain-list";
 import { ErrorDisplay } from "./_components/error-display";
 import { LoadingSkeleton } from "./_components/loading-skeleton";
 
-function useEstablishmentDomainsQuery(establishmentId: string) {
-  return useQuery({
-    queryKey: ["custom-domains", establishmentId],
-    queryFn: () => new DomainService().getCustomDomainsByEstablishment(establishmentId),
-    enabled: !!establishmentId,
-  });
-}
-
 export default function EstablishmentDomainsPage() {
-  const establishmentId = "establishment-id"; // À récupérer depuis les params
+  const params = useParams();
+  const establishmentId = params.establishmentId as string;
+  // const establishmentId = "eb64c088-a613-490f-ac52-c8770f1dc2a7"; // ID hardcodé pour test
 
+  // ✅ CORRIGÉ - Utilisation du hook existant
   const {
     data: establishment,
     isLoading: isLoadingEstablishment,
     error: establishmentError,
   } = useEstablishment(establishmentId);
+
+  // ✅ CORRIGÉ - Requête simplifiée pour les domaines
   const {
     data: domains,
     isLoading: isLoadingDomains,
     error: domainsError,
-  } = useEstablishmentDomainsQuery(establishmentId);
+  } = useQuery({
+    queryKey: ["custom-domains", establishmentId],
+    queryFn: async () => {
+      return new DomainService().getCustomDomainsByEstablishment(establishmentId);
+    },
+    enabled: !!establishmentId,
+  });
 
+  // États de chargement
   if (isLoadingEstablishment) {
     return <LoadingSkeleton />;
   }
 
+  // États d'erreur
   if (establishmentError || !establishment) {
     return <ErrorDisplay message="Erreur lors du chargement de l'établissement. Veuillez réessayer." />;
   }
