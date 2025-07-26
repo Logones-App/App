@@ -1,56 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
-import { Plus, ExternalLink, Trash2, Settings, Building2 } from "lucide-react";
-
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Globe, Settings } from "lucide-react";
 
 export default function DomainsPage() {
-  const [loading, setLoading] = useState(false);
-
-  // Données d'exemple
-  const [domains] = useState([
-    {
-      id: "1",
-      domain: "restaurant1.com",
-      establishment: "La Plank des Gones",
-      organization: "Restaurant Group 1",
-      is_active: true,
-      created_at: "2024-01-15",
-    },
-    {
-      id: "2",
-      domain: "restaurant2.fr",
-      establishment: "Le Petit Bistrot",
-      organization: "Restaurant Group 2",
-      is_active: false,
-      created_at: "2024-01-10",
-    },
-  ]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAddDomain = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       // TODO: Implémenter l'ajout de domaine
-      toast.success("Domaine ajouté avec succès");
-    } catch (error) {
-      toast.error("Erreur lors de l'ajout du domaine");
+      console.log("Ajout de domaine...");
+    } catch (err) {
+      console.error("Erreur lors de l'ajout du domaine:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteDomain = async (domainId: string) => {
+  const handleDeactivateDomain = async () => {
+    setIsLoading(true);
     try {
-      // TODO: Implémenter la suppression
-      toast.success("Domaine supprimé");
-    } catch (error) {
-      toast.error("Erreur lors de la suppression");
+      // TODO: Implémenter la désactivation
+      console.log("Désactivation de domaine...");
+    } catch (err) {
+      console.error("Erreur lors de la désactivation:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,99 +37,80 @@ export default function DomainsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Gestion des domaines</h1>
-          <p className="text-muted-foreground">Gérez les domaines personnalisés de tous les établissements</p>
+          <h1 className="text-3xl font-bold">Gestion des Domaines</h1>
+          <p className="text-muted-foreground">Gérez les domaines personnalisés de vos établissements</p>
         </div>
-        <Button onClick={handleAddDomain} disabled={loading}>
+        <Button onClick={handleAddDomain} disabled={isLoading}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau domaine
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total domaines</CardTitle>
-            <ExternalLink className="text-muted-foreground h-4 w-4" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Domaines actifs
+            </CardTitle>
+            <CardDescription>Nombre total de domaines personnalisés</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{domains.length}</div>
-            <p className="text-muted-foreground text-xs">+2 ce mois</p>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-muted-foreground text-xs">+1 ce mois</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Domaines actifs</CardTitle>
-            <Settings className="text-muted-foreground h-4 w-4" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configuration DNS
+            </CardTitle>
+            <CardDescription>Domaines en attente de configuration</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{domains.filter((d) => d.is_active).length}</div>
-            <p className="text-muted-foreground text-xs">
-              {Math.round((domains.filter((d) => d.is_active).length / domains.length) * 100)}% du total
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Organisations</CardTitle>
-            <Building2 className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{new Set(domains.map((d) => d.organization)).size}</div>
-            <p className="text-muted-foreground text-xs">Organisations avec domaines</p>
+            <div className="text-2xl font-bold">1</div>
+            <Badge variant="secondary" className="mt-2">
+              En attente
+            </Badge>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des domaines</CardTitle>
+          <CardTitle>Liste des Domaines</CardTitle>
+          <CardDescription>Tous les domaines personnalisés configurés</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Domaine</TableHead>
-                <TableHead>Établissement</TableHead>
-                <TableHead>Organisation</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Date de création</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {domains.map((domain) => (
-                <TableRow key={domain.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <ExternalLink className="h-4 w-4" />
-                      {domain.domain}
-                    </div>
-                  </TableCell>
-                  <TableCell>{domain.establishment}</TableCell>
-                  <TableCell>{domain.organization}</TableCell>
-                  <TableCell>
-                    <Badge variant={domain.is_active ? "default" : "secondary"}>
-                      {domain.is_active ? "Actif" : "Inactif"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{domain.created_at}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteDomain(domain.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <h3 className="font-semibold">la-plank-des-gones.com</h3>
+                <p className="text-muted-foreground text-sm">Établissement: La Plank des Gones</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default">Actif</Badge>
+                <Button variant="outline" size="sm" onClick={handleDeactivateDomain} disabled={isLoading}>
+                  Désactiver
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <h3 className="font-semibold">test-restaurant.logones.fr</h3>
+                <p className="text-muted-foreground text-sm">Établissement: La Plank des Gones</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default">Actif</Badge>
+                <Button variant="outline" size="sm" onClick={handleDeactivateDomain} disabled={isLoading}>
+                  Désactiver
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

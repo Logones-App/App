@@ -2,118 +2,130 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { toast } from "sonner";
-
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ExternalLink } from "lucide-react";
+import { Plus, Globe } from "lucide-react";
+import { DomainService } from "@/lib/services/domain-service";
 
-export default function DomainManagementPage() {
+export default function EstablishmentDomainsPage() {
   const params = useParams();
-  const establishmentId = params.id as string;
-
-  const [domain, setDomain] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [domains, setDomains] = useState([
-    // Exemple de données
-    { id: "1", domain: "restaurant1.com", is_active: true },
-    { id: "2", domain: "restaurant1.fr", is_active: false },
-  ]);
+  const [newDomain, setNewDomain] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAddDomain = async () => {
-    if (!domain.trim()) {
-      toast.error("Veuillez saisir un domaine");
-      return;
-    }
+    if (!newDomain.trim()) return;
 
-    setLoading(true);
+    setIsLoading(true);
     try {
-      // TODO: Appeler l'API pour ajouter le domaine
-      const newDomain = { id: Date.now().toString(), domain: domain.trim(), is_active: true };
-      setDomains([...domains, newDomain]);
-      setDomain("");
-      toast.success("Domaine ajouté avec succès");
-    } catch (error) {
-      toast.error("Erreur lors de l'ajout du domaine");
+      const domainService = new DomainService();
+      const result = await domainService.addCustomDomain(
+        newDomain,
+        params.id as string,
+        "la-plank-des-gones", // TODO: Récupérer le slug depuis l'établissement
+        "org-id", // TODO: Récupérer l'organization_id depuis l'établissement
+      );
+
+      if (result.error) {
+        console.error("Erreur lors de l'ajout du domaine:", result.error);
+      } else {
+        console.log("Domaine ajouté avec succès:", result.data);
+        setNewDomain("");
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'ajout du domaine:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteDomain = async (domainId: string) => {
+  const handleDeactivateDomain = async () => {
+    setIsLoading(true);
     try {
-      // TODO: Appeler l'API pour supprimer le domaine
-      setDomains(domains.filter((d) => d.id !== domainId));
-      toast.success("Domaine supprimé");
-    } catch (error) {
-      toast.error("Erreur lors de la suppression");
+      // TODO: Implémenter la désactivation
+      console.log("Désactivation de domaine...");
+    } catch (err) {
+      console.error("Erreur lors de la désactivation:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Domaines personnalisés</h1>
-        <p className="text-muted-foreground">Gérez les domaines personnalisés pour cet établissement</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Domaines de l'Établissement</h1>
+          <p className="text-muted-foreground">Gérez les domaines personnalisés pour cet établissement</p>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ajouter un domaine</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Ajouter un domaine
+          </CardTitle>
+          <CardDescription>Ajoutez un nouveau domaine personnalisé pour cet établissement</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
-            <Input
-              placeholder="exemple.fr"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleAddDomain()}
-            />
-            <Button onClick={handleAddDomain} disabled={loading}>
-              <Plus className="mr-2 h-4 w-4" />
-              {loading ? "Ajout..." : "Ajouter"}
-            </Button>
-          </div>
-
-          <div className="bg-muted mt-4 rounded-lg p-4">
-            <h4 className="mb-2 font-medium">Instructions DNS :</h4>
-            <p className="text-muted-foreground mb-2 text-sm">
-              Pour chaque domaine, configurez un enregistrement CNAME :
-            </p>
-            <code className="bg-background block rounded p-2 text-sm">
-              {domain || "exemple.fr"} → CNAME → your-vps.com
-            </code>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <Label htmlFor="domain">Domaine</Label>
+              <Input
+                id="domain"
+                placeholder="exemple.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleAddDomain} disabled={isLoading || !newDomain.trim()}>
+                Ajouter
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Domaines configurés</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Domaines configurés
+          </CardTitle>
+          <CardDescription>Liste des domaines personnalisés pour cet établissement</CardDescription>
         </CardHeader>
         <CardContent>
-          {domains.length === 0 ? (
-            <p className="text-muted-foreground">Aucun domaine configuré</p>
-          ) : (
-            <div className="space-y-2">
-              {domains.map((domainItem) => (
-                <div key={domainItem.id} className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-3">
-                    <ExternalLink className="text-muted-foreground h-4 w-4" />
-                    <span className="font-medium">{domainItem.domain}</span>
-                    <Badge variant={domainItem.is_active ? "default" : "secondary"}>
-                      {domainItem.is_active ? "Actif" : "Inactif"}
-                    </Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => handleDeleteDomain(domainItem.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <h3 className="font-semibold">la-plank-des-gones.com</h3>
+                <p className="text-muted-foreground text-sm">Ajouté le 15 janvier 2025</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default">Actif</Badge>
+                <Button variant="outline" size="sm" onClick={handleDeactivateDomain} disabled={isLoading}>
+                  Désactiver
+                </Button>
+              </div>
             </div>
-          )}
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <h3 className="font-semibold">test-restaurant.logones.fr</h3>
+                <p className="text-muted-foreground text-sm">Ajouté le 14 janvier 2025</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default">Actif</Badge>
+                <Button variant="outline" size="sm" onClick={handleDeactivateDomain} disabled={isLoading}>
+                  Désactiver
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

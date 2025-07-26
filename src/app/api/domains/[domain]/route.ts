@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { DomainService } from "@/lib/services/domain-service";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET(request: NextRequest, { params }: { params: { domain: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ domain: string }> }
+) {
   try {
-    const domain = params.domain;
+    const { domain } = await params;
     if (!domain) {
       return NextResponse.json({ error: "Domain parameter is missing" }, { status: 400 });
     }
@@ -23,8 +26,12 @@ export async function GET(request: NextRequest, { params }: { params: { domain: 
       .eq("id", customDomain.establishment_id)
       .single();
 
-    if (establishmentError || !establishment) {
+    if (establishmentError) {
       console.error("Error fetching establishment for custom domain:", establishmentError);
+      return NextResponse.json({ error: "Establishment not found for this domain" }, { status: 404 });
+    }
+
+    if (!establishment) {
       return NextResponse.json({ error: "Establishment not found for this domain" }, { status: 404 });
     }
 

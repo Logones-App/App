@@ -162,24 +162,18 @@ export async function authMiddleware(req: NextRequest) {
   const localeRedirect = handleLocale(req, pathname);
   if (localeRedirect) return localeRedirect;
 
-  // 4. Extraction de la locale
+  // 4. Extraction de la locale et vérification des routes
   const locale = pathname.split("/")[1] ?? routing.defaultLocale;
   console.log("🌍 Middleware - Locale:", locale);
 
-  // 5. Routes publiques - passage direct
+  // 5. Routes publiques et restaurants - passage direct
   const publicPath = pathname.replace(`/${locale}`, "");
-  if (isPublicRoute(publicPath)) {
-    console.log("✅ Middleware - Route publique, passage direct");
+  if (isPublicRoute(publicPath) || (publicPath.includes("/") && !publicPath.startsWith("/admin") && !publicPath.startsWith("/dashboard"))) {
+    console.log("✅ Middleware - Route publique/restaurant, passage direct");
     return NextResponse.next();
   }
 
-  // 6. Routes restaurants publiques - passage direct
-  if (publicPath.includes("/") && !publicPath.startsWith("/admin") && !publicPath.startsWith("/dashboard")) {
-    console.log("✅ Middleware - Route restaurant public, passage direct");
-    return NextResponse.next();
-  }
-
-  // 7. Vérification de l'authentification pour les routes protégées
+  // 6. Vérification de l'authentification pour les routes protégées
   try {
     return await checkAuthentication(req, locale);
   } catch (error) {

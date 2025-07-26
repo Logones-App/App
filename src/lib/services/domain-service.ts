@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 
 type CustomDomain = Tables<"custom_domains">;
@@ -6,9 +6,6 @@ type CustomDomain = Tables<"custom_domains">;
 export class DomainService {
   private supabase = createClient();
 
-  /**
-   * Récupère un établissement par domaine personnalisé
-   */
   async getEstablishmentByDomain(domain: string): Promise<CustomDomain | null> {
     const { data, error } = await this.supabase
       .from("custom_domains")
@@ -18,18 +15,11 @@ export class DomainService {
       .eq("deleted", false)
       .single();
 
-    if (error) {
-      console.error("Erreur lors de la récupération du domaine:", error);
-      return null;
-    }
-
+    if (error) return null;
     return data;
   }
 
-  /**
-   * Ajoute un domaine personnalisé
-   */
-  async addCustomDomain(domain: string, establishmentId: string, establishmentSlug: string) {
+  async addCustomDomain(domain: string, establishmentId: string, establishmentSlug: string, organizationId: string) {
     const { data, error } = await this.supabase
       .from("custom_domains")
       .insert({
@@ -37,6 +27,7 @@ export class DomainService {
         establishment_id: establishmentId,
         establishment_slug: establishmentSlug,
         is_active: true,
+        organization_id: organizationId,
       })
       .select()
       .single();
@@ -44,9 +35,6 @@ export class DomainService {
     return { data, error };
   }
 
-  /**
-   * Désactive un domaine
-   */
   async deactivateDomain(domainId: string) {
     const { error } = await this.supabase
       .from("custom_domains")
