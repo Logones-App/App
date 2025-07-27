@@ -136,6 +136,8 @@ async function getDomainInfo(hostname: string): Promise<{ establishment: { slug:
  */
 async function fetchProxyContent(targetUrl: string, request: NextRequest): Promise<Response | null> {
   try {
+    console.log(`🌐 [DEBUG] Fetching: ${targetUrl}`);
+
     const proxyResponse = await fetch(targetUrl, {
       method: request.method,
       headers: {
@@ -146,12 +148,17 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
       },
     });
 
+    console.log(`🌐 [DEBUG] Response status: ${proxyResponse.status}`);
+
     if (!proxyResponse.ok) {
+      console.log(`🌐 [DEBUG] Response not ok: ${proxyResponse.status}`);
       return null;
     }
 
+    console.log(`🌐 [DEBUG] Fetch successful`);
     return proxyResponse;
   } catch (error) {
+    console.log(`🌐 [DEBUG] Fetch error:`, error);
     return null;
   }
 }
@@ -225,7 +232,29 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
     const proxyResponse = await fetchProxyContent(targetUrl, request);
 
     if (!proxyResponse) {
-      return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
+      // Retourner directement une page 404 au lieu de rediriger
+      const notFoundHtml = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Page non trouvée</title>
+        </head>
+        <body>
+          <h1>404</h1>
+          <p>Page non trouvée</p>
+          <p>Désolé, la page que vous recherchez n'existe pas ou a été déplacée.</p>
+        </body>
+        </html>
+      `;
+
+      return new NextResponse(notFoundHtml, {
+        status: 404,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      });
     }
 
     // 5. Modifier le HTML
