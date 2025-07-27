@@ -132,33 +132,41 @@ async function getDomainInfo(hostname: string): Promise<{ establishment: { slug:
 }
 
 /**
- * Effectue le fetch proxy vers logones.fr
+ * Effectue le fetch proxy vers logones.fr via API route
  */
 async function fetchProxyContent(targetUrl: string, request: NextRequest): Promise<Response | null> {
   try {
-    console.log(`🌐 [DEBUG] Fetching: ${targetUrl}`);
+    console.log(`🌐 [DEBUG] Fetching via API: ${targetUrl}`);
 
-    const proxyResponse = await fetch(targetUrl, {
-      method: request.method,
+    // Utiliser l'API route pour éviter la boucle middleware
+    const apiResponse = await fetch(`${request.nextUrl.origin}/api/proxy`, {
+      method: "POST",
       headers: {
-        "User-Agent": request.headers.get("user-agent") ?? "",
-        Accept: request.headers.get("accept") ?? "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": request.headers.get("accept-language") ?? "fr-FR,fr;q=0.9,en;q=0.8",
-        "Accept-Encoding": request.headers.get("accept-encoding") ?? "gzip, deflate, br",
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({ targetUrl }),
     });
 
-    console.log(`🌐 [DEBUG] Response status: ${proxyResponse.status}`);
+    console.log(`🌐 [DEBUG] API Response status: ${apiResponse.status}`);
 
-    if (!proxyResponse.ok) {
-      console.log(`🌐 [DEBUG] Response not ok: ${proxyResponse.status}`);
+    if (!apiResponse.ok) {
+      console.log(`🌐 [DEBUG] API Response not ok: ${apiResponse.status}`);
       return null;
     }
 
-    console.log(`🌐 [DEBUG] Fetch successful`);
-    return proxyResponse;
+    const data = await apiResponse.json();
+    console.log(`🌐 [DEBUG] API Response successful`);
+
+    // Créer une Response simulée avec le HTML récupéré
+    return new Response(data.html, {
+      status: data.status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        ...data.headers,
+      },
+    });
   } catch (error) {
-    console.log(`🌐 [DEBUG] Fetch error:`, error);
+    console.log(`🌐 [DEBUG] API Fetch error:`, error);
     return null;
   }
 }
@@ -342,7 +350,7 @@ export async function authMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") ?? "";
 
-  // console.log(`🔍 [Middleware] ${request.method} ${pathname} (${hostname})`);
+  console.log(`🔍 [Middleware] ${request.method} ${pathname} (${hostname})`);
 
   // 1. Routes techniques - PASSAGE DIRECT
   if (isTechnicalRoute(pathname)) {
@@ -355,6 +363,9 @@ export async function authMiddleware(request: NextRequest) {
 
   // 3. Domaines personnalisés - PROXY TRANSPARENT (avec locale détectée)
   if (!isExcludedDomain(hostname)) {
+    console.log(
+      `🌐 [Middleware] Domaine personnalisé détecté: ${hostname} - Path: ${pathname} - Locale: ${detectedLocale}`,
+    );
     return handleCustomDomain(request, hostname, detectedLocale);
   }
 
