@@ -229,17 +229,25 @@ export function handleCustomDomainRedirect(
 ): NextResponse | null {
   const referer = request.headers.get("referer") ?? "";
 
-  if (hostname === MAIN_DOMAIN && referer.includes("la-plank-des-gones.com")) {
-    console.log(`🔄 [Middleware] Redirection détectée depuis ${referer} vers ${hostname}${pathname}`);
+  // Vérifier si le referer vient d'un domaine personnalisé
+  if (hostname === MAIN_DOMAIN && referer) {
+    try {
+      const refererUrl = new URL(referer);
+      const refererHostname = refererUrl.hostname;
 
-    const refererUrl = new URL(referer);
-    const customDomain = refererUrl.hostname;
+      // Si le referer n'est pas logones.fr et n'est pas un domaine exclu, c'est un domaine personnalisé
+      if (refererHostname !== MAIN_DOMAIN && !isExcludedDomain(refererHostname)) {
+        console.log(`🔄 [Middleware] Redirection détectée depuis ${referer} vers ${hostname}${pathname}`);
 
-    const cleanPath = pathname.replace(/^\/[a-z]{2}\/[^/]+\//, "/");
-    const redirectUrl = `https://${customDomain}${cleanPath}`;
+        const cleanPath = pathname.replace(/^\/[a-z]{2}\/[^/]+\//, "/");
+        const redirectUrl = `https://${refererHostname}${cleanPath}`;
 
-    console.log(`🔄 [Middleware] Redirection vers: ${redirectUrl}`);
-    return NextResponse.redirect(redirectUrl);
+        console.log(`🔄 [Middleware] Redirection vers: ${redirectUrl}`);
+        return NextResponse.redirect(redirectUrl);
+      }
+    } catch (error) {
+      console.error("Erreur lors du parsing du referer:", error);
+    }
   }
 
   return null;
