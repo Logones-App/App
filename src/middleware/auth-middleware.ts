@@ -1,217 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Configuration
-const DEFAULT_LOCALE = "fr";
-const SUPPORTED_LOCALES = ["fr", "en", "es"];
-const MAIN_DOMAIN = "logones.fr";
-
-// Routes techniques (passage direct)
-const TECHNICAL_ROUTES = ["/api", "/_next", "/favicon.ico", "/robots.txt", "/sitemap.xml"];
-
-// Routes publiques (pas d'authentification)
-const PUBLIC_ROUTES = [
-  "/",
-  "/auth/login",
-  "/auth/register",
-  "/auth/forgot-password",
-  "/auth/reset-password",
-  "/unauthorized",
-];
-
-// Domaines exclus (pas de redirection)
-const EXCLUDED_DOMAINS = ["localhost", "127.0.0.1", "0.0.0.0", MAIN_DOMAIN];
-
-/**
- * Vérifie si c'est une route technique
- */
-function isTechnicalRoute(pathname: string): boolean {
-  return TECHNICAL_ROUTES.some((route) => pathname.startsWith(route));
-}
-
-/**
- * Vérifie si c'est un domaine exclu
- */
-function isExcludedDomain(hostname: string): boolean {
-  const cleanHostname = hostname.split(":")[0];
-  return EXCLUDED_DOMAINS.some((domain) => cleanHostname === domain);
-}
-
-/**
- * Vérifie si c'est une route publique
- */
-function isPublicRoute(pathname: string): boolean {
-  const cleanPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
-  return PUBLIC_ROUTES.some((route) => cleanPath === route);
-}
-
-/**
- * Vérifie si c'est une route protégée
- */
-function isProtectedRoute(pathname: string): boolean {
-  return pathname.startsWith("/admin") || pathname.startsWith("/dashboard");
-}
-
-/**
- * Vérifie si c'est une route restaurant public
- */
-function isRestaurantPublicRoute(pathname: string): boolean {
-  const routeWithoutLocale = pathname.replace(/^\/[a-z]{2}\//, "/");
-
-  // ✅ CORRECTION : Sans slash final
-  if (
-    routeWithoutLocale.startsWith("/admin") || // "/admin" match
-    routeWithoutLocale.startsWith("/dashboard") || // "/dashboard" match
-    routeWithoutLocale.startsWith("/auth")
-  ) {
-    return false;
-  }
-
-  // Format : /[slug] ou /[slug]/[page]
-  return /^\/[^/]+$/.test(routeWithoutLocale) || /^\/[^/]+\//.test(routeWithoutLocale);
-}
-
-/**
- * Extrait la locale du pathname
- */
-function extractLocale(pathname: string): string {
-  const segments = pathname.split("/");
-  const potentialLocale = segments[1];
-
-  if (SUPPORTED_LOCALES.includes(potentialLocale)) {
-    return potentialLocale;
-  }
-
-  return DEFAULT_LOCALE;
-}
-
-/**
- * Gère la locale manquante
- */
-function handleLocale(request: NextRequest, pathname: string): NextResponse | null {
-  const hasLocale = SUPPORTED_LOCALES.some((locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`);
-
-  if (!hasLocale) {
-    const newUrl = new URL(`/${DEFAULT_LOCALE}${pathname}`, request.url);
-    return NextResponse.redirect(newUrl);
-  }
-
-  return null;
-}
-
-/**
- * Récupère les informations d'un domaine personnalisé
- */
-async function getDomainInfo(hostname: string): Promise<{ establishment: { slug: string } } | null> {
-  try {
-    const response = await fetch(`https://${MAIN_DOMAIN}/api/domains/${hostname}`, {
-      headers: {
-        Cookie: "",
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-
-    // L'API retourne establishment.slug ET domain.establishment_slug
-    const establishmentSlug = data.establishment?.slug ?? data.domain?.establishment_slug;
-
-    if (!establishmentSlug) {
-      return null;
-    }
-
-    return {
-      establishment: { slug: establishmentSlug },
-    };
-  } catch (error) {
-    console.error("Erreur lors de la récupération des infos du domaine:", error);
-    return null;
-  }
-}
-
-/**
- * Effectue le fetch proxy vers logones.fr
- */
-async function fetchProxyContent(targetUrl: string, request: NextRequest): Promise<Response | null> {
-  try {
-    console.log(`🌐 [DEBUG] Fetching: ${targetUrl}`);
-
-    // Fetch externe direct avec User-Agent spécifique pour éviter la boucle
-    const proxyResponse = await fetch(targetUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent": "CustomDomainProxy/1.0",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-        "X-Proxy-Request": "true", // Header pour identifier les requêtes proxy
-      },
-    });
-
-    console.log(`🌐 [DEBUG] Response status: ${proxyResponse.status}`);
-
-    if (!proxyResponse.ok) {
-      console.log(`🌐 [DEBUG] Response not ok: ${proxyResponse.status}`);
-      return null;
-    }
-
-    console.log(`🌐 [DEBUG] Fetch successful`);
-    return proxyResponse;
-  } catch (error) {
-    console.log(`🌐 [DEBUG] Fetch error:`, error);
-    return null;
-  }
-}
-
-/**
- * Modifie le HTML pour corriger les URLs (version simplifiée)
- */
-function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
-  let modifiedHtml = html;
-
-  // 1. Transformer les liens relatifs vers le domaine personnalisé (URLs propres)
-  const patterns = [
-    {
-      from: `href="/${locale}/${establishmentSlug}/`,
-      to: `href="https://${hostname}/`,
-    },
-    {
-      from: `src="/${locale}/${establishmentSlug}/`,
-      to: `src="https://${hostname}/`,
-    },
-    {
-      from: `href="/${locale}/${establishmentSlug}"`,
-      to: `href="https://${hostname}"`,
-    },
-    {
-      from: `src="/${locale}/${establishmentSlug}"`,
-      to: `src="https://${hostname}"`,
-    },
-    {
-      from: `href="/${locale}/`,
-      to: `href="https://${hostname}/`,
-    },
-    {
-      from: `src="/${locale}/`,
-      to: `src="https://${hostname}/`,
-    },
-  ];
-
-  // Appliquer les transformations
-  patterns.forEach((pattern) => {
-    modifiedHtml = modifiedHtml.split(pattern.from).join(pattern.to);
-  });
-
-  // 2. Corriger les actions de formulaires pour qu'elles pointent vers le hostname
-  modifiedHtml = modifiedHtml
-    .split('action="https://logones.fr')
-    .join(`action="https://${hostname}`)
-    .split('action="http://logones.fr')
-    .join(`action="https://${hostname}`);
-
-  return modifiedHtml;
-}
+import {
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+  MAIN_DOMAIN,
+  isTechnicalRoute,
+  isExcludedDomain,
+  isPublicRoute,
+  isProtectedRoute,
+  isRestaurantPublicRoute,
+  extractLocale,
+  handleLocale,
+  getDomainInfo,
+  fetchProxyContent,
+  modifyHtmlUrls,
+  getAuthorizedRoute,
+  handleCustomDomainRedirect,
+  shouldRedirectToCleanUrl,
+  buildCleanUrl,
+} from "./auth-middleware-utils";
 
 /**
  * Gère les domaines personnalisés avec proxy transparent
@@ -232,6 +39,14 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
     // Valider la locale
     const validLocale = SUPPORTED_LOCALES.includes(locale) ? locale : DEFAULT_LOCALE;
 
+    // 3. VÉRIFIER SI REDIRECTION NÉCESSAIRE (URL avec slug à nettoyer)
+    if (shouldRedirectToCleanUrl(pathname, validLocale, establishmentSlug)) {
+      const cleanUrl = buildCleanUrl(pathname, validLocale, establishmentSlug);
+      const redirectUrl = `https://${hostname}${cleanUrl}`;
+      console.log(`🔄 [Middleware] Redirection URL propre: ${pathname} → ${redirectUrl}`);
+      return NextResponse.redirect(redirectUrl);
+    }
+
     // Nettoyer le pathname en retirant la locale si présente
     let cleanPathname = pathname;
     if (SUPPORTED_LOCALES.some((loc) => pathname.startsWith(`/${loc}/`))) {
@@ -240,7 +55,8 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
       cleanPathname = "/";
     }
 
-    // 3. Construire l'URL cible avec la bonne locale
+    // 4. Construire l'URL cible avec la bonne locale
+    // Pour les domaines personnalisés, on ajoute le slug de l'établissement
     let targetPath = `/${validLocale}/${establishmentSlug}`;
 
     // Si ce n'est pas la racine, ajouter le chemin nettoyé
@@ -250,7 +66,7 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
 
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}`;
 
-    // 4. Faire le fetch proxy
+    // 5. Faire le fetch proxy
     const proxyResponse = await fetchProxyContent(targetUrl, request);
 
     if (!proxyResponse) {
@@ -279,11 +95,11 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
       });
     }
 
-    // 5. Modifier le HTML
+    // 6. Modifier le HTML
     const html = await proxyResponse.text();
     const modifiedHtml = modifyHtmlUrls(html, hostname, validLocale, establishmentSlug);
 
-    // 6. Retourner la réponse
+    // 7. Retourner la réponse
     return new NextResponse(modifiedHtml, {
       status: proxyResponse.status,
       headers: {
@@ -341,44 +157,6 @@ async function handleProtectedRoute(request: NextRequest, locale: string): Promi
     console.error("❌ [Middleware] Erreur auth:", error);
     return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
   }
-}
-
-/**
- * Détermine la route autorisée selon le rôle
- */
-function getAuthorizedRoute(userRole: string): string {
-  switch (userRole) {
-    case "system_admin":
-      return "/admin";
-    case "org_admin":
-      return "/dashboard";
-    default:
-      return "/auth/login";
-  }
-}
-
-/**
- * Gère les redirections depuis logones.fr vers domaines personnalisés
- */
-function handleCustomDomainRedirect(request: NextRequest, hostname: string, pathname: string): NextResponse | null {
-  const referer = request.headers.get("referer") ?? "";
-
-  if (hostname === MAIN_DOMAIN && referer.includes("la-plank-des-gones.com")) {
-    console.log(`🔄 [Middleware] Redirection détectée depuis ${referer} vers ${hostname}${pathname}`);
-
-    // Extraire le domaine personnalisé du referer
-    const refererUrl = new URL(referer);
-    const customDomain = refererUrl.hostname;
-
-    // Construire l'URL de redirection vers le domaine personnalisé
-    const cleanPath = pathname.replace(/^\/[a-z]{2}\/[^/]+\//, "/");
-    const redirectUrl = `https://${customDomain}${cleanPath}`;
-
-    console.log(`🔄 [Middleware] Redirection vers: ${redirectUrl}`);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  return null;
 }
 
 /**
