@@ -161,7 +161,7 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 /**
  * Modifie le HTML pour corriger les URLs
  */
-function modifyHtmlUrls(html: string, hostname: string): string {
+function modifyHtmlUrls(html: string, hostname: string, locale: string): string {
   // Échapper les caractères spéciaux pour éviter les RegExp non-littéraux
   const escapedMainDomain = MAIN_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // eslint-disable-next-line security/detect-non-literal-regexp
@@ -169,19 +169,22 @@ function modifyHtmlUrls(html: string, hostname: string): string {
   // eslint-disable-next-line security/detect-non-literal-regexp
   const httpPattern = new RegExp(`http://${escapedMainDomain}`, "g");
 
-  return html
-    .replace(httpsPattern, `https://${hostname}`)
-    .replace(httpPattern, `https://${hostname}`)
-    .replace(/href="\/fr\//g, `href="/`)
-    .replace(/src="\/fr\//g, `src="/`)
-    .replace(/action="https:\/\/logones\.fr/g, `action="https://${hostname}`)
-    .replace(/action="http:\/\/logones\.fr/g, `action="https://${hostname}`);
+  return (
+    html
+      .replace(httpsPattern, `https://${hostname}`)
+      .replace(httpPattern, `https://${hostname}`)
+      // Préserver la locale dans les URLs
+      .replace(new RegExp(`href="/${locale}/`, "g"), `href="/`)
+      .replace(new RegExp(`src="/${locale}/`, "g"), `src="/`)
+      .replace(/action="https:\/\/logones\.fr/g, `action="https://${hostname}`)
+      .replace(/action="http:\/\/logones\.fr/g, `action="https://${hostname}`)
+  );
 }
 
 /**
  * Gère les domaines personnalisés avec proxy transparent
  */
-async function handleCustomDomain(request: NextRequest, hostname: string): Promise<NextResponse> {
+async function handleCustomDomain(request: NextRequest, hostname: string, locale: string): Promise<NextResponse> {
   try {
     // 1. Récupérer les infos du domaine
     const domainData = await getDomainInfo(hostname);
@@ -190,16 +193,27 @@ async function handleCustomDomain(request: NextRequest, hostname: string): Promi
       return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
     }
 
-    // 2. Extraire le chemin demandé
+    // 2. Extraire le chemin demandé et valider la locale
     const pathname = request.nextUrl.pathname;
     const establishmentSlug = domainData.establishment.slug;
 
-    // 3. Construire l'URL cible
-    let targetPath = `/${DEFAULT_LOCALE}/${establishmentSlug}`;
+    // Valider la locale
+    const validLocale = SUPPORTED_LOCALES.includes(locale) ? locale : DEFAULT_LOCALE;
 
-    // Si ce n'est pas la racine, ajouter le chemin
-    if (pathname !== "/") {
-      targetPath += pathname;
+    // Nettoyer le pathname en retirant la locale si présente
+    let cleanPathname = pathname;
+    if (SUPPORTED_LOCALES.some((loc) => pathname.startsWith(`/${loc}/`))) {
+      cleanPathname = pathname.replace(/^\/[a-z]{2}\//, "/");
+    } else if (SUPPORTED_LOCALES.some((loc) => pathname === `/${loc}`)) {
+      cleanPathname = "/";
+    }
+
+    // 3. Construire l'URL cible avec la bonne locale
+    let targetPath = `/${validLocale}/${establishmentSlug}`;
+
+    // Si ce n'est pas la racine, ajouter le chemin nettoyé
+    if (cleanPathname !== "/") {
+      targetPath += cleanPathname;
     }
 
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}`;
@@ -213,7 +227,7 @@ async function handleCustomDomain(request: NextRequest, hostname: string): Promi
 
     // 5. Modifier le HTML
     const html = await proxyResponse.text();
-    const modifiedHtml = modifyHtmlUrls(html, hostname);
+    const modifiedHtml = modifyHtmlUrls(html, hostname, validLocale);
 
     // 6. Retourner la réponse
     return new NextResponse(modifiedHtml, {
@@ -304,42 +318,45 @@ export async function authMiddleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Locale manquante - AJOUT
+  // 2. Détection de locale (sans redirection)
+  const detectedLocale = extractLocale(pathname);
+
+  // 3. Domaines personnalisés - PROXY TRANSPARENT (avec locale détectée)
+  if (!isExcludedDomain(hostname)) {
+    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
+    return handleCustomDomain(request, hostname, detectedLocale);
+  }
+
+  // 4. Locale manquante - AJOUT (redirection)
   const localeRedirect = handleLocale(request, pathname);
   if (localeRedirect) {
     // console.log("🌍 [Middleware] Locale ajoutée");
     return localeRedirect;
   }
 
-  // 3. Extraction de la locale
+  // 5. Extraction de la locale (après redirection)
   const locale = extractLocale(pathname);
   const routeWithoutLocale = pathname.replace(`/${locale}`, "");
 
-  // 4. Routes publiques - PASSAGE DIRECT
+  // 6. Routes publiques - PASSAGE DIRECT
   if (isPublicRoute(routeWithoutLocale)) {
     // console.log("✅ [Middleware] Route publique - passage direct");
     return NextResponse.next();
   }
 
-  // 5. Routes restaurant public - PASSAGE DIRECT (AVANT les domaines personnalisés)
+  // 7. Routes restaurant public - PASSAGE DIRECT
   if (isRestaurantPublicRoute(pathname)) {
     // console.log("🍽️ [Middleware] Route restaurant public - passage direct");
     return NextResponse.next();
   }
 
-  // 6. Domaines personnalisés - PROXY TRANSPARENT (APRÈS les routes restaurant public)
-  if (!isExcludedDomain(hostname)) {
-    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
-    return handleCustomDomain(request, hostname);
-  }
-
-  // 7. Routes protégées - VÉRIFICATION AUTH + RÔLES
+  // 8. Routes protégées - VÉRIFICATION AUTH + RÔLES
   if (isProtectedRoute(routeWithoutLocale)) {
     // console.log("🔒 [Middleware] Route protégée - vérification auth");
     return handleProtectedRoute(request, locale);
   }
 
-  // 8. Route non reconnue - REDIRECTION LOGIN
+  // 9. Route non reconnue - REDIRECTION LOGIN
   // console.log("❌ [Middleware] Route non reconnue - redirection login");
   return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
 }
