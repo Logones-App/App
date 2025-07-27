@@ -227,7 +227,14 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string, establis
     .split(`http://${MAIN_DOMAIN}`)
     .join(`https://${hostname}`);
 
-  // 3. Corriger les actions de formulaires
+  // 3. Corriger les liens qui pointent vers le hostname au lieu de logones.fr
+  modifiedHtml = modifiedHtml
+    .split(`href="https://${hostname}/`)
+    .join(`href="https://${MAIN_DOMAIN}/`)
+    .split(`src="https://${hostname}/`)
+    .join(`src="https://${MAIN_DOMAIN}/`);
+
+  // 4. Corriger les actions de formulaires
   modifiedHtml = modifiedHtml
     .split('action="https://logones.fr')
     .join(`action="https://${hostname}`)
