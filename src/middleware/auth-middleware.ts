@@ -170,31 +170,31 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
   let modifiedHtml = html;
 
-  // 1. Transformer les liens relatifs vers logones.fr (pour que le middleware les intercepte)
+  // 1. Transformer les liens relatifs vers le domaine personnalisé (URLs propres)
   const patterns = [
     {
       from: `href="/${locale}/${establishmentSlug}/`,
-      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+      to: `href="https://${hostname}/`,
     },
     {
       from: `src="/${locale}/${establishmentSlug}/`,
-      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+      to: `src="https://${hostname}/`,
     },
     {
       from: `href="/${locale}/${establishmentSlug}"`,
-      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+      to: `href="https://${hostname}"`,
     },
     {
       from: `src="/${locale}/${establishmentSlug}"`,
-      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+      to: `src="https://${hostname}"`,
     },
     {
       from: `href="/${locale}/`,
-      to: `href="https://${MAIN_DOMAIN}/${locale}/`,
+      to: `href="https://${hostname}/`,
     },
     {
       from: `src="/${locale}/`,
-      to: `src="https://${MAIN_DOMAIN}/${locale}/`,
+      to: `src="https://${hostname}/`,
     },
   ];
 
