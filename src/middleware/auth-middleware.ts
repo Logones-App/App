@@ -165,7 +165,7 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 }
 
 /**
- * Modifie le HTML pour corriger les URLs
+ * Modifie le HTML pour corriger les URLs (Solution 2 : liens en dur vers logones.fr)
  */
 function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
   // Échapper les caractères spéciaux pour éviter les RegExp non-littéraux
@@ -177,16 +177,10 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string, establis
 
   return (
     html
-      .replace(httpsPattern, `https://${hostname}`)
-      .replace(httpPattern, `https://${hostname}`)
-      // Supprimer le slug de l'établissement des URLs relatives
-      .replace(new RegExp(`href="/${locale}/${establishmentSlug}/`, "g"), `href="/`)
-      .replace(new RegExp(`src="/${locale}/${establishmentSlug}/`, "g"), `src="/`)
-      .replace(new RegExp(`href="/${locale}/${establishmentSlug}"`, "g"), `href="/`)
-      .replace(new RegExp(`src="/${locale}/${establishmentSlug}"`, "g"), `src="/`)
-      // Préserver la locale dans les URLs (sans slug)
-      .replace(new RegExp(`href="/${locale}/`, "g"), `href="/`)
-      .replace(new RegExp(`src="/${locale}/`, "g"), `src="/`)
+      // ✅ SOLUTION 2 : Laisser les liens vers logones.fr (ils fonctionnent déjà)
+      // Pas de transformation des liens href/src vers logones.fr
+
+      // Seulement corriger les actions de formulaires si nécessaire
       .replace(/action="https:\/\/logones\.fr/g, `action="https://${hostname}`)
       .replace(/action="http:\/\/logones\.fr/g, `action="https://${hostname}`)
   );
