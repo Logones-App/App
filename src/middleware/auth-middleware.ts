@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Configuration
 const DEFAULT_LOCALE = "fr";
 const SUPPORTED_LOCALES = ["fr", "en", "es"];
-const MAIN_DOMAIN = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : "logones.fr";
+const MAIN_DOMAIN = "logones.fr";
 
 // Routes techniques (passage direct)
 const TECHNICAL_ROUTES = ["/api", "/_next", "/favicon.ico", "/robots.txt", "/sitemap.xml"];
