@@ -161,7 +161,7 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 /**
  * Modifie le HTML pour corriger les URLs
  */
-function modifyHtmlUrls(html: string, hostname: string, locale: string): string {
+function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
   // Échapper les caractères spéciaux pour éviter les RegExp non-littéraux
   const escapedMainDomain = MAIN_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // eslint-disable-next-line security/detect-non-literal-regexp
@@ -173,7 +173,12 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string): string 
     html
       .replace(httpsPattern, `https://${hostname}`)
       .replace(httpPattern, `https://${hostname}`)
-      // Préserver la locale dans les URLs
+      // Supprimer le slug de l'établissement des URLs relatives
+      .replace(new RegExp(`href="/${locale}/${establishmentSlug}/`, "g"), `href="/`)
+      .replace(new RegExp(`src="/${locale}/${establishmentSlug}/`, "g"), `src="/`)
+      .replace(new RegExp(`href="/${locale}/${establishmentSlug}"`, "g"), `href="/`)
+      .replace(new RegExp(`src="/${locale}/${establishmentSlug}"`, "g"), `src="/`)
+      // Préserver la locale dans les URLs (sans slug)
       .replace(new RegExp(`href="/${locale}/`, "g"), `href="/`)
       .replace(new RegExp(`src="/${locale}/`, "g"), `src="/`)
       .replace(/action="https:\/\/logones\.fr/g, `action="https://${hostname}`)
@@ -227,7 +232,7 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
 
     // 5. Modifier le HTML
     const html = await proxyResponse.text();
-    const modifiedHtml = modifyHtmlUrls(html, hostname, validLocale);
+    const modifiedHtml = modifyHtmlUrls(html, hostname, validLocale, establishmentSlug);
 
     // 6. Retourner la réponse
     return new NextResponse(modifiedHtml, {
