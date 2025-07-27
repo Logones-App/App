@@ -115,11 +115,16 @@ async function getDomainInfo(hostname: string): Promise<{ establishment: { slug:
 
     const data = await response.json();
 
-    if (!data.establishment?.slug) {
+    // L'API retourne establishment.slug ET domain.establishment_slug
+    const establishmentSlug = data.establishment?.slug ?? data.domain?.establishment_slug;
+
+    if (!establishmentSlug) {
       return null;
     }
 
-    return data;
+    return {
+      establishment: { slug: establishmentSlug },
+    };
   } catch (error) {
     console.error("Erreur lors de la récupération des infos du domaine:", error);
     return null;
