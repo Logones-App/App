@@ -222,11 +222,13 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
     }
 
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}`;
+    console.log(`🌐 [Proxy] URL cible: ${targetUrl}`);
 
     // 4. Faire le fetch proxy
     const proxyResponse = await fetchProxyContent(targetUrl, request);
 
     if (!proxyResponse) {
+      console.log(`🌐 [Proxy] Échec du fetch - redirection vers 404`);
       return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
     }
 
@@ -328,8 +330,10 @@ export async function authMiddleware(request: NextRequest) {
 
   // 3. Domaines personnalisés - PROXY TRANSPARENT (avec locale détectée)
   if (!isExcludedDomain(hostname)) {
-    // console.log("🌐 [Middleware] Domaine personnalisé détecté");
-    return handleCustomDomain(request, hostname, detectedLocale);
+    console.log(`🌐 [Middleware] Domaine personnalisé détecté: ${hostname} - Path: ${pathname}`);
+    // TEMPORAIRE: Redirection simple au lieu du proxy pour diagnostiquer
+    return NextResponse.redirect(new URL(`https://${MAIN_DOMAIN}/fr/la-plank-des-gones${pathname}`, request.url));
+    // return handleCustomDomain(request, hostname, detectedLocale);
   }
 
   // 4. Locale manquante - AJOUT (redirection)
