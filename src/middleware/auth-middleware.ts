@@ -196,6 +196,23 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string, establis
       from: `src="/${locale}/`,
       to: `src="https://${MAIN_DOMAIN}/${locale}/`,
     },
+    // Ajouter les liens relatifs simples qui pointent vers l'établissement
+    {
+      from: `href="/${establishmentSlug}/`,
+      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+    },
+    {
+      from: `src="/${establishmentSlug}/`,
+      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+    },
+    {
+      from: `href="/${establishmentSlug}"`,
+      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+    },
+    {
+      from: `src="/${establishmentSlug}"`,
+      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+    },
   ];
 
   // Appliquer les transformations
