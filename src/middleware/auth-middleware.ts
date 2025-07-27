@@ -358,6 +358,30 @@ function getAuthorizedRoute(userRole: string): string {
 }
 
 /**
+ * Gère les redirections depuis logones.fr vers domaines personnalisés
+ */
+function handleCustomDomainRedirect(request: NextRequest, hostname: string, pathname: string): NextResponse | null {
+  const referer = request.headers.get("referer") ?? "";
+
+  if (hostname === MAIN_DOMAIN && referer.includes("la-plank-des-gones.com")) {
+    console.log(`🔄 [Middleware] Redirection détectée depuis ${referer} vers ${hostname}${pathname}`);
+
+    // Extraire le domaine personnalisé du referer
+    const refererUrl = new URL(referer);
+    const customDomain = refererUrl.hostname;
+
+    // Construire l'URL de redirection vers le domaine personnalisé
+    const cleanPath = pathname.replace(/^\/[a-z]{2}\/[^/]+\//, "/");
+    const redirectUrl = `https://${customDomain}${cleanPath}`;
+
+    console.log(`🔄 [Middleware] Redirection vers: ${redirectUrl}`);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  return null;
+}
+
+/**
  * Middleware d'authentification principal - CORRIGÉ
  */
 export async function authMiddleware(request: NextRequest) {
@@ -387,6 +411,12 @@ export async function authMiddleware(request: NextRequest) {
       `🌐 [Middleware] Domaine personnalisé détecté: ${hostname} - Path: ${pathname} - Locale: ${detectedLocale}`,
     );
     return handleCustomDomain(request, hostname, detectedLocale);
+  }
+
+  // 4. Gestion des redirections depuis logones.fr vers domaines personnalisés
+  const customDomainRedirect = handleCustomDomainRedirect(request, hostname, pathname);
+  if (customDomainRedirect) {
+    return customDomainRedirect;
   }
 
   // 4. Locale manquante - AJOUT (redirection)
