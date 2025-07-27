@@ -165,12 +165,12 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 }
 
 /**
- * Modifie le HTML pour corriger les URLs
+ * Modifie le HTML pour corriger les URLs (version simplifiée)
  */
 function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
   let modifiedHtml = html;
 
-  // 1. Transformer les liens relatifs avec establishment slug vers logones.fr
+  // 1. Transformer les liens relatifs vers logones.fr (pour que le middleware les intercepte)
   const patterns = [
     {
       from: `href="/${locale}/${establishmentSlug}/`,
@@ -196,23 +196,6 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string, establis
       from: `src="/${locale}/`,
       to: `src="https://${MAIN_DOMAIN}/${locale}/`,
     },
-    // Ajouter les liens relatifs simples qui pointent vers l'établissement
-    {
-      from: `href="/${establishmentSlug}/`,
-      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
-    },
-    {
-      from: `src="/${establishmentSlug}/`,
-      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
-    },
-    {
-      from: `href="/${establishmentSlug}"`,
-      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
-    },
-    {
-      from: `src="/${establishmentSlug}"`,
-      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
-    },
   ];
 
   // Appliquer les transformations
@@ -220,21 +203,7 @@ function modifyHtmlUrls(html: string, hostname: string, locale: string, establis
     modifiedHtml = modifiedHtml.split(pattern.from).join(pattern.to);
   });
 
-  // 2. Remplacer les URLs absolues de logones.fr par le hostname
-  modifiedHtml = modifiedHtml
-    .split(`https://${MAIN_DOMAIN}`)
-    .join(`https://${hostname}`)
-    .split(`http://${MAIN_DOMAIN}`)
-    .join(`https://${hostname}`);
-
-  // 3. Corriger les liens qui pointent vers le hostname au lieu de logones.fr
-  modifiedHtml = modifiedHtml
-    .split(`href="https://${hostname}/`)
-    .join(`href="https://${MAIN_DOMAIN}/`)
-    .split(`src="https://${hostname}/`)
-    .join(`src="https://${MAIN_DOMAIN}/`);
-
-  // 4. Corriger les actions de formulaires
+  // 2. Corriger les actions de formulaires pour qu'elles pointent vers le hostname
   modifiedHtml = modifiedHtml
     .split('action="https://logones.fr')
     .join(`action="https://${hostname}`)
