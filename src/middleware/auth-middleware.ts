@@ -165,25 +165,59 @@ async function fetchProxyContent(targetUrl: string, request: NextRequest): Promi
 }
 
 /**
- * Modifie le HTML pour corriger les URLs (Solution 2 : liens en dur vers logones.fr)
+ * Modifie le HTML pour corriger les URLs
  */
 function modifyHtmlUrls(html: string, hostname: string, locale: string, establishmentSlug: string): string {
-  // Échapper les caractères spéciaux pour éviter les RegExp non-littéraux
-  const escapedMainDomain = MAIN_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // eslint-disable-next-line security/detect-non-literal-regexp
-  const httpsPattern = new RegExp(`https://${escapedMainDomain}`, "g");
-  // eslint-disable-next-line security/detect-non-literal-regexp
-  const httpPattern = new RegExp(`http://${escapedMainDomain}`, "g");
+  let modifiedHtml = html;
 
-  return (
-    html
-      // ✅ SOLUTION 2 : Laisser les liens vers logones.fr (ils fonctionnent déjà)
-      // Pas de transformation des liens href/src vers logones.fr
+  // 1. Transformer les liens relatifs avec establishment slug vers logones.fr
+  const patterns = [
+    {
+      from: `href="/${locale}/${establishmentSlug}/`,
+      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+    },
+    {
+      from: `src="/${locale}/${establishmentSlug}/`,
+      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}/`,
+    },
+    {
+      from: `href="/${locale}/${establishmentSlug}"`,
+      to: `href="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+    },
+    {
+      from: `src="/${locale}/${establishmentSlug}"`,
+      to: `src="https://${MAIN_DOMAIN}/${locale}/${establishmentSlug}"`,
+    },
+    {
+      from: `href="/${locale}/`,
+      to: `href="https://${MAIN_DOMAIN}/${locale}/`,
+    },
+    {
+      from: `src="/${locale}/`,
+      to: `src="https://${MAIN_DOMAIN}/${locale}/`,
+    },
+  ];
 
-      // Seulement corriger les actions de formulaires si nécessaire
-      .replace(/action="https:\/\/logones\.fr/g, `action="https://${hostname}`)
-      .replace(/action="http:\/\/logones\.fr/g, `action="https://${hostname}`)
-  );
+  // Appliquer les transformations
+  patterns.forEach((pattern) => {
+    modifiedHtml = modifiedHtml.split(pattern.from).join(pattern.to);
+  });
+
+  // 2. Remplacer les URLs absolues de logones.fr par le hostname
+  modifiedHtml = modifiedHtml
+    .split(`https://${MAIN_DOMAIN}`)
+    .join(`https://${hostname}`)
+    .split(`http://${MAIN_DOMAIN}`)
+    .join(`https://${hostname}`);
+
+  // 3. Corriger les actions de formulaires
+  modifiedHtml = modifiedHtml
+    .split('action="https://logones.fr')
+    .join(`action="https://${hostname}`)
+    .split('action="http://logones.fr')
+    .join(`action="https://${hostname}`);
+
+  return modifiedHtml;
 }
 
 /**
