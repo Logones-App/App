@@ -5,7 +5,11 @@ import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useBookingExceptionsCrud } from "@/hooks/use-booking-exceptions-crud";
+import {
+  useCreateBookingException,
+  useUpdateBookingException,
+  useDeleteBookingException,
+} from "@/hooks/use-booking-exceptions-crud";
 import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
@@ -228,7 +232,10 @@ export default function BookingExceptionsTestPage() {
     organizationId: organizationId || undefined,
   });
 
-  const { createException, updateException, deleteException } = useBookingExceptionsCrud();
+  // Mutations TanStack Query
+  const createExceptionMutation = useCreateBookingException();
+  const updateExceptionMutation = useUpdateBookingException();
+  const deleteExceptionMutation = useDeleteBookingException();
 
   useEffect(() => {
     const loadData = loadTestData(setEstablishmentId, setOrganizationId, setIsLoadingData);
@@ -241,37 +248,48 @@ export default function BookingExceptionsTestPage() {
       return;
     }
 
-    const newException = await createException({
-      establishment_id: establishmentId,
-      organization_id: organizationId,
-      exception_type: "single_day",
-      date: new Date().toISOString().split("T")[0],
-      reason: "Test exception - " + new Date().toLocaleTimeString(),
-    });
+    try {
+      const newException = await createExceptionMutation.mutateAsync({
+        establishment_id: establishmentId,
+        organization_id: organizationId,
+        exception_type: "single_day",
+        date: new Date().toISOString().split("T")[0],
+        reason: "Test exception - " + new Date().toLocaleTimeString(),
+      });
 
-    if (newException) {
-      setTestException(newException);
+      if (newException) {
+        setTestException(newException);
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors de la création de l'exception:", error);
     }
   };
 
   const updateTestException = async () => {
     if (!testException) return;
 
-    const updatedException = await updateException(testException.id, {
-      reason: "Exception modifiée - " + new Date().toLocaleTimeString(),
-    });
+    try {
+      const updatedException = await updateExceptionMutation.mutateAsync({
+        id: testException.id,
+        reason: "Exception modifiée - " + new Date().toLocaleTimeString(),
+      });
 
-    if (updatedException) {
-      setTestException(updatedException);
+      if (updatedException) {
+        setTestException(updatedException);
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors de la modification de l'exception:", error);
     }
   };
 
   const deleteTestException = async () => {
     if (!testException) return;
 
-    const success = await deleteException(testException.id);
-    if (success) {
+    try {
+      await deleteExceptionMutation.mutateAsync(testException.id);
       setTestException(null);
+    } catch (error) {
+      console.error("❌ Erreur lors de la suppression de l'exception:", error);
     }
   };
 

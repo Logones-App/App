@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
@@ -29,24 +29,13 @@ interface UpdateBookingExceptionData {
   closed_slots?: number[];
 }
 
-interface UseBookingExceptionsCrudReturn {
-  createException: (data: CreateBookingExceptionData) => Promise<BookingException | null>;
-  updateException: (id: string, data: UpdateBookingExceptionData) => Promise<BookingException | null>;
-  deleteException: (id: string) => Promise<boolean>;
-  isLoading: boolean;
-  error: Error | null;
-}
+// Mutation pour créer une exception
+export const useCreateBookingException = () => {
+  const queryClient = useQueryClient();
 
-export function useBookingExceptionsCrud(): UseBookingExceptionsCrudReturn {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const supabase = createClient();
-
-  const createException = async (data: CreateBookingExceptionData): Promise<BookingException | null> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  return useMutation({
+    mutationFn: async (data: CreateBookingExceptionData) => {
+      const supabase = createClient();
       const { data: newException, error } = await supabase
         .from("booking_exceptions")
         .insert({
@@ -60,24 +49,25 @@ export function useBookingExceptionsCrud(): UseBookingExceptionsCrudReturn {
 
       console.log("✅ Exception créée:", newException);
       return newException;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la création de l'exception";
-      console.error("❌ Erreur lors de la création de l'exception:", err);
-      setError(new Error(errorMessage));
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    onSuccess: (data) => {
+      // Invalider les queries liées aux exceptions
+      queryClient.invalidateQueries({ queryKey: ["booking-exceptions", data.establishment_id] });
+      queryClient.invalidateQueries({ queryKey: ["booking-exceptions"] });
+    },
+  });
+};
 
-  const updateException = async (id: string, data: UpdateBookingExceptionData): Promise<BookingException | null> => {
-    setIsLoading(true);
-    setError(null);
+// Mutation pour mettre à jour une exception
+export const useUpdateBookingException = () => {
+  const queryClient = useQueryClient();
 
-    try {
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & UpdateBookingExceptionData) => {
+      const supabase = createClient();
       const { data: updatedException, error } = await supabase
         .from("booking_exceptions")
-        .update(data)
+        .update(updates)
         .eq("id", id)
         .select()
         .single();
@@ -86,42 +76,32 @@ export function useBookingExceptionsCrud(): UseBookingExceptionsCrudReturn {
 
       console.log("✅ Exception modifiée:", updatedException);
       return updatedException;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la modification de l'exception";
-      console.error("❌ Erreur lors de la modification de l'exception:", err);
-      setError(new Error(errorMessage));
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    onSuccess: (data) => {
+      // Invalider les queries liées aux exceptions
+      queryClient.invalidateQueries({ queryKey: ["booking-exceptions", data.establishment_id] });
+      queryClient.invalidateQueries({ queryKey: ["booking-exceptions"] });
+    },
+  });
+};
 
-  const deleteException = async (id: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
+// Mutation pour supprimer une exception
+export const useDeleteBookingException = () => {
+  const queryClient = useQueryClient();
 
-    try {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createClient();
       const { error } = await supabase.from("booking_exceptions").delete().eq("id", id);
 
       if (error) throw error;
 
       console.log("✅ Exception supprimée");
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la suppression de l'exception";
-      console.error("❌ Erreur lors de la suppression de l'exception:", err);
-      setError(new Error(errorMessage));
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {
-    createException,
-    updateException,
-    deleteException,
-    isLoading,
-    error,
-  };
-}
+      return { id };
+    },
+    onSuccess: () => {
+      // Invalider les queries liées aux exceptions
+      queryClient.invalidateQueries({ queryKey: ["booking-exceptions"] });
+    },
+  });
+};
