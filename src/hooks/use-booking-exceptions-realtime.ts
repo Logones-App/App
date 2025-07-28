@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { createClient } from "@/lib/supabase/client";
+import { bookingExceptionsRealtime, type BookingExceptionEvent } from "@/lib/services/realtime/modules";
 import { Tables } from "@/lib/supabase/database.types";
 
 type BookingException = Tables<"booking_exceptions">;
 
 interface UseBookingExceptionsRealtimeProps {
-  establishmentId: string;
+  establishmentId?: string;
+  organizationId?: string;
   date?: Date;
 }
 
@@ -20,48 +21,61 @@ interface UseBookingExceptionsRealtimeReturn {
 }
 
 /**
- * Hook realtime optimisé pour les booking_exceptions
+ * Hook realtime modulaire pour les booking_exceptions
  * Suit le pattern modulaire de l'application
  */
 export function useBookingExceptionsRealtime({
   establishmentId,
+  organizationId,
   date,
 }: UseBookingExceptionsRealtimeProps): UseBookingExceptionsRealtimeReturn {
   const [exceptions, setExceptions] = useState<BookingException[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const supabase = createClient();
+  const queryClient = useQueryClient();
 
   // Fonction pour récupérer les exceptions initiales
   const fetchExceptions = async () => {
+    if (!establishmentId) {
+      setExceptions([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
-      let query = supabase
-        .from("booking_exceptions")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .eq("status", "active");
+      // Utiliser TanStack Query pour la récupération initiale
+      const data = await queryClient.fetchQuery({
+        queryKey: ["booking-exceptions", establishmentId, date?.toISOString().split("T")[0]],
+        queryFn: async () => {
+          const { createClient } = await import("@/lib/supabase/client");
+          const supabase = createClient();
 
-      // Si une date est spécifiée, filtrer par date
-      if (date) {
-        const dateStr = date.toISOString().split("T")[0];
-        query = query.or(`date.eq.${dateStr},and(start_date.lte.${dateStr},end_date.gte.${dateStr})`);
-      }
+          let query = supabase
+            .from("booking_exceptions")
+            .select("*")
+            .eq("establishment_id", establishmentId)
+            .eq("status", "active")
+            .eq("deleted", false);
 
-      const { data, error: fetchError } = await query;
+          // Si une date est spécifiée, filtrer par date
+          if (date) {
+            const dateStr = date.toISOString().split("T")[0];
+            query = query.or(`date.eq.${dateStr},and(start_date.lte.${dateStr},end_date.gte.${dateStr})`);
+          }
 
-      if (fetchError) {
-        throw new Error(`Erreur lors de la récupération des exceptions: ${fetchError.message}`);
-      }
-
-      // Filtrer les exceptions non supprimées
-      const activeExceptions = (data ?? []).filter((exception: BookingException) => {
-        return exception.deleted !== true;
+          const { data, error } = await query;
+          if (error) throw error;
+          return data ?? [];
+        },
       });
-      setExceptions(activeExceptions);
+
+      setExceptions(data ?? []);
     } catch (err) {
+      console.error("❌ Erreur dans useBookingExceptionsRealtime:", err);
       setError(err instanceof Error ? err : new Error("Erreur inconnue"));
     } finally {
       setIsLoading(false);
@@ -69,65 +83,48 @@ export function useBookingExceptionsRealtime({
   };
 
   useEffect(() => {
-    if (!establishmentId) {
-      setExceptions([]);
-      setIsLoading(false);
-      return;
-    }
+    // Pattern standard de l'application : condition complète sans cleanup
+    if (!establishmentId || !organizationId) return;
 
     // Récupération initiale
     fetchExceptions();
 
-    // Configuration du canal realtime
-    const channel = supabase
-      .channel("booking-exceptions-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "booking_exceptions",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<BookingException>) => {
-          handleExceptionChange(payload);
-        },
-      )
-      .subscribe((status: string) => {
-        if (status === "SUBSCRIBED") {
-          console.log("🔄 Booking exceptions realtime: Subscribed");
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ Booking exceptions realtime: Channel error");
-          setError(new Error("Erreur de connexion realtime"));
-        }
-      });
+    // Configuration du realtime modulaire
+    const unsubscribe = bookingExceptionsRealtime.subscribeToEstablishmentExceptions(
+      establishmentId,
+      organizationId,
+      (event: BookingExceptionEvent) => {
+        console.log("🔄 Booking exceptions realtime event received:", event);
+
+        setExceptions((prevExceptions) => {
+          switch (event.type) {
+            case "INSERT":
+              // Invalider le cache et rafraîchir
+              queryClient.invalidateQueries({ queryKey: ["booking-exceptions", establishmentId] });
+              return [...prevExceptions, event.data];
+
+            case "UPDATE":
+              // Invalider le cache et rafraîchir
+              queryClient.invalidateQueries({ queryKey: ["booking-exceptions", establishmentId] });
+              return prevExceptions.map((exception) => (exception.id === event.exceptionId ? event.data : exception));
+
+            case "DELETE":
+              // Invalider le cache et rafraîchir
+              queryClient.invalidateQueries({ queryKey: ["booking-exceptions", establishmentId] });
+              return prevExceptions.filter((exception) => exception.id !== event.exceptionId);
+
+            default:
+              return prevExceptions;
+          }
+        });
+      },
+    );
 
     // Cleanup
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
-  }, [establishmentId, date, fetchExceptions, supabase]);
-
-  // Fonction pour gérer les changements realtime
-  const handleExceptionChange = (payload: RealtimePostgresChangesPayload<BookingException>) => {
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-
-    setExceptions((prevExceptions) => {
-      switch (eventType) {
-        case "INSERT":
-          return [...prevExceptions, newRecord];
-
-        case "UPDATE":
-          return prevExceptions.map((exception) => (exception.id === newRecord.id ? newRecord : exception));
-
-        case "DELETE":
-          return prevExceptions.filter((exception) => exception.id !== oldRecord.id);
-
-        default:
-          return prevExceptions;
-      }
-    });
-  };
+  }, [establishmentId, organizationId, date, queryClient]);
 
   // Fonction pour rafraîchir manuellement
   const refresh = () => {
