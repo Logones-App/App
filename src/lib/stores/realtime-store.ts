@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-import { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "@/lib/services/realtimeService";
+import { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "@/lib/services/realtime-service";
 
 interface RealtimeState {
   // État de connexion
@@ -64,7 +64,7 @@ export const useRealtimeStore = create<RealtimeState>()(
             isConnected: true,
             connectionStatus: "connected",
           });
-        } catch (error) {
+        } catch {
           set({
             isConnected: false,
             connectionStatus: "error",

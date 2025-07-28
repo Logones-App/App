@@ -6,4 +6,4 @@ export { productsRealtime, type ProductsRealtimeEvent, type ProductWithStock } f
 export { bookingsRealtime, type BookingRealtimeEvent } from "./bookings-realtime";
 
 // Export du service principal
-export { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "../../realtimeService";
+export { realtimeService, type RealtimeMessage, type RealtimeSubscription } from "../../realtime-service";

@@ -1,6 +1,7 @@
 import React from "react";
 
 import { User, AlertCircle, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,14 +30,16 @@ interface BookingFormProps {
 
 // Composant pour le formulaire de réservation
 export function BookingForm({ formData, setFormData, error, submitting, onSubmit }: BookingFormProps) {
+  const t = useTranslations("Booking");
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="text-primary h-5 w-5" />
-          Vos informations
+          {t("confirm.form.title")}
         </CardTitle>
-        <CardDescription>Remplissez vos informations pour confirmer votre réservation</CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-6">
@@ -50,22 +53,22 @@ export function BookingForm({ formData, setFormData, error, submitting, onSubmit
           {/* Informations personnelles */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="firstName">Prénom *</Label>
+              <Label htmlFor="firstName">{t("first_name")} *</Label>
               <Input
                 id="firstName"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                placeholder="Votre prénom"
+                placeholder={t("first_name_placeholder")}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Nom *</Label>
+              <Label htmlFor="lastName">{t("last_name")} *</Label>
               <Input
                 id="lastName"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                placeholder="Votre nom"
+                placeholder={t("last_name_placeholder")}
                 required
               />
             </div>
@@ -74,24 +77,24 @@ export function BookingForm({ formData, setFormData, error, submitting, onSubmit
           {/* Contact */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">{t("email")} *</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="votre@email.com"
+                placeholder={t("email_placeholder")}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Téléphone *</Label>
+              <Label htmlFor="phone">{t("phone")} *</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="06 12 34 56 78"
+                placeholder={t("phone_placeholder")}
                 required
               />
             </div>
@@ -99,13 +102,13 @@ export function BookingForm({ formData, setFormData, error, submitting, onSubmit
 
           {/* Nombre de personnes */}
           <div className="space-y-2">
-            <Label htmlFor="numberOfGuests">Nombre de personnes *</Label>
+            <Label htmlFor="numberOfGuests">{t("number_of_guests")} *</Label>
             <Select
               value={formData.numberOfGuests.toString()}
               onValueChange={(value) => setFormData({ ...formData, numberOfGuests: parseInt(value) })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez le nombre de personnes" />
+                <SelectValue placeholder={t("number_of_guests_placeholder")} />
               </SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
@@ -119,12 +122,12 @@ export function BookingForm({ formData, setFormData, error, submitting, onSubmit
 
           {/* Demandes spéciales */}
           <div className="space-y-2">
-            <Label htmlFor="specialRequests">Demandes spéciales</Label>
+            <Label htmlFor="specialRequests">{t("special_requests")}</Label>
             <Textarea
               id="specialRequests"
               value={formData.specialRequests}
               onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })}
-              placeholder="Allergies, préférences alimentaires, demandes particulières..."
+              placeholder={t("special_requests_placeholder")}
               rows={3}
             />
           </div>
@@ -134,12 +137,12 @@ export function BookingForm({ formData, setFormData, error, submitting, onSubmit
             {submitting ? (
               <>
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Confirmation en cours...
+                {t("submitting")}
               </>
             ) : (
               <>
                 <Check className="mr-2 h-4 w-4" />
-                Confirmer ma réservation
+                {t("submit")}
               </>
             )}
           </Button>

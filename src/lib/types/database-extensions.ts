@@ -48,7 +48,7 @@ export type MenuWithProducts = Tables<"menus"> & {
  */
 export type SupabaseResponse<T> = {
   data: T | null;
-  error: any;
+  error: Record<string, unknown> | null;
   count?: number;
 };
 
@@ -114,7 +114,7 @@ export type UpdateMenuPayload = TablesUpdate<"menus">;
 /**
  * Événement realtime de base
  */
-export type RealtimeEvent<T = any> = {
+export type RealtimeEvent<T = Record<string, unknown>> = {
   type: "INSERT" | "UPDATE" | "DELETE";
   table: string;
   record: T;
@@ -125,7 +125,7 @@ export type RealtimeEvent<T = any> = {
 /**
  * Événement de changement de table
  */
-export type TableChangeEvent<T = any> = {
+export type TableChangeEvent<T = Record<string, unknown>> = {
   table: string;
   event: "INSERT" | "UPDATE" | "DELETE";
   record: T;
@@ -135,7 +135,7 @@ export type TableChangeEvent<T = any> = {
 /**
  * Message realtime
  */
-export type RealtimeMessage<T = any> = {
+export type RealtimeMessage<T = Record<string, unknown>> = {
   type: "notification" | "user_action" | "table_change";
   payload: T;
   timestamp: string;

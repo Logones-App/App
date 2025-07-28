@@ -15,6 +15,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 
+// Import des composants extraits
+import { EstablishmentInfo } from "./_components/establishment-info";
+import { LoadingState, ErrorState } from "./_components/loading-states";
+
 type Value = Date | undefined;
 
 interface BookingPageProps {
@@ -84,7 +88,7 @@ async function getEstablishmentBySlug(slug: string): Promise<Establishment | nul
 
 export default function BookingPage({ params }: BookingPageProps) {
   const router = useRouter();
-  const t = useTranslations();
+  const t = useTranslations("Booking");
   const [selectedDate, setSelectedDate] = useState<Value>(new Date());
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,29 +145,12 @@ export default function BookingPage({ params }: BookingPageProps) {
 
   // Afficher un loader pendant le chargement
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="border-primary mx-auto h-32 w-32 animate-spin rounded-full border-b-2"></div>
-          <p className="text-muted-foreground mt-4">{t("page.loading")}</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   // Afficher une erreur si l'établissement n'est pas trouvé
   if (!establishment) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <h1 className="text-destructive mb-4 text-2xl font-bold">{t("page.not_found.title")}</h1>
-          <p className="text-muted-foreground mb-4">{t("page.not_found.description")}</p>
-          <Link href="/">
-            <Button>{t("page.not_found.back_home")}</Button>
-          </Link>
-        </div>
-      </div>
-    );
+    return <ErrorState />;
   }
 
   return (
@@ -195,45 +182,7 @@ export default function BookingPage({ params }: BookingPageProps) {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Informations de l'établissement */}
           <div className="lg:col-span-1">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="text-primary h-5 w-5" />
-                  {establishment.name}
-                </CardTitle>
-                <CardDescription>{establishment.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4" />
-                  <span>{establishment.address}</span>
-                </div>
-                {establishment.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone className="h-4 w-4" />
-                    <span>{establishment.phone}</span>
-                  </div>
-                )}
-                {establishment.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="h-4 w-4" />
-                    <span>{establishment.email}</span>
-                  </div>
-                )}
-                {establishment.website && (
-                  <div className="pt-2">
-                    <a
-                      href={establishment.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary text-sm hover:underline"
-                    >
-                      {t("page.establishment_info.visit_website")}
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <EstablishmentInfo establishment={establishment} />
           </div>
 
           {/* Calendrier de réservation */}

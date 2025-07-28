@@ -7,7 +7,7 @@ export interface RealtimeMessage {
   type: "notification" | "data_update" | "user_action" | "system";
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   timestamp: string;
   user_id?: string;
   organization_id?: string;
@@ -36,7 +36,7 @@ class RealtimeService {
     filter?: string,
     onMessage?: (message: RealtimeMessage) => void,
   ): string {
-    const subscriptionId = `${table}_${event}_${filter || "all"}`;
+    const subscriptionId = `${table}_${event}_${filter ?? "all"}`;
 
     console.log(`🔔 Tentative d'abonnement à la table ${table} (${event})...`);
 
@@ -55,7 +55,7 @@ class RealtimeService {
           table: table,
           filter: filter,
         },
-        (payload: any) => {
+        (payload: Record<string, unknown>) => {
           console.log(`📡 Événement reçu pour ${table}:`, payload);
 
           const message: RealtimeMessage = {
@@ -65,8 +65,8 @@ class RealtimeService {
             message: `${event} sur ${table}`,
             data: payload,
             timestamp: new Date().toISOString(),
-            user_id: payload.new?.user_id || payload.old?.user_id,
-            organization_id: payload.new?.organization_id || payload.old?.organization_id,
+            user_id: this.extractUserId(payload),
+            organization_id: this.extractOrganizationId(payload),
           };
 
           this.handleMessage(message);
@@ -98,7 +98,7 @@ class RealtimeService {
     organizationId?: string,
     onMessage?: (message: RealtimeMessage) => void,
   ): string {
-    const subscriptionId = `notifications_${userId || "all"}_${organizationId || "all"}`;
+    const subscriptionId = `notifications_${userId ?? "all"}_${organizationId ?? "all"}`;
 
     if (this.subscriptions.has(subscriptionId)) {
       return subscriptionId;
@@ -115,8 +115,8 @@ class RealtimeService {
           const message: RealtimeMessage = {
             id: `${Date.now()}_${Math.random()}`,
             type: "notification",
-            title: payload.title || "Nouvelle notification",
-            message: payload.message || "",
+            title: payload.title ?? "Nouvelle notification",
+            message: payload.message ?? "",
             data: payload.data,
             timestamp: new Date().toISOString(),
             user_id: payload.user_id,
@@ -150,7 +150,7 @@ class RealtimeService {
    * S'abonner aux actions utilisateur
    */
   subscribeToUserActions(userId?: string, onMessage?: (message: RealtimeMessage) => void): string {
-    const subscriptionId = `user_actions_${userId || "all"}`;
+    const subscriptionId = `user_actions_${userId ?? "all"}`;
 
     if (this.subscriptions.has(subscriptionId)) {
       return subscriptionId;
@@ -167,8 +167,8 @@ class RealtimeService {
           const message: RealtimeMessage = {
             id: `${Date.now()}_${Math.random()}`,
             type: "user_action",
-            title: payload.title || "Action utilisateur",
-            message: payload.message || "",
+            title: payload.title ?? "Action utilisateur",
+            message: payload.message ?? "",
             data: payload.data,
             timestamp: new Date().toISOString(),
             user_id: payload.user_id,
@@ -199,7 +199,7 @@ class RealtimeService {
   async sendNotification(
     title: string,
     message: string,
-    data?: any,
+    data?: Record<string, unknown>,
     userId?: string,
     organizationId?: string,
   ): Promise<void> {
@@ -222,7 +222,7 @@ class RealtimeService {
   /**
    * Envoyer une action utilisateur
    */
-  async sendUserAction(title: string, message: string, data?: any, userId?: string): Promise<void> {
+  async sendUserAction(title: string, message: string, data?: Record<string, unknown>, userId?: string): Promise<void> {
     const channel = this.supabase.channel("user_actions");
 
     await channel.send({
@@ -298,6 +298,38 @@ class RealtimeService {
    */
   isSubscribed(subscriptionId: string): boolean {
     return this.subscriptions.has(subscriptionId);
+  }
+
+  /**
+   * Extrait l'ID utilisateur du payload
+   */
+  private extractUserId(payload: Record<string, unknown>): string | undefined {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+
+    if (typeof newData?.user_id === "string") {
+      return newData.user_id;
+    }
+    if (typeof oldData?.user_id === "string") {
+      return oldData.user_id;
+    }
+    return undefined;
+  }
+
+  /**
+   * Extrait l'ID organisation du payload
+   */
+  private extractOrganizationId(payload: Record<string, unknown>): string | undefined {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+
+    if (typeof newData?.organization_id === "string") {
+      return newData.organization_id;
+    }
+    if (typeof oldData?.organization_id === "string") {
+      return oldData.organization_id;
+    }
+    return undefined;
   }
 }
 

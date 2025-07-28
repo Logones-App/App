@@ -67,7 +67,7 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}`;
 
     // 5. Faire le fetch proxy
-    const proxyResponse = await fetchProxyContent(targetUrl, request);
+    const proxyResponse = await fetchProxyContent(targetUrl);
 
     if (!proxyResponse) {
       // Retourner directement une page 404 au lieu de rediriger
@@ -130,10 +130,8 @@ async function handleProtectedRoute(request: NextRequest, locale: string): Promi
     }
 
     const roleData = await response.json();
-    // console.log(`🔍 [Middleware] Rôle détecté: ${roleData.role}`);
 
     if (!roleData.role) {
-      // console.log("❌ [Middleware] Aucun rôle détecté");
       return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
     }
 
@@ -141,17 +139,12 @@ async function handleProtectedRoute(request: NextRequest, locale: string): Promi
     const authorizedRoute = getAuthorizedRoute(roleData.role);
     const currentPath = request.nextUrl.pathname.replace(`/${locale}`, "");
 
-    // console.log(`🔍 [Middleware] Route autorisée pour ${roleData.role}: ${authorizedRoute}`);
-    // console.log(`🔍 [Middleware] Chemin actuel: ${currentPath}`);
-
     // Vérifier si l'utilisateur accède à sa route autorisée
     if (currentPath.startsWith(authorizedRoute)) {
-      // console.log("✅ [Middleware] Accès autorisé");
       return NextResponse.next();
     }
 
     // Rediriger vers la route autorisée
-    // console.log(`🔄 [Middleware] Redirection vers: /${locale}${authorizedRoute}`);
     return NextResponse.redirect(new URL(`/${locale}${authorizedRoute}`, request.url));
   } catch (error) {
     console.error("❌ [Middleware] Erreur auth:", error);
@@ -176,7 +169,6 @@ export async function authMiddleware(request: NextRequest) {
 
   // 1. Routes techniques - PASSAGE DIRECT
   if (isTechnicalRoute(pathname)) {
-    // console.log("✅ [Middleware] Route technique - passage direct");
     return NextResponse.next();
   }
 
@@ -200,7 +192,6 @@ export async function authMiddleware(request: NextRequest) {
   // 4. Locale manquante - AJOUT (redirection)
   const localeRedirect = handleLocale(request, pathname);
   if (localeRedirect) {
-    // console.log("🌍 [Middleware] Locale ajoutée");
     return localeRedirect;
   }
 
@@ -210,23 +201,19 @@ export async function authMiddleware(request: NextRequest) {
 
   // 6. Routes publiques - PASSAGE DIRECT
   if (isPublicRoute(routeWithoutLocale)) {
-    // console.log("✅ [Middleware] Route publique - passage direct");
     return NextResponse.next();
   }
 
   // 7. Routes restaurant public - PASSAGE DIRECT
   if (isRestaurantPublicRoute(pathname)) {
-    // console.log("🍽️ [Middleware] Route restaurant public - passage direct");
     return NextResponse.next();
   }
 
   // 8. Routes protégées - VÉRIFICATION AUTH + RÔLES
   if (isProtectedRoute(routeWithoutLocale)) {
-    // console.log("🔒 [Middleware] Route protégée - vérification auth");
     return handleProtectedRoute(request, locale);
   }
 
   // 9. Route non reconnue - REDIRECTION LOGIN
-  // console.log("❌ [Middleware] Route non reconnue - redirection login");
   return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
 }

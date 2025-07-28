@@ -49,14 +49,14 @@ export type AppMetadata = {
 export type ApiError = {
   message: string;
   code?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   hint?: string;
 };
 
 /**
  * Type pour les réponses d'API
  */
-export type ApiResponse<T = any> = {
+export type ApiResponse<T = Record<string, unknown>> = {
   data?: T;
   error?: ApiError;
   success: boolean;
@@ -76,7 +76,11 @@ export type QueryOptions = {
 /**
  * Type pour les options de mutation
  */
-export type MutationOptions<TData = any, TError = any, TVariables = any> = {
+export type MutationOptions<
+  TData = Record<string, unknown>,
+  TError = Record<string, unknown>,
+  TVariables = Record<string, unknown>,
+> = {
   onSuccess?: (data: TData, variables: TVariables) => void;
   onError?: (error: TError, variables: TVariables) => void;
   onSettled?: (data: TData | undefined, error: TError | null, variables: TVariables) => void;
@@ -123,17 +127,20 @@ export type ComponentWithDataProps<T> = ComponentWithLoadingProps & {
 /**
  * Type pour les gestionnaires d'événements
  */
-export type EventHandler<T = any> = (event: T) => void;
+export type EventHandler<T = Record<string, unknown>> = (event: T) => void;
 
 /**
  * Type pour les gestionnaires d'événements avec paramètres
  */
-export type EventHandlerWithParams<T = any, P = any> = (event: T, params: P) => void;
+export type EventHandlerWithParams<T = Record<string, unknown>, P = Record<string, unknown>> = (
+  event: T,
+  params: P,
+) => void;
 
 /**
  * Type pour les gestionnaires d'événements asynchrones
  */
-export type AsyncEventHandler<T = any> = (event: T) => Promise<void>;
+export type AsyncEventHandler<T = Record<string, unknown>> = (event: T) => Promise<void>;
 
 // ============================================================================
 // TYPES POUR LES UTILITAIRES

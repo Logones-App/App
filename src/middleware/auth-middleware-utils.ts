@@ -112,7 +112,9 @@ export async function getDomainInfo(hostname: string): Promise<{ establishment: 
     }
 
     const data = await response.json();
-    const establishmentSlug = data.establishment?.slug ?? data.domain?.establishment_slug;
+    const establishmentSlug =
+      (((data as Record<string, unknown>).establishment as Record<string, unknown>)?.slug as string) ??
+      (((data as Record<string, unknown>).domain as Record<string, unknown>)?.establishment_slug as string);
 
     if (!establishmentSlug) {
       return null;
@@ -130,7 +132,7 @@ export async function getDomainInfo(hostname: string): Promise<{ establishment: 
 /**
  * Effectue le fetch proxy vers logones.fr
  */
-export async function fetchProxyContent(targetUrl: string, request: NextRequest): Promise<Response | null> {
+export async function fetchProxyContent(targetUrl: string): Promise<Response | null> {
   try {
     console.log(`🌐 [DEBUG] Fetching: ${targetUrl}`);
 

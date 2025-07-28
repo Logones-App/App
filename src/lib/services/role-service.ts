@@ -6,7 +6,7 @@ export class RoleService {
   private static supabase = createClient();
 
   static async isSystemAdmin(user: User): Promise<boolean> {
-    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
     return systemRole === "system_admin";
   }
 
@@ -24,7 +24,7 @@ export class RoleService {
         return false;
       }
 
-      return !!data;
+      return Boolean(data);
     } catch (error) {
       console.error("Erreur lors de la vérification org_admin:", error);
       return false;
@@ -33,7 +33,7 @@ export class RoleService {
 
   static async getUserRole(user: User): Promise<"system_admin" | "org_admin" | null> {
     // Vérifier d'abord system_admin via métadonnées
-    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
 
     if (systemRole === "system_admin") {
       return "system_admin";
@@ -64,7 +64,7 @@ export class RoleService {
     try {
       if (role === "system_admin") {
         // Pour system_admin, mettre à jour les métadonnées
-        const { data, error } = await this.supabase.auth.admin.updateUserById(userId, {
+        const { error } = await this.supabase.auth.admin.updateUserById(userId, {
           app_metadata: { role: "system_admin" },
           user_metadata: { role: "system_admin" },
         });

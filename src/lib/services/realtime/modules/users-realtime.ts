@@ -2,7 +2,7 @@ import { toast } from "sonner";
 
 import type { Database } from "@/lib/supabase/database.types";
 
-import { realtimeService, type RealtimeMessage } from "../../realtimeService";
+import { realtimeService, type RealtimeMessage } from "../../realtime-service";
 
 // Types Supabase
 type User = Database["public"]["Tables"]["users"]["Row"];
@@ -25,14 +25,13 @@ export class UsersRealtimeModule {
     const subscriptionId = realtimeService.subscribeToTable("users", "*", undefined, (message: RealtimeMessage) => {
       if (message.type === "data_update") {
         const payload = message.data;
-        const event: UserRealtimeEvent = {
-          type: this.getEventType(payload.eventType),
-          userId: payload.new?.id || payload.old?.id,
-          data: payload.new || payload.old,
-          organizationId: payload.new?.organization_id || payload.old?.organization_id,
-          timestamp: new Date().toISOString(),
-        };
 
+        if (!payload) {
+          console.warn("⚠️ Payload undefined pour l'événement utilisateur");
+          return;
+        }
+
+        const event = this.createUserEvent(payload);
         this.handleUserEvent(event);
         onEvent?.(event);
       }
@@ -53,14 +52,13 @@ export class UsersRealtimeModule {
       (message: RealtimeMessage) => {
         if (message.type === "data_update") {
           const payload = message.data;
-          const event: UserRealtimeEvent = {
-            type: "role_changed",
-            userId: payload.new?.user_id || payload.old?.user_id,
-            data: null, // Pas de données utilisateur directes ici
-            organizationId: payload.new?.organization_id || payload.old?.organization_id,
-            timestamp: new Date().toISOString(),
-          };
 
+          if (!payload) {
+            console.warn("⚠️ Payload undefined pour l'événement rôle utilisateur");
+            return;
+          }
+
+          const event = this.createUserRoleEvent(payload);
           this.handleUserEvent(event);
           onEvent?.(event);
         }
@@ -98,7 +96,7 @@ export class UsersRealtimeModule {
       `L'utilisateur ${userData.email} s'est connecté`,
       { userId, userData, type: "login" },
       undefined,
-      userData.organization_id || undefined,
+      userData.organization_id ?? undefined,
     );
   }
 
@@ -111,8 +109,40 @@ export class UsersRealtimeModule {
       `L'utilisateur ${userData.email} s'est déconnecté`,
       { userId, userData, type: "logout" },
       undefined,
-      userData.organization_id || undefined,
+      userData.organization_id ?? undefined,
     );
+  }
+
+  /**
+   * Créer un événement utilisateur à partir du payload
+   */
+  private createUserEvent(payload: Record<string, unknown>): UserRealtimeEvent {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+
+    return {
+      type: this.getEventType(payload.eventType as string),
+      userId: (newData?.id as string) ?? (oldData?.id as string),
+      data: (newData as User | null) ?? (oldData as User | null),
+      organizationId: (newData?.organization_id as string) ?? (oldData?.organization_id as string),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Créer un événement de rôle utilisateur à partir du payload
+   */
+  private createUserRoleEvent(payload: Record<string, unknown>): UserRealtimeEvent {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+
+    return {
+      type: "role_changed",
+      userId: (newData?.user_id as string) ?? (oldData?.user_id as string),
+      data: null, // Pas de données utilisateur directes ici
+      organizationId: (newData?.organization_id as string) ?? (oldData?.organization_id as string),
+      timestamp: new Date().toISOString(),
+    };
   }
 
   /**

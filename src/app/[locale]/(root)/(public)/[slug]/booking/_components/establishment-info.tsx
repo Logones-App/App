@@ -1,4 +1,5 @@
 import { MapPin, Phone, Mail } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tables } from "@/lib/supabase/database.types";
@@ -7,6 +8,8 @@ type Establishment = Tables<"establishments">;
 
 // Composant pour les informations de l'établissement
 export function EstablishmentInfo({ establishment }: { establishment: Establishment }) {
+  const t = useTranslations("Booking");
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -41,7 +44,7 @@ export function EstablishmentInfo({ establishment }: { establishment: Establishm
               rel="noopener noreferrer"
               className="text-primary text-sm hover:underline"
             >
-              Visiter le site web
+              {t("page.establishment_info.visit_website")}
             </a>
           </div>
         )}

@@ -42,8 +42,3 @@ export const getSidebarItemsByRole = (role?: string, locale?: string): NavGroup[
 
 // Export par défaut pour compatibilité
 export const sidebarItems = getDefaultSidebarItems();
-
-// Ré-export des fonctions pour faciliter l'import
-export { getSystemAdminSidebarItems } from "./system-admin-items";
-export { getOrgAdminSidebarItems } from "./org-admin-items";
-export { getDefaultSidebarItems } from "./default-items";

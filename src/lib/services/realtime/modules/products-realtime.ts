@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Tables } from '@/lib/supabase/database.types';
-import { realtimeService, type RealtimeSubscription } from '../../realtimeService';
+import type { Tables } from "@/lib/supabase/database.types";
+
+import { realtimeService, type RealtimeSubscription } from "../../realtime-service";
 
 export type ProductStock = Tables<"product_stocks">;
 export type Product = Tables<"products">;

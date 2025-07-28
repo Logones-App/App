@@ -70,12 +70,12 @@ function checkServiceException(exception: any, slot: BookingSlot, date: string):
 }
 
 // Fonction pour vérifier une exception de type "time_slots"
+// Cette fonction n'est plus utilisée car la logique est maintenant dans processSlot
 function checkTimeSlotsException(exception: any, slot: BookingSlot): boolean {
   if (exception.booking_slot_id === slot.id) {
-    const slotTime = slot.start_time;
     const closedSlots = exception.closed_slots ?? [];
-    const slotIndex = timeToSlot(slotTime);
-    return closedSlots.includes(slotIndex);
+    // Pour les time_slots, on vérifie si le slot contient des créneaux fermés
+    return closedSlots.length > 0;
   }
   return false;
 }
@@ -143,13 +143,52 @@ function filterSlotsByDay(slots: BookingSlot[], date: string): BookingSlot[] {
   return slots.filter((slot) => slot.day_of_week === dayOfWeek);
 }
 
+// Fonction pour vérifier une exception de type "time_slots"
+function checkTimeSlotException(exception: any, timeSlot: TimeSlot, slot: BookingSlot): boolean {
+  if (exception.booking_slot_id === slot.id) {
+    const closedSlots = exception.closed_slots ?? [];
+    const slotIndex = timeToSlot(timeSlot.time);
+    return closedSlots.includes(slotIndex);
+  }
+  return false;
+}
+
+// Fonction pour vérifier si un créneau spécifique est fermé par une exception
+function isTimeSlotClosedByException(timeSlot: TimeSlot, slot: BookingSlot, exceptions: any[], date: string): boolean {
+  for (const exception of exceptions) {
+    switch (exception.exception_type) {
+      case "period":
+        if (checkPeriodException(exception, date)) {
+          return true;
+        }
+        break;
+      case "single_day":
+        if (checkSingleDayException(exception, date)) {
+          return true;
+        }
+        break;
+      case "service":
+        if (checkServiceException(exception, slot, date)) {
+          return true;
+        }
+        break;
+      case "time_slots":
+        if (checkTimeSlotException(exception, timeSlot, slot)) {
+          return true;
+        }
+        break;
+    }
+  }
+  return false;
+}
+
 // Fonction pour traiter un slot et ses créneaux
 function processSlot(slot: BookingSlot, exceptions: any[], date: string): TimeSlot[] {
   const timeSlots = generateSlotsFromDatabase(slot);
 
   // Vérifier les exceptions pour chaque créneau
   timeSlots.forEach((timeSlot) => {
-    const isClosed = checkSlotException(slot, exceptions, date);
+    const isClosed = isTimeSlotClosedByException(timeSlot, slot, exceptions, date);
     timeSlot.isAvailable = !isClosed;
   });
 

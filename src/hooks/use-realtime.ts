@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from "react";
 
 import { useUserMetadata } from "@/hooks/use-user-metadata";
-import { realtimeService, type RealtimeMessage } from "@/lib/services/realtimeService";
+import { realtimeService, type RealtimeMessage } from "@/lib/services/realtime-service";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useRealtimeStore } from "@/lib/stores/realtime-store";
 

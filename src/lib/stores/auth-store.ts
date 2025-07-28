@@ -8,12 +8,12 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   userRole?: string | null;
-  currentOrganization?: any | null;
+  currentOrganization?: Record<string, unknown> | null;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
   setUserRole: (role: string | null) => void;
-  setCurrentOrganization: (organization: any | null) => void;
+  setCurrentOrganization: (organization: Record<string, unknown> | null) => void;
   logout: () => Promise<void>;
   reset: () => void;
 }
@@ -35,7 +35,8 @@ export const useAuthStore = create<AuthState>()(
       setSession: (session: Session | null) => set({ session }),
       setLoading: (loading: boolean) => set({ isLoading: loading }),
       setUserRole: (role: string | null) => set({ userRole: role }),
-      setCurrentOrganization: (organization: any | null) => set({ currentOrganization: organization }),
+      setCurrentOrganization: (organization: Record<string, unknown> | null) =>
+        set({ currentOrganization: organization }),
       logout: async () => {
         try {
           // Nettoyer l'état local seulement

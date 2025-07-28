@@ -20,6 +20,7 @@ import {
   Phone,
   User,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ interface BookingPageProps {
 export default function BookingSuccessPage({ params }: BookingPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("Booking.success");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);

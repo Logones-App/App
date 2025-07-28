@@ -2,7 +2,7 @@ import { toast } from "sonner";
 
 import type { Database } from "@/lib/supabase/database.types";
 
-import { realtimeService, type RealtimeMessage } from "../../realtimeService";
+import { realtimeService, type RealtimeMessage } from "../../realtime-service";
 
 // Types Supabase
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
@@ -36,14 +36,12 @@ export class OrganizationsRealtimeModule {
           const payload = message.data;
           console.log("📊 Payload organisation:", payload);
 
-          const event: OrganizationRealtimeEvent = {
-            type: this.getEventType(payload.eventType),
-            organizationId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old,
-            userId: payload.new?.user_id || payload.old?.user_id,
-            timestamp: new Date().toISOString(),
-          };
+          if (!payload) {
+            console.warn("⚠️ Payload undefined pour l'événement organisation");
+            return;
+          }
 
+          const event = this.createOrganizationEvent(payload);
           console.log("🎯 Événement organisation créé:", event);
           this.handleOrganizationEvent(event);
           onEvent?.(event);
@@ -67,14 +65,13 @@ export class OrganizationsRealtimeModule {
       (message: RealtimeMessage) => {
         if (message.type === "data_update") {
           const payload = message.data;
-          const event: OrganizationRealtimeEvent = {
-            type: payload.eventType === "INSERT" ? "user_added" : "user_removed",
-            organizationId,
-            data: payload.new || payload.old,
-            userId: payload.new?.user_id || payload.old?.user_id,
-            timestamp: new Date().toISOString(),
-          };
 
+          if (!payload) {
+            console.warn("⚠️ Payload undefined pour l'événement utilisateur organisation");
+            return;
+          }
+
+          const event = this.createUserOrganizationEvent(payload, organizationId);
           this.handleOrganizationEvent(event);
           onEvent?.(event);
         }
@@ -106,6 +103,42 @@ export class OrganizationsRealtimeModule {
       `Action effectuée sur l'organisation ${organizationId}`,
       { action, organizationId, ...data },
     );
+  }
+
+  /**
+   * Créer un événement d'organisation à partir du payload
+   */
+  private createOrganizationEvent(payload: Record<string, unknown>): OrganizationRealtimeEvent {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+
+    return {
+      type: this.getEventType(payload.eventType as string),
+      organizationId: (newData?.id as string) ?? (oldData?.id as string),
+      data: (newData as Organization | UserOrganization | null) ?? (oldData as Organization | UserOrganization | null),
+      userId: (newData?.user_id as string) ?? (oldData?.user_id as string),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Créer un événement utilisateur d'organisation à partir du payload
+   */
+  private createUserOrganizationEvent(
+    payload: Record<string, unknown>,
+    organizationId: string,
+  ): OrganizationRealtimeEvent {
+    const newData = payload.new as Record<string, unknown>;
+    const oldData = payload.old as Record<string, unknown>;
+    const eventType = payload.eventType as string;
+
+    return {
+      type: eventType === "INSERT" ? "user_added" : "user_removed",
+      organizationId,
+      data: (newData as Organization | UserOrganization | null) ?? (oldData as Organization | UserOrganization | null),
+      userId: (newData?.user_id as string) ?? (oldData?.user_id as string),
+      timestamp: new Date().toISOString(),
+    };
   }
 
   /**

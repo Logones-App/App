@@ -82,7 +82,7 @@ export const useCurrentOrganization = () => {
       const { data, error } = await supabase
         .from("organizations")
         .select("*")
-        .eq("id", currentOrganization.id)
+        .eq("id", currentOrganization.id as string)
         .eq("deleted", false)
         .single();
 
@@ -110,7 +110,7 @@ export const useMultiTenantData = <T>(
       if (!currentOrganization?.id) {
         throw new Error("No organization selected");
       }
-      return queryFn(currentOrganization.id);
+      return queryFn(currentOrganization.id as string);
     },
     enabled: !!currentOrganization?.id && (options?.enabled ?? true),
     staleTime: options?.staleTime,

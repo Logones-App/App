@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Calendar, ArrowLeft, Clock, MapPin, Phone, Mail } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,7 @@ const getAvailableSlots = async (establishmentId: string, date: Date): Promise<T
 
 export default function BookingSlotsPage({ params }: BookingPageProps) {
   const router = useRouter();
+  const t = useTranslations("Booking.slots");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -198,11 +200,13 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
               <Link href={`/${establishment.slug}/booking`}>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <ArrowLeft className="h-4 w-4" />
-                  Retour
+                  {t("back")}
                 </Button>
               </Link>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">Choisir un créneau - {establishment.name}</h1>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {t("title")} - {establishment.name}
+                </h1>
                 <p className="text-sm text-gray-500">{formatDate(selectedDate)}</p>
               </div>
             </div>

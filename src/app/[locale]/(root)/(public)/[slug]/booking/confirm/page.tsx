@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +43,7 @@ interface BookingPageProps {
 export default function BookingConfirmPage({ params }: BookingPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("Booking.confirm");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
