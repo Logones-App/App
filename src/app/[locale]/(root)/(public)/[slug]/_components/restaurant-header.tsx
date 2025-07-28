@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Tables } from "@/lib/supabase/database.types";
-import { Button } from "@/components/ui/button";
+
 import { UtensilsCrossed } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { LanguageSwitcher } from "@/components/i18n";
+import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;
 
@@ -35,11 +36,8 @@ export function RestaurantHeader({ establishment, locale }: RestaurantHeaderProp
               <Link href={`/${locale}/${establishment.slug}/menu`} className="text-gray-700 hover:text-orange-600">
                 {t("menu")}
               </Link>
-              <Link
-                href={`/${locale}/${establishment.slug}/reservations`}
-                className="text-gray-700 hover:text-orange-600"
-              >
-                {t("reservations")}
+              <Link href={`/${locale}/${establishment.slug}/booking`} className="text-gray-700 hover:text-orange-600">
+                {t("booking")}
               </Link>
               <Link href={`/${locale}/${establishment.slug}/contact`} className="text-gray-700 hover:text-orange-600">
                 {t("contact")}

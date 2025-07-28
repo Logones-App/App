@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
-import { MenuPublicClient } from "./menu-public-client";
+
+import MenuPublicClient from "./menu-public-client";
 
 interface MenuPageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -22,5 +24,5 @@ export default async function MenuPage({ params }: MenuPageProps) {
     notFound();
   }
 
-  return <MenuPublicClient establishment={establishment} locale={locale} />;
+  return <MenuPublicClient params={Promise.resolve({ slug, locale })} />;
 }

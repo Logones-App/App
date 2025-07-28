@@ -14,12 +14,70 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_exceptions: {
+        Row: {
+          booking_slot_id: string | null
+          closed_slots: number[] | null
+          created_at: string | null
+          created_by: string | null
+          date: string | null
+          deleted: boolean | null
+          description: string | null
+          end_date: string | null
+          establishment_id: string
+          exception_type: string
+          id: string
+          organization_id: string
+          reason: string | null
+          start_date: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          booking_slot_id?: string | null
+          closed_slots?: number[] | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          deleted?: boolean | null
+          description?: string | null
+          end_date?: string | null
+          establishment_id: string
+          exception_type: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          booking_slot_id?: string | null
+          closed_slots?: number[] | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          deleted?: boolean | null
+          description?: string | null
+          end_date?: string | null
+          establishment_id?: string
+          exception_type?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       booking_slots: {
         Row: {
           created_at: string | null
           created_by: string | null
           day_of_week: number
           deleted: boolean | null
+          display_order: number | null
           end_time: string
           establishment_id: string
           id: string
@@ -37,6 +95,7 @@ export type Database = {
           created_by?: string | null
           day_of_week: number
           deleted?: boolean | null
+          display_order?: number | null
           end_time: string
           establishment_id: string
           id?: string
@@ -54,6 +113,7 @@ export type Database = {
           created_by?: string | null
           day_of_week?: number
           deleted?: boolean | null
+          display_order?: number | null
           end_time?: string
           establishment_id?: string
           id?: string
@@ -1903,17 +1963,6 @@ export type Database = {
         }
         Returns: string
       }
-      check_booking_horaires: {
-        Args: { p_establishment_id: string }
-        Returns: {
-          day_of_week: number
-          day_name: string
-          service_name: string
-          open_time: string
-          close_time: string
-          is_active: boolean
-        }[]
-      }
       cleanup_old_cache: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1935,6 +1984,17 @@ export type Database = {
       generate_slots_for_date: {
         Args: { p_establishment_id: string; p_date: string }
         Returns: undefined
+      }
+      get_active_exceptions_for_date: {
+        Args: { p_establishment_id: string; p_date: string }
+        Returns: {
+          id: string
+          exception_type: string
+          booking_slot_id: string
+          closed_slots: number[]
+          reason: string
+          description: string
+        }[]
       }
       get_active_menus_by_time: {
         Args: {
@@ -1963,17 +2023,6 @@ export type Database = {
           is_available: boolean
           establishment_id: string
           date: string
-        }[]
-      }
-      get_available_slots_with_bookings: {
-        Args: { p_establishment_id: string; p_date: string }
-        Returns: {
-          slot_time: string
-          service_name: string
-          is_available: boolean
-          available_capacity: number
-          max_capacity: number
-          current_bookings: number
         }[]
       }
       get_available_stock: {
@@ -2017,6 +2066,15 @@ export type Database = {
         Args: { table_name: string; record_id: string }
         Returns: boolean
       }
+      is_slot_closed_by_exception: {
+        Args: {
+          p_establishment_id: string
+          p_date: string
+          p_slot_number: number
+          p_booking_slot_id?: string
+        }
+        Returns: boolean
+      }
       reserve_stock: {
         Args: {
           p_product_id: string
@@ -2031,17 +2089,9 @@ export type Database = {
         Args: { table_name: string; record_id: string }
         Returns: boolean
       }
-      send_booking_reminders: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      setup_booking_horaires: {
-        Args: { p_establishment_id: string }
-        Returns: undefined
-      }
-      soft_delete_booking: {
-        Args: { booking_id: string }
-        Returns: boolean
+      slot_to_time: {
+        Args: { slot_number: number }
+        Returns: string
       }
       soft_delete_custom_domain: {
         Args: { domain_id: string }
@@ -2079,13 +2129,13 @@ export type Database = {
           test_result: string
         }[]
       }
-      test_booking_slots: {
-        Args: { p_establishment_id: string; p_date: string }
-        Returns: {
-          test_name: string
-          test_result: string
-          details: string
-        }[]
+      time_range_to_slots: {
+        Args: { start_time: string; end_time: string }
+        Returns: number[]
+      }
+      time_to_slot: {
+        Args: { time_value: string }
+        Returns: number
       }
       unreserve_stock: {
         Args: {
@@ -2095,6 +2145,10 @@ export type Database = {
           p_reference_type: string
           p_reference_id: string
         }
+        Returns: boolean
+      }
+      validate_closed_slots: {
+        Args: { slots: number[] }
         Returns: boolean
       }
     }

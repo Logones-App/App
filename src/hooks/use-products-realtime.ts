@@ -60,7 +60,7 @@ export function useProductsRealtime(establishmentId: string, organizationId: str
         },
       })) as ProductWithStock[];
 
-      // Mettre à jour le cache React Query
+      // Mettre à jour le cache TanStack Query
       queryClient.setQueryData(
         ["establishment-products-with-stocks", establishmentId, organizationId],
         productsWithStock,

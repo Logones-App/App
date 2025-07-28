@@ -38,18 +38,18 @@
     "stats": {
       "organizations": "Organizations",
       "establishments": "Establishments",
-      "reservations": "Reservations",
+      "bookings": "Reservations",
       "revenue": "Revenue",
       "active_organizations": "active organizations",
       "created_establishments": "created establishments",
-      "today_reservations": "reservations today",
+      "today_bookings": "reservations today",
       "this_month": "this month"
     },
     "quick_actions": {
       "title": "Quick Actions",
       "description": "Quickly access main features",
       "manage_establishments": "Manage establishments",
-      "view_reservations": "View reservations",
+      "view_bookings": "View reservations",
       "manage_team": "Manage team",
       "add_organization": "Add organization",
       "view_analytics": "View analytics"
@@ -92,7 +92,7 @@
   "restaurant_public": {
     "navigation": {
       "menu": "Menu",
-      "reservations": "Reservations",
+      "booking": "Reservations",
       "contact": "Contact",
       "about": "About"
     },
@@ -233,6 +233,165 @@
       "confirm_password_required": "Password confirmation is required.",
       "passwords_must_match": "Passwords must match.",
       "terms_required": "You must accept the terms of service."
+    }
+  },
+  "Booking": {
+    "page": {
+      "title": "Book a Table",
+      "subtitle": "Choose a date for your reservation",
+      "back": "Back",
+      "back_to_establishment": "Back to establishment",
+      "loading": "Loading...",
+      "not_found": {
+        "title": "Establishment not found",
+        "description": "The establishment you are looking for does not exist or is not accessible.",
+        "back_home": "Back to home"
+      },
+      "establishment_info": {
+        "visit_website": "Visit website",
+        "address": "Address",
+        "phone": "Phone",
+        "email": "Email"
+      },
+      "calendar": {
+        "title": "Choose a date",
+        "description": "Select the date for your reservation. Available time slots will be displayed next.",
+        "selected_date": "Selected date",
+        "continue_button": "View available slots"
+      },
+      "info": {
+        "max_guests": "Maximum: 50 people",
+        "min_advance": "Reservation possible up to 30 minutes before"
+      }
+    },
+    "slots": {
+      "title": "Choose a time slot",
+      "subtitle": "Select the time that suits you",
+      "back": "Back",
+      "back_to_date": "Back to date selection",
+      "loading": "Loading time slots...",
+      "error": {
+        "title": "Error",
+        "description": "Unable to load available time slots.",
+        "retry": "Retry"
+      },
+      "no_slots": {
+        "title": "No available slots",
+        "description": "No time slots are available for this date.",
+        "try_another_date": "Try another date"
+      },
+      "slot": {
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "selected": "Selected",
+        "guests": "people",
+        "capacity": "Capacity",
+        "exception": "Exception"
+      },
+      "continue_button": "Continue with this slot",
+      "date_info": {
+        "selected_date": "Selected date",
+        "establishment_info": "Establishment information"
+      }
+    },
+    "confirm": {
+      "title": "Confirm your reservation",
+      "subtitle": "Fill in your information to finalize the reservation",
+      "back": "Back",
+      "back_to_slots": "Back to time slots",
+      "loading": "Loading...",
+      "error": {
+        "title": "Error",
+        "description": "Unable to load reservation information.",
+        "retry": "Retry"
+      },
+      "reservation_summary": {
+        "title": "Reservation summary",
+        "date": "Date",
+        "time": "Time",
+        "establishment": "Establishment"
+      },
+      "form": {
+        "title": "Your information",
+        "description": "Fill in your personal information",
+        "first_name": "First name",
+        "first_name_placeholder": "Your first name",
+        "last_name": "Last name",
+        "last_name_placeholder": "Your last name",
+        "email": "Email address",
+        "email_placeholder": "your@email.com",
+        "phone": "Phone",
+        "phone_placeholder": "Your phone number",
+        "number_of_guests": "Number of people",
+        "number_of_guests_placeholder": "Select number of people",
+        "special_requests": "Special requests",
+        "special_requests_placeholder": "Allergies, preferences, etc. (optional)",
+        "submit": "Confirm reservation",
+        "submitting": "Confirming..."
+      },
+      "validation": {
+        "first_name_required": "First name is required",
+        "last_name_required": "Last name is required",
+        "email_required": "Email address is required",
+        "email_invalid": "Please enter a valid email address",
+        "phone_required": "Phone number is required",
+        "number_of_guests_required": "Number of people is required",
+        "number_of_guests_min": "Minimum 1 person",
+        "number_of_guests_max": "Maximum 50 people"
+      }
+    },
+    "success": {
+      "title": "Reservation confirmed!",
+      "subtitle": "Your reservation has been created successfully",
+      "back": "Back",
+      "back_to_establishment": "Back to establishment",
+      "loading": "Loading confirmation...",
+      "error": {
+        "title": "Error",
+        "description": "Unable to load reservation details.",
+        "retry": "Retry"
+      },
+      "booking_details": {
+        "title": "Your reservation details",
+        "booking_id": "Reservation number",
+        "date": "Date",
+        "time": "Time",
+        "establishment": "Establishment",
+        "customer_name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "guests": "Number of people",
+        "special_requests": "Special requests",
+        "none": "None"
+      },
+      "actions": {
+        "download": "Download confirmation",
+        "share": "Share",
+        "copy_link": "Copy link",
+        "link_copied": "Link copied!"
+      },
+      "next_steps": {
+        "title": "Next steps",
+        "email_confirmation": "A confirmation email has been sent to you",
+        "reminder": "You will receive a reminder 24h before your reservation",
+        "contact": "For any questions, contact the establishment directly"
+      }
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "Error",
+      "success": "Success",
+      "retry": "Retry",
+      "back": "Back",
+      "continue": "Continue",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close",
+      "yes": "Yes",
+      "no": "No"
     }
   },
   "common": {

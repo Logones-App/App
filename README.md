@@ -27,7 +27,7 @@ Un dashboard d'administration moderne et complet pour la gestion d'établissemen
 ### 📊 Gestion des Données
 - **Base de données Supabase** PostgreSQL
 - **Realtime updates** avec WebSockets
-- **Cache intelligent** avec React Query
+- **Cache intelligent** avec TanStack Query v5
 - **Optimistic updates** pour une UX fluide
 
 ### 🏢 Multi-tenant
@@ -41,7 +41,7 @@ Un dashboard d'administration moderne et complet pour la gestion d'établissemen
 - **Frontend**: Next.js 15, React 18, TypeScript
 - **UI**: Shadcn/ui, Tailwind CSS, Lucide Icons
 - **Backend**: Supabase (PostgreSQL, Auth, Realtime)
-- **State Management**: Zustand, React Query
+- **State Management**: Zustand, TanStack Query v5
 - **Internationalisation**: next-intl
 - **Déploiement**: Coolify (VPS)
 

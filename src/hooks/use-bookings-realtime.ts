@@ -1,124 +1,125 @@
-import { useEffect, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
-import { bookingsRealtime, type BookingRealtimeEvent } from "@/lib/services/realtime/modules";
-import { useAuthStore } from "@/lib/stores/auth-store";
+import { createClient } from "@/lib/supabase/client";
+import { Tables } from "@/lib/supabase/database.types";
 
-export function useBookingsRealtime() {
-  const { user } = useAuthStore();
-  const queryClient = useQueryClient();
+type Booking = Tables<"bookings">;
 
-  /**
-   * S'abonner aux changements des bookings d'un établissement
-   */
-  const subscribeToEstablishmentBookings = useCallback(
-    (establishmentId: string, organizationId: string, onEvent?: (event: BookingRealtimeEvent) => void) => {
-      const unsubscribe = bookingsRealtime.subscribeToEstablishmentBookings(establishmentId, organizationId, (event) => {
-        // Invalider le cache TanStack Query
-        queryClient.invalidateQueries({
-          queryKey: ["establishment-bookings", establishmentId, organizationId]
-        });
-        
-        // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
-        // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
-      });
+interface UseBookingsRealtimeProps {
+  establishmentId?: string;
+  organizationId?: string;
+  date?: string;
+  enabled?: boolean;
+}
 
-      return unsubscribe;
-    },
-    [queryClient],
-  );
+interface UseBookingsRealtimeReturn {
+  bookings: Booking[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
 
-  /**
-   * S'abonner aux changements des bookings d'une organisation
-   */
-  const subscribeToOrganizationBookings = useCallback(
-    (organizationId: string, onEvent?: (event: BookingRealtimeEvent) => void) => {
-      const unsubscribe = bookingsRealtime.subscribeToOrganizationBookings(organizationId, (event) => {
-        // Invalider le cache TanStack Query
-        queryClient.invalidateQueries({
-          queryKey: ["organization-bookings", organizationId]
-        });
-        
-        // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
-        // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
-      });
+export function useBookingsRealtime({
+  establishmentId,
+  organizationId,
+  date,
+  enabled = true,
+}: UseBookingsRealtimeProps): UseBookingsRealtimeReturn {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-      return unsubscribe;
-    },
-    [queryClient],
-  );
+  const supabase = createClient();
 
-  /**
-   * Envoyer une notification de booking
-   */
-  const sendBookingNotification = useCallback(
-    async (
-      title: string,
-      message: string,
-      bookingId: string,
-      establishmentId: string,
-      organizationId: string,
-      data?: any
-    ) => {
-      if (!user) return;
+  const fetchBookings = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-      await bookingsRealtime.sendBookingNotification(
-        title,
-        message,
-        bookingId,
-        establishmentId,
-        organizationId,
-        data
-      );
-    },
-    [user],
-  );
+      let query = supabase.from("bookings").select("*").eq("deleted", false).order("created_at", { ascending: false });
 
-  /**
-   * Envoyer une action de booking
-   */
-  const sendBookingAction = useCallback(
-    async (
-      action: string,
-      bookingId: string,
-      establishmentId: string,
-      organizationId: string,
-      data?: any
-    ) => {
-      if (!user) return;
-
-      await bookingsRealtime.sendBookingAction(
-        action,
-        bookingId,
-        establishmentId,
-        organizationId,
-        data
-      );
-    },
-    [user],
-  );
-
-  /**
-   * Se désabonner de tous les abonnements
-   */
-  const unsubscribe = useCallback(() => {
-    bookingsRealtime.unsubscribe();
-  }, []);
-
-  // Nettoyage automatique à la déconnexion
-  useEffect(() => {
-    return () => {
-      if (!user) {
-        unsubscribe();
+      if (establishmentId) {
+        query = query.eq("establishment_id", establishmentId);
       }
+
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+
+      if (date) {
+        query = query.eq("date", date);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.error("❌ Erreur lors de la récupération des réservations:", fetchError);
+        setError(fetchError.message);
+        return;
+      }
+
+      setBookings(data || []);
+    } catch (err) {
+      console.error("💥 Erreur inattendue lors de la récupération des réservations:", err);
+      setError("Erreur inattendue");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Chargement initial
+    fetchBookings();
+
+    // Configuration du realtime
+    const channel = supabase
+      .channel("bookings-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: establishmentId ? `establishment_id=eq.${establishmentId}` : undefined,
+        },
+        (payload) => {
+          console.log("🔄 Changement realtime bookings:", payload);
+
+          if (payload.eventType === "INSERT") {
+            const newBooking = payload.new as Booking;
+            if (!newBooking.deleted) {
+              setBookings((prev) => [newBooking, ...prev]);
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const updatedBooking = payload.new as Booking;
+            setBookings((prev) => prev.map((booking) => (booking.id === updatedBooking.id ? updatedBooking : booking)));
+          } else if (payload.eventType === "DELETE") {
+            const deletedBooking = payload.old as Booking;
+            setBookings((prev) => prev.filter((booking) => booking.id !== deletedBooking.id));
+          }
+        },
+      )
+      .subscribe((status) => {
+        console.log("📡 Statut subscription bookings:", status);
+      });
+
+    // Cleanup
+    return () => {
+      console.log("🧹 Nettoyage subscription bookings");
+      supabase.removeChannel(channel);
     };
-  }, [user, unsubscribe]);
+  }, [enabled, establishmentId, organizationId, date]);
+
+  const refetch = () => {
+    fetchBookings();
+  };
 
   return {
-    subscribeToEstablishmentBookings,
-    subscribeToOrganizationBookings,
-    sendBookingNotification,
-    sendBookingAction,
-    unsubscribe,
+    bookings,
+    isLoading,
+    error,
+    refetch,
   };
-} 
+}

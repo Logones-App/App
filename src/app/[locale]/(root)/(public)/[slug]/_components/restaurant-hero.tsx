@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Tables } from "@/lib/supabase/database.types";
-import { Button } from "@/components/ui/button";
+
 import { UtensilsCrossed, Calendar } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Button } from "@/components/ui/button";
+import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;
 
@@ -23,7 +25,7 @@ export function RestaurantHero({ establishment, locale }: RestaurantHeroProps) {
           {t("welcome", { name: establishment.name })}
         </h2>
         <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-600">
-          {establishment.description || t("default_description")}
+          {establishment.description ?? t("default_description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <Link href={`/${locale}/${establishment.slug}/menu`}>
@@ -32,7 +34,7 @@ export function RestaurantHero({ establishment, locale }: RestaurantHeroProps) {
               {t("view_menu")}
             </Button>
           </Link>
-          <Link href={`/${locale}/${establishment.slug}/reservations`}>
+          <Link href={`/${locale}/${establishment.slug}/booking`}>
             <Button size="lg" variant="outline" className="border-orange-600 text-orange-600 hover:bg-orange-50">
               <Calendar className="mr-2 h-5 w-5" />
               {t("book_table")}

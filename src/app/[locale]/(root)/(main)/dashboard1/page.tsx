@@ -48,12 +48,12 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("stats.reservations")}</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("stats.bookings")}</CardTitle>
             <Calendar className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
-            <p className="text-muted-foreground text-xs">{t("stats.today_reservations")}</p>
+            <p className="text-muted-foreground text-xs">{t("stats.today_bookings")}</p>
           </CardContent>
         </Card>
 
@@ -83,7 +83,7 @@ export default function DashboardPage() {
             </div>
             <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
               <Calendar className="h-4 w-4" />
-              <span>{t("quick_actions.view_reservations")}</span>
+              <span>{t("quick_actions.view_bookings")}</span>
             </div>
             <div className="hover:bg-muted flex cursor-pointer items-center space-x-2 rounded-md p-2">
               <Users className="h-4 w-4" />
@@ -103,10 +103,10 @@ export default function DashboardPage() {
                 {organizations.map((org: Partial<Organization>) => (
                   <div key={org.id} className="flex items-center justify-between rounded-md border p-2">
                     <div>
-                      <p className="font-medium">{org.name || "Sans nom"}</p>
-                      <p className="text-muted-foreground text-sm">{org.description || "Aucune description"}</p>
+                      <p className="font-medium">{org.name ?? "Sans nom"}</p>
+                      <p className="text-muted-foreground text-sm">{org.description ?? "Aucune description"}</p>
                     </div>
-                    <span className="text-muted-foreground text-xs">/{org.slug || "slug"}</span>
+                    <span className="text-muted-foreground text-xs">/{org.slug ?? "slug"}</span>
                   </div>
                 ))}
               </div>

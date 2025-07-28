@@ -38,18 +38,18 @@
     "stats": {
       "organizations": "Organisations",
       "establishments": "Établissements",
-      "reservations": "Réservations",
+      "bookings": "Réservations",
       "revenue": "Revenus",
       "active_organizations": "organisations actives",
       "created_establishments": "établissements créés",
-      "today_reservations": "réservations aujourd'hui",
+      "today_bookings": "réservations aujourd'hui",
       "this_month": "ce mois"
     },
     "quick_actions": {
       "title": "Actions rapides",
       "description": "Accédez rapidement aux fonctionnalités principales",
       "manage_establishments": "Gérer les établissements",
-      "view_reservations": "Voir les réservations",
+      "view_bookings": "Voir les réservations",
       "manage_team": "Gérer l'équipe",
       "add_organization": "Ajouter une organisation",
       "view_analytics": "Voir les analyses"
@@ -92,7 +92,7 @@
   "restaurant_public": {
     "navigation": {
       "menu": "Menu",
-      "reservations": "Réservations",
+      "booking": "Réservations",
       "contact": "Contact",
       "about": "À propos"
     },
@@ -233,6 +233,165 @@
       "confirm_password_required": "La confirmation du mot de passe est requise.",
       "passwords_must_match": "Les mots de passe doivent correspondre.",
       "terms_required": "Vous devez accepter les conditions d'utilisation."
+    }
+  },
+  "Booking": {
+    "page": {
+      "title": "Réserver une table",
+      "subtitle": "Choisissez une date pour votre réservation",
+      "back": "Retour",
+      "back_to_establishment": "Retour à l'établissement",
+      "loading": "Chargement...",
+      "not_found": {
+        "title": "Établissement non trouvé",
+        "description": "L'établissement que vous recherchez n'existe pas ou n'est pas accessible.",
+        "back_home": "Retour à l'accueil"
+      },
+      "establishment_info": {
+        "visit_website": "Visiter le site web",
+        "address": "Adresse",
+        "phone": "Téléphone",
+        "email": "Email"
+      },
+      "calendar": {
+        "title": "Choisissez une date",
+        "description": "Sélectionnez la date de votre réservation. Les créneaux disponibles s'afficheront ensuite.",
+        "selected_date": "Date sélectionnée",
+        "continue_button": "Voir les créneaux disponibles"
+      },
+      "info": {
+        "max_guests": "Maximum : 50 personnes",
+        "min_advance": "Réservation possible jusqu'à 30 minutes avant"
+      }
+    },
+    "slots": {
+      "title": "Choisissez un créneau",
+      "subtitle": "Sélectionnez l'heure qui vous convient",
+      "back": "Retour",
+      "back_to_date": "Retour à la sélection de date",
+      "loading": "Chargement des créneaux...",
+      "error": {
+        "title": "Erreur",
+        "description": "Impossible de charger les créneaux disponibles.",
+        "retry": "Réessayer"
+      },
+      "no_slots": {
+        "title": "Aucun créneau disponible",
+        "description": "Aucun créneau n'est disponible pour cette date.",
+        "try_another_date": "Essayer une autre date"
+      },
+      "slot": {
+        "available": "Disponible",
+        "unavailable": "Indisponible",
+        "selected": "Sélectionné",
+        "guests": "personnes",
+        "capacity": "Capacité",
+        "exception": "Exception"
+      },
+      "continue_button": "Continuer avec ce créneau",
+      "date_info": {
+        "selected_date": "Date sélectionnée",
+        "establishment_info": "Informations de l'établissement"
+      }
+    },
+    "confirm": {
+      "title": "Confirmer votre réservation",
+      "subtitle": "Remplissez vos informations pour finaliser la réservation",
+      "back": "Retour",
+      "back_to_slots": "Retour aux créneaux",
+      "loading": "Chargement...",
+      "error": {
+        "title": "Erreur",
+        "description": "Impossible de charger les informations de réservation.",
+        "retry": "Réessayer"
+      },
+      "reservation_summary": {
+        "title": "Résumé de votre réservation",
+        "date": "Date",
+        "time": "Heure",
+        "establishment": "Établissement"
+      },
+      "form": {
+        "title": "Vos informations",
+        "description": "Remplissez vos informations personnelles",
+        "first_name": "Prénom",
+        "first_name_placeholder": "Votre prénom",
+        "last_name": "Nom",
+        "last_name_placeholder": "Votre nom",
+        "email": "Adresse email",
+        "email_placeholder": "votre@email.com",
+        "phone": "Téléphone",
+        "phone_placeholder": "Votre numéro de téléphone",
+        "number_of_guests": "Nombre de personnes",
+        "number_of_guests_placeholder": "Sélectionnez le nombre de personnes",
+        "special_requests": "Demandes spéciales",
+        "special_requests_placeholder": "Allergies, préférences, etc. (optionnel)",
+        "submit": "Confirmer la réservation",
+        "submitting": "Confirmation en cours..."
+      },
+      "validation": {
+        "first_name_required": "Le prénom est requis",
+        "last_name_required": "Le nom est requis",
+        "email_required": "L'adresse email est requise",
+        "email_invalid": "Veuillez entrer une adresse email valide",
+        "phone_required": "Le numéro de téléphone est requis",
+        "number_of_guests_required": "Le nombre de personnes est requis",
+        "number_of_guests_min": "Minimum 1 personne",
+        "number_of_guests_max": "Maximum 50 personnes"
+      }
+    },
+    "success": {
+      "title": "Réservation confirmée !",
+      "subtitle": "Votre réservation a été créée avec succès",
+      "back": "Retour",
+      "back_to_establishment": "Retour à l'établissement",
+      "loading": "Chargement de la confirmation...",
+      "error": {
+        "title": "Erreur",
+        "description": "Impossible de charger les détails de la réservation.",
+        "retry": "Réessayer"
+      },
+      "booking_details": {
+        "title": "Détails de votre réservation",
+        "booking_id": "Numéro de réservation",
+        "date": "Date",
+        "time": "Heure",
+        "establishment": "Établissement",
+        "customer_name": "Nom",
+        "email": "Email",
+        "phone": "Téléphone",
+        "guests": "Nombre de personnes",
+        "special_requests": "Demandes spéciales",
+        "none": "Aucune"
+      },
+      "actions": {
+        "download": "Télécharger la confirmation",
+        "share": "Partager",
+        "copy_link": "Copier le lien",
+        "link_copied": "Lien copié !"
+      },
+      "next_steps": {
+        "title": "Prochaines étapes",
+        "email_confirmation": "Un email de confirmation vous a été envoyé",
+        "reminder": "Vous recevrez un rappel 24h avant votre réservation",
+        "contact": "Pour toute question, contactez directement l'établissement"
+      }
+    },
+    "common": {
+      "loading": "Chargement...",
+      "error": "Erreur",
+      "success": "Succès",
+      "retry": "Réessayer",
+      "back": "Retour",
+      "continue": "Continuer",
+      "cancel": "Annuler",
+      "confirm": "Confirmer",
+      "save": "Enregistrer",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "close": "Fermer",
+      "yes": "Oui",
+      "no": "Non"
     }
   },
   "common": {
