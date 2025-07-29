@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-realtime";
 import { useEstablishmentOrganization } from "@/hooks/use-establishment-organization";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
-import { 
-  groupSlotsByServiceRealtime,
-  type BookingSlot,
-  type ServiceGroup 
-} from "@/lib/utils/slots-realtime-utils";
-import { format } from "date-fns";
+import { groupSlotsByServiceRealtime, type BookingSlot, type ServiceGroup } from "@/lib/utils/slots-realtime-utils";
 
 type BookingException = Tables<"booking_exceptions">;
 
@@ -48,13 +45,21 @@ export function useSlotsWithExceptions({
   const formattedDate = format(date, "yyyy-MM-dd");
 
   // Récupérer l'organizationId de l'établissement
-  const { organizationId, isLoading: orgLoading, error: orgError } = useEstablishmentOrganization({
+  const {
+    organizationId,
+    isLoading: orgLoading,
+    error: orgError,
+  } = useEstablishmentOrganization({
     establishmentId,
     enabled: enabled && !!establishmentId,
   });
 
   // Query pour récupérer les créneaux de base
-  const { data: slots, isLoading: slotsLoading, error: slotsError } = useQuery({
+  const {
+    data: slots,
+    isLoading: slotsLoading,
+    error: slotsError,
+  } = useQuery({
     queryKey: ["booking-slots", establishmentId],
     queryFn: async () => {
       const supabase = createClient();
@@ -72,9 +77,13 @@ export function useSlotsWithExceptions({
   });
 
   // Hook realtime pour les exceptions
-  const { exceptions, isLoading: exceptionsLoading, error: exceptionsError } = useBookingExceptionsRealtime({
+  const {
+    exceptions,
+    isLoading: exceptionsLoading,
+    error: exceptionsError,
+  } = useBookingExceptionsRealtime({
     establishmentId,
-    organizationId,
+    organizationId: organizationId ?? undefined,
     date,
   });
 
@@ -114,7 +123,7 @@ export function useSlotsWithExceptions({
     // Invalider les queries pour forcer un rafraîchissement
     await queryClient.invalidateQueries({ queryKey: ["booking-slots", establishmentId] });
     await queryClient.invalidateQueries({ queryKey: ["establishment", establishmentId] });
-    
+
     // Recalculer les créneaux
     await calculateSlotsWithExceptions();
   }, [queryClient, establishmentId, calculateSlotsWithExceptions]);

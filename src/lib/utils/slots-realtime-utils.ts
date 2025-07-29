@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+
 import { Tables } from "@/lib/supabase/database.types";
 
 export type BookingException = Tables<"booking_exceptions">;
@@ -27,16 +28,16 @@ export function checkSingleDayException(exception: BookingException, date: strin
   console.log("🔍 DEBUG checkSingleDayException:");
   console.log("  - Exception date:", exception.date);
   console.log("  - Date à vérifier:", date);
-  
+
   // Convertir la date reçue en Date object pour utiliser format()
-  const dateObj = new Date(date + 'T00:00:00');
+  const dateObj = new Date(date + "T00:00:00");
   const formattedDate = format(dateObj, "yyyy-MM-dd");
-  
+
   console.log("  - Date convertie:", dateObj);
   console.log("  - Date formatée:", formattedDate);
   console.log("  - Comparaison:", exception.date, "===", formattedDate);
   console.log("  - Résultat:", exception.date === formattedDate);
-  
+
   return exception.date === formattedDate;
 }
 
@@ -47,35 +48,40 @@ export function checkServiceException(exception: BookingException, slot: Booking
 }
 
 // Fonction pour vérifier une exception de type "time_slots"
-export function checkTimeSlotException(exception: BookingException, timeSlot: TimeSlot, slot: BookingSlot, date: string): boolean {
+export function checkTimeSlotException(
+  exception: BookingException,
+  timeSlot: TimeSlot,
+  slot: BookingSlot,
+  date: string,
+): boolean {
   console.log("🔍 DEBUG checkTimeSlotException:");
   console.log("  - Exception date:", exception.date);
   console.log("  - Date à vérifier:", date);
   console.log("  - Exception booking_slot_id:", exception.booking_slot_id);
   console.log("  - Slot id:", slot.id);
   console.log("  - TimeSlot:", timeSlot.time);
-  
+
   // Vérifier d'abord la date
   if (!exception.date || exception.date !== date) {
     console.log("  - ❌ Date ne correspond pas");
     return false;
   }
-  
+
   // Vérifier le booking_slot_id
   if (exception.booking_slot_id !== slot.id) {
     console.log("  - ❌ Booking slot id ne correspond pas");
     return false;
   }
-  
+
   // Vérifier les créneaux fermés
   const closedSlots = exception.closed_slots ?? [];
   const slotIndex = timeToSlot(timeSlot.time);
   const isClosed = closedSlots.includes(slotIndex);
-  
+
   console.log("  - Closed slots:", closedSlots);
   console.log("  - Current slot index:", slotIndex);
   console.log("  - Is closed:", isClosed);
-  
+
   return isClosed;
 }
 
@@ -94,10 +100,10 @@ export function slotToTime(slot: number): string {
 
 // Fonction pour vérifier si un créneau spécifique est fermé par une exception
 export function isTimeSlotClosedByException(
-  timeSlot: TimeSlot, 
-  slot: BookingSlot, 
-  exceptions: BookingException[], 
-  date: string
+  timeSlot: TimeSlot,
+  slot: BookingSlot,
+  exceptions: BookingException[],
+  date: string,
 ): boolean {
   console.log("🔍 DEBUG isTimeSlotClosedByException:");
   console.log("  - TimeSlot:", timeSlot.time);
@@ -107,7 +113,7 @@ export function isTimeSlotClosedByException(
 
   for (const exception of exceptions) {
     console.log("  - Vérification exception:", exception.exception_type, exception.id);
-    
+
     let isClosed = false;
 
     switch (exception.exception_type) {
@@ -165,7 +171,7 @@ export function generateSlotsFromDatabase(slot: BookingSlot): TimeSlot[] {
 // Fonction pour filtrer les créneaux par jour de la semaine
 function filterSlotsByDay(slots: BookingSlot[], date: string): BookingSlot[] {
   // Forcer l'interprétation en timezone local pour éviter les décalages
-  const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+  const dayOfWeek = new Date(date + "T00:00:00").getDay();
   return slots.filter((slot) => slot.day_of_week === dayOfWeek);
 }
 
@@ -184,15 +190,15 @@ export function processSlotWithExceptions(slot: BookingSlot, exceptions: Booking
 
 // Fonction pour grouper les créneaux par service avec exceptions realtime
 export function groupSlotsByServiceRealtime(
-  slots: BookingSlot[], 
-  exceptions: BookingException[], 
-  date: string
+  slots: BookingSlot[],
+  exceptions: BookingException[],
+  date: string,
 ): ServiceGroup[] {
   console.log("🔍 DEBUG groupSlotsByServiceRealtime:");
   console.log("  - Date reçue:", date);
   console.log("  - Nombre de slots total:", slots.length);
   console.log("  - Nombre d'exceptions total:", exceptions.length);
-  
+
   const serviceGroups: Record<string, ServiceGroup> = {};
 
   // Filtrer les créneaux pour la date donnée
@@ -203,7 +209,7 @@ export function groupSlotsByServiceRealtime(
   filteredSlots.forEach((slot) => {
     const serviceName = slot.slot_name || "Service par défaut";
 
-    if (!serviceGroups[serviceName]) {
+    if (!(serviceName in serviceGroups)) {
       serviceGroups[serviceName] = {
         serviceName,
         slots: [],
@@ -223,7 +229,7 @@ export function groupSlotsByServiceRealtime(
 export function calculateExceptionImpact(
   exception: BookingException,
   slots: BookingSlot[],
-  date: string
+  date: string,
 ): { affectedSlots: number; affectedServices: string[] } {
   const affectedSlots: BookingSlot[] = [];
   const affectedServices = new Set<string>();
@@ -248,7 +254,8 @@ export function calculateExceptionImpact(
 
     if (isAffected) {
       affectedSlots.push(slot);
-      affectedServices.add(slot.slot_name || "Service par défaut");
+      const serviceName = slot.slot_name || "Service par défaut";
+      affectedServices.add(serviceName);
     }
   });
 
@@ -259,9 +266,9 @@ export function calculateExceptionImpact(
 }
 
 // Fonction de debounce pour optimiser les performances
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends(...args: unknown[]) => unknown>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
