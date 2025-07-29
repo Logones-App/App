@@ -28,6 +28,7 @@ type TimeSlot = {
   isAvailable: boolean;
   maxCapacity: number;
   slotId: string;
+  slotNumber: number;
 };
 
 type PeriodInterfaceProps = {
@@ -77,7 +78,7 @@ export function PeriodInterface({
 }: PeriodInterfaceProps) {
   return (
     <div className="space-y-4">
-      <Label>Sélection de la période</Label>
+      <Label>Sélection de la période de fermeture</Label>
       <div className="flex justify-center">
         <Calendar
           mode="range"
@@ -137,7 +138,7 @@ export function ServiceInterface({
       </div>
       {serviceDate && (
         <div className="space-y-2">
-          <Label>Service à désactiver</Label>
+          <Label>Service à fermer</Label>
           <Select value={selectedService} onValueChange={setSelectedService}>
             <SelectTrigger>
               <SelectValue placeholder="Sélectionnez un service" />
@@ -202,11 +203,13 @@ export function TimeSlotsInterface({
               <div className="grid grid-cols-4 gap-2">
                 {getTimeSlotsForService(selectedService).map((slot, index) => (
                   <button
-                    key={slot.slotId}
+                    key={`${slot.slotId}-${slot.slotNumber}`}
                     type="button"
-                    onClick={() => handleTimeSlotToggle(index)}
+                    onClick={() => handleTimeSlotToggle(slot.slotNumber)}
                     className={`rounded border p-2 text-sm ${
-                      selectedTimeSlots.includes(index) ? "bg-red-500 text-white" : "bg-gray-100 hover:bg-gray-200"
+                      selectedTimeSlots.includes(slot.slotNumber)
+                        ? "bg-red-500 text-white"
+                        : "bg-gray-100 hover:bg-gray-200"
                     }`}
                   >
                     {slot.time}

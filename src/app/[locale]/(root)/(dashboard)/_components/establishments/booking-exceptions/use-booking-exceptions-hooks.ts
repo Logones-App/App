@@ -32,18 +32,26 @@ function useEstablishmentBookingSlots(establishmentId: string) {
 
 // Fonction pour générer les créneaux horaires à partir d'un slot
 function generateTimeSlotsFromBookingSlot(slot: Record<string, unknown>) {
-  const slots: Array<{ time: string; isAvailable: boolean; maxCapacity: number; slotId: string }> = [];
+  const slots: Array<{ time: string; isAvailable: boolean; maxCapacity: number; slotId: string; slotNumber: number }> =
+    [];
   const startTime = new Date(`2000-01-01T${slot.start_time as string}`);
   const endTime = new Date(`2000-01-01T${slot.end_time as string}`);
 
   const currentTime = new Date(startTime);
   while (currentTime < endTime) {
     const timeString = currentTime.toTimeString().slice(0, 5);
+    // Calculer le slotNumber basé sur l'heure réelle (minutes depuis minuit / 15)
+    const hours = currentTime.getHours();
+    const minutes = currentTime.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+    const slotNumber = Math.floor(totalMinutes / 15);
+
     slots.push({
       time: timeString,
       isAvailable: true,
       maxCapacity: (slot.max_capacity as number) ?? 10,
       slotId: slot.id as string,
+      slotNumber: slotNumber,
     });
     currentTime.setMinutes(currentTime.getMinutes() + 15);
   }

@@ -907,6 +907,67 @@ delete id;
 - **Paramètres latéraux** : Raison et statut
 - **Validation** : Vérification des données avant création
 
+### **Modal d'Édition des Créneaux**
+
+- **Déclenchement** : Clic sur le bouton d'édition (icône bleue) pour les exceptions de type "time_slots"
+- **Interface d'édition** : Affichage du service concerné et de tous les créneaux disponibles
+- **Créneaux fermés** : Affichés en rouge (sélectionnés)
+- **Modification** : Clic pour cocher/décocher les créneaux
+- **Compteur** : Affichage du nombre de créneaux sélectionnés
+- **Logique de validation** :
+  - Si des créneaux restent sélectionnés → Bouton "Modifier l'exception" (bleu)
+  - Si aucun créneau n'est sélectionné → Bouton "Supprimer l'exception" (rouge)
+
+#### **Interface d'Édition**
+
+```typescript
+// Fonction pour gérer l'édition d'une exception
+const handleEditClick = (exception: any) => {
+  if (exception.exception_type === "time_slots") {
+    setExceptionToDelete(exception);
+    setIsTimeSlotsEditMode(true);
+    setEditedTimeSlots(exception.closed_slots ?? []);
+    setIsDeleteModalOpen(true);
+  }
+};
+
+// Fonction pour basculer un créneau dans le mode édition
+const handleTimeSlotEditToggle = (slotId: number) => {
+  setEditedTimeSlots((prev) => (prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]));
+};
+
+// Logique de validation dans handleConfirmDelete
+if (exceptionToDelete.exception_type === "time_slots" && isTimeSlotsEditMode) {
+  if (editedTimeSlots.length === 0) {
+    // Supprimer l'exception si aucun créneau n'est sélectionné
+    deleteException(exceptionToDelete.id);
+  } else {
+    // Mettre à jour l'exception avec les nouveaux créneaux
+    update({
+      id: exceptionToDelete.id,
+      closed_slots: editedTimeSlots,
+    });
+  }
+}
+```
+
+#### **Composant BookingExceptionsList**
+
+```typescript
+// Bouton d'édition uniquement pour les exceptions de type "time_slots"
+{(exception.exception_type as string) === "time_slots" && (
+  <Button
+    variant="ghost"
+    size="icon"
+    onClick={() => onEditClick?.(exception)}
+    className="text-blue-500 hover:text-blue-600"
+    title="Modifier les créneaux"
+  >
+    <Edit className="h-4 w-4" />
+  </Button>
+)}
+```
+
 ### **Gestion des Services**
 
 #### **Récupération des Services**
@@ -991,6 +1052,12 @@ const { error } = await supabase.from("booking_exceptions").update({ deleted: tr
 5. **Permissions** : Accès selon le rôle utilisateur
 6. **Services dynamiques** : Vérification de la récupération des services
 7. **Créneaux dynamiques** : Vérification de la génération des créneaux
+8. **Édition des créneaux** :
+   - Affichage du bouton d'édition pour les exceptions "time_slots"
+   - Ouverture de la modal d'édition avec les créneaux actuels
+   - Modification des créneaux (ajout/suppression)
+   - Sauvegarde avec des créneaux restants
+   - Suppression automatique si aucun créneau n'est sélectionné
 
 ### **Validation des Types**
 
