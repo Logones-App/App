@@ -91,7 +91,7 @@ export function useBookingExceptionsRealtime({
   console.log("🔍 DEBUG useBookingExceptionsRealtime:");
   console.log("  - establishmentId:", establishmentId);
   console.log("  - organizationId:", organizationId);
-  console.log("  - initialExceptions:", initialExceptions?.length || 0);
+  console.log("  - initialExceptions:", initialExceptions?.length ?? 0);
   console.log("  - fetchError:", fetchError);
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export function useBookingExceptionsForDate(establishmentId: string, date: Date,
   // Filtrer les exceptions qui s'appliquent spécifiquement à cette date
   const adjustedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dateStr = adjustedDate.toISOString().split("T")[0];
-  
+
   const dateExceptions = exceptions.filter((exception) => {
     console.log("🔍 DEBUG useBookingExceptionsForDate:");
     console.log("  - Date reçue:", date);
