@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { MetadataService, type UserPreferences, type UserProfile } from "@/lib/services/metadataService";
+import { MetadataService, type UserPreferences, type UserProfile } from "@/lib/services/metadata-service";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function useUserMetadata() {

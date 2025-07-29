@@ -1,76 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/database.types";
-
-type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
-
-// Query pour récupérer les établissements d'une organisation
-export const useOrganizationEstablishments = (organizationId?: string) => {
-  return useQuery({
-    queryKey: ["organization-establishments", organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
-
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("establishments")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .order("name");
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organizationId,
-  });
-};
-
-// Query pour récupérer un établissement spécifique
-export const useEstablishment = (establishmentId?: string) => {
-  return useQuery({
-    queryKey: ["establishment", establishmentId],
-    queryFn: async () => {
-      if (!establishmentId) return null;
-
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("establishments")
-        .select("*")
-        .eq("id", establishmentId)
-        .eq("deleted", false)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!establishmentId,
-  });
-};
-
-// Query pour récupérer un établissement par slug
-export const useEstablishmentBySlug = (slug?: string) => {
-  return useQuery({
-    queryKey: ["establishment-by-slug", slug],
-    queryFn: async () => {
-      if (!slug) return null;
-
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("establishments")
-        .select("*")
-        .eq("slug", slug)
-        .eq("deleted", false)
-        .eq("is_public", true)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!slug,
-  });
-};
 
 // Query pour récupérer les horaires d'ouverture d'un établissement
 export const useEstablishmentOpeningHours = (establishmentId?: string) => {
@@ -265,10 +195,12 @@ export const useMenuProducts = (menuId?: string) => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("menus_products")
-        .select(`
+        .select(
+          `
           *,
           product:products(*)
-        `)
+        `,
+        )
         .eq("menus_id", menuId)
         .eq("deleted", false);
       if (error) throw error;
@@ -328,89 +260,14 @@ export const useEstablishmentProductsNotInMenus = (establishmentId?: string, org
   });
 };
 
-// Mutation pour créer un établissement
-export const useCreateEstablishment = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (establishment: {
-      name: string;
-      slug: string;
-      organization_id: string;
-      user_id: string;
-      description?: string;
-      address?: string;
-      phone?: string;
-      email?: string;
-      website?: string;
-      logo_url?: string;
-      cover_image_url?: string;
-      seo_title?: string;
-      seo_description?: string;
-      is_public?: boolean;
-    }) => {
-      const supabase = createClient();
-      const { data, error } = await supabase.from("establishments").insert(establishment).select().single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      // Invalider les queries liées aux établissements
-      queryClient.invalidateQueries({
-        queryKey: ["organization-establishments", data.organization_id],
-      });
-    },
-  });
-};
-
-// Mutation pour mettre à jour un établissement
-export const useUpdateEstablishment = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      ...updates
-    }: {
-      id: string;
-      name?: string;
-      slug?: string;
-      description?: string;
-      address?: string;
-      phone?: string;
-      email?: string;
-      website?: string;
-      logo_url?: string;
-      cover_image_url?: string;
-      seo_title?: string;
-      seo_description?: string;
-      is_public?: boolean;
-    }) => {
-      const supabase = createClient();
-      const { data, error } = await supabase.from("establishments").update(updates).eq("id", id).select().single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      // Invalider les queries liées aux établissements
-      queryClient.invalidateQueries({
-        queryKey: ["organization-establishments", data.organization_id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["establishment", data.id] });
-      queryClient.invalidateQueries({ queryKey: ["establishment-by-slug", data.slug] });
-    },
-  });
-};
-
+// Query pour récupérer les menus avec leurs plannings
 export const useEstablishmentMenusWithSchedules = (establishmentId?: string, organizationId?: string) => {
   return useQuery({
     queryKey: ["establishment-menus-with-schedules", establishmentId, organizationId],
     queryFn: async () => {
       if (!establishmentId || !organizationId) return [];
       const supabase = createClient();
-      
+
       // Récupérer les menus
       const { data: menus, error: menusError } = await supabase
         .from("menus")
@@ -419,30 +276,30 @@ export const useEstablishmentMenusWithSchedules = (establishmentId?: string, org
         .eq("organization_id", organizationId)
         .eq("deleted", false)
         .order("display_order", { ascending: true });
-      
+
       if (menusError) throw menusError;
-      
+
       // Récupérer les plannings pour tous les menus
       const menuIds = (menus || []).map((m: any) => m.id);
       let schedules: any[] = [];
-      
+
       if (menuIds.length > 0) {
         const { data: schedulesData, error: schedulesError } = await supabase
           .from("menu_schedules")
           .select("*")
           .in("menu_id", menuIds)
           .eq("deleted", false);
-        
+
         if (schedulesError) throw schedulesError;
         schedules = schedulesData || [];
       }
-      
+
       // Associer les plannings aux menus
       const result = (menus || []).map((menu: any) => ({
         ...menu,
-        schedules: schedules.filter((s: any) => s.menu_id === menu.id)
+        schedules: schedules.filter((s: any) => s.menu_id === menu.id),
       }));
-      
+
       return result;
     },
     enabled: !!establishmentId && !!organizationId,

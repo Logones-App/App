@@ -4,8 +4,8 @@ export interface ServerUser {
   id: string;
   email: string;
   role: string | null;
-  user_metadata: any;
-  app_metadata: any;
+  user_metadata: Record<string, unknown>;
+  app_metadata: Record<string, unknown>;
 }
 
 export async function getServerUser(): Promise<ServerUser | null> {
@@ -23,11 +23,11 @@ export async function getServerUser(): Promise<ServerUser | null> {
     }
 
     // Récupère le rôle depuis les metadata
-    const role = user.user_metadata?.role || user.app_metadata?.role || null;
+    const role = user.user_metadata?.role ?? user.app_metadata?.role ?? null;
 
     return {
       id: user.id,
-      email: user.email || "",
+      email: user.email ?? "",
       role,
       user_metadata: user.user_metadata,
       app_metadata: user.app_metadata,
@@ -40,5 +40,5 @@ export async function getServerUser(): Promise<ServerUser | null> {
 
 export async function getServerUserRole(): Promise<string | null> {
   const user = await getServerUser();
-  return user?.role || null;
+  return user?.role ?? null;
 }

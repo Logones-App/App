@@ -1,21 +1,20 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import type { Database } from "@/lib/supabase/database.types";
-import { createClient } from "@/lib/supabase/client";
 
-type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+import { createClient } from "@/lib/supabase/client";
 
 export interface BookingRealtimeEvent {
   type: "booking_created" | "booking_updated" | "booking_deleted";
   bookingId: string;
   establishmentId: string;
   organizationId: string;
-  data: any;
+  data: Record<string, unknown>;
   customerName?: string;
   timestamp: string;
 }
 
 class BookingsRealtime {
-  private subscriptions: any[] = [];
+  private subscriptions: RealtimeChannel[] = [];
 
   /**
    * S'abonner aux changements des bookings d'un établissement
@@ -23,14 +22,14 @@ class BookingsRealtime {
   subscribeToEstablishmentBookings(
     establishmentId: string,
     organizationId: string,
-    onEvent?: (event: BookingRealtimeEvent) => void
+    onEvent?: (event: BookingRealtimeEvent) => void,
   ) {
     console.log(`🔔 S'abonner aux changements des bookings pour l'établissement ${establishmentId}...`);
 
     const supabase = createClient();
-    
+
     const subscription = supabase
-      .channel(`bookings_${establishmentId}_${organizationId}`)
+      .channel(`bookings_establishment_${establishmentId}`)
       .on(
         "postgres_changes",
         {
@@ -38,30 +37,30 @@ class BookingsRealtime {
           schema: "public",
           table: "bookings",
         },
-        (payload: any) => {
+        (payload: Record<string, unknown>) => {
           // Filtrer côté client pour cet établissement et organisation
-          const record = payload.new || payload.old;
+          const record = payload.new ?? payload.old;
           if (
             record &&
-            (record as any).establishment_id === establishmentId &&
-            (record as any).organization_id === organizationId
+            (record as Record<string, unknown>).establishment_id === establishmentId &&
+            (record as Record<string, unknown>).organization_id === organizationId
           ) {
             const event: BookingRealtimeEvent = {
-              type: this.getEventType(payload.eventType),
-              bookingId: (record as any).id,
-              establishmentId: (record as any).establishment_id,
-              organizationId: (record as any).organization_id,
-              data: payload.new || payload.old,
-              customerName: this.getCustomerName(payload.new || payload.old),
+              type: this.getEventType(payload.eventType as string),
+              bookingId: (record as Record<string, unknown>).id as string,
+              establishmentId: (record as Record<string, unknown>).establishment_id as string,
+              organizationId: (record as Record<string, unknown>).organization_id as string,
+              data: (payload.new ?? payload.old) as Record<string, unknown>,
+              customerName: this.getCustomerName((payload.new ?? payload.old) as Record<string, unknown>),
               timestamp: new Date().toISOString(),
             };
 
             console.log(
               "📡 Bookings realtime event:",
               event.type,
-              (record as any).id,
-              (record as any).establishment_id,
-              (record as any).organization_id,
+              (record as Record<string, unknown>).id,
+              (record as Record<string, unknown>).establishment_id,
+              (record as Record<string, unknown>).organization_id,
             );
 
             this.handleBookingEvent(event);
@@ -81,14 +80,11 @@ class BookingsRealtime {
   /**
    * S'abonner aux changements de tous les bookings d'une organisation
    */
-  subscribeToOrganizationBookings(
-    organizationId: string,
-    onEvent?: (event: BookingRealtimeEvent) => void
-  ) {
+  subscribeToOrganizationBookings(organizationId: string, onEvent?: (event: BookingRealtimeEvent) => void) {
     console.log(`🔔 S'abonner aux changements des bookings pour l'organisation ${organizationId}...`);
 
     const supabase = createClient();
-    
+
     const subscription = supabase
       .channel(`bookings_organization_${organizationId}`)
       .on(
@@ -100,19 +96,19 @@ class BookingsRealtime {
         },
         (payload: any) => {
           // Filtrer côté client pour cette organisation
-          const record = payload.new || payload.old;
-          if (record && (record as any).organization_id === organizationId) {
+          const record = payload.new ?? payload.old;
+          if (record && record.organization_id === organizationId) {
             const event: BookingRealtimeEvent = {
               type: this.getEventType(payload.eventType),
-              bookingId: (record as any).id,
-              establishmentId: (record as any).establishment_id,
-              organizationId: (record as any).organization_id,
-              data: payload.new || payload.old,
-              customerName: this.getCustomerName(payload.new || payload.old),
+              bookingId: record.id,
+              establishmentId: record.establishment_id,
+              organizationId: record.organization_id,
+              data: (payload.new ?? payload.old) as Record<string, unknown>,
+              customerName: this.getCustomerName((payload.new ?? payload.old) as Record<string, unknown>),
               timestamp: new Date().toISOString(),
             };
 
-            console.log("📡 Bookings organization realtime event:", event.type, (record as any).id, (record as any).organization_id);
+            console.log("📡 Bookings organization realtime event:", event.type, record.id, record.organization_id);
 
             this.handleBookingEvent(event);
             onEvent?.(event);
@@ -137,7 +133,7 @@ class BookingsRealtime {
     bookingId: string,
     establishmentId: string,
     organizationId: string,
-    data?: any
+    data?: any,
   ) {
     const supabase = createClient();
     const channel = supabase.channel("bookings_notifications");
@@ -165,7 +161,7 @@ class BookingsRealtime {
     bookingId: string,
     establishmentId: string,
     organizationId: string,
-    data?: any
+    data?: any,
   ) {
     const supabase = createClient();
     const channel = supabase.channel("bookings_actions");
@@ -226,9 +222,9 @@ class BookingsRealtime {
   /**
    * Obtenir le nom du client
    */
-  private getCustomerName(booking: any): string {
+  private getCustomerName(booking: Record<string, unknown>): string {
     if (!booking) return "Client inconnu";
-    return `${booking.customer_first_name || ""} ${booking.customer_last_name || ""}`.trim() || "Client inconnu";
+    return `${booking.customer_first_name ?? ""} ${booking.customer_last_name ?? ""}`.trim() || "Client inconnu";
   }
 
   /**
@@ -244,4 +240,4 @@ class BookingsRealtime {
 }
 
 // Instance singleton
-export const bookingsRealtime = new BookingsRealtime(); 
+export const bookingsRealtime = new BookingsRealtime();

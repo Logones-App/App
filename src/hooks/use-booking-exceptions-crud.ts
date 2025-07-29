@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -23,7 +24,7 @@ interface UseBookingExceptionsRealtimeReturn {
   refresh: () => void;
 }
 
-interface CreateBookingExceptionData {
+export type CreateBookingExceptionData = {
   establishment_id: string;
   organization_id: string;
   exception_type: "period" | "single_day" | "service" | "time_slots";
@@ -35,7 +36,7 @@ interface CreateBookingExceptionData {
   booking_slot_id?: string;
   closed_slots?: number[];
   service?: string;
-}
+};
 
 interface UpdateBookingExceptionData {
   exception_type?: "period" | "single_day" | "service" | "time_slots";
@@ -58,7 +59,7 @@ export function useBookingExceptionsRealtime({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   // Références
   const supabase = createClient();
   const queryClient = useQueryClient();
@@ -144,10 +145,7 @@ export function useBookingExceptionsRealtime({
   // Mutation pour supprimer une exception
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("booking_exceptions")
-        .update({ deleted: true })
-        .eq("id", id);
+      const { error } = await supabase.from("booking_exceptions").update({ deleted: true }).eq("id", id);
 
       if (error) throw error;
       return { id };
@@ -204,16 +202,15 @@ export function useBookingExceptionsRealtime({
                     return prevExceptions.filter((exception) => exception.id !== newData.id);
                   } else {
                     // Mise à jour
-                    return prevExceptions.map((exception) =>
-                      exception.id === newData.id ? newData : exception
-                    );
+                    return prevExceptions.map((exception) => (exception.id === newData.id ? newData : exception));
                   }
                 }
                 return prevExceptions;
 
-              case "DELETE":
+              case "DELETE": {
                 const oldData = payload.old as BookingException;
                 return prevExceptions.filter((exception) => exception.id !== oldData.id);
+              }
 
               default:
                 return prevExceptions;

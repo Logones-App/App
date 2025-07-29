@@ -207,7 +207,7 @@ export function groupSlotsByServiceRealtime(
 
   // Grouper par nom de service
   filteredSlots.forEach((slot) => {
-    const serviceName = slot.slot_name || "Service par défaut";
+    const serviceName = slot.slot_name ?? "Service par défaut";
 
     if (!(serviceName in serviceGroups)) {
       serviceGroups[serviceName] = {
@@ -254,7 +254,7 @@ export function calculateExceptionImpact(
 
     if (isAffected) {
       affectedSlots.push(slot);
-      const serviceName = slot.slot_name || "Service par défaut";
+      const serviceName = slot.slot_name ?? "Service par défaut";
       affectedServices.add(serviceName);
     }
   });

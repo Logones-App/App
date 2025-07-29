@@ -1,5 +1,5 @@
 // Export des modules realtime par domaine
-export { establishmentsRealtime } from "./establishments-realtime";
+export { useEstablishmentsRealtime as establishmentsRealtime } from "./establishments-realtime";
 export { organizationsRealtime, type OrganizationRealtimeEvent } from "./organizations-realtime";
 export { productsRealtime, type ProductsRealtimeEvent, type ProductWithStock } from "./products-realtime";
 export { usersRealtime, type UserRealtimeEvent } from "./users-realtime";

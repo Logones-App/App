@@ -150,7 +150,7 @@ export class MetadataService {
     const userMetadata = this.getUserMetadata(user);
 
     // Priorité à app_metadata (plus sécurisé)
-    return appMetadata.role || userMetadata.role;
+    return appMetadata.role ?? userMetadata.role;
   }
 
   /**
@@ -242,6 +242,6 @@ export class MetadataService {
    */
   static getDisplayName(user: User): string {
     const fullName = this.getFullName(user);
-    return fullName || user.email || "Utilisateur";
+    return fullName ?? user.email ?? "Utilisateur";
   }
 }
