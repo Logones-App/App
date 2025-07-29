@@ -2,32 +2,31 @@
 
 import React from "react";
 
+import { BookingExceptionsShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/booking-exceptions-shared";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-import { BookingExceptionsShared } from "../../../../../../_components/establishments/booking-exceptions-shared";
+interface BookingExceptionsPageProps {
+  params: Promise<{
+    id: string; // organizationId
+    establishmentId: string;
+  }>;
+}
 
-export default function AdminBookingExceptionsPage() {
+export default function BookingExceptionsPage({ params }: BookingExceptionsPageProps) {
   const { isSystemAdmin } = useUserMetadata();
+  const { id, establishmentId } = React.use(params);
 
-  // Vérifier que l'utilisateur est un System Admin
+  // Vérifier les permissions
   if (!isSystemAdmin) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-destructive text-2xl font-bold">Accès refusé</h2>
-            <p className="text-muted-foreground">
-              Vous n'avez pas les permissions nécessaires pour accéder à cette page.
-            </p>
-          </div>
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Accès refusé</h1>
+          <p className="text-muted-foreground">Vous n'avez pas les permissions pour accéder à cette page.</p>
         </div>
       </div>
     );
   }
 
-  // Mock des IDs pour l'UX
-  const mockEstablishmentId = "est-123";
-  const mockOrganizationId = "org-456";
-
-  return <BookingExceptionsShared establishmentId={mockEstablishmentId} organizationId={mockOrganizationId} />;
+  return <BookingExceptionsShared establishmentId={establishmentId} organizationId={id} />;
 }

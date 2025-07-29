@@ -17,8 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
-import { useBookingExceptionsCrud } from "@/hooks/use-booking-exceptions-crud";
-import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-realtime";
+import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-crud";
 
 type BookingException = Tables<"booking_exceptions">;
 
@@ -36,8 +35,18 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
   const [selectedType, setSelectedType] = useState<string>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Hooks CRUD
-  const { createBookingException, updateBookingException, deleteBookingException } = useBookingExceptionsCrud();
+  // Hook realtime
+  const {
+    exceptions,
+    loading: isLoading,
+    error,
+    create,
+    update,
+    delete: deleteException,
+  } = useBookingExceptionsRealtime({
+    establishmentId: establishmentId || "",
+    organizationId,
+  });
 
   // Récupérer les établissements de l'organisation
   const { data: establishments = [] } = useQuery({
@@ -56,17 +65,10 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
     enabled: !!organizationId,
   });
 
-  // Récupérer les exceptions avec realtime
-  const { exceptions, isLoading, error } = useBookingExceptionsRealtime({
-    establishmentId: establishmentId || "",
-    organizationId,
-    enabled: !!establishmentId || isSystemAdmin,
-  });
-
   // Filtrer les exceptions
   const filteredExceptions = exceptions.filter((exception) => {
     const matchesSearch =
-      exception.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      exception.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       exception.exception_type?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = selectedType === "all" || exception.exception_type === selectedType;
     return matchesSearch && matchesType;
@@ -256,7 +258,7 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
                   <TableRow key={exception.id}>
                     <TableCell>{getTypeBadge(exception.exception_type || "")}</TableCell>
                     <TableCell>
-                      <div className="max-w-xs truncate">{exception.description || "Aucune description"}</div>
+                      <div className="max-w-xs truncate">{exception.reason || "Aucune description"}</div>
                     </TableCell>
                     <TableCell>{getEstablishmentName(exception.establishment_id)}</TableCell>
                     <TableCell>
@@ -272,7 +274,7 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
                         <Button variant="outline" size="sm">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => deleteBookingException.mutate(exception.id)}>
+                        <Button variant="outline" size="sm" onClick={() => deleteException(exception.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

@@ -2,47 +2,46 @@
 
 import React from "react";
 
+import { BookingExceptionsShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/booking-exceptions-shared";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 
-import { BookingExceptionsShared } from "../../../../_components/establishments/booking-exceptions-shared";
+interface BookingExceptionsPageProps {
+  params: Promise<{
+    id: string; // establishmentId
+  }>;
+}
 
-export default function DashboardBookingExceptionsPage() {
+export default function BookingExceptionsPage({ params }: BookingExceptionsPageProps) {
   const { isOrgAdmin } = useUserMetadata();
   const organizationId = useOrgaUserOrganizationId();
+  const { id } = React.use(params);
 
-  // Vérifier que l'utilisateur est un Org Admin
+  // Vérifier les permissions
   if (!isOrgAdmin) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-destructive text-2xl font-bold">Accès refusé</h2>
-            <p className="text-muted-foreground">
-              Vous n'avez pas les permissions nécessaires pour accéder à cette page.
-            </p>
-          </div>
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Accès refusé</h1>
+          <p className="text-muted-foreground">Vous n'avez pas les permissions pour accéder à cette page.</p>
         </div>
       </div>
     );
   }
 
-  // Attendre que l'organizationId soit chargé
+  // Affichage de chargement pour l'organizationId
   if (!organizationId) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">Chargement...</h2>
-            <p className="text-muted-foreground">Chargement de votre organisation...</p>
+      <div className="container mx-auto p-6">
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+            <p className="text-muted-foreground">Chargement de l'organisation...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Mock de l'establishmentId pour l'UX
-  const mockEstablishmentId = "est-789";
-
-  return <BookingExceptionsShared establishmentId={mockEstablishmentId} organizationId={organizationId} />;
+  return <BookingExceptionsShared establishmentId={id} organizationId={organizationId} />;
 }

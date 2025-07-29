@@ -21,6 +21,11 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
+// Hook realtime
+import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-crud";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+
 interface BookingExceptionsSharedProps {
   establishmentId: string;
   organizationId: string;
@@ -28,7 +33,81 @@ interface BookingExceptionsSharedProps {
 
 type ExceptionType = "period" | "single_day" | "service" | "time_slots";
 
+// Hook pour récupérer les booking_slots de l'établissement
+function useEstablishmentBookingSlots(establishmentId: string) {
+  return useQuery({
+    queryKey: ["establishment-booking-slots", establishmentId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("booking_slots")
+        .select("*")
+        .eq("establishment_id", establishmentId)
+        .eq("deleted", false)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!establishmentId,
+  });
+}
+
+// Fonction pour générer les créneaux à partir d'un booking_slot
+function generateTimeSlotsFromBookingSlot(slot: any) {
+  const slots: { id: number; time: string; label: string }[] = [];
+  const startTime = new Date(`2000-01-01T${slot.start_time}`);
+  const endTime = new Date(`2000-01-01T${slot.end_time}`);
+
+  let slotId = 0;
+  const currentTime = new Date(startTime);
+
+  while (currentTime < endTime) {
+    const timeString = currentTime.toTimeString().slice(0, 5);
+    const label = currentTime.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    slots.push({
+      id: slotId,
+      time: timeString,
+      label: label,
+    });
+
+    // Incrémenter de 15 minutes
+    currentTime.setMinutes(currentTime.getMinutes() + 15);
+    slotId++;
+  }
+
+  return slots;
+}
+
 export function BookingExceptionsShared({ establishmentId, organizationId }: BookingExceptionsSharedProps) {
+  // Hook realtime
+  const {
+    exceptions,
+    loading,
+    error,
+    isConnected,
+    create,
+    update,
+    delete: deleteException,
+    refresh,
+  } = useBookingExceptionsRealtime({
+    establishmentId,
+    organizationId,
+  });
+
+  // Hook pour récupérer les booking_slots
+  const {
+    data: bookingSlots,
+    isLoading: slotsLoading,
+    error: slotsError,
+  } = useEstablishmentBookingSlots(establishmentId);
+
   // États pour les types d'exceptions (sous-onglets)
   const [activeExceptionType, setActiveExceptionType] = useState<ExceptionType>("period");
 
@@ -58,97 +137,26 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
-  // Données mockées pour les tests
-  const mockServices = [
-    { id: "1", name: "Déjeuner" },
-    { id: "2", name: "Dîner" },
-    { id: "3", name: "Brunch" },
-  ];
+  // Fonction pour obtenir les services disponibles pour une date donnée
+  const getServicesForDate = (date: Date) => {
+    if (!bookingSlots || !date) return [];
 
-  const mockTimeSlots = [
-    { id: 0, time: "12:00", label: "12h00" },
-    { id: 1, time: "12:30", label: "12h30" },
-    { id: 2, time: "13:00", label: "13h00" },
-    { id: 3, time: "13:30", label: "13h30" },
-    { id: 4, time: "19:00", label: "19h00" },
-    { id: 5, time: "19:30", label: "19h30" },
-    { id: 6, time: "20:00", label: "20h00" },
-    { id: 7, time: "20:30", label: "20h30" },
-  ];
+    const dayOfWeek = date.getDay(); // 0 = dimanche, 1 = lundi, etc.
+    return bookingSlots.filter((slot) => slot.day_of_week === dayOfWeek);
+  };
 
-  // Exceptions existantes (mock)
-  const existingExceptions = [
-    {
-      id: "1",
-      type: "period",
-      name: "Fermeture estivale",
-      start_date: "2025-07-15",
-      end_date: "2025-08-15",
-      status: "active",
-      reason: "Congés d'été",
-    },
-    {
-      id: "2",
-      type: "single_day",
-      name: "Jour férié",
-      date: "2025-07-14",
-      status: "active",
-      reason: "14 juillet",
-    },
-    {
-      id: "3",
-      type: "service",
-      name: "Fermeture exceptionnelle",
-      date: "2025-07-03",
-      service: "Dîner",
-      status: "inactive",
-      reason: "Événement privé",
-    },
-    {
-      id: "4",
-      type: "time_slots",
-      name: "Fermeture créneaux",
-      date: "2025-07-01",
-      time_slots: ["12:00", "12:30", "13:00"],
-      status: "active",
-      reason: "Maintenance",
-    },
-    {
-      id: "5",
-      type: "period",
-      name: "Fermeture inter-mois",
-      start_date: "2025-07-30",
-      end_date: "2025-08-02",
-      status: "active",
-      reason: "Fermeture exceptionnelle",
-    },
-    {
-      id: "6",
-      type: "service",
-      name: "Service fermé",
-      date: "2025-07-20",
-      service: "Déjeuner",
-      status: "active",
-      reason: "Événement privé",
-    },
-    {
-      id: "7",
-      type: "time_slots",
-      name: "Créneaux fermés",
-      date: "2025-07-25",
-      time_slots: ["19:00", "19:30", "20:00"],
-      status: "active",
-      reason: "Maintenance",
-    },
-    {
-      id: "8",
-      type: "single_day",
-      name: "Jour spécial",
-      date: "2025-07-10",
-      status: "active",
-      reason: "Événement spécial",
-    },
-  ];
+  // Fonction pour obtenir les créneaux d'un service
+  const getTimeSlotsForService = (serviceId: string) => {
+    const service = bookingSlots?.find((slot) => slot.id === serviceId);
+    if (!service) return [];
+    return generateTimeSlotsFromBookingSlot(service);
+  };
+
+  // Fonction pour obtenir le nom du service
+  const getServiceName = (serviceId: string) => {
+    const service = bookingSlots?.find((slot) => slot.id === serviceId);
+    return service?.slot_name || "Service inconnu";
+  };
 
   // Fonction pour formater la date
   const formatDate = (date: Date) => format(date, "dd/MM/yyyy");
@@ -161,7 +169,7 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
   // Fonction pour fermer la modale
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // Reset des sélections
+    // Réinitialiser tous les états
     setSelectedExceptionType("period");
     setPeriodStartDate(undefined);
     setPeriodEndDate(undefined);
@@ -181,6 +189,66 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
 
   // Fonction pour valider la création
   const handleValidateCreation = () => {
+    // Préparer les données selon le type d'exception
+    const exceptionData: any = {
+      establishment_id: establishmentId,
+      organization_id: organizationId,
+      exception_type: selectedExceptionType,
+      reason,
+      status,
+    };
+
+    let isValid = true;
+    let errorMessage = "";
+
+    switch (selectedExceptionType) {
+      case "period":
+        if (periodStartDate && periodEndDate) {
+          exceptionData.start_date = format(periodStartDate, "yyyy-MM-dd");
+          exceptionData.end_date = format(periodEndDate, "yyyy-MM-dd");
+        } else {
+          isValid = false;
+          errorMessage = "Veuillez sélectionner une période valide";
+        }
+        break;
+      case "single_day":
+        if (singleDate) {
+          exceptionData.date = format(singleDate, "yyyy-MM-dd");
+        } else {
+          isValid = false;
+          errorMessage = "Veuillez sélectionner une date";
+        }
+        break;
+      case "service":
+        if (serviceDate && selectedService) {
+          exceptionData.date = format(serviceDate, "yyyy-MM-dd");
+          exceptionData.booking_slot_id = selectedService; // Utiliser l'ID du service
+        } else {
+          isValid = false;
+          errorMessage = "Veuillez sélectionner une date et un service";
+        }
+        break;
+      case "time_slots":
+        if (timeSlotsDate && selectedService && selectedTimeSlots.length > 0) {
+          exceptionData.date = format(timeSlotsDate, "yyyy-MM-dd");
+          exceptionData.booking_slot_id = selectedService; // Utiliser l'ID du service
+          exceptionData.closed_slots = selectedTimeSlots;
+        } else {
+          isValid = false;
+          errorMessage = "Veuillez sélectionner une date, un service et au moins un créneau";
+        }
+        break;
+    }
+
+    // Vérifier la validité et créer l'exception
+    if (!isValid) {
+      // Afficher une erreur (vous pouvez utiliser toast.error ici)
+      console.error("❌ Erreur de validation:", errorMessage);
+      return;
+    }
+
+    // Créer l'exception via le hook realtime
+    create(exceptionData);
     handleCloseModal();
   };
 
@@ -197,81 +265,101 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
 
   // Fonction pour obtenir les événements FullCalendar
   const getCalendarEvents = () => {
-    return existingExceptions.map((exception) => {
-      let event = {
-        id: exception.id,
-        title: exception.name,
-        backgroundColor: "",
-        borderColor: "",
-        textColor: "#ffffff",
-        className: "cursor-pointer hover:opacity-80",
-      };
+    return exceptions
+      .map((exception) => {
+        let event = {
+          id: exception.id,
+          title: exception.reason || "Exception sans raison",
+          backgroundColor: "",
+          borderColor: "",
+          textColor: "#ffffff",
+          className: "cursor-pointer hover:opacity-80",
+        };
 
-      switch (exception.type) {
-        case "period":
-          event.backgroundColor = "#ef4444";
-          event.borderColor = "#dc2626";
-          event.title = `${exception.name} (${exception.start_date} - ${exception.end_date})`;
-          return {
-            ...event,
-            start: exception.start_date,
-            end: exception.end_date,
-          };
-        case "single_day":
-          event.backgroundColor = "#f59e0b";
-          event.borderColor = "#d97706";
-          event.title = `${exception.name} (${exception.date})`;
-          return {
-            ...event,
-            start: exception.date,
-            end: exception.date,
-          };
-        case "service":
-          event.backgroundColor = "#8b5cf6";
-          event.borderColor = "#7c3aed";
-          event.title = `${exception.name} - ${exception.service} (${exception.date})`;
-          return {
-            ...event,
-            start: exception.date,
-            end: exception.date,
-          };
-        case "time_slots":
-          event.backgroundColor = "#3b82f6";
-          event.borderColor = "#2563eb";
-          event.title = `${exception.name} - Créneaux (${exception.date})`;
-          return {
-            ...event,
-            start: exception.date,
-            end: exception.date,
-          };
-        default:
-          return event;
-      }
-    });
+        switch (exception.exception_type) {
+          case "period":
+            if (!exception.start_date || !exception.end_date) return null;
+            event.backgroundColor = "#ef4444";
+            event.borderColor = "#dc2626";
+            event.title = `${exception.reason || "Période"} (${exception.start_date} - ${exception.end_date})`;
+
+            // Ajouter un jour à la date de fin pour que FullCalendar affiche la période complète (inclusive)
+            const endDate = new Date(exception.end_date);
+            endDate.setDate(endDate.getDate() + 1);
+            const endDateStr = endDate.toISOString().split("T")[0];
+
+            return {
+              ...event,
+              start: exception.start_date,
+              end: endDateStr,
+            };
+          case "single_day":
+            if (!exception.date) return null;
+            event.backgroundColor = "#f59e0b";
+            event.borderColor = "#d97706";
+            event.title = `${exception.reason || "Jour unique"} (${exception.date})`;
+            return {
+              ...event,
+              start: exception.date,
+              end: exception.date,
+            };
+          case "service":
+            if (!exception.date) return null;
+            event.backgroundColor = "#8b5cf6";
+            event.borderColor = "#7c3aed";
+            event.title = `${exception.reason || "Service"} (${exception.date})`;
+            return {
+              ...event,
+              start: exception.date,
+              end: exception.date,
+            };
+          case "time_slots":
+            if (!exception.date) return null;
+            event.backgroundColor = "#3b82f6";
+            event.borderColor = "#2563eb";
+            event.title = `${exception.reason || "Créneaux"} - Créneaux (${exception.date})`;
+            return {
+              ...event,
+              start: exception.date,
+              end: exception.date,
+            };
+          default:
+            return null;
+        }
+      })
+      .filter((event) => event !== null);
   };
 
   // Fonction pour obtenir les exceptions de la date sélectionnée
   const getExceptionsForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const filteredExceptions = existingExceptions.filter((exception) => {
+    const filteredExceptions = exceptions.filter((exception) => {
       let isIncluded = false;
 
-      switch (exception.type) {
+      switch (exception.exception_type) {
         case "period":
           // Pour les périodes, vérifier si la date est dans la plage (inclusive)
-          isIncluded = dateStr >= exception.start_date && dateStr <= exception.end_date;
+          if (exception.start_date && exception.end_date) {
+            isIncluded = dateStr >= exception.start_date && dateStr <= exception.end_date;
+          }
           return isIncluded;
         case "single_day":
           // Pour les jours uniques, vérifier si la date correspond exactement
-          isIncluded = dateStr === exception.date;
+          if (exception.date) {
+            isIncluded = dateStr === exception.date;
+          }
           return isIncluded;
         case "service":
           // Pour les services, vérifier si la date correspond
-          isIncluded = dateStr === exception.date;
+          if (exception.date) {
+            isIncluded = dateStr === exception.date;
+          }
           return isIncluded;
         case "time_slots":
           // Pour les créneaux, vérifier si la date correspond
-          isIncluded = dateStr === exception.date;
+          if (exception.date) {
+            isIncluded = dateStr === exception.date;
+          }
           return isIncluded;
         default:
           return false;
@@ -284,15 +372,10 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
   // Fonction pour ouvrir la modale de suppression
   const handleDeleteClick = (exception: any) => {
     setExceptionToDelete(exception);
-    if (exception.type === "time_slots") {
+    if (exception.exception_type === "time_slots") {
       setIsTimeSlotsEditMode(true);
       setEditedTimeSlots(
-        exception.time_slots
-          ?.map((time: string) => {
-            const slot = mockTimeSlots.find((s) => s.time === time);
-            return slot ? slot.id : -1;
-          })
-          .filter((id: number) => id !== -1) || [],
+        exception.closed_slots?.map((slotId: number) => slotId).filter((id: number) => id !== -1) || [],
       );
     }
     setIsDeleteModalOpen(true);
@@ -310,14 +393,20 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
   const handleConfirmDelete = () => {
     if (!exceptionToDelete) return;
 
-    if (exceptionToDelete.type === "time_slots" && isTimeSlotsEditMode) {
+    if (exceptionToDelete.exception_type === "time_slots" && isTimeSlotsEditMode) {
       if (editedTimeSlots.length === 0) {
         // Supprimer l'exception si aucun créneau n'est sélectionné
+        deleteException(exceptionToDelete.id);
       } else {
         // Mettre à jour l'exception avec les nouveaux créneaux
+        update({
+          id: exceptionToDelete.id,
+          closed_slots: editedTimeSlots,
+        });
       }
     } else {
       // Suppression directe pour les autres types
+      deleteException(exceptionToDelete.id);
     }
 
     handleCloseDeleteModal();
@@ -360,18 +449,62 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
     }
   };
 
+  // Affichage des états de chargement et d'erreur
+  if (loading || slotsLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+            <p className="text-muted-foreground">Chargement des exceptions et services...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || slotsError) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 text-red-500">❌</div>
+            <p className="font-semibold text-red-600">Erreur de chargement</p>
+            <p className="text-muted-foreground text-sm">{error || slotsError?.message}</p>
+            <Button onClick={refresh} className="mt-4">
+              🔄 Réessayer
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
-      {/* Header */}
+      {/* Header avec indicateur de connexion */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Gestion des exceptions</h1>
           <p className="text-muted-foreground">Gérez les fermetures et modifications d'horaires pour l'établissement</p>
         </div>
-        <Button onClick={handleCreateException} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Créer l'exception
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Indicateur de connexion realtime */}
+          <div
+            className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm ${
+              isConnected
+                ? "border border-green-200 bg-green-100 text-green-800"
+                : "border border-red-200 bg-red-100 text-red-800"
+            }`}
+          >
+            <div className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></div>
+            {isConnected ? "🟢 Connecté" : "🔴 Déconnecté"}
+          </div>
+          <Button onClick={handleCreateException} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Créer l'exception
+          </Button>
+        </div>
       </div>
 
       {/* Contenu principal */}
@@ -447,7 +580,7 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                     <div key={exception.id} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">{exception.name}</h4>
+                          <h4 className="font-semibold">{exception.reason || "Exception sans raison"}</h4>
                           <Badge variant={exception.status === "active" ? "default" : "secondary"}>
                             {exception.status === "active" ? "Actif" : "Inactif"}
                           </Badge>
@@ -463,20 +596,25 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                       </div>
                       <p className="text-muted-foreground text-sm">{exception.reason}</p>
                       <div className="text-muted-foreground mt-2 text-xs">
-                        {exception.type === "period" && (
+                        {exception.exception_type === "period" && (
                           <span>
                             Période : {exception.start_date} → {exception.end_date}
                           </span>
                         )}
-                        {exception.type === "single_day" && <span>Jour unique : {exception.date}</span>}
-                        {exception.type === "service" && (
+                        {exception.exception_type === "single_day" && (
+                          <span>Jour unique : {exception.date || "Date inconnue"}</span>
+                        )}
+                        {exception.exception_type === "service" && (
                           <span>
-                            Service {exception.service} désactivé : {exception.date}
+                            Service désactivé : {exception.date || "Date inconnue"} -{" "}
+                            {exception.booking_slot_id ? getServiceName(exception.booking_slot_id) : "Service inconnu"}
                           </span>
                         )}
-                        {exception.type === "time_slots" && (
+                        {exception.exception_type === "time_slots" && (
                           <span>
-                            Service - Créneaux {exception.time_slots?.join(", ")} fermés : {exception.date}
+                            Service - Créneaux {exception.closed_slots?.join(", ")} fermés :{" "}
+                            {exception.date || "Date inconnue"} -{" "}
+                            {exception.booking_slot_id ? getServiceName(exception.booking_slot_id) : "Service inconnu"}
                           </span>
                         )}
                       </div>
@@ -583,20 +721,27 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                     {serviceDate && (
                       <div className="space-y-4">
                         <Label>Service à désactiver</Label>
-                        <div className="grid grid-cols-1 gap-2">
-                          {mockServices.map((service) => (
-                            <Button
-                              key={service.id}
-                              variant={selectedService === service.id ? "default" : "outline"}
-                              className="justify-start"
-                              onClick={() => setSelectedService(service.id)}
-                            >
-                              <div className="flex w-full items-center justify-between">
-                                <span>{service.name}</span>
-                              </div>
-                            </Button>
-                          ))}
-                        </div>
+                        {getServicesForDate(serviceDate).length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            {getServicesForDate(serviceDate).map((service) => (
+                              <Button
+                                key={service.id}
+                                variant={selectedService === service.id ? "default" : "outline"}
+                                className="justify-start"
+                                onClick={() => setSelectedService(service.id)}
+                              >
+                                <div className="flex w-full items-center justify-between">
+                                  <span>{service.slot_name}</span>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-muted-foreground rounded-lg border p-4 text-center">
+                            <p>Aucun service configuré pour cette date</p>
+                            <p className="text-sm">Veuillez sélectionner une autre date ou configurer des services</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -622,20 +767,27 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                     {timeSlotsDate && (
                       <div className="space-y-4">
                         <Label>Service concerné</Label>
-                        <div className="grid grid-cols-1 gap-2">
-                          {mockServices.map((service) => (
-                            <Button
-                              key={service.id}
-                              variant={selectedService === service.id ? "default" : "outline"}
-                              className="justify-start"
-                              onClick={() => setSelectedService(service.id)}
-                            >
-                              <div className="flex w-full items-center justify-between">
-                                <span>{service.name}</span>
-                              </div>
-                            </Button>
-                          ))}
-                        </div>
+                        {getServicesForDate(timeSlotsDate).length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            {getServicesForDate(timeSlotsDate).map((service) => (
+                              <Button
+                                key={service.id}
+                                variant={selectedService === service.id ? "default" : "outline"}
+                                className="justify-start"
+                                onClick={() => setSelectedService(service.id)}
+                              >
+                                <div className="flex w-full items-center justify-between">
+                                  <span>{service.slot_name}</span>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-muted-foreground rounded-lg border p-4 text-center">
+                            <p>Aucun service configuré pour cette date</p>
+                            <p className="text-sm">Veuillez sélectionner une autre date ou configurer des services</p>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -644,7 +796,7 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                       <div className="space-y-4">
                         <Label>Créneaux à fermer</Label>
                         <div className="grid grid-cols-3 gap-2">
-                          {mockTimeSlots.map((slot) => (
+                          {getTimeSlotsForService(selectedService).map((slot) => (
                             <Button
                               key={slot.id}
                               variant={selectedTimeSlots.includes(slot.id) ? "destructive" : "outline"}
@@ -680,13 +832,12 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
                     {selectedExceptionType === "single_day" && singleDate && <span>{formatDate(singleDate)}</span>}
                     {selectedExceptionType === "service" && serviceDate && selectedService && (
                       <span>
-                        {formatDate(serviceDate)} - {mockServices.find((s) => s.id === selectedService)?.name}
+                        {formatDate(serviceDate)} - {getServiceName(selectedService)}
                       </span>
                     )}
                     {selectedExceptionType === "time_slots" && timeSlotsDate && (
                       <span>
-                        {formatDate(timeSlotsDate)} -{" "}
-                        {mockServices.find((s) => s.id === selectedService)?.name || "Service non sélectionné"} -{" "}
+                        {formatDate(timeSlotsDate)} - {getServiceName(selectedService) || "Service non sélectionné"} -{" "}
                         {selectedTimeSlots.length} créneau(s)
                       </span>
                     )}
@@ -739,17 +890,17 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
         <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {exceptionToDelete?.type === "time_slots" ? "Modifier les créneaux" : "Supprimer l'exception"}
+              {exceptionToDelete?.exception_type === "time_slots" ? "Modifier les créneaux" : "Supprimer l'exception"}
             </DialogTitle>
             <DialogDescription>
-              {exceptionToDelete?.type === "time_slots" ? (
+              {exceptionToDelete?.exception_type === "time_slots" ? (
                 <span>
-                  Modifiez les créneaux pour l'exception "{exceptionToDelete?.name}". Décochez tous les créneaux pour
+                  Modifiez les créneaux pour l'exception "{exceptionToDelete?.reason}". Décochez tous les créneaux pour
                   supprimer l'exception.
                 </span>
               ) : (
                 <span>
-                  Êtes-vous sûr de vouloir supprimer l'exception "{exceptionToDelete?.name}" ? Cette action est
+                  Êtes-vous sûr de vouloir supprimer l'exception "{exceptionToDelete?.reason}" ? Cette action est
                   irréversible.
                 </span>
               )}
@@ -757,19 +908,19 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
           </DialogHeader>
 
           {/* Interface spéciale pour les créneaux */}
-          {exceptionToDelete?.type === "time_slots" && isTimeSlotsEditMode && (
+          {exceptionToDelete?.exception_type === "time_slots" && isTimeSlotsEditMode && (
             <div className="space-y-4">
               <div>
                 <Label>Service concerné</Label>
                 <p className="text-muted-foreground text-sm">
-                  {mockServices.find((s) => s.id === selectedService)?.name || "Service non spécifié"}
+                  {getServiceName(selectedService) || "Service non spécifié"}
                 </p>
               </div>
 
               <div>
                 <Label>Créneaux à fermer</Label>
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {mockTimeSlots.map((slot) => (
+                  {getTimeSlotsForService(selectedService).map((slot) => (
                     <Button
                       key={slot.id}
                       variant={editedTimeSlots.includes(slot.id) ? "destructive" : "outline"}
@@ -794,10 +945,10 @@ export function BookingExceptionsShared({ establishmentId, organizationId }: Boo
               Annuler
             </Button>
             <Button
-              variant={exceptionToDelete?.type === "time_slots" ? "default" : "destructive"}
+              variant={exceptionToDelete?.exception_type === "time_slots" ? "default" : "destructive"}
               onClick={handleConfirmDelete}
             >
-              {exceptionToDelete?.type === "time_slots" ? "Enregistrer" : "Supprimer"}
+              {exceptionToDelete?.exception_type === "time_slots" ? "Enregistrer" : "Supprimer"}
             </Button>
           </div>
         </DialogContent>
