@@ -177,7 +177,7 @@ export function useBookingExceptionsForDate(establishmentId: string, date: Date,
     console.log("  - Exception end_date en base:", exception.end_date);
 
     switch (exception.exception_type) {
-      case "period":
+      case "period": {
         const periodMatch = !!(
           exception.start_date &&
           exception.end_date &&
@@ -187,22 +187,25 @@ export function useBookingExceptionsForDate(establishmentId: string, date: Date,
         console.log("  - Period match:", periodMatch);
         console.log("  - Comparaison:", dateStr, ">=", exception.start_date, "&&", dateStr, "<=", exception.end_date);
         return periodMatch;
+      }
 
-      case "single_day":
+      case "single_day": {
         const singleDayMatch = exception.date === dateStr;
         console.log("  - Single day match:", singleDayMatch);
         console.log("  - Comparaison:", exception.date, "===", dateStr);
         return singleDayMatch;
+      }
 
       case "service":
         // Les exceptions de service s'appliquent à toutes les dates
         console.log("  - Service exception: true");
         return true;
 
-      case "time_slots":
+      case "time_slots": {
         // Les exceptions de créneaux horaires s'appliquent à toutes les dates
         console.log("  - Time slots exception: true");
         return true;
+      }
 
       default:
         console.log("  - Unknown exception type: false");

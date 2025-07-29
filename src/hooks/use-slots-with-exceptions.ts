@@ -78,6 +78,10 @@ export function useSlotsWithExceptions({
     date,
   });
 
+  // État global de chargement et d'erreur
+  const globalLoading = slotsLoading || exceptionsLoading || orgLoading;
+  const globalError = slotsError ?? exceptionsError ?? orgError;
+
   // Fonction pour calculer les créneaux avec exceptions
   const calculateSlotsWithExceptions = useCallback(async () => {
     if (!slots || !enabled || !organizationId) return;
@@ -114,10 +118,6 @@ export function useSlotsWithExceptions({
     // Recalculer les créneaux
     await calculateSlotsWithExceptions();
   }, [queryClient, establishmentId, calculateSlotsWithExceptions]);
-
-  // Gestion des états de chargement et d'erreur globaux
-  const globalLoading = slotsLoading || exceptionsLoading || orgLoading || isLoading;
-  const globalError = slotsError || exceptionsError || orgError || error;
 
   return {
     serviceGroups,

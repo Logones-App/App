@@ -79,12 +79,9 @@ const ServiceGroupDisplay = memo<{
   const availableSlots = serviceGroup.slots.filter((slot) => slot.isAvailable);
   const unavailableSlots = serviceGroup.slots.filter((slot) => !slot.isAvailable);
 
-  const handleSlotSelect = useCallback(
-    (slot: TimeSlot) => {
-      setSelectedSlot(selectedSlot?.time === slot.time && selectedSlot?.slotId === slot.slotId ? null : slot);
-    },
-    [selectedSlot, setSelectedSlot],
-  );
+  const handleSlotSelect = useCallback((slot: TimeSlot) => {
+    setSelectedSlot(selectedSlot?.time === slot.time && selectedSlot?.slotId === slot.slotId ? null : slot);
+  }, [selectedSlot, setSelectedSlot]);
 
   return (
     <div className="space-y-4">
