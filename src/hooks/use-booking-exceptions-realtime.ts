@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 
 import { bookingExceptionsRealtime, type BookingExceptionEvent } from "@/lib/services/realtime/modules";
 import { Tables } from "@/lib/supabase/database.types";
