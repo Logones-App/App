@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 import { bookingExceptionsRealtime, type BookingExceptionEvent } from "@/lib/services/realtime/modules";
 import { Tables } from "@/lib/supabase/database.types";
@@ -35,12 +36,12 @@ export function useBookingExceptionsRealtime({
   const queryClient = useQueryClient();
 
   // Fonction pour récupérer les exceptions initiales
-  const fetchExceptions = async () => {
+  const fetchExceptions = async (): Promise<BookingException[]> => {
     if (!establishmentId) {
       setExceptions([]);
       setIsLoading(false);
       setError(null);
-      return;
+      return [];
     }
 
     try {
@@ -49,38 +50,49 @@ export function useBookingExceptionsRealtime({
 
       // Utiliser TanStack Query pour la récupération initiale
       const data = await queryClient.fetchQuery({
-        queryKey: ["booking-exceptions", establishmentId, date?.toISOString().split("T")[0]],
+        queryKey: ["booking-exceptions", establishmentId],
         queryFn: async () => {
           const { createClient } = await import("@/lib/supabase/client");
           const supabase = createClient();
 
-          let query = supabase
+          // Récupérer TOUTES les exceptions de l'établissement sans filtrage par date
+          // Le filtrage se fera côté client dans useBookingExceptionsForDate ou groupSlotsByServiceRealtime
+          const { data, error } = await supabase
             .from("booking_exceptions")
             .select("*")
             .eq("establishment_id", establishmentId)
             .eq("status", "active")
             .eq("deleted", false);
 
-          // Si une date est spécifiée, filtrer par date
-          if (date) {
-            const dateStr = date.toISOString().split("T")[0];
-            query = query.or(`date.eq.${dateStr},and(start_date.lte.${dateStr},end_date.gte.${dateStr})`);
-          }
-
-          const { data, error } = await query;
           if (error) throw error;
           return data ?? [];
         },
       });
 
       setExceptions(data ?? []);
+      return data ?? [];
     } catch (err) {
       console.error("❌ Erreur dans useBookingExceptionsRealtime:", err);
       setError(err instanceof Error ? err : new Error("Erreur inconnue"));
+      return [];
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Chargement initial des exceptions
+  const { data: initialExceptions, error: fetchError } = useQuery({
+    queryKey: ["booking-exceptions", establishmentId, organizationId],
+    queryFn: fetchExceptions,
+    enabled: !!establishmentId, // organizationId n'est pas nécessaire pour récupérer les exceptions
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  console.log("🔍 DEBUG useBookingExceptionsRealtime:");
+  console.log("  - establishmentId:", establishmentId);
+  console.log("  - organizationId:", organizationId);
+  console.log("  - initialExceptions:", initialExceptions?.length || 0);
+  console.log("  - fetchError:", fetchError);
 
   useEffect(() => {
     // Pattern standard de l'application : condition complète sans cleanup
@@ -142,39 +154,66 @@ export function useBookingExceptionsRealtime({
 /**
  * Hook spécialisé pour les exceptions d'une date spécifique
  */
-export function useBookingExceptionsForDate(establishmentId: string, date: Date) {
+export function useBookingExceptionsForDate(establishmentId: string, date: Date, organizationId?: string) {
   const { exceptions, isLoading, error } = useBookingExceptionsRealtime({
     establishmentId,
+    organizationId,
     date,
   });
 
   // Filtrer les exceptions qui s'appliquent spécifiquement à cette date
+  const adjustedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dateStr = adjustedDate.toISOString().split("T")[0];
+  
   const dateExceptions = exceptions.filter((exception) => {
-    const dateStr = date.toISOString().split("T")[0];
+    console.log("🔍 DEBUG useBookingExceptionsForDate:");
+    console.log("  - Date reçue:", date);
+    console.log("  - Date ajustée:", adjustedDate);
+    console.log("  - dateStr formatée:", dateStr);
+    console.log("  - Exception:", exception.exception_type, exception.date, exception.start_date, exception.end_date);
+    console.log("  - Exception ID:", exception.id);
+    console.log("  - Exception date en base:", exception.date);
+    console.log("  - Exception start_date en base:", exception.start_date);
+    console.log("  - Exception end_date en base:", exception.end_date);
 
     switch (exception.exception_type) {
       case "period":
-        return !!(
+        const periodMatch = !!(
           exception.start_date &&
           exception.end_date &&
           dateStr >= exception.start_date &&
           dateStr <= exception.end_date
         );
+        console.log("  - Period match:", periodMatch);
+        console.log("  - Comparaison:", dateStr, ">=", exception.start_date, "&&", dateStr, "<=", exception.end_date);
+        return periodMatch;
 
       case "single_day":
-        return exception.date === dateStr;
+        const singleDayMatch = exception.date === dateStr;
+        console.log("  - Single day match:", singleDayMatch);
+        console.log("  - Comparaison:", exception.date, "===", dateStr);
+        return singleDayMatch;
 
       case "service":
-        // Pour les exceptions de service, valides pour tous les jours
+        // Les exceptions de service s'appliquent à toutes les dates
+        console.log("  - Service exception: true");
         return true;
 
       case "time_slots":
-        return exception.date === dateStr;
+        // Les exceptions de créneaux horaires s'appliquent à toutes les dates
+        console.log("  - Time slots exception: true");
+        return true;
 
       default:
+        console.log("  - Unknown exception type: false");
         return false;
     }
   });
+
+  console.log("🔍 DEBUG useBookingExceptionsForDate - Résultat:");
+  console.log("  - Exceptions totales:", exceptions.length);
+  console.log("  - Exceptions filtrées:", dateExceptions.length);
+  console.log("  - DateStr utilisée pour le filtrage:", dateStr);
 
   return {
     exceptions: dateExceptions,

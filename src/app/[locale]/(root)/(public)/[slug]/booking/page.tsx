@@ -87,9 +87,16 @@ async function getEstablishmentBySlug(slug: string): Promise<Establishment | nul
 }
 
 export default function BookingPage({ params }: BookingPageProps) {
+  const { locale, slug } = React.use(params);
   const router = useRouter();
   const t = useTranslations("Booking");
-  const [selectedDate, setSelectedDate] = useState<Value>(new Date());
+
+  const today = new Date();
+  // Initialiser avec la date d'aujourd'hui en timezone local
+  const [selectedDate, setSelectedDate] = useState<Value>(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  });
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -131,12 +138,14 @@ export default function BookingPage({ params }: BookingPageProps) {
   const handleDateSelect = (date: Date) => {
     if (!establishment) return;
 
-    // Utiliser format() de date-fns pour éviter le décalage UTC
-    const formattedDate = format(date, "yyyy-MM-dd");
+    // S'assurer que la date est en timezone local pour éviter les décalages
+    const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const formattedDate = format(localDate, "yyyy-MM-dd");
     const targetUrl = `/${establishment.slug}/booking/slots/${formattedDate}`;
 
     console.log("🚀 Navigation vers les créneaux:");
     console.log("  - Date sélectionnée:", date);
+    console.log("  - Date locale:", localDate);
     console.log("  - Date formatée:", formattedDate);
     console.log("  - URL cible:", targetUrl);
 

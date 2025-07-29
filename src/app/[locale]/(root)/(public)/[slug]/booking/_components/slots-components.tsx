@@ -18,6 +18,14 @@ interface TimeSlot {
   availableCapacity?: number;
 }
 
+// Interface pour la nouvelle structure TimeSlot
+interface NewTimeSlot {
+  time: string;
+  isAvailable: boolean;
+  maxCapacity: number;
+  slotId?: string;
+}
+
 // Composant pour les informations sur la date
 export function DateInfo({ selectedDate }: { selectedDate: Date }) {
   const formatDate = (date: Date) => {
@@ -91,17 +99,23 @@ export function GroupedSlotsDisplay({
   ));
 }
 
-// Composant pour l'affichage du créneau sélectionné
-export function SelectedSlotDisplay({ selectedSlot }: { selectedSlot: TimeSlot }) {
+// Composant pour l'affichage du créneau sélectionné (compatible avec les deux interfaces)
+export function SelectedSlotDisplay({ selectedSlot }: { selectedSlot: TimeSlot | NewTimeSlot }) {
+  // Déterminer si c'est l'ancienne ou la nouvelle interface
+  const isNewInterface = "isAvailable" in selectedSlot;
+
+  const time = selectedSlot.time;
+  const isAvailable = isNewInterface ? selectedSlot.isAvailable : selectedSlot.available;
+  const capacity = isNewInterface ? selectedSlot.maxCapacity : (selectedSlot.availableCapacity ?? 0);
+  const label = isNewInterface ? selectedSlot.time : ((selectedSlot as TimeSlot).label ?? selectedSlot.time);
+
   return (
     <div className="bg-primary/5 mt-6 rounded-lg border p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-muted-foreground text-sm">Créneau sélectionné</p>
-          <p className="text-primary text-lg font-semibold">{selectedSlot.label}</p>
-          <p className="text-muted-foreground text-sm">
-            Capacité disponible : {selectedSlot.availableCapacity} personnes
-          </p>
+          <p className="text-primary text-lg font-semibold">{label}</p>
+          <p className="text-muted-foreground text-sm">Capacité disponible : {capacity} personnes</p>
         </div>
         <Check className="text-primary h-6 w-6" />
       </div>

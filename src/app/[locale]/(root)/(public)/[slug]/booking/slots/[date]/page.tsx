@@ -21,17 +21,22 @@ import { cn } from "@/lib/utils";
 import { getEstablishmentBySlug } from "../../_components/database-utils";
 import { EstablishmentInfo } from "../../_components/establishment-info";
 import { SlotsLoadingState, ErrorState } from "../../_components/loading-states";
-import { DateInfo, GroupedSlotsDisplay, SelectedSlotDisplay } from "../../_components/slots-components";
+import { DateInfo, SelectedSlotDisplay } from "../../_components/slots-components";
+
+// Import du hook realtime et du composant d'affichage
+import { useSlotsWithExceptions } from "@/hooks/use-slots-with-exceptions";
+import { RealtimeSlotsDisplay } from "@/components/realtime-slots-display";
 
 interface TimeSlot {
   time: string;
-  available: boolean;
-  label: string;
-  status?: string;
-  statusDisplay?: string;
-  serviceName?: string;
+  isAvailable: boolean;
+  maxCapacity: number;
   slotId?: string;
-  availableCapacity?: number;
+}
+
+interface ServiceGroup {
+  serviceName: string;
+  slots: TimeSlot[];
 }
 
 type Establishment = Tables<"establishments">;
@@ -46,75 +51,26 @@ interface BookingPageProps {
   }>;
 }
 
-// Fonction pour récupérer les créneaux disponibles depuis l'API
-const getAvailableSlots = async (establishmentId: string, date: Date): Promise<TimeSlot[]> => {
-  try {
-    const formattedDate = format(date, "yyyy-MM-dd");
-    console.log("🔍 Récupération des créneaux pour:", formattedDate);
-
-    // Appeler l'API Route
-    const response = await fetch(`/api/booking/slots?establishmentId=${establishmentId}&date=${formattedDate}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.error("❌ Erreur lors de la récupération des créneaux:", response.status);
-      console.log("🔄 Aucun créneau configuré...");
-      return [];
-    }
-
-    const data = await response.json();
-    const timeSlots = data.timeSlots;
-
-    // Si aucun créneau trouvé, retourner une liste vide
-    if (!timeSlots || timeSlots.length === 0) {
-      console.log("📝 Aucun créneau configuré pour cet établissement");
-      return [];
-    }
-
-    console.log("✅ Créneaux récupérés:", timeSlots.length);
-    console.log("📊 Structure du premier service:", timeSlots[0]);
-
-    // Convertir les créneaux groupés en TimeSlot[]
-    const slots: TimeSlot[] = [];
-    timeSlots.forEach(
-      (serviceGroup: {
-        slots: Array<{ time: string; isAvailable: boolean; maxCapacity: number; slotId?: string }>;
-        serviceName: string;
-      }) => {
-        serviceGroup.slots.forEach((slot) => {
-          slots.push({
-            time: slot.time,
-            available: slot.isAvailable,
-            label: slot.time,
-            status: slot.isAvailable ? "available" : "unavailable",
-            statusDisplay: slot.isAvailable ? "Disponible" : "Indisponible",
-            serviceName: serviceGroup.serviceName,
-            slotId: slot.slotId,
-            availableCapacity: slot.maxCapacity,
-          });
-        });
-      },
-    );
-
-    return slots;
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération des créneaux:", error);
-    return [];
-  }
-};
-
 export default function BookingSlotsPage({ params }: BookingPageProps) {
   const router = useRouter();
   const t = useTranslations("Booking.slots");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Hook realtime pour les créneaux avec exceptions
+  const {
+    serviceGroups,
+    isLoading: slotsLoading,
+    error: slotsError,
+    refresh: refreshSlots,
+    exceptions,
+  } = useSlotsWithExceptions({
+    establishmentId: establishment?.id ?? "",
+    date: selectedDate ?? new Date(),
+    enabled: !!establishment?.id && !!selectedDate,
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -146,12 +102,6 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
         // Récupérer l'établissement
         const establishmentData = await getEstablishmentBySlug(establishmentSlug);
         setEstablishment(establishmentData);
-
-        // Récupérer les créneaux depuis la base de données
-        if (establishmentData) {
-          const slots = await getAvailableSlots(establishmentData.id, date);
-          setTimeSlots(slots);
-        }
       } catch (error) {
         console.error("❌ Erreur lors du chargement:", error);
       } finally {
@@ -180,7 +130,7 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     router.push(`/${establishment.slug}/booking/confirm?${queryParams.toString()}`);
   };
 
-  // Afficher un loader pendant le chargement
+  // Afficher un loader pendant le chargement initial
   if (loading) {
     return <SlotsLoadingState />;
   }
@@ -221,35 +171,59 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
           <div className="lg:col-span-1">
             <EstablishmentInfo establishment={establishment} />
             <DateInfo selectedDate={selectedDate} />
+
+            {/* Debug: Affichage des exceptions (optionnel) */}
+            {exceptions && exceptions.length > 0 && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle className="text-sm">Exceptions actives</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {exceptions.map((exception) => (
+                      <div key={exception.id} className="text-muted-foreground text-xs">
+                        {exception.exception_type}: {exception.reason}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* Grille des créneaux */}
+          {/* Grille des créneaux avec realtime */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="text-primary h-5 w-5" />
                   Créneaux disponibles
+                  {slotsLoading && (
+                    <Badge variant="secondary" className="ml-2">
+                      Mise à jour...
+                    </Badge>
+                  )}
                 </CardTitle>
-                <CardDescription>Sélectionnez l&apos;heure de votre réservation</CardDescription>
+                <CardDescription>
+                  Sélectionnez l&apos;heure de votre réservation
+                  {exceptions && exceptions.length > 0 && (
+                    <span className="ml-2 text-orange-600">
+                      • {exceptions.length} exception{exceptions.length > 1 ? "s" : ""} active
+                      {exceptions.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Vérifier s'il y a des créneaux disponibles */}
-                {timeSlots.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-                      <Clock className="text-muted-foreground h-6 w-6" />
-                    </div>
-                    <h3 className="mb-2 text-lg font-semibold text-gray-900">Pas de créneaux disponibles</h3>
-                    <p className="text-muted-foreground">Aucun créneau n&apos;est configuré pour cette date.</p>
-                  </div>
-                ) : (
-                  <GroupedSlotsDisplay
-                    timeSlots={timeSlots}
-                    selectedSlot={selectedSlot}
-                    setSelectedSlot={setSelectedSlot}
-                  />
-                )}
+                {/* Composant d'affichage realtime */}
+                <RealtimeSlotsDisplay
+                  serviceGroups={serviceGroups}
+                  selectedSlot={selectedSlot}
+                  setSelectedSlot={setSelectedSlot}
+                  isLoading={slotsLoading}
+                  error={slotsError}
+                  onRefresh={refreshSlots}
+                />
 
                 {/* Créneau sélectionné */}
                 {selectedSlot && <SelectedSlotDisplay selectedSlot={selectedSlot} />}

@@ -139,18 +139,27 @@ export function generateSlotsFromDatabase(slot: BookingSlot): TimeSlot[] {
 
 // Fonction pour filtrer les créneaux par jour de la semaine
 function filterSlotsByDay(slots: BookingSlot[], date: string): BookingSlot[] {
-  const dayOfWeek = new Date(date).getDay();
+  // Forcer l'interprétation en timezone local pour éviter les décalages
+  const dayOfWeek = new Date(date + 'T00:00:00').getDay();
   return slots.filter((slot) => slot.day_of_week === dayOfWeek);
 }
 
 // Fonction pour vérifier une exception de type "time_slots"
-function checkTimeSlotException(exception: any, timeSlot: TimeSlot, slot: BookingSlot): boolean {
-  if (exception.booking_slot_id === slot.id) {
-    const closedSlots = exception.closed_slots ?? [];
-    const slotIndex = timeToSlot(timeSlot.time);
-    return closedSlots.includes(slotIndex);
+function checkTimeSlotException(exception: any, timeSlot: TimeSlot, slot: BookingSlot, date: string): boolean {
+  // Vérifier d'abord la date
+  if (!exception.date || exception.date !== date) {
+    return false;
   }
-  return false;
+  
+  // Vérifier le booking_slot_id
+  if (exception.booking_slot_id !== slot.id) {
+    return false;
+  }
+  
+  // Vérifier les créneaux fermés
+  const closedSlots = exception.closed_slots ?? [];
+  const slotIndex = timeToSlot(timeSlot.time);
+  return closedSlots.includes(slotIndex);
 }
 
 // Fonction pour vérifier si un créneau spécifique est fermé par une exception
@@ -173,7 +182,7 @@ function isTimeSlotClosedByException(timeSlot: TimeSlot, slot: BookingSlot, exce
         }
         break;
       case "time_slots":
-        if (checkTimeSlotException(exception, timeSlot, slot)) {
+        if (checkTimeSlotException(exception, timeSlot, slot, date)) {
           return true;
         }
         break;
