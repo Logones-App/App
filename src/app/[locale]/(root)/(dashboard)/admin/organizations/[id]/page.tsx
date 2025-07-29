@@ -2,33 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useParams } from "next/navigation";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Building2,
-  Users,
-  Settings,
-  Edit,
-  Trash2,
-  Calendar,
-  MapPin,
-  Mail,
-  Phone,
-  Globe,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Building2, Edit, Trash2, Calendar, Globe } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEstablishmentsRealtime } from "@/lib/services/realtime/modules/establishments-realtime";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
@@ -97,7 +81,7 @@ export default function OrganizationManagementPage() {
           setEstablishments([]);
         } else {
           console.log("✅ Établissements chargés avec succès:", establishmentsData);
-          setEstablishments(establishmentsData || []);
+          setEstablishments(establishmentsData ?? []);
           setEstablishmentsError(null);
         }
       } catch (err) {
@@ -122,7 +106,7 @@ export default function OrganizationManagementPage() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Gestion de l'organisation</CardTitle>
+            <CardTitle>Gestion de l&apos;organisation</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center">Chargement...</div>
@@ -163,7 +147,7 @@ export default function OrganizationManagementPage() {
             Retour
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Gestion de l'organisation</h1>
+            <h1 className="text-2xl font-bold">Gestion de l&apos;organisation</h1>
             <p className="text-muted-foreground">Administration de {organization.name}</p>
           </div>
         </div>
@@ -235,7 +219,7 @@ export default function OrganizationManagementPage() {
             <div>
               <h3 className="mb-2 font-semibold">Description</h3>
               <p className="text-muted-foreground text-sm">
-                {organization.description || "Aucune description disponible"}
+                {organization.description ?? "Aucune description disponible"}
               </p>
             </div>
           </div>

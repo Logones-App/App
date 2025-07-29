@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 
 import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";

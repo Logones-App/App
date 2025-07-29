@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Globe } from "lucide-react";
 
@@ -39,11 +39,10 @@ export function LanguageSwitcher({ variant = "dropdown", size = "md", className 
     const expires = new Date(Date.now() + 31536000 * 1000).toUTCString();
     document.cookie = `NEXT_LOCALE=${lang}; expires=${expires}; path=/; SameSite=Lax`;
 
-    // Remplace la locale dans l'URL
-    const segments = pathname.split("/");
-    segments[1] = lang;
-    const newPath = segments.join("/");
-
+    // Utilise next-intl pour la navigation avec la nouvelle locale
+    // next-intl gère automatiquement la locale dans l'URL
+    const newPath = pathname.replace(/^\/([a-z]{2})/, `/${lang}`);
+    
     // Redirige vers la même page avec la nouvelle locale
     setTimeout(() => {
       router.push(newPath);

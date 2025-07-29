@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
 import { ArrowLeft } from "lucide-react";
@@ -71,6 +71,12 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
           return;
         }
 
+        // Attendre que searchParams soit disponible (problème Next.js 15)
+        if (!searchParams) {
+          console.log("⏳ searchParams non disponible, attente...");
+          return;
+        }
+
         // Récupérer la date et l'heure depuis les paramètres d'URL
         const dateParam = searchParams.get("date");
         const timeParam = searchParams.get("time");
@@ -98,7 +104,12 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
       }
     }
 
-    loadData();
+    // Ajouter un petit délai pour permettre à Next.js de charger les paramètres
+    const timer = setTimeout(() => {
+      loadData();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [params, router, searchParams]);
 
   // Fonction pour valider le formulaire

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -82,6 +82,12 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
           return;
         }
 
+        // Attendre que searchParams soit disponible (problème Next.js 15)
+        if (!searchParams) {
+          console.log("⏳ searchParams non disponible, attente...");
+          return;
+        }
+
         // Récupérer l'ID de la réservation depuis les paramètres d'URL
         const bookingId = searchParams.get("bookingId");
         console.log("🔍 ID de réservation:", bookingId);
@@ -107,7 +113,12 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
       }
     }
 
-    loadData();
+    // Ajouter un petit délai pour permettre à Next.js de charger les paramètres
+    const timer = setTimeout(() => {
+      loadData();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [params, router, searchParams]);
 
   // Fonction pour formater la date

@@ -2,20 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar, ArrowLeft, Clock, MapPin, Phone, Mail } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
 
 // Import des composants extraits
 import { getEstablishmentBySlug } from "../../_components/database-utils";
@@ -34,10 +31,7 @@ interface TimeSlot {
   slotId?: string;
 }
 
-interface ServiceGroup {
-  serviceName: string;
-  slots: TimeSlot[];
-}
+
 
 type Establishment = Tables<"establishments">;
 
@@ -122,12 +116,17 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     if (!establishment || !selectedSlot || !selectedDate) return;
 
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
+
     const queryParams = new URLSearchParams({
       date: formattedDate,
       time: selectedSlot.time,
     });
 
-    router.push(`/${establishment.slug}/booking/confirm?${queryParams.toString()}`);
+    const targetUrl = `/${establishment.slug}/booking/confirm?${queryParams.toString()}`;
+
+    console.log("🚀 Navigation vers la confirmation:", targetUrl);
+
+    router.push(targetUrl);
   };
 
   // Afficher un loader pendant le chargement initial
