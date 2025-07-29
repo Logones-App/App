@@ -30,14 +30,14 @@ interface BookingFormProps {
 
 // Composant pour le formulaire de réservation
 export function BookingForm({ formData, setFormData, error, submitting, onSubmit }: BookingFormProps) {
-  const t = useTranslations("Booking");
+  const t = useTranslations("Booking.confirm.form");
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="text-primary h-5 w-5" />
-          {t("confirm.form.title")}
+          {t("title")}
         </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>

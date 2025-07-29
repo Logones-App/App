@@ -303,7 +303,9 @@
       "error": {
         "title": "Erreur",
         "description": "Impossible de charger les informations de réservation.",
-        "retry": "Réessayer"
+        "retry": "Réessayer",
+        "generic": "Erreur lors de la création de la réservation",
+        "unexpected": "Erreur inattendue lors de la création de la réservation"
       },
       "reservation_summary": {
         "title": "Résumé de votre réservation",

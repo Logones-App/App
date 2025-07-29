@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
@@ -11,6 +10,7 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Tables } from "@/lib/supabase/database.types";
 
 // Import des composants extraits
@@ -115,30 +115,30 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
   // Fonction pour valider le formulaire
   const validateForm = (): boolean => {
     if (!formData.firstName.trim()) {
-      setError("Le prénom est requis");
+      setError(t("validation.first_name_required"));
       return false;
     }
     if (!formData.lastName.trim()) {
-      setError("Le nom est requis");
+      setError(t("validation.last_name_required"));
       return false;
     }
     if (!formData.email.trim()) {
-      setError("L'email est requis");
+      setError(t("validation.email_required"));
       return false;
     }
     if (!formData.phone.trim()) {
-      setError("Le téléphone est requis");
+      setError(t("validation.phone_required"));
       return false;
     }
     if (formData.numberOfGuests < 1 || formData.numberOfGuests > 50) {
-      setError("Le nombre de personnes doit être entre 1 et 50");
+      setError(t("validation.number_of_guests_min") + " - " + t("validation.number_of_guests_max"));
       return false;
     }
 
     // Validation email basique
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setError("Format d'email invalide");
+      setError(t("validation.email_invalid"));
       return false;
     }
 
@@ -173,11 +173,11 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         });
         router.push(`/${establishment.slug}/booking/success?${queryParams.toString()}`);
       } else {
-        setError(result.error ?? "Erreur lors de la création de la réservation");
+        setError(result.error ?? t("error.generic"));
       }
     } catch (error) {
       console.error("❌ Erreur lors de la soumission:", error);
-      setError("Erreur inattendue lors de la création de la réservation");
+      setError(t("error.unexpected"));
     } finally {
       setSubmitting(false);
     }
@@ -207,8 +207,10 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">Confirmer la réservation - {establishment.name}</h1>
-                <p className="text-sm text-gray-500">Remplissez vos informations</p>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {t("title")} - {establishment.name}
+                </h1>
+                <p className="text-sm text-gray-500">{t("subtitle")}</p>
               </div>
             </div>
           </div>
