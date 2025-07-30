@@ -64,7 +64,11 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
       targetPath += cleanPathname;
     }
 
-    const targetUrl = `https://${MAIN_DOMAIN}${targetPath}`;
+    // PRÉSERVER LES PARAMÈTRES D'URL
+    const searchParams = request.nextUrl.search;
+    const targetUrl = `https://${MAIN_DOMAIN}${targetPath}${searchParams}`;
+
+    console.log(`🌐 [Middleware] Proxy avec paramètres: ${targetUrl}`);
 
     // 5. Faire le fetch proxy
     const proxyResponse = await fetchProxyContent(targetUrl);
