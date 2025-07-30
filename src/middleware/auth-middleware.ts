@@ -64,6 +64,12 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
       targetPath += cleanPathname;
     }
 
+    // 4.5. VÉRIFIER SI C'EST UNE PAGE SUCCESS (pas de proxy)
+    if (cleanPathname.includes("/booking/success")) {
+      console.log(`🎯 [Middleware] Page success détectée, pas de proxy`);
+      return NextResponse.next();
+    }
+
     // PRÉSERVER LES PARAMÈTRES D'URL
     const searchParams = request.nextUrl.search;
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}${searchParams}`;
