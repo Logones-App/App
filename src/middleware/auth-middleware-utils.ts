@@ -271,7 +271,10 @@ export function shouldRedirectToCleanUrl(pathname: string, validLocale: string, 
  * Construit l'URL propre sans le slug
  */
 export function buildCleanUrl(pathname: string, validLocale: string, establishmentSlug: string): string {
-  let cleanUrl = pathname
+  // Séparer le pathname et les paramètres d'URL
+  const [path, queryString] = pathname.split("?");
+
+  let cleanUrl = path
     .replace(`/${validLocale}/${establishmentSlug}/`, `/${validLocale}/`)
     .replace(`/${validLocale}/${establishmentSlug}`, `/${validLocale}`)
     .replace(`/${establishmentSlug}/`, "/")
@@ -279,6 +282,11 @@ export function buildCleanUrl(pathname: string, validLocale: string, establishme
 
   if (cleanUrl.endsWith(`/${validLocale}/`)) {
     cleanUrl = cleanUrl.replace(`/${validLocale}/`, "/");
+  }
+
+  // Restaurer les paramètres d'URL
+  if (queryString) {
+    cleanUrl += `?${queryString}`;
   }
 
   return cleanUrl;
