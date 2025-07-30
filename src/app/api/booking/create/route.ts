@@ -2,14 +2,32 @@ import { randomUUID } from "crypto";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+
 import { emailService } from "@/lib/services/email-service";
 import { createClient } from "@/lib/supabase/server";
 
 import { validateBookingRequest, type BookingRequest } from "../_utils/validation";
 
+// Fonction pour créer un client avec le service role (permissions complètes)
+function createServiceClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Clé service role
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
+}
+
 // Fonction pour créer une réservation
 async function createBookingInDatabase(data: BookingRequest) {
-  const supabase = await createClient();
+  const supabase = createServiceClient(); // Utiliser le service role
+
+  console.log("🔍 Recherche de l'établissement:", data.establishmentId);
 
   // Récupérer l'établissement pour obtenir l'organization_id
   const { data: establishment, error: establishmentError } = await supabase
@@ -20,10 +38,26 @@ async function createBookingInDatabase(data: BookingRequest) {
     .single();
 
   if (establishmentError || !establishment) {
+    console.error("❌ Erreur établissement:", establishmentError);
     throw new Error("Établissement non trouvé");
   }
 
+  console.log("✅ Établissement trouvé:", establishment.name);
+
   // Créer la réservation
+  console.log("📝 Insertion de la réservation avec les données:", {
+    establishment_id: data.establishmentId,
+    organization_id: establishment.organization_id,
+    date: data.date,
+    time: data.time,
+    customer_first_name: data.customerFirstName,
+    customer_last_name: data.customerLastName,
+    customer_email: data.customerEmail,
+    customer_phone: data.customerPhone,
+    number_of_guests: data.numberOfGuests,
+    special_requests: data.specialRequests,
+  });
+
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
     .insert({
@@ -48,6 +82,8 @@ async function createBookingInDatabase(data: BookingRequest) {
     throw new Error("Erreur lors de la création de la réservation");
   }
 
+  console.log("✅ Réservation créée avec succès:", booking.id);
+
   return { booking, establishment };
 }
 
@@ -66,6 +102,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Données invalides", details: validation.errors }, { status: 400 });
     }
 
+    console.log("✅ Validation réussie, création de la réservation...");
+
     // Créer la réservation
     const { booking, establishment } = await createBookingInDatabase(body);
 
@@ -76,7 +114,7 @@ export async function POST(request: NextRequest) {
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     // Mettre à jour la réservation avec le token
-    const supabase = await createClient();
+    const supabase = createServiceClient(); // Utiliser le service role
     const { error: updateError } = await supabase
       .from("bookings")
       .update({
