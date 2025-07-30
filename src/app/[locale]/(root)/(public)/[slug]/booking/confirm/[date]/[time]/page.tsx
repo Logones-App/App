@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 
-import { useSearchParams } from "next/navigation";
-
 import { format, parseISO } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -14,11 +12,11 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Tables } from "@/lib/supabase/database.types";
 
 // Import des composants extraits
-import { BookingSummary } from "../_components/booking-components";
-import { BookingForm } from "../_components/booking-form";
-import { getEstablishmentBySlug, createBooking } from "../_components/database-utils";
-import { EstablishmentInfo } from "../_components/establishment-info";
-import { LoadingState, ErrorState } from "../_components/loading-states";
+import { BookingSummary } from "../../../_components/booking-components";
+import { BookingForm } from "../../../_components/booking-form";
+import { getEstablishmentBySlug, createBooking } from "../../../_components/database-utils";
+import { EstablishmentInfo } from "../../../_components/establishment-info";
+import { LoadingState, ErrorState } from "../../../_components/loading-states";
 
 type Establishment = Tables<"establishments">;
 
@@ -37,12 +35,13 @@ interface BookingPageProps {
     establishmentSlug?: string;
     "establishment-slug"?: string;
     locale: string;
+    date: string;
+    time: string;
   }>;
 }
 
 export default function BookingConfirmPage({ params }: BookingPageProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const t = useTranslations("Booking.confirm");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -71,15 +70,9 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
           return;
         }
 
-        // Attendre que searchParams soit disponible (problème Next.js 15)
-        if (!searchParams) {
-          console.log("⏳ searchParams non disponible, attente...");
-          return;
-        }
-
-        // Récupérer la date et l'heure depuis les paramètres d'URL
-        const dateParam = searchParams.get("date");
-        const timeParam = searchParams.get("time");
+        // Récupérer la date et l'heure depuis les paramètres du path
+        const dateParam = resolvedParams.date;
+        const timeParam = resolvedParams.time.replace("-", ":"); // 19-00 → 19:00
 
         console.log("🔍 Paramètres de réservation:", { dateParam, timeParam });
 
@@ -104,13 +97,8 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
       }
     }
 
-    // Ajouter un petit délai pour permettre à Next.js de charger les paramètres
-    const timer = setTimeout(() => {
-      loadData();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [params, router, searchParams]);
+    loadData();
+  }, [params, router]);
 
   // Fonction pour valider le formulaire
   const validateForm = (): boolean => {
