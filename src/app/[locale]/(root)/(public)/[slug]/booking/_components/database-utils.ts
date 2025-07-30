@@ -104,39 +104,6 @@ export async function getBooking(bookingId: string): Promise<Booking | null> {
   }
 }
 
-// Fonction pour récupérer une réservation avec token de confirmation
-export async function getBookingWithToken(bookingId: string, confirmationToken: string): Promise<Booking | null> {
-  try {
-    console.log("🔍 Recherche de la réservation avec token:", bookingId);
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("id", bookingId)
-      .eq("confirmation_token", confirmationToken)
-      .gt("token_expires_at", new Date().toISOString())
-      .eq("status", "confirmed")
-      .single();
-
-    if (error) {
-      console.error("❌ Erreur lors de la récupération de la réservation avec token:", error);
-      return null;
-    }
-
-    if (!data) {
-      console.log("⚠️ Aucune réservation trouvée avec l'ID et le token:", bookingId);
-      return null;
-    }
-
-    console.log("✅ Réservation trouvée avec token valide:", data.id);
-    return data as Booking;
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération de la réservation:", error);
-    return null;
-  }
-}
-
 // Fonction pour créer une réservation
 export async function createBooking(
   establishmentId: string,
@@ -151,7 +118,7 @@ export async function createBooking(
     numberOfGuests: number;
     specialRequests: string;
   },
-): Promise<{ success: boolean; bookingId?: string; confirmationToken?: string; error?: string }> {
+): Promise<{ success: boolean; bookingId?: string; confirmationToken?: string; bookingData?: any; error?: string }> {
   try {
     console.log("🚀 Création de la réservation:", { establishmentId, date, time, formData });
 
@@ -181,11 +148,12 @@ export async function createBooking(
       return { success: false, error: data.error ?? "Erreur lors de la création de la réservation" };
     }
 
-    console.log("✅ Réservation créée avec succès:", data.booking.id);
+    console.log("✅ Réservation créée avec succès:", data.bookingData?.id);
     return {
       success: true,
-      bookingId: data.booking.id,
-      confirmationToken: data.confirmationToken, // Ajout du token
+      bookingId: data.bookingData?.id,
+      confirmationToken: data.confirmationToken,
+      bookingData: data.bookingData, // Ajouter cette ligne
     };
   } catch (error) {
     console.error("💥 Erreur inattendue lors de la création de la réservation:", error);

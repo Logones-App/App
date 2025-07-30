@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useRouter } from "@/i18n/navigation";
+import { useBookingConfirmationStore } from "@/lib/stores/booking-confirmation-store";
 import { Tables } from "@/lib/supabase/database.types";
 
 // Import des composants extraits
@@ -33,6 +34,7 @@ interface BookingApiResponse {
   success: boolean;
   bookingId?: string;
   confirmationToken?: string;
+  bookingData?: any;
   error?: string;
   message?: string;
   booking?: any;
@@ -163,13 +165,20 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         formData,
       );
 
-      if (result.success && result.bookingId && result.confirmationToken) {
-        // Rediriger vers la page de succès avec le token sécurisé
-        const queryParams = new URLSearchParams({
-          bookingId: result.bookingId,
-          token: result.confirmationToken,
-        });
-        router.push(`/${establishment.slug}/booking/success?${queryParams.toString()}`);
+      if (result.success && result.bookingData) {
+        // Stocker dans Zustand
+        useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
+
+        // Détecter le type de domaine pour éviter les problèmes de middleware
+        const isCustomDomain = window.location.hostname !== "logones.fr";
+
+        if (isCustomDomain) {
+          // Domaine personnalisé : URL sans slug (le middleware ajoute le slug)
+          router.push(`/fr/booking/success`);
+        } else {
+          // Domaine principal : URL avec slug
+          router.push(`/fr/${establishment.slug}/booking/success`);
+        }
       } else {
         setError(result.error ?? t("error.generic"));
       }

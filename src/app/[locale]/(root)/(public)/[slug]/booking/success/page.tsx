@@ -26,11 +26,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useRouter } from "@/i18n/navigation";
+import { useBookingConfirmationStore } from "@/lib/stores/booking-confirmation-store";
 import { Tables } from "@/lib/supabase/database.types";
 
 // Import des composants extraits
 import { BookingDetails } from "../_components/booking-components";
-import { getEstablishmentBySlug, getBooking, getBookingWithToken } from "../_components/database-utils";
+import { getEstablishmentBySlug, getBooking } from "../_components/database-utils";
 import { EstablishmentInfo } from "../_components/establishment-info";
 import { ConfirmationLoadingState, ErrorState } from "../_components/loading-states";
 
@@ -82,31 +83,30 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
           return;
         }
 
-        // Attendre que searchParams soit disponible (problème Next.js 15)
-        if (!searchParams) {
-          console.log("⏳ searchParams non disponible, attente...");
-          return;
-        }
+        // Récupérer depuis Zustand
+        const bookingData = useBookingConfirmationStore.getState().getConfirmationData();
 
-        // Récupérer l'ID de la réservation et le token depuis les paramètres d'URL
-        const bookingId = searchParams.get("bookingId");
-        const confirmationToken = searchParams.get("token");
-        console.log("🔍 ID de réservation:", bookingId, "Token:", confirmationToken);
-
-        if (!bookingId || !confirmationToken) {
-          console.log("❌ ID de réservation ou token manquant, redirection vers la sélection de date");
+        if (!bookingData) {
+          console.log("❌ Pas de données de confirmation, redirection");
           router.push(`/${establishmentSlug}/booking`);
           return;
         }
 
-        // Récupérer l'établissement et la réservation en parallèle
-        const [establishmentData, bookingData] = await Promise.all([
-          getEstablishmentBySlug(establishmentSlug),
-          getBookingWithToken(bookingId, confirmationToken),
-        ]);
+        // Récupérer l'établissement
+        const establishmentData = await getEstablishmentBySlug(establishmentSlug);
 
         setEstablishment(establishmentData);
-        setBooking(bookingData);
+
+        // Adapter les données pour correspondre à l'interface Booking
+        const adaptedBooking: Booking = {
+          ...bookingData,
+          special_requests: bookingData.special_requests ?? null,
+        };
+
+        setBooking(adaptedBooking);
+
+        // Nettoyer le store après utilisation
+        useBookingConfirmationStore.getState().clearConfirmationData();
       } catch (error) {
         console.error("❌ Erreur lors du chargement:", error);
       } finally {
@@ -120,7 +120,7 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [params, router, searchParams]);
+  }, [params, router]);
 
   // Fonction pour formater la date
   const formatDate = (dateString: string) => {

@@ -64,13 +64,6 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
       targetPath += cleanPathname;
     }
 
-    // CAS SPÉCIAL : Pages de booking (success, confirm, etc.)
-    // Ces pages n'existent pas sur le domaine principal avec le slug
-    if (cleanPathname.startsWith("/booking/")) {
-      targetPath = `/${validLocale}${cleanPathname}`;
-      console.log(`🎯 [Middleware] Page de booking détectée, pas de slug: ${targetPath}`);
-    }
-
     // PRÉSERVER LES PARAMÈTRES D'URL
     const searchParams = request.nextUrl.search;
     const targetUrl = `https://${MAIN_DOMAIN}${targetPath}${searchParams}`;
