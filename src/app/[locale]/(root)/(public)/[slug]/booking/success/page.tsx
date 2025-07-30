@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
@@ -26,11 +25,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Tables } from "@/lib/supabase/database.types";
 
 // Import des composants extraits
 import { BookingDetails } from "../_components/booking-components";
-import { getEstablishmentBySlug, getBooking } from "../_components/database-utils";
+import { getEstablishmentBySlug, getBooking, getBookingWithToken } from "../_components/database-utils";
 import { EstablishmentInfo } from "../_components/establishment-info";
 import { ConfirmationLoadingState, ErrorState } from "../_components/loading-states";
 
@@ -88,12 +88,13 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
           return;
         }
 
-        // Récupérer l'ID de la réservation depuis les paramètres d'URL
+        // Récupérer l'ID de la réservation et le token depuis les paramètres d'URL
         const bookingId = searchParams.get("bookingId");
-        console.log("🔍 ID de réservation:", bookingId);
+        const confirmationToken = searchParams.get("token");
+        console.log("🔍 ID de réservation:", bookingId, "Token:", confirmationToken);
 
-        if (!bookingId) {
-          console.log("❌ ID de réservation manquant, redirection vers la sélection de date");
+        if (!bookingId || !confirmationToken) {
+          console.log("❌ ID de réservation ou token manquant, redirection vers la sélection de date");
           router.push(`/${establishmentSlug}/booking`);
           return;
         }
@@ -101,7 +102,7 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
         // Récupérer l'établissement et la réservation en parallèle
         const [establishmentData, bookingData] = await Promise.all([
           getEstablishmentBySlug(establishmentSlug),
-          getBooking(bookingId),
+          getBookingWithToken(bookingId, confirmationToken),
         ]);
 
         setEstablishment(establishmentData);

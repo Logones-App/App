@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { emailService } from "@/lib/services/email-service";
@@ -69,6 +71,25 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Réservation créée avec succès:", booking.id);
 
+    // Générer le token de confirmation sécurisé
+    const confirmationToken = randomUUID();
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Mettre à jour la réservation avec le token
+    const supabase = await createClient();
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({
+        confirmation_token: confirmationToken,
+        token_expires_at: tokenExpiresAt.toISOString(),
+      })
+      .eq("id", booking.id);
+
+    if (updateError) {
+      console.error("❌ Erreur lors de la mise à jour du token:", updateError);
+      // On continue quand même, la réservation est créée
+    }
+
     // Préparer les données pour l'email
     const customerName = `${body.customerFirstName} ${body.customerLastName}`;
     const emailData = {
@@ -101,6 +122,8 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         message: "Réservation créée avec succès",
+        bookingId: booking.id,
+        confirmationToken, // Token pour la redirection sécurisée
         booking,
       },
       { status: 201 },

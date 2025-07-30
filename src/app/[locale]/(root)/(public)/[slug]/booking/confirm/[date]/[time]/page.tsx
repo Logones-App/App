@@ -29,6 +29,15 @@ interface BookingFormData {
   specialRequests: string;
 }
 
+interface BookingApiResponse {
+  success: boolean;
+  bookingId?: string;
+  confirmationToken?: string;
+  error?: string;
+  message?: string;
+  booking?: any;
+}
+
 interface BookingPageProps {
   params: Promise<{
     slug?: string;
@@ -146,7 +155,7 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
 
     try {
       const formattedDate = format(selectedDate, "yyyy-MM-dd");
-      const result = await createBooking(
+      const result: BookingApiResponse = await createBooking(
         establishment.id,
         establishment.organization_id,
         formattedDate,
@@ -154,10 +163,11 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         formData,
       );
 
-      if (result.success && result.bookingId) {
-        // Rediriger vers la page de succès
+      if (result.success && result.bookingId && result.confirmationToken) {
+        // Rediriger vers la page de succès avec le token sécurisé
         const queryParams = new URLSearchParams({
           bookingId: result.bookingId,
+          token: result.confirmationToken,
         });
         router.push(`/${establishment.slug}/booking/success?${queryParams.toString()}`);
       } else {

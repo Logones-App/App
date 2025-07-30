@@ -104,6 +104,39 @@ export async function getBooking(bookingId: string): Promise<Booking | null> {
   }
 }
 
+// Fonction pour récupérer une réservation avec token de confirmation
+export async function getBookingWithToken(bookingId: string, confirmationToken: string): Promise<Booking | null> {
+  try {
+    console.log("🔍 Recherche de la réservation avec token:", bookingId);
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("id", bookingId)
+      .eq("confirmation_token", confirmationToken)
+      .gt("token_expires_at", new Date().toISOString())
+      .eq("status", "confirmed")
+      .single();
+
+    if (error) {
+      console.error("❌ Erreur lors de la récupération de la réservation avec token:", error);
+      return null;
+    }
+
+    if (!data) {
+      console.log("⚠️ Aucune réservation trouvée avec l'ID et le token:", bookingId);
+      return null;
+    }
+
+    console.log("✅ Réservation trouvée avec token valide:", data.id);
+    return data as Booking;
+  } catch (error) {
+    console.error("💥 Erreur inattendue lors de la récupération de la réservation:", error);
+    return null;
+  }
+}
+
 // Fonction pour créer une réservation
 export async function createBooking(
   establishmentId: string,
