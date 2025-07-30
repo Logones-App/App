@@ -118,7 +118,7 @@ export async function createBooking(
     numberOfGuests: number;
     specialRequests: string;
   },
-): Promise<{ success: boolean; bookingId?: string; confirmationToken?: string; bookingData?: any; error?: string }> {
+): Promise<{ success: boolean; bookingId?: string; bookingData?: any; error?: string }> {
   try {
     console.log("🚀 Création de la réservation:", { establishmentId, date, time, formData });
 
@@ -152,8 +152,7 @@ export async function createBooking(
     return {
       success: true,
       bookingId: data.bookingData?.id,
-      confirmationToken: data.confirmationToken,
-      bookingData: data.bookingData, // Ajouter cette ligne
+      bookingData: data.bookingData,
     };
   } catch (error) {
     console.error("💥 Erreur inattendue lors de la création de la réservation:", error);

@@ -138,7 +138,6 @@ export type Database = {
       }
       bookings: {
         Row: {
-          confirmation_token: string | null
           created_at: string | null
           created_by: string | null
           customer_email: string
@@ -155,11 +154,9 @@ export type Database = {
           special_requests: string | null
           status: string
           time: string
-          token_expires_at: string | null
           updated_at: string | null
         }
         Insert: {
-          confirmation_token?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_email: string
@@ -176,11 +173,9 @@ export type Database = {
           special_requests?: string | null
           status?: string
           time: string
-          token_expires_at?: string | null
           updated_at?: string | null
         }
         Update: {
-          confirmation_token?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_email?: string
@@ -197,7 +192,6 @@ export type Database = {
           special_requests?: string | null
           status?: string
           time?: string
-          token_expires_at?: string | null
           updated_at?: string | null
         }
         Relationships: [

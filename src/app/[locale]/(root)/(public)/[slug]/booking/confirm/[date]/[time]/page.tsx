@@ -33,7 +33,6 @@ interface BookingFormData {
 interface BookingApiResponse {
   success: boolean;
   bookingId?: string;
-  confirmationToken?: string;
   bookingData?: any;
   error?: string;
   message?: string;
@@ -170,7 +169,7 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
 
         // Rediriger vers la page success (même pattern que les autres pages)
-        router.push(`/fr/${establishment.slug}/booking/success`);
+        router.push(`/${establishment.slug}/booking/success`);
       } else {
         setError(result.error ?? t("error.generic"));
       }
