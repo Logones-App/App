@@ -74,23 +74,17 @@ export default function BookingSuccessPage({ params }: BookingPageProps) {
   useEffect(() => {
     async function loadData() {
       try {
-        const resolvedParams = await params;
-        const establishmentSlug =
-          resolvedParams.slug ?? resolvedParams["establishment-slug"] ?? resolvedParams.establishmentSlug;
-
-        if (!establishmentSlug) {
-          console.error("❌ Slug manquant");
-          return;
-        }
-
         // Récupérer depuis Zustand
         const bookingData = useBookingConfirmationStore.getState().getConfirmationData();
 
         if (!bookingData) {
           console.log("❌ Pas de données de confirmation, redirection");
-          router.push(`/${establishmentSlug}/booking`);
+          router.push(`/booking`);
           return;
         }
+
+        // Utiliser le slug depuis bookingData au lieu de params
+        const establishmentSlug = bookingData.establishment.slug;
 
         // Récupérer l'établissement
         const establishmentData = await getEstablishmentBySlug(establishmentSlug);
