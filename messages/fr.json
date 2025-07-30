@@ -123,6 +123,53 @@
     "users": {
       "title": "Gestion des utilisateurs",
       "description": "Gérez les utilisateurs et leurs rôles dans le système"
+    },
+    "emails": {
+      "title": "Gestion des emails",
+      "description": "Surveillez et gérez l'envoi d'emails",
+      "stats": {
+        "total": "Total",
+        "sent": "Envoyés",
+        "failed": "Échecs",
+        "pending": "En attente"
+      },
+      "actions": {
+        "send_reminders": "Envoyer les rappels",
+        "clean_logs": "Nettoyer les logs",
+        "sending": "Envoi en cours...",
+        "cleaning": "Nettoyage..."
+      },
+      "logs": {
+        "title": "Logs d'emails",
+        "description": "Historique des emails envoyés et leur statut",
+        "no_logs": "Aucun log d'email trouvé",
+        "status": {
+          "sent": "Envoyé",
+          "failed": "Échec",
+          "pending": "En attente"
+        },
+        "templates": {
+          "booking_confirmation": "Confirmation de réservation",
+          "establishment_notification": "Notification établissement",
+          "booking_reminder": "Rappel de réservation"
+        }
+      },
+      "tests": {
+        "title": "Tests d'emails",
+        "description": "Testez l'envoi d'emails avec des données de test",
+        "confirmation": {
+          "title": "Test Confirmation",
+          "description": "Email de confirmation client"
+        },
+        "notification": {
+          "title": "Test Notification",
+          "description": "Email notification établissement"
+        },
+        "reminder": {
+          "title": "Test Rappel",
+          "description": "Email de rappel 24h avant"
+        }
+      }
     }
   },
   "user_menu": {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { emailService } from "@/lib/services/email-service";
 import { createClient } from "@/lib/supabase/server";
 
 import { validateBookingRequest, type BookingRequest } from "../_utils/validation";
@@ -11,7 +12,7 @@ async function createBookingInDatabase(data: BookingRequest) {
   // Récupérer l'établissement pour obtenir l'organization_id
   const { data: establishment, error: establishmentError } = await supabase
     .from("establishments")
-    .select("organization_id")
+    .select("*")
     .eq("id", data.establishmentId)
     .eq("deleted", false)
     .single();
@@ -45,7 +46,7 @@ async function createBookingInDatabase(data: BookingRequest) {
     throw new Error("Erreur lors de la création de la réservation");
   }
 
-  return booking;
+  return { booking, establishment };
 }
 
 export async function POST(request: NextRequest) {
@@ -64,9 +65,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Créer la réservation
-    const booking = await createBookingInDatabase(body);
+    const { booking, establishment } = await createBookingInDatabase(body);
 
     console.log("✅ Réservation créée avec succès:", booking.id);
+
+    // Préparer les données pour l'email
+    const customerName = `${body.customerFirstName} ${body.customerLastName}`;
+    const emailData = {
+      booking,
+      establishment,
+      customerName,
+      customerEmail: body.customerEmail,
+      reservationDate: body.date,
+      reservationTime: body.time,
+      numberOfGuests: body.numberOfGuests,
+      specialRequests: body.specialRequests,
+    };
+
+    // Envoyer les emails en arrière-plan (non-bloquant)
+    Promise.all([
+      emailService.sendBookingConfirmationEmail(emailData),
+      emailService.sendEstablishmentNotificationEmail(emailData),
+    ])
+      .then(([confirmationSent, notificationSent]) => {
+        console.log("📧 Emails envoyés:", {
+          confirmation: confirmationSent ? "✅" : "❌",
+          notification: notificationSent ? "✅" : "❌",
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Erreur lors de l'envoi des emails:", error);
+      });
 
     return NextResponse.json(
       {

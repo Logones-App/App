@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouvelle réservation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #28a745;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+            border-radius: 0 0 8px 8px;
+        }
+        .booking-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .highlight {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .urgent {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🆕 Nouvelle réservation reçue</h1>
+    </div>
+    
+    <div class="content">
+        <p>Bonjour,</p>
+        
+        <p>Une nouvelle réservation a été effectuée pour <span class="highlight">{{establishmentName}}</span>.</p>
+        
+        <div class="urgent">
+            <strong>⚠️ Action requise :</strong> Veuillez confirmer cette réservation dans votre interface d'administration.
+        </div>
+        
+        <div class="booking-details">
+            <h3>📋 Détails de la réservation :</h3>
+            <ul>
+                <li><strong>Client :</strong> {{customerName}}</li>
+                <li><strong>Email :</strong> {{customerEmail}}</li>
+                <li><strong>Date :</strong> {{reservationDate}}</li>
+                <li><strong>Heure :</strong> {{reservationTime}}</li>
+                <li><strong>Nombre de personnes :</strong> {{numberOfGuests}}</li>
+                {{#if specialRequests}}
+                <li><strong>Demandes spéciales :</strong> {{specialRequests}}</li>
+                {{/if}}
+            </ul>
+        </div>
+        
+        <p><strong>Informations client :</strong></p>
+        <ul>
+            <li>Nom : {{customerName}}</li>
+            <li>Email : {{customerEmail}}</li>
+            {{#if customerPhone}}
+            <li>Téléphone : {{customerPhone}}</li>
+            {{/if}}
+        </ul>
+        
+        <p>Merci de traiter cette réservation dans les plus brefs délais.</p>
+        
+        <p>Cordialement,<br>
+        Système de réservation automatique</p>
+    </div>
+    
+    <div class="footer">
+        <p>Cet email a été envoyé automatiquement par le système de réservation.</p>
+        <p>Connectez-vous à votre interface d'administration pour gérer cette réservation.</p>
+    </div>
+</body>
+</html> 

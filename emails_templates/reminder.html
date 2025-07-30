@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rappel de réservation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ffc107;
+            color: #333;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+            border-radius: 0 0 8px 8px;
+        }
+        .booking-details {
+            background-color: #fff3cd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border: 1px solid #ffeaa7;
+        }
+        .highlight {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .reminder-box {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⏰ Rappel de réservation</h1>
+    </div>
+    
+    <div class="content">
+        <p>Bonjour <span class="highlight">{{customerName}}</span>,</p>
+        
+        <div class="reminder-box">
+            <h3>📅 Rappel : Votre réservation est demain !</h3>
+            <p>Nous vous rappelons votre réservation au restaurant <span class="highlight">{{establishmentName}}</span>.</p>
+        </div>
+        
+        <div class="booking-details">
+            <h3>📋 Détails de votre réservation :</h3>
+            <ul>
+                <li><strong>Date :</strong> {{reservationDate}}</li>
+                <li><strong>Heure :</strong> {{reservationTime}}</li>
+                <li><strong>Nombre de personnes :</strong> {{numberOfGuests}}</li>
+                {{#if specialRequests}}
+                <li><strong>Demandes spéciales :</strong> {{specialRequests}}</li>
+                {{/if}}
+            </ul>
+        </div>
+        
+        <p>📍 <strong>Adresse :</strong> {{establishmentAddress}}</p>
+        <p>📞 <strong>Téléphone :</strong> {{establishmentPhone}}</p>
+        
+        <p><strong>Important :</strong></p>
+        <ul>
+            <li>Merci d'arriver 5 minutes avant l'heure de votre réservation</li>
+            <li>En cas d'annulation, merci de nous contacter au plus tôt</li>
+            <li>N'hésitez pas à nous appeler si vous avez des questions</li>
+        </ul>
+        
+        <p>Nous vous attendons avec impatience !</p>
+        
+        <p>Cordialement,<br>
+        L'équipe de {{establishmentName}}</p>
+    </div>
+    
+    <div class="footer">
+        <p>Cet email a été envoyé automatiquement. Merci de ne pas y répondre.</p>
+        <p>Pour toute question ou modification, contactez directement le restaurant.</p>
+    </div>
+</body>
+</html> 
