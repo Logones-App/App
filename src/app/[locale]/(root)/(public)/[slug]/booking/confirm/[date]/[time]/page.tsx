@@ -169,16 +169,8 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         // Stocker dans Zustand
         useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
 
-        // Détecter le type de domaine pour éviter les problèmes de middleware
-        const isCustomDomain = window.location.hostname !== "logones.fr";
-
-        if (isCustomDomain) {
-          // Domaine personnalisé : URL sans slug (le middleware ajoute le slug)
-          router.push(`/fr/booking/success`);
-        } else {
-          // Domaine principal : URL avec slug
-          router.push(`/fr/${establishment.slug}/booking/success`);
-        }
+        // Rediriger vers la page success existante avec le slug
+        router.push(`/fr/${establishment.slug}/booking/success`);
       } else {
         setError(result.error ?? t("error.generic"));
       }
