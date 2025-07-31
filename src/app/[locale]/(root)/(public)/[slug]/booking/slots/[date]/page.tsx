@@ -286,10 +286,19 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
     const formattedTime = selectedSlot.time.replace(":", "-"); // 19:00 → 19-00
 
-    // Nouvelle architecture : URL sans slug pour les pages booking
-    const targetUrl = `/booking/confirm/${formattedDate}/${formattedTime}`;
+    // Détecter si nous sommes sur un custom domain
+    const isCustomDomain =
+      window.location.hostname !== "logones.fr" &&
+      window.location.hostname !== "localhost" &&
+      !window.location.hostname.includes("127.0.0.1");
+
+    // Générer l'URL appropriée selon le type de domaine
+    const targetUrl = isCustomDomain
+      ? `/booking/confirm/${formattedDate}/${formattedTime}` // Custom domain : URL sans slug
+      : `/${establishment.slug}/booking/confirm/${formattedDate}/${formattedTime}`; // Domaine principal : URL avec slug
 
     console.log("🚀 Navigation vers la confirmation:", targetUrl);
+    console.log("🌐 Type de domaine:", isCustomDomain ? "Custom domain" : "Domaine principal");
 
     router.push(targetUrl);
   };

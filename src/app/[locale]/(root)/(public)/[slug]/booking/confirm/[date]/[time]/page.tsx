@@ -50,6 +50,52 @@ interface BookingPageProps {
   }>;
 }
 
+// Fonction utilitaire pour détecter le type de domaine
+const isCustomDomain = (): boolean => {
+  const hostname = window.location.hostname;
+  return hostname !== "logones.fr" && hostname !== "localhost" && !hostname.includes("127.0.0.1");
+};
+
+// Fonction utilitaire pour générer l'URL de succès
+const generateSuccessUrl = (establishment: Establishment, bookingId?: string): string => {
+  const customDomain = isCustomDomain();
+
+  if (customDomain) {
+    return bookingId ? `/booking/success?bookingId=${bookingId}` : `/booking/success`;
+  }
+
+  return bookingId
+    ? `/${establishment.slug}/booking/success?bookingId=${bookingId}`
+    : `/${establishment.slug}/booking/success`;
+};
+
+// Fonction utilitaire pour valider le formulaire
+const validateBookingForm = (formData: BookingFormData, t: any): string | null => {
+  if (!formData.firstName.trim()) {
+    return t("validation.first_name_required");
+  }
+  if (!formData.lastName.trim()) {
+    return t("validation.last_name_required");
+  }
+  if (!formData.email.trim()) {
+    return t("validation.email_required");
+  }
+  if (!formData.phone.trim()) {
+    return t("validation.phone_required");
+  }
+  if (formData.numberOfGuests < 1 || formData.numberOfGuests > 50) {
+    return t("validation.number_of_guests_min") + " - " + t("validation.number_of_guests_max");
+  }
+
+  // Validation email basique
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(formData.email)) {
+    return t("validation.email_invalid");
+  }
+
+  return null;
+};
+
 export default function BookingConfirmPage({ params }: BookingPageProps) {
   const router = useRouter();
   const t = useTranslations("Booking.confirm");
@@ -110,45 +156,17 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
     loadData();
   }, [params, router]);
 
-  // Fonction pour valider le formulaire
-  const validateForm = (): boolean => {
-    if (!formData.firstName.trim()) {
-      setError(t("validation.first_name_required"));
-      return false;
-    }
-    if (!formData.lastName.trim()) {
-      setError(t("validation.last_name_required"));
-      return false;
-    }
-    if (!formData.email.trim()) {
-      setError(t("validation.email_required"));
-      return false;
-    }
-    if (!formData.phone.trim()) {
-      setError(t("validation.phone_required"));
-      return false;
-    }
-    if (formData.numberOfGuests < 1 || formData.numberOfGuests > 50) {
-      setError(t("validation.number_of_guests_min") + " - " + t("validation.number_of_guests_max"));
-      return false;
-    }
-
-    // Validation email basique
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError(t("validation.email_invalid"));
-      return false;
-    }
-
-    setError("");
-    return true;
-  };
-
   // Fonction pour soumettre la réservation
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    // Validation du formulaire
+    const validationError = validateBookingForm(formData, t);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     if (!establishment || !selectedDate || !selectedTime) return;
 
     setSubmitting(true);
@@ -168,10 +186,12 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         // Stocker dans Zustand
         useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
 
-        // Rediriger vers la page de succès avec le slug et le bookingId
-        const successUrl = result.bookingId
-          ? `/${establishment.slug}/booking/success?bookingId=${result.bookingId}`
-          : `/${establishment.slug}/booking/success`;
+        // Générer l'URL de succès appropriée
+        const successUrl = generateSuccessUrl(establishment, result.bookingId);
+
+        console.log("🚀 Redirection vers la page de succès:", successUrl);
+        console.log("🌐 Type de domaine:", isCustomDomain() ? "Custom domain" : "Domaine principal");
+
         router.push(successUrl);
       } else {
         setError(result.error ?? t("error.generic"));
