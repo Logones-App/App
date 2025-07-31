@@ -20,7 +20,7 @@ import {
   getEstablishmentSlug,
   fetchEstablishment,
   createBookingDataFromStore,
-  fetchBookingFromDatabase,
+  fetchBookingFromSecureApi,
 } from "./utils";
 
 type Establishment = Tables<"establishments">;
@@ -212,16 +212,40 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
     const bookingTime = searchParams.get("time");
     const guests = searchParams.get("guests");
 
+    console.log("🔍 Paramètres de recherche:", { bookingId, bookingDate, bookingTime, guests });
+
+    // Détecter si nous sommes sur un custom domain
+    const isCustomDomain =
+      window.location.hostname !== "logones.fr" &&
+      window.location.hostname !== "localhost" &&
+      !window.location.hostname.includes("127.0.0.1");
+
+    console.log("🌐 Type de domaine:", isCustomDomain ? "Custom domain" : "Domaine principal");
+
+    // Pour les custom domains, privilégier les paramètres URL
+    if (isCustomDomain && bookingId) {
+      console.log("📋 Custom domain détecté, récupération via API sécurisée");
+      const bookingDataFromApi = await fetchBookingFromSecureApi(bookingId);
+      if (bookingDataFromApi) {
+        setBookingData(bookingDataFromApi);
+        return;
+      }
+    }
+
+    // Essayer d'abord le store Zustand
     const bookingConfirmation = getConfirmationData();
     if (bookingConfirmation) {
+      console.log("📋 Données trouvées dans le store Zustand");
       setBookingData(createBookingDataFromStore(bookingConfirmation));
       return;
     }
 
+    // Fallback : récupération via API sécurisée
     if (bookingId) {
-      const bookingDataFromDb = await fetchBookingFromDatabase(bookingId, bookingDate, bookingTime, guests);
-      if (bookingDataFromDb) {
-        setBookingData(bookingDataFromDb);
+      console.log("📋 Récupération via API sécurisée");
+      const bookingDataFromApi = await fetchBookingFromSecureApi(bookingId);
+      if (bookingDataFromApi) {
+        setBookingData(bookingDataFromApi);
       }
     }
   };

@@ -186,8 +186,11 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         // Stocker dans Zustand
         useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
 
-        // Générer l'URL de succès appropriée
-        const successUrl = generateSuccessUrl(establishment, result.bookingId);
+        // Générer un token temporaire pour sécuriser l'accès aux données
+        const tempToken = btoa(`${result.bookingId}:${Date.now()}:${establishment.id}`);
+
+        // Générer l'URL de succès avec le token au lieu du bookingId
+        const successUrl = generateSuccessUrl(establishment, tempToken);
 
         console.log("🚀 Redirection vers la page de succès:", successUrl);
         console.log("🌐 Type de domaine:", isCustomDomain() ? "Custom domain" : "Domaine principal");

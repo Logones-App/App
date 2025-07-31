@@ -56,7 +56,44 @@ export const createBookingDataFromParams = (
   };
 };
 
-// Fonction pour récupérer les données de réservation depuis la base de données
+// Fonction pour récupérer les données de réservation via l'API sécurisée
+export const fetchBookingFromSecureApi = async (token: string) => {
+  try {
+    const response = await fetch("/api/booking/verify-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      console.error("❌ Erreur API:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.booking) {
+      return null;
+    }
+
+    return {
+      id: data.booking.id,
+      date: data.booking.date,
+      time: data.booking.time,
+      guests: data.booking.guests,
+      customerName: data.booking.customerName,
+      email: data.booking.email,
+      phone: data.booking.phone,
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération sécurisée:", error);
+    return null;
+  }
+};
+
+// Fonction pour récupérer les données de réservation depuis la base de données (dépréciée)
 export const fetchBookingFromDatabase = async (
   bookingId: string,
   bookingDate: string | null,
