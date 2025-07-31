@@ -498,6 +498,146 @@ export type Database = {
           },
         ]
       }
+      establishment_gallery: {
+        Row: {
+          id: string
+          establishment_id: string
+          organization_id: string
+          image_url: string
+          image_name: string | null
+          image_description: string | null
+          alt_text: string | null
+          file_size: number | null
+          mime_type: string | null
+          dimensions: Json | null
+          display_order: number
+          is_public: boolean
+          is_featured: boolean
+          created_at: string | null
+          created_by: string | null
+          updated_at: string | null
+          deleted: boolean
+        }
+        Insert: {
+          id?: string
+          establishment_id: string
+          organization_id: string
+          image_url: string
+          image_name?: string | null
+          image_description?: string | null
+          alt_text?: string | null
+          file_size?: number | null
+          mime_type?: string | null
+          dimensions?: Json | null
+          display_order?: number
+          is_public?: boolean
+          is_featured?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          updated_at?: string | null
+          deleted?: boolean
+        }
+        Update: {
+          id?: string
+          establishment_id?: string
+          organization_id?: string
+          image_url?: string
+          image_name?: string | null
+          image_description?: string | null
+          alt_text?: string | null
+          file_size?: number | null
+          mime_type?: string | null
+          dimensions?: Json | null
+          display_order?: number
+          is_public?: boolean
+          is_featured?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          updated_at?: string | null
+          deleted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_gallery_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_gallery_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_gallery_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishment_gallery_sections: {
+        Row: {
+          id: string
+          establishment_id: string
+          organization_id: string
+          image_id: string
+          section: string
+          display_order: number
+          created_at: string | null
+          updated_at: string | null
+          deleted: boolean
+        }
+        Insert: {
+          id?: string
+          establishment_id: string
+          organization_id: string
+          image_id: string
+          section: string
+          display_order?: number
+          created_at?: string | null
+          updated_at?: string | null
+          deleted?: boolean
+        }
+        Update: {
+          id?: string
+          establishment_id?: string
+          organization_id?: string
+          image_id?: string
+          section?: string
+          display_order?: number
+          created_at?: string | null
+          updated_at?: string | null
+          deleted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_gallery_sections_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_gallery_sections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_gallery_sections_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_gallery"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null

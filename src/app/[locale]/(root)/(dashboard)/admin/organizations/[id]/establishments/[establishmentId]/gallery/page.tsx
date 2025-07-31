@@ -1,5 +1,5 @@
 import { EstablishmentGalleryClient } from "./gallery-client";
 
-export default function EstablishmentGalleryPage() {
+export default function AdminEstablishmentGalleryPage() {
   return <EstablishmentGalleryClient />;
 }

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Calendar, Clock, Package, List, UtensilsCrossed, Image, ArrowLeft } from "lucide-react";
+import { Calendar, Clock, Package, List, UtensilsCrossed, Image, ArrowLeft, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useEstablishment } from "@/lib/queries/establishments";
@@ -50,13 +50,13 @@ export function EstablishmentDetailsShared({
 
       <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
         <p>
-          <span className="font-semibold">Adresse :</span> {establishment.address || "-"}
+          <span className="font-semibold">Adresse :</span> {establishment.address ?? "-"}
         </p>
         <p>
           <span className="font-semibold">Organisation :</span> <span className="font-mono">{organizationId}</span>
         </p>
         <p>
-          <span className="font-semibold">Description :</span> {establishment.description || "-"}
+          <span className="font-semibold">Description :</span> {establishment.description ?? "-"}
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export function EstablishmentDetailsShared({
           <Link href={getLink("opening-hours")}>
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
               <Clock className="h-6 w-6" />
-              <span>Horaires d'ouverture</span>
+              <span>Horaires d&apos;ouverture</span>
             </Button>
           </Link>
 
@@ -110,6 +110,13 @@ export function EstablishmentDetailsShared({
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
               <Image className="h-6 w-6" />
               <span>Gérer la galerie photo</span>
+            </Button>
+          </Link>
+
+          <Link href={getLink("site-configuration")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <Settings className="h-6 w-6" />
+              <span>Configuration du site</span>
             </Button>
           </Link>
         </div>

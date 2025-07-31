@@ -79,6 +79,7 @@
       "description": "You haven't created any establishments in this organization yet.",
       "create_first": "Create your first establishment"
     },
+    "error_loading": "Error loading establishments",
     "days": {
       "0": "Sunday",
       "1": "Monday",
@@ -370,6 +371,72 @@
       "close": "Close",
       "yes": "Yes",
       "no": "No"
+    }
+  },
+  "SiteConfiguration": {
+    "title": "Site Configuration",
+    "description": "Configure the display of the public site for {establishmentName}",
+    "tabs": {
+      "imageManagement": "Image Management",
+      "generalSettings": "General Settings"
+    },
+    "imageManagement": {
+      "title": "Image Management",
+      "description": "Select and organize images for the different sections of the public site"
+    },
+    "generalSettings": {
+      "title": "General Settings",
+      "description": "Configure the general parameters of the site",
+      "comingSoon": "This section will be available soon"
+    },
+    "sections": {
+      "hero_carousel": {
+        "title": "Hero Carousel",
+        "description": "Images from the main carousel on the homepage"
+      },
+      "home_cards": {
+        "title": "Home Cards",
+        "description": "4 fixed images for the homepage cards"
+      },
+      "gallery": {
+        "title": "Public Gallery",
+        "description": "Images displayed in the public gallery of the site"
+      },
+      "maxImages": "Max {count}",
+      "imageCount": "{count} image(s)",
+      "noImages": "No image selected",
+      "maxImagesReached": "Limit of {count} images reached"
+    },
+    "actions": {
+      "addImage": "Add image",
+      "addFirstImage": "Add your first image",
+      "addToSection": "Add to section",
+      "remove": "Remove",
+      "reorder": "Reorder",
+      "save": "Save",
+      "cancel": "Cancel",
+      "reset": "Reset"
+    },
+    "imageSelector": {
+      "title": "Select image",
+      "searchPlaceholder": "Search image...",
+      "availableImages": "{count} image(s) available",
+      "selected": "Selected",
+      "noImages": "No image available"
+    },
+    "imageReorder": {
+      "title": "Reorder images - {section}",
+      "instructions": "Drag and drop images to modify their display order",
+      "imageCount": "{count} image(s)",
+      "hasChanges": "Pending changes",
+      "noImages": "No image to reorder"
+    },
+    "errors": {
+      "loadingError": "Error while loading",
+      "organizationNotFound": "Organization not found",
+      "organizationNotFoundDescription": "Unable to retrieve your organization information",
+      "establishmentNotFound": "Establishment not found",
+      "establishmentNotFoundDescription": "Unable to retrieve establishment information"
     }
   },
   "common": {

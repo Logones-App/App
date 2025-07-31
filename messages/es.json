@@ -77,6 +77,7 @@
       "description": "Aún no has creado ningún establecimiento en esta organización.",
       "create_first": "Crea tu primer establecimiento"
     },
+    "error_loading": "Error al cargar los establecimientos",
     "view": "Ver",
     "loading": "Cargando...",
     "days": {
@@ -369,6 +370,70 @@
       "close": "Cerrar",
       "yes": "Sí",
       "no": "No"
+    }
+  },
+  "SiteConfiguration": {
+    "title": "Configuración del sitio",
+    "description": "Configura la visualización del sitio público para {establishmentName}",
+    "tabs": {
+      "imageManagement": "Gestión de imágenes",
+      "generalSettings": "Configuración general"
+    },
+    "imageManagement": {
+      "title": "Gestión de imágenes",
+      "description": "Selecciona y organiza las imágenes para las diferentes secciones del sitio público"
+    },
+    "generalSettings": {
+      "title": "Configuración general",
+      "description": "Configura los parámetros generales del sitio",
+      "comingSoon": "Esta sección estará disponible pronto"
+    },
+    "sections": {
+      "hero_carousel": {
+        "title": "Carrusel Hero",
+        "description": "Imágenes del carrusel principal en la página de inicio"
+      },
+      "home_cards": {
+        "title": "Tarjetas de inicio",
+        "description": "4 imágenes fijas para las tarjetas de la página de inicio"
+      },
+      "gallery": {
+        "title": "Galería pública",
+        "description": "Imágenes mostradas en la galería pública del sitio"
+      },
+      "maxImages": "Máx {count}",
+      "imageCount": "{count} imagen(es)",
+      "noImages": "Ninguna imagen seleccionada",
+      "maxImagesReached": "Límite de {count} imágenes alcanzado"
+    },
+    "actions": {
+      "addImage": "Añadir imagen",
+      "addFirstImage": "Añadir tu primera imagen",
+      "addToSection": "Añadir a la sección",
+      "remove": "Quitar",
+      "reorder": "Reorganizar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "reset": "Restablecer"
+    },
+    "imageSelector": {
+      "title": "Seleccionar imagen",
+      "searchPlaceholder": "Buscar imagen...",
+      "availableImages": "{count} imagen(es) disponible(s)",
+      "selected": "Seleccionada",
+      "noImages": "Ninguna imagen disponible"
+    },
+    "imageReorder": {
+      "title": "Reorganizar imágenes - {section}",
+      "instructions": "Arrastra y suelta las imágenes para modificar su orden de visualización",
+      "imageCount": "{count} imagen(es)",
+      "hasChanges": "Cambios pendientes",
+      "noImages": "Ninguna imagen para reorganizar"
+    },
+    "errors": {
+      "loadingError": "Error al cargar",
+      "organizationNotFound": "Organización no encontrada",
+      "organizationNotFoundDescription": "No se pueden recuperar la información de tu organización"
     }
   },
   "common": {

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
 
 export function UserProfileCard() {
@@ -64,7 +64,7 @@ export function UserProfileCard() {
             </Avatar>
             <div>
               <CardTitle className="text-xl">{displayName}</CardTitle>
-              <CardDescription>{profile?.bio || "Aucune bio"}</CardDescription>
+                             <CardDescription>{profile?.bio ?? "Aucune bio"}</CardDescription>
             </div>
           </div>
         </CardHeader>

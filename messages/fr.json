@@ -79,6 +79,7 @@
       "description": "Vous n'avez pas encore créé d'établissement dans cette organisation.",
       "create_first": "Créer votre premier établissement"
     },
+    "error_loading": "Erreur lors du chargement des établissements",
     "days": {
       "0": "Dimanche",
       "1": "Lundi",
@@ -87,6 +88,72 @@
       "4": "Jeudi",
       "5": "Vendredi",
       "6": "Samedi"
+    }
+  },
+  "SiteConfiguration": {
+    "title": "Configuration du site",
+    "description": "Configurez l'affichage du site public pour {establishmentName}",
+    "tabs": {
+      "imageManagement": "Gestion des images",
+      "generalSettings": "Paramètres généraux"
+    },
+    "imageManagement": {
+      "title": "Gestion des images",
+      "description": "Sélectionnez et organisez les images pour les différentes sections du site public"
+    },
+    "generalSettings": {
+      "title": "Paramètres généraux",
+      "description": "Configurez les paramètres généraux du site",
+      "comingSoon": "Cette section sera bientôt disponible"
+    },
+    "sections": {
+      "hero_carousel": {
+        "title": "Hero Carousel",
+        "description": "Images du carousel principal sur la page d'accueil"
+      },
+      "home_cards": {
+        "title": "Cartes d'accueil",
+        "description": "4 images fixes pour les cartes de la page d'accueil"
+      },
+      "gallery": {
+        "title": "Galerie publique",
+        "description": "Images affichées dans la galerie publique du site"
+      },
+      "maxImages": "Max {count}",
+      "imageCount": "{count} image(s)",
+      "noImages": "Aucune image sélectionnée",
+      "maxImagesReached": "Limite de {count} images atteinte"
+    },
+    "actions": {
+      "addImage": "Ajouter une image",
+      "addFirstImage": "Ajouter votre première image",
+      "addToSection": "Ajouter à la section",
+      "remove": "Retirer",
+      "reorder": "Réorganiser",
+      "save": "Sauvegarder",
+      "cancel": "Annuler",
+      "reset": "Réinitialiser"
+    },
+    "imageSelector": {
+      "title": "Sélectionner une image",
+      "searchPlaceholder": "Rechercher une image...",
+      "availableImages": "{count} image(s) disponible(s)",
+      "selected": "Sélectionnée",
+      "noImages": "Aucune image disponible"
+    },
+    "imageReorder": {
+      "title": "Réorganiser les images - {section}",
+      "instructions": "Glissez et déposez les images pour modifier leur ordre d'affichage",
+      "imageCount": "{count} image(s)",
+      "hasChanges": "Modifications en attente",
+      "noImages": "Aucune image à réorganiser"
+    },
+    "errors": {
+      "loadingError": "Erreur lors du chargement",
+      "organizationNotFound": "Organisation non trouvée",
+      "organizationNotFoundDescription": "Impossible de récupérer les informations de votre organisation",
+      "establishmentNotFound": "Établissement non trouvé",
+      "establishmentNotFoundDescription": "Impossible de récupérer les informations de l'établissement"
     }
   },
   "restaurant_public": {
