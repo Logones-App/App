@@ -286,8 +286,8 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
     const formattedTime = selectedSlot.time.replace(":", "-"); // 19:00 → 19-00
 
-    // Utiliser le même pattern que slots avec paramètres dans le path
-    const targetUrl = `/${establishment.slug}/booking/confirm/${formattedDate}/${formattedTime}`;
+    // Nouvelle architecture : URL sans slug pour les pages booking
+    const targetUrl = `/booking/confirm/${formattedDate}/${formattedTime}`;
 
     console.log("🚀 Navigation vers la confirmation:", targetUrl);
 

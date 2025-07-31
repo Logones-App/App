@@ -20,32 +20,6 @@ import {
   buildCleanUrl,
 } from "./auth-middleware-utils";
 
-// Ajouter cette fonction avant handleCustomDomain
-async function handleSuccessPageProxy(
-  request: NextRequest,
-  hostname: string,
-  validLocale: string,
-  establishmentSlug: string,
-): Promise<NextResponse> {
-  console.log(`🎯 [Middleware] Page success détectée, proxy vers URL avec slug`);
-  const successUrl = `https://${MAIN_DOMAIN}/${validLocale}/${establishmentSlug}/booking/success`;
-  const proxyResponse = await fetchProxyContent(successUrl);
-
-  if (!proxyResponse) {
-    return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/404`, request.url));
-  }
-
-  const html = await proxyResponse.text();
-  const modifiedHtml = modifyHtmlUrls(html, hostname, validLocale, establishmentSlug);
-
-  return new NextResponse(modifiedHtml, {
-    status: proxyResponse.status,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=300",
-    },
-  });
-}
 /**
  * Gère les domaines personnalisés avec proxy transparent
  */
@@ -88,12 +62,6 @@ async function handleCustomDomain(request: NextRequest, hostname: string, locale
     // Si ce n'est pas la racine, ajouter le chemin nettoyé
     if (cleanPathname !== "/") {
       targetPath += cleanPathname;
-    }
-
-    // Puis dans handleCustomDomain, remplacer le bloc success par :
-    // 4.5. VÉRIFIER SI C'EST UNE PAGE SUCCESS (proxy vers l'URL avec slug)
-    if (cleanPathname.includes("/booking/success")) {
-      return handleSuccessPageProxy(request, hostname, validLocale, establishmentSlug);
     }
 
     // PRÉSERVER LES PARAMÈTRES D'URL
