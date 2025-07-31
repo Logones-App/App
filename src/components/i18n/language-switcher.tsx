@@ -1,8 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import React from "react";
+
 import { Globe } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePathname, useRouter } from "@/i18n/navigation";
 
 const LANGUAGES = [
   { code: "fr", label: "Français" },
@@ -39,14 +41,9 @@ export function LanguageSwitcher({ variant = "dropdown", size = "md", className 
     const expires = new Date(Date.now() + 31536000 * 1000).toUTCString();
     document.cookie = `NEXT_LOCALE=${lang}; expires=${expires}; path=/; SameSite=Lax`;
 
-    // Utilise next-intl pour la navigation avec la nouvelle locale
-    // next-intl gère automatiquement la locale dans l'URL
-    const newPath = pathname.replace(/^\/([a-z]{2})/, `/${lang}`);
-    
-    // Redirige vers la même page avec la nouvelle locale
-    setTimeout(() => {
-      router.push(newPath);
-    }, 100);
+    // Utilise next-intl router pour la navigation avec la nouvelle locale
+    // Le router de next-intl gère automatiquement la locale dans l'URL
+    router.replace(pathname, { locale: lang });
   };
 
   const getSizeClasses = () => {
