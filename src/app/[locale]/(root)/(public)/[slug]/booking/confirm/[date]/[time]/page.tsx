@@ -168,8 +168,8 @@ export default function BookingConfirmPage({ params }: BookingPageProps) {
         // Stocker dans Zustand
         useBookingConfirmationStore.getState().setConfirmationData(result.bookingData);
 
-        // Nouvelle architecture : URL sans slug pour les pages booking
-        router.push(`/booking/success`);
+        // Rediriger vers la page de succès avec le slug
+        router.push(`/${establishment.slug}/booking/success`);
       } else {
         setError(result.error ?? t("error.generic"));
       }

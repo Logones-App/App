@@ -328,54 +328,32 @@
         "special_requests_placeholder": "Allergies, preferences, etc. (optional)",
         "submit": "Confirm reservation",
         "submitting": "Confirming..."
-      },
-      "validation": {
-        "first_name_required": "First name is required",
-        "last_name_required": "Last name is required",
-        "email_required": "Email address is required",
-        "email_invalid": "Please enter a valid email address",
-        "phone_required": "Phone number is required",
-        "number_of_guests_required": "Number of people is required",
-        "number_of_guests_min": "Minimum 1 person",
-        "number_of_guests_max": "Maximum 50 people"
       }
     },
     "success": {
       "title": "Reservation confirmed!",
-      "subtitle": "Your reservation has been created successfully",
-      "back": "Back",
-      "back_to_establishment": "Back to establishment",
-      "loading": "Loading confirmation...",
-      "error": {
-        "title": "Error",
-        "description": "Unable to load reservation details.",
-        "retry": "Retry"
-      },
-      "booking_details": {
-        "title": "Your reservation details",
-        "booking_id": "Reservation number",
-        "date": "Date",
-        "time": "Time",
-        "establishment": "Establishment",
-        "customer_name": "Name",
-        "email": "Email",
-        "phone": "Phone",
-        "guests": "Number of people",
-        "special_requests": "Special requests",
-        "none": "None"
-      },
-      "actions": {
-        "download": "Download confirmation",
-        "share": "Share",
-        "copy_link": "Copy link",
-        "link_copied": "Link copied!"
-      },
-      "next_steps": {
-        "title": "Next steps",
-        "email_confirmation": "A confirmation email has been sent to you",
-        "reminder": "You will receive a reminder 24h before your reservation",
-        "contact": "For any questions, contact the establishment directly"
-      }
+      "subtitle": "Your reservation has been successfully created",
+      "booking_details": "Booking details",
+      "date": "Date",
+      "time": "Time",
+      "guests": "Guests",
+      "people": "people",
+      "name": "Name",
+      "email": "Email",
+      "confirmation_message": "A confirmation email has been sent to you with all the details of your reservation.",
+      "email_sent": "A confirmation email has been sent to your email address.",
+      "back_to_restaurant": "Back to restaurant",
+      "new_booking": "New booking"
+    },
+    "validation": {
+      "first_name_required": "First name is required",
+      "last_name_required": "Last name is required",
+      "email_required": "Email address is required",
+      "email_invalid": "Please enter a valid email address",
+      "phone_required": "Phone number is required",
+      "number_of_guests_required": "Number of people is required",
+      "number_of_guests_min": "Minimum 1 person",
+      "number_of_guests_max": "Maximum 50 people"
     },
     "common": {
       "loading": "Loading...",

@@ -65,7 +65,9 @@ export function isRestaurantPublicRoute(pathname: string): boolean {
     return false;
   }
 
-  return /^\/[^/]+$/.test(routeWithoutLocale) || /^\/[^/]+\//.test(routeWithoutLocale);
+  // Accepter les routes de restaurant public avec un ou plusieurs segments
+  // Exemples : /restaurant-slug, /restaurant-slug/menu, /restaurant-slug/booking/success
+  return /^\/[^/]+(\/[^/]+)*$/.test(routeWithoutLocale);
 }
 
 /**

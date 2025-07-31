@@ -327,54 +327,32 @@
         "special_requests_placeholder": "Alergias, preferencias, etc. (opcional)",
         "submit": "Confirmar reserva",
         "submitting": "Confirmando..."
-      },
-      "validation": {
-        "first_name_required": "El nombre es obligatorio",
-        "last_name_required": "El apellido es obligatorio",
-        "email_required": "La dirección de email es obligatoria",
-        "email_invalid": "Por favor introduce una dirección de email válida",
-        "phone_required": "El número de teléfono es obligatorio",
-        "number_of_guests_required": "El número de personas es obligatorio",
-        "number_of_guests_min": "Mínimo 1 persona",
-        "number_of_guests_max": "Máximo 50 personas"
       }
     },
     "success": {
       "title": "¡Reserva confirmada!",
-      "subtitle": "Tu reserva ha sido creada con éxito",
-      "back": "Volver",
-      "back_to_establishment": "Volver al establecimiento",
-      "loading": "Cargando confirmación...",
-      "error": {
-        "title": "Error",
-        "description": "No se pueden cargar los detalles de la reserva.",
-        "retry": "Reintentar"
-      },
-      "booking_details": {
-        "title": "Detalles de tu reserva",
-        "booking_id": "Número de reserva",
-        "date": "Fecha",
-        "time": "Hora",
-        "establishment": "Establecimiento",
-        "customer_name": "Nombre",
-        "email": "Email",
-        "phone": "Teléfono",
-        "guests": "Número de personas",
-        "special_requests": "Peticiones especiales",
-        "none": "Ninguna"
-      },
-      "actions": {
-        "download": "Descargar confirmación",
-        "share": "Compartir",
-        "copy_link": "Copiar enlace",
-        "link_copied": "¡Enlace copiado!"
-      },
-      "next_steps": {
-        "title": "Próximos pasos",
-        "email_confirmation": "Se te ha enviado un email de confirmación",
-        "reminder": "Recibirás un recordatorio 24h antes de tu reserva",
-        "contact": "Para cualquier pregunta, contacta directamente con el establecimiento"
-      }
+      "subtitle": "Tu reserva ha sido creada exitosamente",
+      "booking_details": "Detalles de la reserva",
+      "date": "Fecha",
+      "time": "Hora",
+      "guests": "Personas",
+      "people": "personas",
+      "name": "Nombre",
+      "email": "Email",
+      "confirmation_message": "Se te ha enviado un email de confirmación con todos los detalles de tu reserva.",
+      "email_sent": "Se ha enviado un email de confirmación a tu dirección de email.",
+      "back_to_restaurant": "Volver al restaurante",
+      "new_booking": "Nueva reserva"
+    },
+    "validation": {
+      "first_name_required": "El nombre es obligatorio",
+      "last_name_required": "El apellido es obligatorio",
+      "email_required": "La dirección de email es obligatoria",
+      "email_invalid": "Por favor introduce una dirección de email válida",
+      "phone_required": "El número de teléfono es obligatorio",
+      "number_of_guests_required": "El número de personas es obligatorio",
+      "number_of_guests_min": "Mínimo 1 persona",
+      "number_of_guests_max": "Máximo 50 personas"
     },
     "common": {
       "loading": "Cargando...",
