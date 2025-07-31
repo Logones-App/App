@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { CheckCircle, ArrowLeft, Calendar, Clock, Users, MapPin } from "lucide-react";
+import { CheckCircle, ArrowLeft, Calendar, Clock, Users, MapPin, Mail, Phone, User, Hash } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,13 @@ import { Tables } from "@/lib/supabase/database.types";
 
 import { EstablishmentInfo } from "../_components/establishment-info";
 import { LoadingState, ErrorState } from "../_components/loading-states";
+
+import {
+  getEstablishmentSlug,
+  fetchEstablishment,
+  createBookingDataFromStore,
+  fetchBookingFromDatabase,
+} from "./utils";
 
 type Establishment = Tables<"establishments">;
 
@@ -27,6 +34,165 @@ interface BookingSuccessPageProps {
   }>;
 }
 
+// Composant pour l'en-tête de succès
+const SuccessHeader = ({ t }: { t: any }) => (
+  <div className="mb-8 text-center">
+    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+      <CheckCircle className="h-12 w-12 text-green-600" />
+    </div>
+    <h1 className="mb-3 text-4xl font-bold text-gray-900">{t("title")}</h1>
+    <p className="text-lg text-gray-600">{t("subtitle")}</p>
+    <div className="mt-4 inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
+      <div className="mr-2 h-2 w-2 rounded-full bg-green-500"></div>
+      Réservation confirmée
+    </div>
+  </div>
+);
+
+// Composant pour les détails de réservation
+const BookingDetails = ({ bookingData }: { bookingData: any }) => (
+  <Card className="h-fit">
+    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+      <CardTitle className="flex items-center gap-2 text-blue-900">
+        <Calendar className="h-5 w-5" />
+        Détails de la réservation
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4 pt-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">Date</span>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">
+            {new Date(bookingData.date).toLocaleDateString("fr-FR", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">Heure</span>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">{bookingData.time}</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-blue-500" />
+          <span className="text-sm font-medium text-gray-700">Nombre de personnes</span>
+        </div>
+        <p className="text-lg font-semibold text-gray-900">
+          {bookingData.guests} {bookingData.guests > 1 ? "personnes" : "personne"}
+        </p>
+      </div>
+      {bookingData.id && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">Numéro de réservation</span>
+          </div>
+          <p className="rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">#{bookingData.id}</p>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+// Composant pour les informations client
+const CustomerInfo = ({ bookingData }: { bookingData: any }) => (
+  <Card className="h-fit">
+    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+      <CardTitle className="flex items-center gap-2 text-green-900">
+        <Users className="h-5 w-5" />
+        Vos informations
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4 pt-6">
+      {bookingData.customerName && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-green-500" />
+            <span className="text-sm font-medium text-gray-700">Nom complet</span>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">{bookingData.customerName}</p>
+        </div>
+      )}
+      {bookingData.email && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-green-500" />
+            <span className="text-sm font-medium text-gray-700">Email</span>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">{bookingData.email}</p>
+        </div>
+      )}
+      {bookingData.phone && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-green-500" />
+            <span className="text-sm font-medium text-gray-700">Téléphone</span>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">{bookingData.phone}</p>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+// Composant pour les messages informatifs
+const InfoMessages = () => (
+  <div className="mt-8 grid gap-4 md:grid-cols-2">
+    <Card className="border-l-4 border-l-blue-500">
+      <CardContent className="pt-6">
+        <div className="flex items-start gap-3">
+          <div className="mt-1 h-2 w-2 rounded-full bg-blue-500"></div>
+          <div>
+            <h3 className="font-semibold text-gray-900">Confirmation par email</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Un email de confirmation a été envoyé à votre adresse email avec tous les détails de votre réservation.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card className="border-l-4 border-l-green-500">
+      <CardContent className="pt-6">
+        <div className="flex items-start gap-3">
+          <div className="mt-1 h-2 w-2 rounded-full bg-green-500"></div>
+          <div>
+            <h3 className="font-semibold text-gray-900">Modification ou annulation</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Pour modifier ou annuler votre réservation, contactez directement l&apos;établissement.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
+// Composant pour les actions
+const ActionButtons = ({ establishment }: { establishment: any }) => (
+  <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+    <Button asChild variant="outline" size="lg">
+      <Link href={`/${establishment.slug}`}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Retour au restaurant
+      </Link>
+    </Button>
+    <Button asChild size="lg">
+      <Link href={`/${establishment.slug}/booking`}>Nouvelle réservation</Link>
+    </Button>
+  </div>
+);
+
 export default function BookingSuccessPage({ params }: BookingSuccessPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,81 +204,6 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
 
   // Récupérer les données de réservation depuis le store ou les paramètres
   const { getConfirmationData } = useBookingConfirmationStore();
-
-  // Fonction pour extraire le slug de l'établissement
-  const getEstablishmentSlug = (resolvedParams: any): string | null => {
-    return resolvedParams.slug ?? resolvedParams["establishment-slug"] ?? resolvedParams.establishmentSlug ?? null;
-  };
-
-  // Fonction pour récupérer l'établissement depuis Supabase
-  const fetchEstablishment = async (establishmentSlug: string): Promise<Establishment | null> => {
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    const { data: establishmentData, error: establishmentError } = await supabase
-      .from("establishments")
-      .select("*")
-      .eq("slug", establishmentSlug)
-      .eq("deleted", false)
-      .single();
-
-    if (establishmentError || !establishmentData) {
-      console.error("❌ Erreur établissement:", establishmentError);
-      return null;
-    }
-
-    return establishmentData;
-  };
-
-  // Fonction pour créer les données de réservation depuis le store
-  const createBookingDataFromStore = (bookingConfirmation: any) => {
-    return {
-      id: bookingConfirmation.id,
-      date: bookingConfirmation.date,
-      time: bookingConfirmation.time,
-      guests: bookingConfirmation.number_of_guests,
-      customerName: `${bookingConfirmation.customer_first_name} ${bookingConfirmation.customer_last_name}`,
-      email: bookingConfirmation.customer_email,
-      phone: bookingConfirmation.customer_phone,
-    };
-  };
-
-  // Fonction pour créer les données de réservation depuis les paramètres
-  const createBookingDataFromParams = (
-    booking: any,
-    bookingDate: string | null,
-    bookingTime: string | null,
-    guests: string | null,
-  ) => {
-    return {
-      id: booking.id,
-      date: bookingDate ?? booking.date,
-      time: bookingTime ?? booking.time,
-      guests: guests ?? booking.number_of_guests,
-      customerName: `${booking.customer_first_name} ${booking.customer_last_name}`,
-      email: booking.customer_email,
-      phone: booking.customer_phone,
-    };
-  };
-
-  // Fonction pour récupérer les données de réservation depuis la base de données
-  const fetchBookingFromDatabase = async (
-    bookingId: string,
-    bookingDate: string | null,
-    bookingTime: string | null,
-    guests: string | null,
-  ) => {
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("id", bookingId)
-      .single();
-
-    if (bookingError || !booking) {
-      return null;
-    }
-
-    return createBookingDataFromParams(booking, bookingDate, bookingTime, guests);
-  };
 
   // Fonction pour traiter les données de réservation
   const processBookingData = async () => {
@@ -183,83 +274,24 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" />
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">{t("title")}</h1>
-          <p className="text-gray-600">{t("subtitle")}</p>
-        </div>
+        <SuccessHeader t={t} />
 
-        {/* Informations de l'établissement */}
-        <EstablishmentInfo establishment={establishment} />
+        <div className="mx-auto max-w-4xl">
+          {/* Informations de l'établissement */}
+          <div className="mb-8">
+            <EstablishmentInfo establishment={establishment} />
+          </div>
 
-        {/* Détails de la réservation */}
-        {bookingData && (
-          <Card className="mx-auto mt-8 max-w-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                {t("booking_details")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {t("date")}: {bookingData.date}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {t("time")}: {bookingData.time}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {t("guests")}: {bookingData.guests} {t("people")}
-                </span>
-              </div>
-              {bookingData.customerName && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    {t("name")}: {bookingData.customerName}
-                  </span>
-                </div>
-              )}
-              {bookingData.email && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    {t("email")}: {bookingData.email}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Message de confirmation */}
-        <Card className="mx-auto mt-6 max-w-md">
-          <CardContent className="pt-6">
-            <div className="space-y-4 text-center">
-              <p className="text-gray-700">{t("confirmation_message")}</p>
-              <p className="text-sm text-gray-500">{t("email_sent")}</p>
+          {/* Récapitulatif détaillé de la réservation */}
+          {bookingData && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <BookingDetails bookingData={bookingData} />
+              <CustomerInfo bookingData={bookingData} />
             </div>
-          </CardContent>
-        </Card>
+          )}
 
-        {/* Actions */}
-        <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-          <Button asChild variant="outline">
-            <Link href={`/${establishment.slug}`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t("back_to_restaurant")}
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/${establishment.slug}/booking`}>{t("new_booking")}</Link>
-          </Button>
+          <InfoMessages />
+          <ActionButtons establishment={establishment} />
         </div>
       </div>
     </div>
