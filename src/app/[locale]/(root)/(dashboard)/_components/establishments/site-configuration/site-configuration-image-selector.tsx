@@ -60,7 +60,7 @@ export function SiteConfigurationImageSelector({
       const filtered = availableImages.filter(
         (image) =>
           image.image_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (image.image_description && image.image_description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (image.image_description && image.image_description.toLowerCase().includes(searchTerm.toLowerCase())) ??
           (image.alt_text && image.alt_text.toLowerCase().includes(searchTerm.toLowerCase())),
       );
       setFilteredImages(filtered);

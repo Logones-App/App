@@ -62,7 +62,7 @@ export function EstablishmentDetailsShared({
 
       {/* Navigation vers les pages enfants */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Gestion de l'établissement</h2>
+        <h2 className="text-xl font-semibold">Gestion de l&apos;établissement</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Link href={getLink("menus")}>
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
