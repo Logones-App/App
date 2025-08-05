@@ -58,7 +58,7 @@ export function useBookingsRealtime({
         return;
       }
 
-      setBookings(data || []);
+      setBookings(data ?? []);
     } catch (err) {
       console.error("💥 Erreur inattendue lors de la récupération des réservations:", err);
       setError("Erreur inattendue");

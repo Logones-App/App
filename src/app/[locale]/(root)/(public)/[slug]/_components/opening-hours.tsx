@@ -1,9 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Tables } from "@/lib/supabase/database.types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tables } from "@/lib/supabase/database.types";
 
 type OpeningHours = Tables<"opening_hours">;
 

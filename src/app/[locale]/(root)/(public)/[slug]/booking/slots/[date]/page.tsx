@@ -83,6 +83,13 @@ async function loadEstablishmentData(
 
     // Récupérer l'établissement
     const establishmentData = await getEstablishmentBySlug(establishmentSlug);
+    console.log("🔍 DEBUG loadEstablishmentData:");
+    console.log("  - EstablishmentSlug:", establishmentSlug);
+    console.log("  - EstablishmentData:", establishmentData ? "✅ Trouvé" : "❌ Non trouvé");
+    if (establishmentData) {
+      console.log("  - EstablishmentId:", establishmentData.id);
+      console.log("  - EstablishmentName:", establishmentData.name);
+    }
     setEstablishment(establishmentData);
   } catch (error) {
     console.error("❌ Erreur lors du chargement:", error);
@@ -174,6 +181,7 @@ function SlotsGrid({
   exceptions,
   handleContinue,
   establishment,
+  selectedDate,
 }: {
   serviceGroups: any[];
   selectedSlot: TimeSlot | null;
@@ -184,7 +192,27 @@ function SlotsGrid({
   exceptions: any[];
   handleContinue: () => void;
   establishment: Establishment;
+  selectedDate: Date;
 }) {
+  // Debug logs pour comprendre la structure des données
+  console.log("🔍 DEBUG SlotsGrid:");
+  console.log("  - ServiceGroups reçus:", serviceGroups);
+  console.log("  - Nombre de groupes:", serviceGroups?.length ?? 0);
+
+  if (serviceGroups && serviceGroups.length > 0) {
+    serviceGroups.forEach((group, index) => {
+      console.log(`  - Groupe ${index}:`, {
+        serviceName: group.serviceName,
+        slotsCount: group.slots?.length ?? 0,
+        slots: group.slots,
+      });
+    });
+  }
+
+  const allSlots = serviceGroups.flatMap((group) => group.slots ?? []);
+  console.log("  - Total slots après flatMap:", allSlots.length);
+  console.log("  - Slots:", allSlots);
+
   return (
     <div className="lg:col-span-2">
       <Card className="shadow-lg">
@@ -211,12 +239,12 @@ function SlotsGrid({
         <CardContent>
           {/* Composant d'affichage realtime */}
           <RealtimeSlotsDisplay
+            establishmentId={establishment.id}
+            date={selectedDate}
             serviceGroups={serviceGroups}
+            exceptions={exceptions || []}
+            onSlotSelect={setSelectedSlot}
             selectedSlot={selectedSlot}
-            setSelectedSlot={setSelectedSlot}
-            isLoading={slotsLoading}
-            error={slotsError}
-            onRefresh={refreshSlots}
           />
 
           {/* Créneau sélectionné */}
@@ -269,6 +297,12 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     date: selectedDate ?? new Date(),
     enabled: !!establishment?.id && !!selectedDate,
   });
+
+  console.log("🔍 DEBUG BookingSlotsPage:");
+  console.log("  - Establishment:", establishment?.id ? "✅ Chargé" : "❌ Non chargé");
+  console.log("  - EstablishmentId:", establishment?.id);
+  console.log("  - SelectedDate:", selectedDate);
+  console.log("  - Hook enabled:", !!establishment?.id && !!selectedDate);
 
   useEffect(() => {
     loadEstablishmentData(params, router, setSelectedDate, setEstablishment, setLoading);
@@ -335,6 +369,7 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
             exceptions={exceptions}
             handleContinue={handleContinue}
             establishment={establishment}
+            selectedDate={selectedDate}
           />
         </div>
       </div>

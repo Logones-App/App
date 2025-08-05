@@ -26,12 +26,12 @@ export function CategoriesShared({
         <Link href={backLink}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à l'établissement
+            Retour à l&apos;établissement
           </Button>
         </Link>
       </div>
 
-      <h2 className="text-2xl font-bold">Catégories de l'établissement</h2>
+      <h2 className="text-2xl font-bold">Catégories de l&apos;établissement</h2>
       <p className="text-muted-foreground">(À implémenter)</p>
       <p className="mt-2 text-xs">
         establishmentId: <span className="font-mono">{establishmentId}</span>

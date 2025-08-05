@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import { Info, AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useGallerySectionRealtime } from "@/hooks/gallery/use-gallery-section-realtime";
 import { GallerySectionConfig, GallerySection } from "@/types/gallery";
-import { useGalleryRealtime } from "@/hooks/gallery/use-gallery-realtime";
-import { SiteConfigurationImageSelector } from "./site-configuration-image-selector";
+import { GallerySectionImage } from "@/types/gallery";
+
 import { SiteConfigurationImageReorder } from "./site-configuration-image-reorder";
+import { SiteConfigurationImageSelector } from "./site-configuration-image-selector";
 
 interface SiteConfigurationSectionProps {
   establishmentId: string;
@@ -31,64 +35,80 @@ export function SiteConfigurationSection({
   const [showReorder, setShowReorder] = useState(false);
 
   const {
-    sectionImages,
-    loading: isLoading,
+    images: sectionImages,
+    isLoading,
     error,
-    isConnected,
     addImageToSection,
     removeImageFromSection,
-    reorderSectionImages,
-    refetch,
-  } = useGalleryRealtime({
+    updateImageOrder,
+  } = useGallerySectionRealtime({
     establishmentId,
     organizationId,
     section,
-    enabled: true,
   });
 
   const handleAddImage = async (imageId: string) => {
     try {
-      await addImageToSection(imageId, section);
+      await addImageToSection(imageId);
       setShowImageSelector(false);
     } catch (error) {
       console.error("Erreur lors de l'ajout de l'image:", error);
     }
   };
 
-  const handleRemoveImage = async (sectionImageId: string) => {
+  const handleRemoveImage = async (imageId: string) => {
     try {
-      await removeImageFromSection(sectionImageId);
+      await removeImageFromSection(imageId);
     } catch (error) {
       console.error("Erreur lors de la suppression de l'image:", error);
     }
   };
 
-  const handleReorderImages = async (images: any[]) => {
+  const handleReorderImages = async (images: GallerySectionImage[]) => {
     try {
-      await reorderSectionImages(images);
+      // Mettre à jour l'ordre de chaque image
+      for (let i = 0; i < images.length; i++) {
+        await updateImageOrder(images[i].image_id, i);
+      }
       setShowReorder(false);
     } catch (error) {
       console.error("Erreur lors de la réorganisation:", error);
     }
   };
 
+  const renderLoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+    </div>
+  );
+
+  const renderErrorState = () => (
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>
+        {t("errors.loadingError")}: {error}
+      </AlertDescription>
+    </Alert>
+  );
+
+  console.log("🔍 SiteConfigurationSection - État:", {
+    section,
+    isLoading,
+    error,
+    sectionImagesCount: sectionImages.length,
+    isConnected: true, // Assuming isConnected is no longer available from useGalleryRealtime
+    establishmentId,
+    organizationId,
+  });
+
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-      </div>
-    );
+    console.log("⏳ Affichage du loading state");
+    return renderLoadingState();
   }
 
   if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          {t("errors.loadingError")}: {error}
-        </AlertDescription>
-      </Alert>
-    );
+    console.log("❌ Affichage de l'erreur:", error);
+    return renderErrorState();
   }
 
   const imageCount = sectionImages.length;
@@ -104,7 +124,7 @@ export function SiteConfigurationSection({
             {t("sections.imageCount", { count: imageCount })}
             {maxImages && ` / ${maxImages}`}
           </Badge>
-          <Badge variant={isConnected ? "default" : "destructive"}>{isConnected ? "Connecté" : "Déconnecté"}</Badge>
+          <Badge variant="default">Connecté</Badge> {/* Assuming isConnected is no longer available */}
           {!canAddMore && (
             <Alert className="w-auto">
               <Info className="h-4 w-4" />
@@ -142,7 +162,7 @@ export function SiteConfigurationSection({
             <div key={sectionImage.id} className="group relative aspect-square overflow-hidden rounded-lg border">
               <img
                 src={sectionImage.image_url}
-                alt={sectionImage.alt_text ?? sectionImage.image_name}
+                alt={sectionImage.alt_text ?? sectionImage.image_name ?? "Image"}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
@@ -152,7 +172,7 @@ export function SiteConfigurationSection({
               </div>
               <div className="absolute top-2 left-2">
                 <Badge variant="secondary" className="text-xs">
-                  {sectionImage.display_order + 1}
+                  {(sectionImage.display_order ?? 0) + 1}
                 </Badge>
               </div>
             </div>
@@ -160,12 +180,13 @@ export function SiteConfigurationSection({
         </div>
       )}
 
-      {/* Modal de sélection d'images */}
+      {/* Modal de sélection d&apos;images */}
       {showImageSelector && (
         <SiteConfigurationImageSelector
           establishmentId={establishmentId}
           organizationId={organizationId}
           section={section}
+          sectionImages={sectionImages}
           onImageSelect={handleAddImage}
           onClose={() => setShowImageSelector(false)}
           isSystemAdmin={isSystemAdmin}

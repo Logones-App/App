@@ -21,7 +21,11 @@ export function useEstablishmentOrganization({
   establishmentId,
   enabled = true,
 }: UseEstablishmentOrganizationProps): UseEstablishmentOrganizationReturn {
-  const { data: establishment, isLoading, error } = useQuery({
+  const {
+    data: establishment,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["establishment", establishmentId],
     queryFn: async () => {
       const supabase = createClient();

@@ -176,7 +176,7 @@ export default function MessagesPage() {
                           {message.deleted ? "Supprimé" : "Actif"}
                         </Badge>
                         {message.organization_id && (
-                          <Badge variant="outline">Org: {(message.organization_id as string).slice(0, 8)}...</Badge>
+                          <Badge variant="outline">Org: {message.organization_id.slice(0, 8)}...</Badge>
                         )}
                       </div>
                       <p className="mb-2 text-gray-800">{message.content}</p>

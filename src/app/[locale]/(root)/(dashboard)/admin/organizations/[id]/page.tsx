@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import { format } from "date-fns";
@@ -13,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useEstablishmentsRealtime } from "@/lib/services/realtime/modules/establishments-realtime";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";

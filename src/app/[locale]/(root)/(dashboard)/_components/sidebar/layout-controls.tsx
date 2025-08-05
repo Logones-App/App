@@ -39,8 +39,8 @@ export function LayoutControls() {
       <PopoverContent align="end">
         <div className="flex flex-col gap-5">
           <div className="space-y-1.5">
-            <h4 className="text-sm leading-none font-medium">Paramètres d'affichage</h4>
-            <p className="text-muted-foreground text-xs">Personnalisez l'apparence de votre dashboard.</p>
+            <h4 className="text-sm leading-none font-medium">Paramètres d&apos;affichage</h4>
+            <p className="text-muted-foreground text-xs">Personnalisez l&apos;apparence de votre dashboard.</p>
           </div>
 
           <div className="flex flex-col gap-3">

@@ -1,206 +1,133 @@
 "use client";
 
-import React, { memo, useCallback } from "react";
-import { Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import React, { useState, useCallback, useEffect } from "react";
 
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Clock, Calendar, AlertCircle } from "lucide-react";
+
+import { GroupedSlotsDisplay } from "@/app/[locale]/(root)/(public)/[slug]/booking/_components/slots-components";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-interface TimeSlot {
-  time: string;
-  isAvailable: boolean;
-  maxCapacity: number;
-  slotId?: string;
-}
-
-interface ServiceGroup {
-  serviceName: string;
-  slots: TimeSlot[];
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useRealtime } from "@/hooks/use-realtime";
+import { TimeSlot, BookingException, ServiceGroup } from "@/lib/utils/slots-realtime-utils";
 
 interface RealtimeSlotsDisplayProps {
+  establishmentId: string;
+  date: Date;
   serviceGroups: ServiceGroup[];
-  selectedSlot: TimeSlot | null;
-  setSelectedSlot: (slot: TimeSlot | null) => void;
-  isLoading?: boolean;
-  error?: Error | null;
-  onRefresh?: () => void;
+  exceptions: BookingException[];
+  onSlotSelect?: (slot: TimeSlot | null) => void;
+  selectedSlot?: TimeSlot | null;
 }
 
-// Composant pour un créneau individuel (mémorisé pour les performances)
-const TimeSlotButton = memo<{
-  slot: TimeSlot;
-  isSelected: boolean;
-  onSelect: (slot: TimeSlot) => void;
-}>(({ slot, isSelected, onSelect }) => {
-  const handleClick = useCallback(() => {
-    if (slot.isAvailable) {
-      onSelect(slot);
-    }
-  }, [slot, onSelect]);
-
-  return (
-    <Button
-      variant={isSelected ? "default" : slot.isAvailable ? "outline" : "ghost"}
-      size="sm"
-      onClick={handleClick}
-      disabled={!slot.isAvailable}
-      className={cn(
-        "relative h-12 w-full transition-all duration-200",
-        slot.isAvailable && !isSelected && "hover:bg-primary/10",
-        isSelected && "ring-primary ring-2 ring-offset-2",
-        !slot.isAvailable && "cursor-not-allowed opacity-50",
-      )}
-    >
-      <div className="flex w-full items-center justify-between">
-        <span className="font-medium">{slot.time}</span>
-        <div className="flex items-center gap-1">
-          {slot.isAvailable ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          ) : (
-            <XCircle className="h-4 w-4 text-red-600" />
-          )}
-          <span className="text-muted-foreground text-xs">{slot.maxCapacity} places</span>
-        </div>
-      </div>
-    </Button>
-  );
-});
-
-TimeSlotButton.displayName = "TimeSlotButton";
-
-// Composant pour un groupe de service (mémorisé)
-const ServiceGroupDisplay = memo<{
-  serviceGroup: ServiceGroup;
-  selectedSlot: TimeSlot | null;
-  setSelectedSlot: (slot: TimeSlot | null) => void;
-}>(({ serviceGroup, selectedSlot, setSelectedSlot }) => {
-  const availableSlots = serviceGroup.slots.filter((slot) => slot.isAvailable);
-  const unavailableSlots = serviceGroup.slots.filter((slot) => !slot.isAvailable);
-
-  const handleSlotSelect = useCallback((slot: TimeSlot) => {
-    setSelectedSlot(selectedSlot?.time === slot.time && selectedSlot?.slotId === slot.slotId ? null : slot);
-  }, [selectedSlot, setSelectedSlot]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">{serviceGroup.serviceName}</h3>
-        <Badge variant="secondary">
-          {availableSlots.length} disponible{availableSlots.length > 1 ? "s" : ""}
-        </Badge>
-      </div>
-
-      {/* Créneaux disponibles */}
-      {availableSlots.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="flex items-center gap-1 text-sm font-medium text-green-700">
-            <CheckCircle className="h-4 w-4" />
-            Créneaux disponibles
-          </h4>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {availableSlots.map((slot) => (
-              <TimeSlotButton
-                key={`${slot.slotId}-${slot.time}`}
-                slot={slot}
-                isSelected={selectedSlot?.time === slot.time && selectedSlot?.slotId === slot.slotId}
-                onSelect={handleSlotSelect}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Créneaux indisponibles (optionnel) */}
-      {unavailableSlots.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="flex items-center gap-1 text-sm font-medium text-red-700">
-            <XCircle className="h-4 w-4" />
-            Créneaux fermés
-          </h4>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {unavailableSlots.map((slot) => (
-              <TimeSlotButton
-                key={`${slot.slotId}-${slot.time}`}
-                slot={slot}
-                isSelected={false}
-                onSelect={() => {}} // Pas de sélection pour les créneaux fermés
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-});
-
-ServiceGroupDisplay.displayName = "ServiceGroupDisplay";
-
-// Composant principal
 export function RealtimeSlotsDisplay({
+  establishmentId,
+  date,
   serviceGroups,
+  exceptions,
+  onSlotSelect,
   selectedSlot,
-  setSelectedSlot,
-  isLoading = false,
-  error = null,
-  onRefresh,
 }: RealtimeSlotsDisplayProps) {
-  // État de chargement
-  if (isLoading) {
+  const { isConnected } = useRealtime();
+  const [localServiceGroups, setLocalServiceGroups] = useState<ServiceGroup[]>([]);
+
+  // Utiliser directement les serviceGroups reçus
+  useEffect(() => {
+    console.log("🔍 DEBUG RealtimeSlotsDisplay useEffect:");
+    console.log("  - ServiceGroups reçus:", serviceGroups.length);
+    console.log("  - Exceptions reçues:", exceptions.length);
+    console.log("  - Date:", format(date, "yyyy-MM-dd"));
+
+    setLocalServiceGroups(serviceGroups);
+
+    const totalSlots = serviceGroups.reduce((total, group) => total + group.slots.length, 0);
+    const availableSlots = serviceGroups.reduce(
+      (total, group) => total + group.slots.filter((s) => s.isAvailable).length,
+      0,
+    );
+
+    console.log("  - Total créneaux:", totalSlots);
+    console.log("  - Créneaux disponibles:", availableSlots);
+  }, [serviceGroups, exceptions, date]);
+
+  const handleSlotClick = useCallback(
+    (slot: TimeSlot) => {
+      onSlotSelect?.(selectedSlot?.time === slot.time && selectedSlot?.slotId === slot.slotId ? null : slot);
+    },
+    [selectedSlot, onSlotSelect],
+  );
+
+  const renderConnectionStatus = () => (
+    <div className="mb-4 flex items-center gap-2">
+      <Badge variant={isConnected ? "default" : "destructive"} className="flex items-center gap-1">
+        <div className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
+        {isConnected ? "Connecté" : "Déconnecté"}
+      </Badge>
+      <span className="text-muted-foreground text-sm">Mise à jour en temps réel des créneaux</span>
+    </div>
+  );
+
+  const renderEmptyState = () => (
+    <div className="flex flex-col items-center justify-center p-8 text-center">
+      <Calendar className="text-muted-foreground mb-4 h-12 w-12" />
+      <h3 className="mb-2 text-lg font-semibold">Aucun créneau disponible</h3>
+      <p className="text-muted-foreground text-sm">Aucun créneau n&apos;est disponible pour cette date.</p>
+    </div>
+  );
+
+  const renderExceptionsInfo = () => {
+    if (exceptions.length === 0) return null;
+
     return (
-      <div className="space-y-4">
-        <div className="animate-pulse">
-          <div className="mb-4 h-6 w-1/3 rounded bg-gray-200"></div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-12 rounded bg-gray-200"></div>
-            ))}
-          </div>
+      <div className="bg-muted/50 mb-4 rounded-lg border p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-orange-500" />
+          <span className="text-sm font-medium">Exceptions appliquées</span>
+        </div>
+        <div className="space-y-1">
+          {exceptions.map((exception) => (
+            <div key={exception.id} className="text-muted-foreground text-xs">
+              • {exception.reason} ({exception.exception_type})
+            </div>
+          ))}
         </div>
       </div>
     );
-  }
+  };
 
-  // État d'erreur
-  if (error) {
-    return (
-      <div className="py-8 text-center">
-        <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">Erreur de chargement</h3>
-        <p className="text-muted-foreground mb-4">{error.message}</p>
-        {onRefresh && (
-          <Button onClick={onRefresh} variant="outline">
-            Réessayer
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  // Aucun créneau disponible
-  if (serviceGroups.length === 0) {
-    return (
-      <div className="py-8 text-center">
-        <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-          <Clock className="text-muted-foreground h-6 w-6" />
-        </div>
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">Pas de créneaux disponibles</h3>
-        <p className="text-muted-foreground">Aucun créneau n&apos;est configuré pour cette date.</p>
-      </div>
-    );
-  }
+  const totalSlots = localServiceGroups.reduce((total, group) => total + group.slots.length, 0);
 
   return (
-    <div className="space-y-6">
-      {serviceGroups.map((serviceGroup) => (
-        <ServiceGroupDisplay
-          key={serviceGroup.serviceName}
-          serviceGroup={serviceGroup}
-          selectedSlot={selectedSlot}
-          setSelectedSlot={setSelectedSlot}
-        />
-      ))}
-    </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Créneaux disponibles
+            </CardTitle>
+            <p className="text-muted-foreground text-sm">{format(date, "EEEE d MMMM yyyy", { locale: fr })}</p>
+          </div>
+          <Badge variant="secondary">{totalSlots} créneaux</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {renderConnectionStatus()}
+        {renderExceptionsInfo()}
+        <ScrollArea className="h-64">
+          {localServiceGroups.length === 0 ? (
+            renderEmptyState()
+          ) : (
+            <GroupedSlotsDisplay
+              serviceGroups={localServiceGroups}
+              selectedSlot={selectedSlot ?? null}
+              setSelectedSlot={handleSlotClick}
+            />
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 }

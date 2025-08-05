@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { GalleryLightboxProps } from "@/types/gallery";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { X, ChevronLeft, ChevronRight, Download, Copy, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getGalleryImageUrl, formatFileSize } from "@/lib/utils/gallery-helpers";
+import { GalleryLightboxProps } from "@/types/gallery";
 
 export function GalleryLightbox({ images, initialIndex = 0, isOpen, onClose, onImageChange }: GalleryLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -61,7 +63,7 @@ export function GalleryLightbox({ images, initialIndex = 0, isOpen, onClose, onI
   const handleDownload = () => {
     const link = document.createElement("a");
     link.href = currentImage.image_url;
-    link.download = currentImage.image_name || "image";
+    link.download = currentImage.image_name ?? "image";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -103,13 +105,13 @@ export function GalleryLightbox({ images, initialIndex = 0, isOpen, onClose, onI
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] max-w-7xl overflow-hidden p-0">
-        <DialogTitle className="sr-only">{currentImage.image_name || "Image"} - Visualiseur d'image</DialogTitle>
+        <DialogTitle className="sr-only">{currentImage.image_name ?? "Image"} - Visualiseur d&apos;image</DialogTitle>
         <div className="relative h-full w-full">
           {/* En-tête */}
           <div className="absolute top-0 right-0 left-0 z-10 bg-black/50 p-4 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <h3 className="font-medium">{currentImage.image_name || "Image"}</h3>
+                <h3 className="font-medium">{currentImage.image_name ?? "Image"}</h3>
                 <Badge variant="secondary">
                   {currentIndex + 1} / {images.length}
                 </Badge>
@@ -143,7 +145,7 @@ export function GalleryLightbox({ images, initialIndex = 0, isOpen, onClose, onI
             >
               <img
                 src={getGalleryImageUrl(currentImage.image_url)}
-                alt={currentImage.alt_text ?? currentImage.image_name}
+                alt={currentImage.alt_text ?? currentImage.image_name ?? "Image"}
                 className="max-h-full max-w-full object-contain"
                 draggable={false}
               />

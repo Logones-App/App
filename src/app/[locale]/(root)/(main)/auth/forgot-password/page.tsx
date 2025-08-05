@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              "Cette plateforme a révolutionné la gestion de nos restaurants. Simple, efficace et intuitive."
+              &quot;Cette plateforme a révolutionné la gestion de nos restaurants. Simple, efficace et intuitive.&quot;
             </p>
             <footer className="text-sm">Sofia Davis, Directrice Restaurant</footer>
           </blockquote>

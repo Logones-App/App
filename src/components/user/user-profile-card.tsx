@@ -3,11 +3,11 @@
 import { Shield, User, Settings, Bell, Palette, Globe } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useUserMetadata, useUserPreferences } from "@/hooks/use-user-metadata";
 
 export function UserProfileCard() {
@@ -53,7 +53,7 @@ export function UserProfileCard() {
         <CardHeader>
           <div className="flex items-center space-x-4">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarImage src={profile?.avatar_url ?? undefined} />
               <AvatarFallback>
                 {fullName
                   .split(" ")
@@ -64,7 +64,7 @@ export function UserProfileCard() {
             </Avatar>
             <div>
               <CardTitle className="text-xl">{displayName}</CardTitle>
-                             <CardDescription>{profile?.bio ?? "Aucune bio"}</CardDescription>
+              <CardDescription>{profile?.bio ?? "Aucune bio"}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -93,7 +93,7 @@ export function UserProfileCard() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Settings className="mr-2 h-4 w-4" />
-            Permissions & Features
+            Permissions &amp; Features
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -171,7 +171,7 @@ export function UserProfileCard() {
             <span className="font-medium">{role}</span>
           </div>
           <div className="flex justify-between">
-            <span>Niveau d'accès:</span>
+            <span>Niveau d&apos;accès:</span>
             <span className="font-medium">{accessLevel}</span>
           </div>
           <div className="flex justify-between">

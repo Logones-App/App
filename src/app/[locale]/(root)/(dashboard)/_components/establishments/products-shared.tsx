@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Edit, Trash2, Package, AlertTriangle, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,108 +34,14 @@ import type {
   CreateProductPayload,
   CreateProductStockPayload,
 } from "@/lib/types/database-extensions";
-
-// Types basés sur database.types.ts
-type Product = Tables<"products">;
-type ProductStock = Tables<"product_stocks">;
-type ProductInsert = CreateProductPayload;
-type ProductStockInsert = CreateProductStockPayload;
-
-// Hook pour les produits en temps réel
-function useProductsData(establishmentId: string, organizationId: string) {
-  const {
-    data: products,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
-    queryFn: async () => {
-      const supabase = createClient();
-
-      // Récupérer seulement les produits qui ont un stock dans cet établissement
-      const { data, error } = await supabase
-        .from("product_stocks")
-        .select(
-          `
-          *,
-          product:products(
-            *
-          )
-        `,
-        )
-        .eq("establishment_id", establishmentId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .eq("product.deleted", false);
-
-      if (error) throw error;
-
-      // Transformer les données pour correspondre au type ProductWithStock
-      return ((data as ProductStockJoin[]) || []).map((item) => ({
-        ...item.product,
-        stock: {
-          id: item.id,
-          current_stock: item.current_stock,
-          min_stock: item.min_stock,
-          max_stock: item.max_stock,
-          low_stock_threshold: item.low_stock_threshold,
-          critical_stock_threshold: item.critical_stock_threshold,
-          unit: item.unit,
-          reserved_stock: item.reserved_stock,
-          establishment_id: item.establishment_id,
-          organization_id: item.organization_id,
-          product_id: item.product_id,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          deleted: item.deleted,
-          last_updated_by: item.last_updated_by,
-        },
-      })) as ProductWithStock[];
-    },
-  });
-
-  return { products, isLoading, error };
-}
-
-// Fonction pour obtenir le statut du stock
-const getStockStatus = (stock: ProductStock | null) => {
-  if (!stock) return { status: "no-stock", label: "Pas de stock", icon: XCircle, color: "text-gray-500" };
-
-  const { current_stock, min_stock, low_stock_threshold, critical_stock_threshold } = stock;
-
-  // Stock non géré (-1)
-  if (current_stock === -1) {
-    return { status: "not-managed", label: "Stock non géré", icon: XCircle, color: "text-gray-500" };
-  }
-
-  // Rupture de stock (0)
-  if (current_stock === 0) {
-    return { status: "out-of-stock", label: "Rupture", icon: XCircle, color: "text-red-500" };
-  }
-
-  // Stock négatif (erreur)
-  if (current_stock < 0) {
-    return { status: "error", label: "Erreur", icon: XCircle, color: "text-red-600" };
-  }
-
-  // Stock critique
-  if (critical_stock_threshold && current_stock <= critical_stock_threshold) {
-    return { status: "critical", label: "Critique", icon: AlertTriangle, color: "text-red-600" };
-  }
-
-  // Stock faible
-  if (low_stock_threshold && current_stock <= low_stock_threshold) {
-    return { status: "low", label: "Faible", icon: AlertTriangle, color: "text-orange-500" };
-  }
-
-  // Stock minimum
-  if (current_stock <= min_stock) {
-    return { status: "min", label: "Minimum", icon: AlertTriangle, color: "text-yellow-500" };
-  }
-
-  // Stock OK
-  return { status: "ok", label: "OK", icon: CheckCircle, color: "text-green-500" };
-};
+import {
+  useProductsData,
+  getStockStatus,
+  type Product,
+  type ProductStock,
+  type ProductInsert,
+  type ProductStockInsert,
+} from "./_components";
 
 export function ProductsShared({
   establishmentId,
@@ -288,7 +194,7 @@ export function ProductsShared({
           is_available: payload.is_available,
           organization_id: organizationId,
           deleted: false,
-          user_id: (await supabase.auth.getUser()).data.user?.id || "",
+          user_id: (await supabase.auth.getUser()).data.user?.id ?? "",
         } as ProductInsert)
         .select()
         .single();
@@ -455,18 +361,18 @@ export function ProductsShared({
     setErrorMsg(null); // Réinitialiser les erreurs
 
     setEditProductForm({
-      name: product.name || "",
-      description: product.description || "",
-      price: product.price || 0,
-      vat_rate: product.vat_rate || 20,
+      name: product.name ?? "",
+      description: product.description ?? "",
+      price: product.price ?? 0,
+      vat_rate: product.vat_rate ?? 20,
       is_available: product.is_available ?? true,
     });
 
     console.log("✅ Formulaire d'édition initialisé:", {
-      name: product.name || "",
-      description: product.description || "",
-      price: product.price || 0,
-      vat_rate: product.vat_rate || 20,
+      name: product.name ?? "",
+      description: product.description ?? "",
+      price: product.price ?? 0,
+      vat_rate: product.vat_rate ?? 20,
       is_available: product.is_available ?? true,
     });
   };
@@ -692,7 +598,7 @@ export function ProductsShared({
                       <div className="flex items-center gap-2">
                         <StatusIcon className={`h-4 w-4 ${stockStatus.color}`} />
                         <Badge variant="outline" className="text-xs">
-                          {stockStatus.label}
+                          {stockStatus.text}
                         </Badge>
                       </div>
                     </TableCell>
@@ -849,7 +755,7 @@ export function ProductsShared({
                   <Input
                     id="max_stock"
                     type="number"
-                    value={addForm.max_stock || ""}
+                    value={addForm.max_stock ?? ""}
                     onChange={(e) =>
                       setAddForm({ ...addForm, max_stock: e.target.value ? parseInt(e.target.value) : null })
                     }
@@ -874,11 +780,11 @@ export function ProductsShared({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="low_threshold">Seuil d'alerte</Label>
+                  <Label htmlFor="low_threshold">Seuil d&apos;alerte</Label>
                   <Input
                     id="low_threshold"
                     type="number"
-                    value={addForm.low_stock_threshold || ""}
+                    value={addForm.low_stock_threshold ?? ""}
                     onChange={(e) =>
                       setAddForm({ ...addForm, low_stock_threshold: e.target.value ? parseInt(e.target.value) : null })
                     }
@@ -890,7 +796,7 @@ export function ProductsShared({
                   <Input
                     id="critical_threshold"
                     type="number"
-                    value={addForm.critical_stock_threshold || ""}
+                    value={addForm.critical_stock_threshold ?? ""}
                     onChange={(e) =>
                       setAddForm({
                         ...addForm,
@@ -1095,7 +1001,7 @@ export function ProductsShared({
                   <Input
                     id="edit-max-stock"
                     type="number"
-                    value={editStockForm.max_stock || ""}
+                    value={editStockForm.max_stock ?? ""}
                     onChange={(e) =>
                       setEditStockForm({
                         ...editStockForm,
@@ -1126,11 +1032,11 @@ export function ProductsShared({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-low-threshold">Seuil d'alerte</Label>
+                  <Label htmlFor="edit-low-threshold">Seuil d&apos;alerte</Label>
                   <Input
                     id="edit-low-threshold"
                     type="number"
-                    value={editStockForm.low_stock_threshold || ""}
+                    value={editStockForm.low_stock_threshold ?? ""}
                     onChange={(e) =>
                       setEditStockForm({
                         ...editStockForm,
@@ -1145,7 +1051,7 @@ export function ProductsShared({
                   <Input
                     id="edit-critical-threshold"
                     type="number"
-                    value={editStockForm.critical_stock_threshold || ""}
+                    value={editStockForm.critical_stock_threshold ?? ""}
                     onChange={(e) =>
                       setEditStockForm({
                         ...editStockForm,

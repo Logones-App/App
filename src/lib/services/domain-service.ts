@@ -28,7 +28,18 @@ export class DomainService {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data;
+    return (data ?? []).map((record) => ({
+      id: record.id,
+      domain: record.domain,
+      establishment_id: record.establishment_id,
+      establishment_slug: record.establishment_slug,
+      is_active: record.is_active,
+      organization_id: record.organization_id,
+      created_at: record.created_at,
+      created_by: record.created_by,
+      updated_at: record.updated_at,
+      deleted: record.deleted,
+    }));
   }
 
   async getCustomDomainsByEstablishment(establishmentId: string): Promise<CustomDomain[]> {
@@ -40,7 +51,18 @@ export class DomainService {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data;
+    return (data ?? []).map((record) => ({
+      id: record.id,
+      domain: record.domain,
+      establishment_id: record.establishment_id,
+      establishment_slug: record.establishment_slug,
+      is_active: record.is_active,
+      organization_id: record.organization_id,
+      created_at: record.created_at,
+      created_by: record.created_by,
+      updated_at: record.updated_at,
+      deleted: record.deleted,
+    }));
   }
 
   async addCustomDomain(domain: string, establishmentId: string, establishmentSlug: string, organizationId: string) {

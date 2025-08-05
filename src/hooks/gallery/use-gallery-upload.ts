@@ -1,149 +1,128 @@
-import { useState, useCallback } from 'react';
-import { GalleryImage, GalleryImageUpload, GalleryUploadProgress } from '@/types/gallery';
-import { GalleryStorageService } from '@/lib/services/gallery-storage-service';
-import { validateImageFile, formatFileSize } from '@/lib/utils/gallery-helpers';
+import { useCallback } from "react";
 
-export interface UseGalleryUploadOptions {
+import compressImage from "browser-image-compression";
+
+import { createClient } from "@/lib/supabase/client";
+import { GalleryImage } from "@/types/gallery";
+
+interface UploadMetadata {
+  imageName: string;
+  description: string;
+  altText: string;
+  isPublic: boolean;
+  isFeatured: boolean;
+}
+
+interface UseGalleryUploadOptions {
   establishmentId: string;
   organizationId: string;
   onSuccess?: (image: GalleryImage) => void;
   onError?: (error: string) => void;
-  maxFileSize?: number;
-  maxFiles?: number;
 }
 
-export function useGalleryUpload({
-  establishmentId,
-  organizationId,
-  onSuccess,
-  onError,
-  maxFileSize = 10 * 1024 * 1024, // 10MB
-  maxFiles = 20
-}: UseGalleryUploadOptions) {
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<GalleryUploadProgress[]>([]);
+export function useGalleryUpload({ establishmentId, organizationId, onSuccess, onError }: UseGalleryUploadOptions) {
+  const uploadImage = useCallback(
+    async (file: File, metadata: UploadMetadata) => {
+      const supabase = createClient();
 
-  const uploadImage = useCallback(async (file: File, metadata?: {
-    imageName?: string;
-    description?: string;
-    altText?: string;
-    isPublic?: boolean;
-    isFeatured?: boolean;
-  }) => {
-    // Validation du fichier
-    const validationError = validateImageFile(file, maxFileSize);
-    if (validationError) {
-      onError?.(validationError);
-      return;
-    }
+      try {
+        // Validation du fichier
+        if (!file || file.size === 0) {
+          throw new Error("Fichier invalide");
+        }
 
-    // Vérifier le nombre de fichiers
-    if (progress.length >= maxFiles) {
-      onError?.(`Maximum ${maxFiles} fichiers autorisés`);
-      return;
-    }
+        // Compression de l'image
+        const compressedFile = await compressImage(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
 
-    // Ajouter le fichier à la progression
-    const uploadProgress: GalleryUploadProgress = {
-      file,
-      progress: 0,
-      status: 'uploading'
-    };
-    setProgress(prev => [...prev, uploadProgress]);
+        // Générer un nom de fichier unique
+        const timestamp = Date.now();
+        const fileExtension = compressedFile.name.split(".").pop();
+        const fileName = `${timestamp}.${fileExtension}`;
+        const filePath = `${establishmentId}/${fileName}`;
 
-    setUploading(true);
+        // Upload vers Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("gallery")
+          .upload(filePath, compressedFile, {
+            cacheControl: "3600",
+            upsert: false,
+          });
 
-    try {
-      const uploadData: GalleryImageUpload = {
-        file,
-        establishmentId,
-        organizationId,
-        imageName: metadata?.imageName,
-        description: metadata?.description,
-        altText: metadata?.altText,
-        isPublic: metadata?.isPublic ?? true,
-        isFeatured: metadata?.isFeatured ?? false
-      };
+        if (uploadError) {
+          throw new Error(`Erreur lors de l'upload: ${uploadError.message}`);
+        }
 
-      const image = await GalleryStorageService.uploadImage(uploadData);
+        // Obtenir l'URL publique
+        const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(filePath);
+        const imageUrl = urlData.publicUrl;
 
-      // Mettre à jour la progression
-      setProgress(prev => 
-        prev.map(p => 
-          p.file === file 
-            ? { ...p, progress: 100, status: 'success' as const }
-            : p
-        )
-      );
+        // Obtenir le prochain ordre d'affichage
+        const { data: maxOrderData } = await supabase
+          .from("establishment_gallery")
+          .select("display_order")
+          .eq("establishment_id", establishmentId)
+          .order("display_order", { ascending: false })
+          .limit(1);
 
-      onSuccess?.(image);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'upload';
-      
-      // Mettre à jour la progression avec l'erreur
-      setProgress(prev => 
-        prev.map(p => 
-          p.file === file 
-            ? { ...p, progress: 0, status: 'error' as const, error: errorMessage }
-            : p
-        )
-      );
+        const nextOrder = maxOrderData && maxOrderData.length > 0 ? (maxOrderData[0]?.display_order ?? 0) + 1 : 0;
 
-      onError?.(errorMessage);
-    } finally {
-      setUploading(false);
-    }
-  }, [establishmentId, organizationId, maxFileSize, maxFiles, progress.length, onSuccess, onError]);
+        // Insérer dans la base de données
+        const { data: insertData, error: insertError } = await supabase
+          .from("establishment_gallery")
+          .insert({
+            establishment_id: establishmentId,
+            organization_id: organizationId,
+            image_url: imageUrl,
+            image_name: metadata.imageName ?? compressedFile.name,
+            image_description: metadata.description,
+            alt_text: metadata.altText,
+            file_size: compressedFile.size,
+            mime_type: compressedFile.type,
+            display_order: nextOrder,
+            is_public: metadata.isPublic,
+            is_featured: metadata.isFeatured,
+          })
+          .select()
+          .single();
 
-  const uploadMultipleImages = useCallback(async (files: File[], metadata?: {
-    imageName?: string;
-    description?: string;
-    altText?: string;
-    isPublic?: boolean;
-    isFeatured?: boolean;
-  }) => {
-    if (files.length + progress.length > maxFiles) {
-      onError?.(`Maximum ${maxFiles} fichiers autorisés`);
-      return;
-    }
+        if (insertError) {
+          throw new Error(`Erreur lors de l'insertion: ${insertError.message}`);
+        }
 
-    // Upload séquentiel pour éviter les conflits
-    for (const file of files) {
-      await uploadImage(file, metadata);
-    }
-  }, [uploadImage, progress.length, maxFiles, onError]);
+        const newImage: GalleryImage = {
+          id: insertData.id,
+          establishment_id: insertData.establishment_id,
+          organization_id: insertData.organization_id,
+          image_url: insertData.image_url,
+          image_name: insertData.image_name,
+          image_description: insertData.image_description,
+          alt_text: insertData.alt_text,
+          file_size: insertData.file_size,
+          mime_type: insertData.mime_type,
+          dimensions: insertData.dimensions as { width: number; height: number } | null,
+          display_order: insertData.display_order,
+          is_public: insertData.is_public,
+          is_featured: insertData.is_featured,
+          created_at: insertData.created_at,
+          created_by: insertData.created_by,
+          updated_at: insertData.updated_at,
+          deleted: insertData.deleted,
+        };
 
-  const clearProgress = useCallback(() => {
-    setProgress([]);
-  }, []);
+        onSuccess?.(newImage);
+        return newImage;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
+        onError?.(errorMessage);
+        throw err;
+      }
+    },
+    [establishmentId, organizationId, onSuccess, onError],
+  );
 
-  const removeFromProgress = useCallback((file: File) => {
-    setProgress(prev => prev.filter(p => p.file !== file));
-  }, []);
-
-  const getProgressStats = useCallback(() => {
-    const total = progress.length;
-    const uploading = progress.filter(p => p.status === 'uploading').length;
-    const success = progress.filter(p => p.status === 'success').length;
-    const error = progress.filter(p => p.status === 'error').length;
-    const totalSize = progress.reduce((sum, p) => sum + p.file.size, 0);
-
-    return {
-      total,
-      uploading,
-      success,
-      error,
-      totalSize: formatFileSize(totalSize)
-    };
-  }, [progress]);
-
-  return {
-    uploading,
-    progress,
-    uploadImage,
-    uploadMultipleImages,
-    clearProgress,
-    removeFromProgress,
-    getProgressStats
-  };
-} 
+  return { uploadImage };
+}

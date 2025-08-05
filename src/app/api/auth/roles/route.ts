@@ -20,7 +20,7 @@ export async function GET() {
     console.log("API - App metadata:", user.app_metadata);
 
     // Vérifier si c'est un system_admin via les métadonnées
-    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
 
     if (systemRole === "system_admin") {
       console.log("API - User is system_admin (from metadata)");

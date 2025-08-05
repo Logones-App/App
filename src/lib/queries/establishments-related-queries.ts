@@ -17,7 +17,7 @@ export const useEstablishmentOpeningHours = (establishmentId?: string) => {
         .order("day_of_week", { ascending: true })
         .order("open_time", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!establishmentId,
   });
@@ -38,7 +38,7 @@ export const useEstablishmentBookingSlots = (establishmentId?: string) => {
         .order("day_of_week", { ascending: true })
         .order("start_time", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!establishmentId,
   });
@@ -58,7 +58,7 @@ export const useOrganizationProducts = (organizationId?: string) => {
         .eq("deleted", false)
         .order("name", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!organizationId,
   });
@@ -91,7 +91,7 @@ export const useEstablishmentStocks = (establishmentId?: string, organizationId?
         .eq("organization_id", organizationId)
         .order("products(name)", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!establishmentId && !!organizationId,
   });
@@ -180,7 +180,7 @@ export const useEstablishmentMenus = (establishmentId?: string, organizationId?:
         .eq("deleted", false)
         .order("display_order", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!establishmentId && !!organizationId,
   });
@@ -205,7 +205,7 @@ export const useMenuProducts = (menuId?: string) => {
         .eq("deleted", false);
       if (error) throw error;
       // On retourne les infos du produit + le prix spécifique au menu
-      return (data || []).map((row: any) => ({
+      return (data ?? []).map((row: any) => ({
         ...row.product,
         menu_price: row.price,
         menus_products_id: row.id,
@@ -239,7 +239,7 @@ export const useEstablishmentProductsNotInMenus = (establishmentId?: string, org
         .eq("organization_id", organizationId)
         .eq("deleted", false);
       if (menusError) throw menusError;
-      const menuIds = (menus || []).map((m: any) => m.id);
+      const menuIds = (menus ?? []).map((m: any) => m.id);
       // Récupérer tous les produits associés à un menu
       let productsInMenus: string[] = [];
       if (menuIds.length > 0) {
@@ -249,10 +249,10 @@ export const useEstablishmentProductsNotInMenus = (establishmentId?: string, org
           .in("menus_id", menuIds)
           .eq("deleted", false);
         if (mpError) throw mpError;
-        productsInMenus = (menusProducts || []).map((mp: any) => mp.products_id);
+        productsInMenus = (menusProducts ?? []).map((mp: any) => mp.products_id);
       }
       // Retourner les produits en stock qui ne sont dans aucun menu
-      return (stocks || [])
+      return (stocks ?? [])
         .filter((s: any) => s.product && !productsInMenus.includes(s.product_id))
         .map((s: any) => ({ ...s.product, stock: s }));
     },
@@ -280,7 +280,7 @@ export const useEstablishmentMenusWithSchedules = (establishmentId?: string, org
       if (menusError) throw menusError;
 
       // Récupérer les plannings pour tous les menus
-      const menuIds = (menus || []).map((m: any) => m.id);
+      const menuIds = (menus ?? []).map((m: any) => m.id);
       let schedules: any[] = [];
 
       if (menuIds.length > 0) {
@@ -291,11 +291,11 @@ export const useEstablishmentMenusWithSchedules = (establishmentId?: string, org
           .eq("deleted", false);
 
         if (schedulesError) throw schedulesError;
-        schedules = schedulesData || [];
+        schedules = schedulesData ?? [];
       }
 
       // Associer les plannings aux menus
-      const result = (menus || []).map((menu: any) => ({
+      const result = (menus ?? []).map((menu: any) => ({
         ...menu,
         schedules: schedules.filter((s: any) => s.menu_id === menu.id),
       }));

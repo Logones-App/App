@@ -1,5 +1,7 @@
 import { useEffect, useCallback } from "react";
+
 import { useQueryClient } from "@tanstack/react-query";
+
 import { usersRealtime, type UserRealtimeEvent } from "@/lib/services/realtime/modules";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
@@ -10,36 +12,42 @@ export function useUsersRealtime() {
   /**
    * S'abonner aux changements des utilisateurs
    */
-  const subscribeToUsers = useCallback((onEvent?: (event: UserRealtimeEvent) => void) => {
-    const subscriptionId = usersRealtime.subscribeToUsers((event) => {
-      // Invalider le cache TanStack Query
-      queryClient.invalidateQueries({
-        queryKey: ["all-users"]
+  const subscribeToUsers = useCallback(
+    (onEvent?: (event: UserRealtimeEvent) => void) => {
+      const subscriptionId = usersRealtime.subscribeToUsers((event) => {
+        // Invalider le cache TanStack Query
+        queryClient.invalidateQueries({
+          queryKey: ["all-users"],
+        });
+
+        // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
+        // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
       });
-      
-      // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
-      // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
-    });
-    
-    return subscriptionId;
-  }, [queryClient]);
+
+      return subscriptionId;
+    },
+    [queryClient],
+  );
 
   /**
    * S'abonner aux changements de rôles utilisateur
    */
-  const subscribeToUserRoles = useCallback((onEvent?: (event: UserRealtimeEvent) => void) => {
-    const subscriptionId = usersRealtime.subscribeToUserRoles((event) => {
-      // Invalider le cache TanStack Query
-      queryClient.invalidateQueries({
-        queryKey: ["user-roles"]
+  const subscribeToUserRoles = useCallback(
+    (onEvent?: (event: UserRealtimeEvent) => void) => {
+      const subscriptionId = usersRealtime.subscribeToUserRoles((event) => {
+        // Invalider le cache TanStack Query
+        queryClient.invalidateQueries({
+          queryKey: ["user-roles"],
+        });
+
+        // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
+        // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
       });
-      
-      // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
-      // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
-    });
-    
-    return subscriptionId;
-  }, [queryClient]);
+
+      return subscriptionId;
+    },
+    [queryClient],
+  );
 
   /**
    * Envoyer une notification utilisateur
@@ -48,12 +56,7 @@ export function useUsersRealtime() {
     async (title: string, message: string, userId: string, data?: any) => {
       if (!user) return;
 
-      await usersRealtime.sendUserNotification(
-        title,
-        message,
-        userId,
-        data
-      );
+      await usersRealtime.sendUserNotification(title, message, userId, data);
     },
     [user],
   );
@@ -65,11 +68,7 @@ export function useUsersRealtime() {
     async (action: string, userId: string, data?: any) => {
       if (!user) return;
 
-      await usersRealtime.sendUserAction(
-        action,
-        userId,
-        data
-      );
+      await usersRealtime.sendUserAction(action, userId, data);
     },
     [user],
   );
@@ -81,10 +80,7 @@ export function useUsersRealtime() {
     async (userId: string, userData: any) => {
       if (!user) return;
 
-      await usersRealtime.notifyUserLogin(
-        userId,
-        userData
-      );
+      await usersRealtime.notifyUserLogin(userId, userData);
     },
     [user],
   );
@@ -96,10 +92,7 @@ export function useUsersRealtime() {
     async (userId: string, userData: any) => {
       if (!user) return;
 
-      await usersRealtime.notifyUserLogout(
-        userId,
-        userData
-      );
+      await usersRealtime.notifyUserLogout(userId, userData);
     },
     [user],
   );
@@ -129,4 +122,4 @@ export function useUsersRealtime() {
     notifyUserLogout,
     unsubscribe,
   };
-} 
+}

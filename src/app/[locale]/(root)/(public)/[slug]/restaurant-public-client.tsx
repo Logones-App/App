@@ -1,10 +1,11 @@
 "use client";
 
 import { Tables } from "@/lib/supabase/database.types";
+
+import { RestaurantFooter } from "./_components/restaurant-footer";
 import { RestaurantHeader } from "./_components/restaurant-header";
 import { RestaurantHero } from "./_components/restaurant-hero";
 import { RestaurantInfo } from "./_components/restaurant-info";
-import { RestaurantFooter } from "./_components/restaurant-footer";
 
 type Establishment = Tables<"establishments">;
 type OpeningHours = Tables<"opening_hours">;

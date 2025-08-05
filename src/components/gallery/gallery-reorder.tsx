@@ -1,148 +1,87 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
-import { GalleryImage } from "@/types/gallery";
-import { GalleryItem } from "./gallery-item";
-import { SortableGalleryItem } from "./sortable-gallery-item";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState, useCallback } from "react";
+
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Save, RotateCcw } from "lucide-react";
-import { generateDragId } from "@/lib/utils/gallery-helpers";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GalleryImage } from "@/types/gallery";
+
+import { SortableGalleryItem } from "./sortable-gallery-item";
 
 interface GalleryReorderProps {
   images: GalleryImage[];
-  onReorder: (images: GalleryImage[]) => void;
-  className?: string;
+  onReorder: (reorderedImages: GalleryImage[]) => void;
+  onCancel: () => void;
 }
 
-export function GalleryReorder({ images, onReorder, className = "" }: GalleryReorderProps) {
-  const [items, setItems] = useState<GalleryImage[]>(images);
-  const [activeId, setActiveId] = useState<string | null>(null);
+export function GalleryReorder({ images, onReorder, onCancel }: GalleryReorderProps) {
+  const [reorderImages, setReorderImages] = useState<GalleryImage[]>(images);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: { active: { id: string }; over: { id: string } | null }) => {
     const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((item) => generateDragId(item) === active.id);
-        const newIndex = items.findIndex((item) => generateDragId(item) === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-
-        // Mettre à jour l'ordre d'affichage
-        const updatedItems = newItems.map((item, index) => ({
-          ...item,
-          display_order: index,
-        }));
-
+    if (active.id !== over?.id && over) {
+      setReorderImages((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newItems = [...items];
+        const [removed] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, removed);
         setHasChanges(true);
-        return updatedItems;
+        return newItems;
       });
     }
+  }, []);
 
-    setActiveId(null);
+  const handleSaveReorder = async () => {
+    try {
+      await onReorder(reorderImages);
+      setHasChanges(false);
+      onCancel();
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde de l'ordre:", error);
+    }
   };
 
-  const handleSaveOrder = () => {
-    onReorder(items);
+  const handleCancelReorder = () => {
+    setReorderImages(images);
     setHasChanges(false);
+    onCancel();
   };
-
-  const handleResetOrder = () => {
-    setItems(images);
-    setHasChanges(false);
-  };
-
-  const activeItem = activeId ? items.find((item) => generateDragId(item) === activeId) : null;
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* En-tête avec actions */}
+    <div className="space-y-4">
       <Card>
-        <CardContent className="p-4">
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <GripVertical className="text-muted-foreground h-5 w-5" />
-              <h3 className="font-medium">Réorganiser les images</h3>
-              {hasChanges && <Badge variant="default">Modifications non sauvegardées</Badge>}
+            <div>
+              <CardTitle>Réorganisation des images</CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Glissez et déposez les images pour changer leur ordre d&apos;affichage
+              </p>
             </div>
-
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleResetOrder} disabled={!hasChanges}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Annuler
-              </Button>
-              <Button size="sm" onClick={handleSaveOrder} disabled={!hasChanges}>
-                <Save className="mr-2 h-4 w-4" />
-                Sauvegarder
-              </Button>
+              <Badge variant="secondary">{reorderImages.length} image(s)</Badge>
             </div>
           </div>
-
-          <p className="text-muted-foreground mt-2 text-sm">
-            Glissez et déposez les images pour changer leur ordre d&apos;affichage
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Grille avec drag & drop */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={items.map((item) => generateDragId(item))} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {items.map((image) => (
-              <SortableGalleryItem key={image.id} image={image} isEditable={true} />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {reorderImages.map((image) => (
+              <SortableGalleryItem key={image.id} image={image} />
             ))}
           </div>
-        </SortableContext>
-
-        <DragOverlay>
-          {activeItem ? (
-            <div className="h-64 w-64 overflow-hidden rounded-lg shadow-lg">
-              <img
-                src={activeItem.image_url}
-                alt={activeItem.alt_text ?? activeItem.image_name}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        </CardContent>
+      </Card>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={handleCancelReorder}>
+          Annuler
+        </Button>
+        <Button onClick={handleSaveReorder} disabled={!hasChanges} className="min-w-[100px]">
+          Sauvegarder
+        </Button>
+      </div>
     </div>
   );
 }

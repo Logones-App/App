@@ -2,6 +2,7 @@ import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type BookingException = Database["public"]["Tables"]["booking_exceptions"]["Row"];
 
@@ -16,16 +17,42 @@ export type BookingExceptionEvent = {
 };
 
 class BookingExceptionsRealtime {
-  private subscriptions: any[] = [];
+  private subscriptions: RealtimeChannel[] = [];
 
-  private createEvent(payload: any, establishmentId: string, organizationId: string): BookingExceptionEvent {
+  private createEvent(payload: RealtimePostgresChangesPayload<BookingException>, establishmentId: string, organizationId: string): BookingExceptionEvent {
     return {
       type: this.getEventType(payload.eventType),
-      exceptionId: payload.new?.id ?? payload.old?.id ?? "",
+      exceptionId: (payload.new as BookingException)?.id ?? (payload.old as BookingException)?.id ?? "",
       establishmentId,
       organizationId,
-      data: payload.new ?? payload.old ?? ({} as BookingException),
-      oldData: payload.old,
+      data: (payload.new as BookingException) ?? (payload.old as BookingException) ?? {
+        booking_slot_id: null,
+        closed_slots: null,
+        created_at: null,
+        created_by: null,
+        date: null,
+        deleted: null,
+        description: null,
+        establishment_id: null,
+        id: "",
+        organization_id: null,
+        reason: null,
+        updated_at: null,
+      },
+      oldData: (payload.old as BookingException) ?? {
+        booking_slot_id: null,
+        closed_slots: null,
+        created_at: null,
+        created_by: null,
+        date: null,
+        deleted: null,
+        description: null,
+        establishment_id: null,
+        id: "",
+        organization_id: null,
+        reason: null,
+        updated_at: null,
+      },
       timestamp: new Date().toISOString(),
     };
   }
@@ -55,8 +82,8 @@ class BookingExceptionsRealtime {
           table: "booking_exceptions",
           filter: `establishment_id=eq.${establishmentId}`,
         },
-        (payload: any) => {
-          if (payload.new && payload.new.organization_id !== organizationId) {
+        (payload: RealtimePostgresChangesPayload<BookingException>) => {
+          if (payload.new && (payload.new as BookingException).organization_id !== organizationId) {
             return;
           }
 
@@ -87,10 +114,10 @@ class BookingExceptionsRealtime {
           table: "booking_exceptions",
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload: any) => {
+        (payload: RealtimePostgresChangesPayload<BookingException>) => {
           const event = this.createEvent(
             payload,
-            payload.new?.establishment_id ?? payload.old?.establishment_id ?? "",
+            (payload.new as BookingException)?.establishment_id ?? (payload.old as BookingException)?.establishment_id ?? "",
             organizationId,
           );
           this.handleEvent(event, onEvent);

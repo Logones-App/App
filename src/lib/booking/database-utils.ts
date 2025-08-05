@@ -136,7 +136,7 @@ export async function createBooking(
         customer_email: formData.email,
         customer_phone: formData.phone,
         number_of_guests: formData.numberOfGuests,
-        special_requests: formData.specialRequests || null,
+        special_requests: formData.specialRequests ?? null,
         status: "confirmed",
       })
       .select()

@@ -500,61 +500,61 @@ export type Database = {
       }
       establishment_gallery: {
         Row: {
-          id: string
-          establishment_id: string
-          organization_id: string
-          image_url: string
-          image_name: string | null
-          image_description: string | null
           alt_text: string | null
-          file_size: number | null
-          mime_type: string | null
-          dimensions: Json | null
-          display_order: number
-          is_public: boolean
-          is_featured: boolean
           created_at: string | null
           created_by: string | null
+          deleted: boolean | null
+          dimensions: Json | null
+          display_order: number | null
+          establishment_id: string
+          file_size: number | null
+          id: string
+          image_description: string | null
+          image_name: string | null
+          image_url: string
+          is_featured: boolean | null
+          is_public: boolean | null
+          mime_type: string | null
+          organization_id: string
           updated_at: string | null
-          deleted: boolean
         }
         Insert: {
-          id?: string
-          establishment_id: string
-          organization_id: string
-          image_url: string
-          image_name?: string | null
-          image_description?: string | null
           alt_text?: string | null
-          file_size?: number | null
-          mime_type?: string | null
-          dimensions?: Json | null
-          display_order?: number
-          is_public?: boolean
-          is_featured?: boolean
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean | null
+          dimensions?: Json | null
+          display_order?: number | null
+          establishment_id: string
+          file_size?: number | null
+          id?: string
+          image_description?: string | null
+          image_name?: string | null
+          image_url: string
+          is_featured?: boolean | null
+          is_public?: boolean | null
+          mime_type?: string | null
+          organization_id: string
           updated_at?: string | null
-          deleted?: boolean
         }
         Update: {
-          id?: string
-          establishment_id?: string
-          organization_id?: string
-          image_url?: string
-          image_name?: string | null
-          image_description?: string | null
           alt_text?: string | null
-          file_size?: number | null
-          mime_type?: string | null
-          dimensions?: Json | null
-          display_order?: number
-          is_public?: boolean
-          is_featured?: boolean
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean | null
+          dimensions?: Json | null
+          display_order?: number | null
+          establishment_id?: string
+          file_size?: number | null
+          id?: string
+          image_description?: string | null
+          image_name?: string | null
+          image_url?: string
+          is_featured?: boolean | null
+          is_public?: boolean | null
+          mime_type?: string | null
+          organization_id?: string
           updated_at?: string | null
-          deleted?: boolean
         }
         Relationships: [
           {
@@ -571,48 +571,41 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "establishment_gallery_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       establishment_gallery_sections: {
         Row: {
-          id: string
-          establishment_id: string
-          organization_id: string
-          image_id: string
-          section: string
-          display_order: number
           created_at: string | null
+          deleted: boolean | null
+          display_order: number
+          establishment_id: string
+          id: string
+          image_id: string
+          organization_id: string
+          section: string
           updated_at: string | null
-          deleted: boolean
         }
         Insert: {
-          id?: string
-          establishment_id: string
-          organization_id: string
-          image_id: string
-          section: string
-          display_order?: number
           created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number
+          establishment_id: string
+          id?: string
+          image_id: string
+          organization_id: string
+          section: string
           updated_at?: string | null
-          deleted?: boolean
         }
         Update: {
-          id?: string
-          establishment_id?: string
-          organization_id?: string
-          image_id?: string
-          section?: string
-          display_order?: number
           created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number
+          establishment_id?: string
+          id?: string
+          image_id?: string
+          organization_id?: string
+          section?: string
           updated_at?: string | null
-          deleted?: boolean
         }
         Relationships: [
           {
@@ -623,17 +616,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "establishment_gallery_sections_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "establishment_gallery_sections_image_id_fkey"
             columns: ["image_id"]
             isOneToOne: false
             referencedRelation: "establishment_gallery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_gallery_sections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -2072,6 +2065,10 @@ export type Database = {
         Args: { days_to_keep?: number }
         Returns: number
       }
+      cleanup_orphaned_gallery_images: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       generate_15min_slots: {
         Args: { p_establishment_id: string; p_date: string }
         Returns: {
@@ -2132,6 +2129,51 @@ export type Database = {
       }
       get_current_organization_id: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_establishment_gallery_images: {
+        Args: { p_establishment_id: string; p_organization_id?: string }
+        Returns: {
+          id: string
+          image_url: string
+          image_name: string
+          image_description: string
+          alt_text: string
+          file_size: number
+          mime_type: string
+          dimensions: Json
+          display_order: number
+          is_public: boolean
+          is_featured: boolean
+          created_at: string
+        }[]
+      }
+      get_establishment_gallery_section_images: {
+        Args: { p_establishment_id: string; p_section: string }
+        Returns: {
+          id: string
+          establishment_id: string
+          organization_id: string
+          image_id: string
+          section: string
+          display_order: number
+          image_url: string
+          image_name: string
+          image_description: string
+          alt_text: string
+          file_size: number
+          mime_type: string
+          dimensions: Json
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      get_gallery_image_url: {
+        Args: {
+          p_organization_id: string
+          p_establishment_id: string
+          p_image_name: string
+        }
         Returns: string
       }
       get_menu_products: {

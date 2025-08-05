@@ -1,20 +1,29 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-import FullCalendar from "@fullcalendar/react";
+
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import FullCalendar from "@fullcalendar/react";
 import rrulePlugin from "@fullcalendar/rrule";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, addDays } from "date-fns";
 import { Calendar } from "lucide-react";
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, addDays, isSameDay } from "date-fns";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Tables } from "@/lib/supabase/database.types";
 
 interface MenuCalendarProps {
-  menus: any[];
+  menus: Tables<"menus">[];
+  schedules?: Tables<"menu_schedules">[];
   onDateClick?: (date: Date) => void;
-  onEventClick?: (event: any) => void;
+  onEventClick?: (event: {
+    id: string;
+    title: string;
+    start: string;
+    end: string;
+    extendedProps: { menu: Tables<"menus">; schedule: Tables<"menu_schedules"> };
+  }) => void;
 }
 
 // Fonction utilitaire : retourne la période visible selon la vue
@@ -39,14 +48,36 @@ function getVisiblePeriod(view: string, date: Date) {
 }
 
 // Fonction pour générer les événements récurrents en événements simples
-function generateRecurringEvents(schedule: any, menu: any, currentView: string, currentDate: Date, color: string) {
-  const events: any[] = [];
+function generateRecurringEvents(
+  schedule: Tables<"menu_schedules">,
+  menu: Tables<"menus">,
+  currentView: string,
+  currentDate: Date,
+  color: string,
+) {
+  const events: Array<{
+    id: string;
+    title: string;
+    start: string;
+    end?: string;
+    allDay?: boolean;
+    backgroundColor: string;
+    borderColor: string;
+    textColor: string;
+    extendedProps: {
+      menu: Tables<"menus">;
+      schedule: Tables<"menu_schedules">;
+      type: string;
+      originalStart?: string;
+      originalEnd?: string;
+    };
+  }> = [];
 
   // Obtenir la période visible
   const { start: viewStart, end: viewEnd } = getVisiblePeriod(currentView, currentDate);
 
   // Calculer toutes les occurrences dans la période visible
-  let checkDate = new Date(viewStart);
+  const checkDate = new Date(viewStart);
   const endDate = new Date(viewEnd);
 
   // day_of_week: 1=lundi, 2=mardi, ..., 7=dimanche
@@ -83,7 +114,7 @@ function generateRecurringEvents(schedule: any, menu: any, currentView: string, 
           // En vue semaine/jour : affichage horaire normal
           events.push({
             id: `${menu.id}-${schedule.id}-${eventDate}`,
-            title: menu.name,
+            title: menu.name ?? "Menu sans nom",
             start: `${eventDate}T${schedule.start_time}`,
             end: `${eventDate}T${schedule.end_time}`,
             backgroundColor: color,
@@ -96,7 +127,7 @@ function generateRecurringEvents(schedule: any, menu: any, currentView: string, 
         // Événement all-day
         events.push({
           id: `${menu.id}-${schedule.id}-${eventDate}`,
-          title: menu.name,
+          title: menu.name ?? "Menu sans nom",
           start: eventDate,
           allDay: true,
           backgroundColor: color,
@@ -113,7 +144,12 @@ function generateRecurringEvents(schedule: any, menu: any, currentView: string, 
 }
 
 // Fonction de préparation pour affichage
-function prepareScheduleForDisplay(schedule: any, view: string, date: Date, menuName?: string) {
+function prepareScheduleForDisplay(
+  schedule: Tables<"menu_schedules"> | null,
+  view: string,
+  date: Date,
+  menuName?: string,
+) {
   // 1. Classification du type
   const type = (() => {
     if (!schedule) return "permanent";
@@ -142,7 +178,7 @@ function prepareScheduleForDisplay(schedule: any, view: string, date: Date, menu
   // LOG: Afficher le type déterminé pour chaque schedule
   if (schedule) {
     console.log(
-      `[SCHEDULE TYPE] Menu: ${menuName || "?"} (id: ${schedule.menu_id || schedule.menuId || "?"}) Schedule: ${schedule.id || "?"} => ${type}`,
+      `[SCHEDULE TYPE] Menu: ${menuName || "?"} (id: ${schedule.menu_id || "?"}) Schedule: ${schedule.id || "?"} => ${type}`,
     );
   } else {
     console.log(`[SCHEDULE TYPE] Menu permanent: ${menuName || "?"} => permanent`);
@@ -167,33 +203,48 @@ function prepareScheduleForDisplay(schedule: any, view: string, date: Date, menu
 }
 
 // Fonction utilitaire pour normaliser l'heure au format HH:mm:ss
-function normalizeTimeString(time?: string) {
-  if (!time) return undefined;
+function normalizeTimeStringSafe(time?: string): string {
+  if (!time) return "";
   if (/^\d{2}:\d{2}:\d{2}$/.test(time)) return time;
   if (/^\d{2}:\d{2}$/.test(time)) return time + ":00";
   if (/^\d{2}:\d{2}:\d{2}\.\d+$/.test(time)) return time.split(".")[0];
-  return time;
+  return "";
 }
 
-export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarProps) {
+export function MenuCalendar({ menus, schedules = [], onDateClick, onEventClick }: MenuCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState("dayGridMonth");
 
   // Génération des événements des menus
   const events = useMemo(() => {
     if (!menus || menus.length === 0) return [];
-    const events: any[] = [];
+    const events: Array<{
+      id: string;
+      title: string;
+      start: string;
+      end?: string;
+      allDay?: boolean;
+      backgroundColor: string;
+      borderColor: string;
+      textColor: string;
+      extendedProps: {
+        menu: Tables<"menus">;
+        schedule?: Tables<"menu_schedules">;
+        type: string;
+      };
+    }> = [];
 
     menus.forEach((menu, index) => {
       const color = `hsl(${index * 60}, 70%, 50%)`;
 
       // Menu permanent (sans schedule)
-      if (!menu.schedules || menu.schedules.length === 0) {
+      const menuSchedules = schedules.filter((s) => s.menu_id === menu.id);
+      if (!menuSchedules || menuSchedules.length === 0) {
         const { start: periodStart, end: periodEnd } = getVisiblePeriod(currentView, currentDate);
         events.push({
           id: `${menu.id || "menu"}-permanent`,
           title: menu.name || "Menu",
-          start: periodStart,
+          start: format(periodStart, "yyyy-MM-dd"),
           end: format(addDays(endOfMonth(currentDate), 1), "yyyy-MM-dd"), // Inclure le dernier jour du mois
           allDay: true,
           backgroundColor: "#10B981",
@@ -205,8 +256,8 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
       }
 
       // Cas 2 : Schedules associés
-      menu.schedules.forEach((schedule: any, sidx: number) => {
-        const display = prepareScheduleForDisplay(schedule, currentView, currentDate, menu.name);
+      menuSchedules.forEach((schedule: Tables<"menu_schedules">, sidx: number) => {
+        const display = prepareScheduleForDisplay(schedule, currentView, currentDate, menu.name ?? undefined);
 
         // Génération selon le type
         if (display.type === "recurrent-heures" || display.type === "recurrent-all-day") {
@@ -216,7 +267,7 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
         } else if (display.type === "permanent" || display.type === "plage-all-day") {
           events.push({
             id: `${menu.id}-schedule-${sidx}`,
-            title: menu.name,
+            title: menu.name ?? "Menu",
             start: display.valid_from,
             end: format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd"),
             backgroundColor: color,
@@ -227,11 +278,13 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
           });
         } else if (display.type === "plage-heures") {
           // Plage de dates avec heures
+          const startTime = normalizeTimeStringSafe(display.start_time ?? "");
+          const endTime = normalizeTimeStringSafe(display.end_time ?? "");
           events.push({
             id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
             title: menu.name || "Menu",
-            start: `${display.valid_from}T${normalizeTimeString(display.start_time)}`,
-            end: `${format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd")}T${normalizeTimeString(display.end_time)}`,
+            start: `${display.valid_from}T${startTime}`,
+            end: `${format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd")}T${endTime}`,
             backgroundColor: color,
             borderColor: color,
             textColor: "white",
@@ -239,11 +292,13 @@ export function MenuCalendar({ menus, onDateClick, onEventClick }: MenuCalendarP
           });
         } else if (display.type === "ponctuel-heures") {
           // Ponctuel avec heures
+          const startTime = normalizeTimeStringSafe(display.start_time ?? "");
+          const endTime = normalizeTimeStringSafe(display.end_time ?? "");
           events.push({
             id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
             title: menu.name || "Menu",
-            start: `${display.valid_from}T${normalizeTimeString(display.start_time)}`,
-            end: display.end_time ? `${display.valid_from}T${normalizeTimeString(display.end_time)}` : undefined,
+            start: `${display.valid_from}T${startTime}`,
+            end: display.end_time ? `${display.valid_from}T${endTime}` : undefined,
             backgroundColor: color,
             borderColor: color,
             textColor: "white",

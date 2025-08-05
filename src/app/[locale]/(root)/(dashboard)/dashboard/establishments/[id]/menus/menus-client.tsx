@@ -8,5 +8,5 @@ export function MenusClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId();
-  return <MenusShared establishmentId={establishmentId} organizationId={organizationId || ""} />;
+  return <MenusShared establishmentId={establishmentId} organizationId={organizationId ?? ""} />;
 }

@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
+
 import { toast } from "sonner";
+
 import { GalleryStorageService } from "@/lib/services/gallery-storage-service";
+import { GalleryImage } from "@/types/gallery";
 
 interface UseGalleryActionsOptions {
   organizationId: string;
@@ -23,7 +26,7 @@ export function useGalleryActions({ organizationId, onSuccess, onError }: UseGal
         onError?.(errorMessage);
       }
     },
-    [organizationId, onSuccess, onError]
+    [organizationId, onSuccess, onError],
   );
 
   const toggleFeatured = useCallback(
@@ -38,11 +41,11 @@ export function useGalleryActions({ organizationId, onSuccess, onError }: UseGal
         onError?.(errorMessage);
       }
     },
-    [organizationId, onSuccess, onError]
+    [organizationId, onSuccess, onError],
   );
 
   return {
     togglePublic,
     toggleFeatured,
   };
-} 
+}

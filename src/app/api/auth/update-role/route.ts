@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si c'est un system_admin (seuls les system_admin peuvent modifier les rôles)
-    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
 
     if (systemRole !== "system_admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

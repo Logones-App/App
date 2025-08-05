@@ -1,7 +1,5 @@
 "use client";
 
-import { Link, useRouter } from "@/i18n/navigation";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -11,6 +9,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useRegister } from "@/lib/queries/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
@@ -148,7 +147,7 @@ export function RegisterFormV1() {
           name="organizationName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nom de l'organisation</FormLabel>
+              <FormLabel>Nom de l&apos;organisation</FormLabel>
               <FormControl>
                 <Input
                   id="organizationName"

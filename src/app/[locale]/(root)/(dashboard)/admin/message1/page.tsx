@@ -160,7 +160,7 @@ export default function Message1Page() {
         const orgId = row.getValue("organization_id") as string;
         return orgId ? (
           <Badge variant="outline" className="font-mono text-xs">
-            {(orgId as string).slice(0, 8)}...
+            {orgId.slice(0, 8)}...
           </Badge>
         ) : (
           <span className="text-muted-foreground">-</span>
@@ -181,9 +181,7 @@ export default function Message1Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => (
-        <div className="text-sm">{new Date(row.getValue("created_at") as string).toLocaleString()}</div>
-      ),
+      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
       enableSorting: true,
     },
     {

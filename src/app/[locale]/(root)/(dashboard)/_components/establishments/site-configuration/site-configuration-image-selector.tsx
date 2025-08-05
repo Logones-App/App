@@ -1,19 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useEffect, useMemo } from "react";
+
 import { Search, X, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
-import { GallerySectionsService } from "@/lib/services/gallery-sections-service";
-import { GallerySection, GalleryImage } from "@/types/gallery";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useGalleryModal } from "@/hooks/gallery/use-gallery-modal";
+import { Tables } from "@/lib/supabase/database.types";
+import { GallerySection } from "@/types/gallery";
+
+type GalleryImage = Tables<"establishment_gallery">;
 
 interface SiteConfigurationImageSelectorProps {
   establishmentId: string;
   organizationId: string;
   section: GallerySection;
+  sectionImages: any[]; // Images déjà dans la section
   onImageSelect: (imageId: string) => void;
   onClose: () => void;
   isSystemAdmin: boolean;
@@ -23,34 +29,36 @@ export function SiteConfigurationImageSelector({
   establishmentId,
   organizationId,
   section,
+  sectionImages,
   onImageSelect,
   onClose,
   isSystemAdmin,
 }: SiteConfigurationImageSelectorProps) {
   const t = useTranslations("SiteConfiguration");
-  const [availableImages, setAvailableImages] = useState<GalleryImage[]>([]);
   const [filteredImages, setFilteredImages] = useState<GalleryImage[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
-  // Charger les images disponibles
-  useEffect(() => {
-    const loadAvailableImages = async () => {
-      try {
-        setIsLoading(true);
-        const images = await GallerySectionsService.getAvailableImages(establishmentId, organizationId);
-        setAvailableImages(images);
-        setFilteredImages(images);
-      } catch (error) {
-        console.error("Erreur lors du chargement des images:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Utiliser le hook MODAL avec contrôle précis du chargement
+  const {
+    images: allImages,
+    isLoading,
+    error,
+  } = useGalleryModal({
+    establishmentId,
+    organizationId,
+    isOpen: true,
+  });
 
-    loadAvailableImages();
-  }, [establishmentId, organizationId]);
+  // Filtrer les images disponibles (non supprimées) ET exclure celles déjà dans la section
+  const availableImages = useMemo(() => {
+    // Récupérer les IDs des images déjà dans la section
+    const sectionImageIds = new Set(sectionImages.map((img: any) => img.image_id));
+
+    return allImages.filter((image) => {
+      return !image.deleted && image.image_url && !sectionImageIds.has(image.id); // Exclure les images déjà dans la section
+    });
+  }, [allImages, sectionImages]);
 
   // Filtrer les images selon la recherche
   useEffect(() => {
@@ -59,8 +67,8 @@ export function SiteConfigurationImageSelector({
     } else {
       const filtered = availableImages.filter(
         (image) =>
-          image.image_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (image.image_description && image.image_description.toLowerCase().includes(searchTerm.toLowerCase())) ??
+          (image.image_name && image.image_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (image.image_description && image.image_description.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (image.alt_text && image.alt_text.toLowerCase().includes(searchTerm.toLowerCase())),
       );
       setFilteredImages(filtered);
@@ -68,21 +76,40 @@ export function SiteConfigurationImageSelector({
   }, [searchTerm, availableImages]);
 
   const handleImageSelect = (image: GalleryImage) => {
-    setSelectedImage(image);
+    // Si l'image est déjà sélectionnée, la désélectionner
+    if (selectedImage?.id === image.id) {
+      setSelectedImage(null);
+    } else {
+      setSelectedImage(image);
+    }
   };
 
   const handleConfirmSelection = () => {
     if (selectedImage) {
       onImageSelect(selectedImage.id);
+      onClose();
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  const handleCancelSelection = () => {
+    setSelectedImage(null);
+  };
+
+  const getImageUrl = (image: GalleryImage) => {
+    if (!image.image_url) return "/placeholder-image.jpg";
+
+    // Si c'est déjà une URL complète
+    if (image.image_url.startsWith("http")) {
+      return image.image_url;
+    }
+
+    // Si c'est une URL relative, ajouter le domaine
+    if (image.image_url.startsWith("/")) {
+      return `${window.location.origin}${image.image_url}`;
+    }
+
+    // Fallback
+    return image.image_url;
   };
 
   return (
@@ -137,9 +164,13 @@ export function SiteConfigurationImageSelector({
                     onClick={() => handleImageSelect(image)}
                   >
                     <img
-                      src={image.image_url}
-                      alt={image.alt_text ?? image.image_name}
+                      src={getImageUrl(image)}
+                      alt={image.alt_text ?? image.image_name ?? "Image"}
                       className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder-image.jpg";
+                      }}
                     />
                     {isSelected && (
                       <div className="bg-primary/20 absolute inset-0 flex items-center justify-center">
@@ -147,8 +178,7 @@ export function SiteConfigurationImageSelector({
                       </div>
                     )}
                     <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                      <p className="truncate text-xs text-white">{image.image_name}</p>
-                      {image.file_size && <p className="text-xs text-white/70">{formatFileSize(image.file_size)}</p>}
+                      <p className="truncate text-xs text-white">{image.image_name ?? "Image sans nom"}</p>
                     </div>
                   </div>
                 );
@@ -161,6 +191,11 @@ export function SiteConfigurationImageSelector({
             <Button variant="outline" onClick={onClose}>
               {t("actions.cancel")}
             </Button>
+            {selectedImage && (
+              <Button variant="outline" onClick={handleCancelSelection}>
+                {t("actions.reset")}
+              </Button>
+            )}
             <Button onClick={handleConfirmSelection} disabled={!selectedImage}>
               {t("actions.addToSection")}
             </Button>

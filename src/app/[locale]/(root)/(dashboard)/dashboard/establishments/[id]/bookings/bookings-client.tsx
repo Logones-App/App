@@ -8,5 +8,5 @@ export function BookingsClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId();
-  return <BookingsShared establishmentId={establishmentId} organizationId={organizationId || ""} />;
+  return <BookingsShared establishmentId={establishmentId} organizationId={organizationId ?? ""} />;
 }

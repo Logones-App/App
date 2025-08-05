@@ -44,7 +44,7 @@ export const useRealtimeStore = create<RealtimeState>()(
       // Actions
       connect: async () => {
         const state = get();
-        if (state.isConnected || state.connectionStatus === "connecting") {
+        if (state.isConnected ?? state.connectionStatus === "connecting") {
           return;
         }
 

@@ -85,7 +85,7 @@ export function useBookingExceptionsRealtime({
         throw fetchError;
       }
 
-      setExceptions(data || []);
+      setExceptions(data ?? []);
     } catch (err) {
       console.error("❌ Erreur lors du chargement des exceptions:", err);
       setError(err instanceof Error ? err.message : "Erreur de chargement");

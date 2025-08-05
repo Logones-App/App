@@ -8,5 +8,5 @@ export function CategoriesClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId();
-  return <CategoriesShared establishmentId={establishmentId} organizationId={organizationId || ""} />;
+  return <CategoriesShared establishmentId={establishmentId} organizationId={organizationId ?? ""} />;
 }

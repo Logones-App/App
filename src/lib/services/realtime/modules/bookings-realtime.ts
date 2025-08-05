@@ -1,4 +1,4 @@
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
@@ -94,21 +94,26 @@ class BookingsRealtime {
           schema: "public",
           table: "bookings",
         },
-        (payload: any) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           // Filtrer côté client pour cette organisation
           const record = payload.new ?? payload.old;
-          if (record && record.organization_id === organizationId) {
+          if (record && (record as Record<string, unknown>).organization_id === organizationId) {
             const event: BookingRealtimeEvent = {
               type: this.getEventType(payload.eventType),
-              bookingId: record.id,
-              establishmentId: record.establishment_id,
-              organizationId: record.organization_id,
+              bookingId: (record as Record<string, unknown>).id as string,
+              establishmentId: (record as Record<string, unknown>).establishment_id as string,
+              organizationId: (record as Record<string, unknown>).organization_id as string,
               data: (payload.new ?? payload.old) as Record<string, unknown>,
               customerName: this.getCustomerName((payload.new ?? payload.old) as Record<string, unknown>),
               timestamp: new Date().toISOString(),
             };
 
-            console.log("📡 Bookings organization realtime event:", event.type, record.id, record.organization_id);
+            console.log(
+              "📡 Bookings organization realtime event:",
+              event.type,
+              (record as Record<string, unknown>).id,
+              (record as Record<string, unknown>).organization_id,
+            );
 
             this.handleBookingEvent(event);
             onEvent?.(event);
@@ -133,7 +138,7 @@ class BookingsRealtime {
     bookingId: string,
     establishmentId: string,
     organizationId: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ) {
     const supabase = createClient();
     const channel = supabase.channel("bookings_notifications");
@@ -161,7 +166,7 @@ class BookingsRealtime {
     bookingId: string,
     establishmentId: string,
     organizationId: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ) {
     const supabase = createClient();
     const channel = supabase.channel("bookings_actions");

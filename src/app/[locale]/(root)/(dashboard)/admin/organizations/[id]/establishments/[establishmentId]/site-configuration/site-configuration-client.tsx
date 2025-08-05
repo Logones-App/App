@@ -1,10 +1,13 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+
+import { useParams } from "next/navigation";
+
+import { useTranslations } from "next-intl";
+
 import { EstablishmentSiteConfigurationShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-site-configuration-shared";
+import { createClient } from "@/lib/supabase/client";
 
 export function EstablishmentSiteConfigurationClient() {
   const params = useParams();

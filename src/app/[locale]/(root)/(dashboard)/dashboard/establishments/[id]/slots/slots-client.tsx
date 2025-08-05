@@ -8,5 +8,5 @@ export function EstablishmentSlotsClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId();
-  return <EstablishmentSlotsShared organizationId={organizationId || ""} establishmentId={establishmentId} />;
+  return <EstablishmentSlotsShared organizationId={organizationId ?? ""} establishmentId={establishmentId} />;
 }

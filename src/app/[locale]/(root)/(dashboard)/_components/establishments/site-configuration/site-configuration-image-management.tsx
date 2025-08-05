@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useTranslations } from "next-intl";
-import { Image, Home, Grid3X3, Plus, Save, X } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { SiteConfigurationSection } from "./site-configuration-section";
-import { useGalleryRealtime } from "@/hooks/gallery/use-gallery-realtime";
-import { GallerySectionConfig, GallerySection } from "@/types/gallery";
+
 import {
   DndContext,
   closestCenter,
@@ -24,6 +17,15 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Image, Home, Grid3X3, Plus, Save, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GallerySectionConfig, GallerySection } from "@/types/gallery";
+
+import { SiteConfigurationSection } from "./site-configuration-section";
 import { SortableSectionImageItem } from "./sortable-section-image-item";
 
 interface SiteConfigurationImageManagementProps {
@@ -43,13 +45,6 @@ export function SiteConfigurationImageManagement({
     hero_carousel: false,
     home_cards: false,
     gallery: false,
-  });
-
-  // Hook pour récupérer les images de section
-  const { sectionImages, reorderSectionImages, loading } = useGalleryRealtime({
-    establishmentId,
-    organizationId,
-    section: activeSection,
   });
 
   // Configuration des sections
@@ -99,51 +94,10 @@ export function SiteConfigurationImageManagement({
     }),
   );
 
-  const [reorderImages, setReorderImages] = useState(sectionImages);
-  const [hasChanges, setHasChanges] = useState(false);
-
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setReorderImages((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-
-        // Mettre à jour display_order pour chaque image
-        const updatedItems = newItems.map((item, index) => ({
-          ...item,
-          display_order: index,
-        }));
-
-        setHasChanges(true);
-        return updatedItems;
-      });
-    }
+    // Cette fonctionnalité sera gérée par chaque section individuellement
+    console.log("Drag & Drop désactivé - géré par les sections individuelles");
   };
-
-  const handleSaveReorder = async () => {
-    try {
-      await reorderSectionImages(reorderImages);
-      setHasChanges(false);
-      closeReorder(activeSection);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-    }
-  };
-
-  const handleCancelReorder = () => {
-    setReorderImages(sectionImages);
-    setHasChanges(false);
-    closeReorder(activeSection);
-  };
-
-  // Mettre à jour les images de réorganisation quand les sectionImages changent
-  React.useEffect(() => {
-    setReorderImages(sectionImages);
-  }, [sectionImages]);
 
   return (
     <div className="space-y-6">
@@ -188,21 +142,6 @@ export function SiteConfigurationImageManagement({
               })()}
               <CardTitle>{sectionConfigs[activeSection].title}</CardTitle>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toggleReorder(activeSection)}
-                className="flex items-center space-x-2"
-              >
-                <Grid3X3 className="h-4 w-4" />
-                <span>{t("actions.reorder")}</span>
-              </Button>
-              <Button size="sm" className="flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span>{t("actions.addImage")}</span>
-              </Button>
-            </div>
           </div>
           <CardDescription>{sectionConfigs[activeSection].description}</CardDescription>
         </CardHeader>
@@ -216,64 +155,6 @@ export function SiteConfigurationImageManagement({
           />
         </CardContent>
       </Card>
-
-      {/* Zone de réorganisation pour chaque section */}
-      {sections.map((section) => {
-        if (!showReorder[section]) return null;
-
-        return (
-          <Card key={`reorder-${section}`} className="border-2 border-dashed">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {(() => {
-                    const Icon = sectionConfigs[section].icon;
-                    return <Icon className="h-5 w-5" />;
-                  })()}
-                  <CardTitle className="text-lg">
-                    {t("imageReorder.title", { section: sectionConfigs[section].title })}
-                  </CardTitle>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="outline" onClick={handleCancelReorder}>
-                    <X className="h-4 w-4" />
-                    <span>{t("actions.cancel")}</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="flex items-center space-x-2"
-                    onClick={handleSaveReorder}
-                    disabled={!hasChanges || loading}
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>{t("actions.save")}</span>
-                  </Button>
-                </div>
-              </div>
-              <CardDescription>{t("imageReorder.instructions")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-                </div>
-              ) : reorderImages.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center">{t("imageReorder.noImages")}</div>
-              ) : (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={reorderImages.map((img) => img.id)} strategy={verticalListSortingStrategy}>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                      {reorderImages.map((image) => (
-                        <SortableSectionImageItem key={image.id} image={image} />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
     </div>
   );
 }

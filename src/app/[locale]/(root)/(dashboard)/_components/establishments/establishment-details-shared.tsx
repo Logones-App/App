@@ -21,7 +21,7 @@ export function EstablishmentDetailsShared({
   const isSystemAdmin = pathname.includes("/admin/organizations/");
 
   if (isLoading) return <div>Chargement...</div>;
-  if (error) return <div className="text-destructive">Erreur lors du chargement de l'établissement</div>;
+  if (error) return <div className="text-destructive">Erreur lors du chargement de l&apos;établissement</div>;
   if (!establishment) return <div>Aucun établissement trouvé.</div>;
 
   // Générer les liens corrects selon le contexte

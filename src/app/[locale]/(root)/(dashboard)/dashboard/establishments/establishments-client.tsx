@@ -4,5 +4,5 @@ import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id
 
 export function EstablishmentsClient() {
   const organizationId = useOrgaUserOrganizationId();
-  return <EstablishmentsShared organizationId={organizationId || ""} />;
+  return <EstablishmentsShared organizationId={organizationId ?? ""} />;
 }

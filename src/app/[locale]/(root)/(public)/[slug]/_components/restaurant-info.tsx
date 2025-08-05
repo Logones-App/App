@@ -1,9 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Tables } from "@/lib/supabase/database.types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Clock, Phone, Mail } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;
 
@@ -27,7 +28,7 @@ export function RestaurantInfo({ establishment }: RestaurantInfoProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">{establishment.address || t("address_not_available")}</p>
+              <p className="text-gray-600">{establishment.address ?? t("address_not_available")}</p>
             </CardContent>
           </Card>
 

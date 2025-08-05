@@ -15,7 +15,8 @@ export default function UsersPage() {
       </div>
       <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
         <p className="text-muted-foreground">
-          Page de gestion des utilisateurs pour l'organisation : <span className="font-mono">{organizationId}</span>
+          Page de gestion des utilisateurs pour l&apos;organisation :{" "}
+          <span className="font-mono">{organizationId}</span>
         </p>
       </div>
     </div>

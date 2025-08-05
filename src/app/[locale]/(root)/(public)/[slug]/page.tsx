@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
+
 import { RestaurantPublicClient } from "./restaurant-public-client";
 
 interface RestaurantPageProps {
@@ -30,5 +32,5 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
     .eq("deleted", false)
     .order("day_of_week");
 
-  return <RestaurantPublicClient establishment={establishment} locale={locale} openingHours={openingHours || []} />;
+  return <RestaurantPublicClient establishment={establishment} locale={locale} openingHours={openingHours ?? []} />;
 }

@@ -140,7 +140,7 @@ export function generateSlotsFromDatabase(slot: BookingSlot): TimeSlot[] {
 // Fonction pour filtrer les créneaux par jour de la semaine
 function filterSlotsByDay(slots: BookingSlot[], date: string): BookingSlot[] {
   // Forcer l'interprétation en timezone local pour éviter les décalages
-  const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+  const dayOfWeek = new Date(date + "T00:00:00").getDay();
   return slots.filter((slot) => slot.day_of_week === dayOfWeek);
 }
 
@@ -150,12 +150,12 @@ function checkTimeSlotException(exception: any, timeSlot: TimeSlot, slot: Bookin
   if (!exception.date || exception.date !== date) {
     return false;
   }
-  
+
   // Vérifier le booking_slot_id
   if (exception.booking_slot_id !== slot.id) {
     return false;
   }
-  
+
   // Vérifier les créneaux fermés
   const closedSlots = exception.closed_slots ?? [];
   const slotIndex = timeToSlot(timeSlot.time);

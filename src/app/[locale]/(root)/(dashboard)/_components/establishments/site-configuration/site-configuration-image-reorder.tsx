@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import { X, Save, RotateCcw, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import {
   DndContext,
   closestCenter,
@@ -22,8 +17,16 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SortableSectionImageItem } from "./sortable-section-image-item";
+import { X, Save, RotateCcw, Info } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GallerySection, GallerySectionImage } from "@/types/gallery";
+
+import { SortableSectionImageItem } from "./sortable-section-image-item";
 
 interface SiteConfigurationImageReorderProps {
   sectionImages: GallerySectionImage[];

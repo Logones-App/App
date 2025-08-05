@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Vérifier si c'est un system_admin
-    const systemRole = user.app_metadata?.role || user.user_metadata?.role;
+    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
 
     if (systemRole !== "system_admin") {
       return NextResponse.json({ error: "Unauthorized - System admin required" }, { status: 403 });
@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
       email_confirmed_at: user.email_confirmed_at,
-      role: user.app_metadata?.role || user.user_metadata?.role || null,
-      permissions: user.app_metadata?.permissions || [],
-      features: user.app_metadata?.features || [],
+      role: user.app_metadata?.role ?? user.user_metadata?.role ?? null,
+      permissions: user.app_metadata?.permissions ?? [],
+      features: user.app_metadata?.features ?? [],
       subscription_tier: user.app_metadata?.subscription_tier || "free",
       access_level: user.app_metadata?.access_level || "user",
     }));

@@ -3,22 +3,22 @@ export interface GalleryImage {
   establishment_id: string;
   organization_id: string;
   image_url: string;
-  image_name: string;
-  image_description?: string;
-  alt_text?: string;
-  file_size?: number;
-  mime_type?: string;
+  image_name: string | null;
+  image_description?: string | null;
+  alt_text?: string | null;
+  file_size?: number | null;
+  mime_type?: string | null;
   dimensions?: {
     width: number;
     height: number;
-  };
-  display_order: number;
-  is_public: boolean;
-  is_featured: boolean;
-  created_at: string;
-  created_by?: string;
-  updated_at: string;
-  deleted: boolean;
+  } | null;
+  display_order: number | null;
+  is_public: boolean | null;
+  is_featured: boolean | null;
+  created_at: string | null;
+  created_by?: string | null;
+  updated_at: string | null;
+  deleted: boolean | null;
 }
 
 export interface GalleryImageUpload {
@@ -51,7 +51,7 @@ export interface GalleryFilters {
 export interface GalleryUploadProgress {
   file: File;
   progress: number;
-  status: 'uploading' | 'success' | 'error';
+  status: "uploading" | "success" | "error";
   error?: string;
 }
 
@@ -105,8 +105,8 @@ export interface ImageTransformations {
   width?: number;
   height?: number;
   quality?: number;
-  format?: 'jpeg' | 'png' | 'webp';
-  fit?: 'cover' | 'contain' | 'fill';
+  format?: "jpeg" | "png" | "webp";
+  fit?: "cover" | "contain" | "fill";
 }
 
 // Types pour les métadonnées d'image
@@ -122,7 +122,7 @@ export interface ImageMetadata {
 export interface GalleryError {
   code: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 // Types pour les réponses API
@@ -159,7 +159,7 @@ export interface UseGalleryReorderOptions {
 }
 
 // Types pour les sections de galerie
-export type GallerySection = 'hero_carousel' | 'home_cards' | 'gallery';
+export type GallerySection = "hero_carousel" | "home_cards" | "gallery";
 
 export interface GallerySectionImage {
   id: string;
@@ -168,20 +168,25 @@ export interface GallerySectionImage {
   image_id: string;
   section: GallerySection;
   display_order: number;
-  created_at: string;
-  updated_at: string;
-  deleted: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted: boolean | null;
   // Données de l'image jointe
   image_url: string;
-  image_name: string;
-  image_description?: string;
-  alt_text?: string;
-  file_size?: number;
-  mime_type?: string;
+  image_name: string | null;
+  image_description?: string | null;
+  alt_text?: string | null;
+  file_size?: number | null;
+  mime_type?: string | null;
   dimensions?: {
     width: number;
     height: number;
-  };
+  } | null;
+}
+
+export interface GalleryPublicProps {
+  images: GalleryImage[];
+  className?: string;
 }
 
 export interface GallerySectionConfig {
@@ -198,4 +203,4 @@ export interface UseGallerySectionsOptions {
   section: GallerySection;
   onSuccess?: () => void;
   onError?: (error: string) => void;
-} 
+}

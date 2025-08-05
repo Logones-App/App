@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ domain: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ domain: string }> }) {
   try {
     const { domain } = await params;
     console.log("🔍 API - Recherche du domaine:", domain);
-    
+
     if (!domain) {
       return NextResponse.json({ error: "Domain parameter is missing" }, { status: 400 });
     }
 
     const supabase = await createClient();
     console.log("🔍 API - Client Supabase créé");
-    
+
     // Récupérer le domaine personnalisé
     const { data: customDomain, error: domainError } = await supabase
       .from("custom_domains")
@@ -57,4 +55,4 @@ export async function GET(
     console.error("🔍 API - Erreur générale:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-} 
+}

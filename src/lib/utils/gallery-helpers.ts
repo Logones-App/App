@@ -1,19 +1,19 @@
-import { GalleryImage, ImageTransformations } from '@/types/gallery';
+import { GalleryImage, ImageTransformations } from "@/types/gallery";
 
 /**
  * Génère un nom de fichier unique pour l'upload
  */
 export function generateUniqueFileName(file: File, customName?: string): string {
   const timestamp = Date.now();
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  const baseName = customName ?? file.name.split('.')[0];
-  
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const baseName = customName ?? file.name.split(".")[0];
+
   // Nettoyer le nom de fichier
   const cleanName = baseName
-    .replace(/[^a-zA-Z0-9-_]/g, '-')
-    .replace(/-+/g, '-')
+    .replace(/[^a-zA-Z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
     .toLowerCase();
-  
+
   return `${cleanName}-${timestamp}.${extension}`;
 }
 
@@ -21,16 +21,16 @@ export function generateUniqueFileName(file: File, customName?: string): string 
  * Valide un fichier image
  */
 export function validateImageFile(file: File, maxSize: number = 10 * 1024 * 1024): string | null {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
   if (!allowedTypes.includes(file.type)) {
-    return `Type de fichier non autorisé. Types acceptés: ${allowedTypes.join(', ')}`;
+    return `Type de fichier non autorisé. Types acceptés: ${allowedTypes.join(", ")}`;
   }
-  
+
   if (file.size > maxSize) {
     return `Fichier trop volumineux. Maximum: ${Math.round(maxSize / 1024 / 1024)}MB`;
   }
-  
+
   return null;
 }
 
@@ -52,15 +52,15 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
  */
 export function getImageUrl(imageUrl: string, transformations?: ImageTransformations): string {
   if (!transformations) return imageUrl;
-  
+
   const params = new URLSearchParams();
-  
-  if (transformations.width) params.append('width', transformations.width.toString());
-  if (transformations.height) params.append('height', transformations.height.toString());
-  if (transformations.quality) params.append('quality', transformations.quality.toString());
-  if (transformations.format) params.append('format', transformations.format);
-  if (transformations.fit) params.append('fit', transformations.fit);
-  
+
+  if (transformations.width) params.append("width", transformations.width.toString());
+  if (transformations.height) params.append("height", transformations.height.toString());
+  if (transformations.quality) params.append("quality", transformations.quality.toString());
+  if (transformations.format) params.append("format", transformations.format);
+  if (transformations.fit) params.append("fit", transformations.fit);
+
   return params.toString() ? `${imageUrl}?${params.toString()}` : imageUrl;
 }
 
@@ -72,8 +72,8 @@ export function getCarouselImageUrl(imageUrl: string): string {
     width: 1200,
     height: 600,
     quality: 80,
-    format: 'webp',
-    fit: 'cover'
+    format: "webp",
+    fit: "cover",
   });
 }
 
@@ -85,8 +85,8 @@ export function getGalleryImageUrl(imageUrl: string): string {
     width: 800,
     height: 600,
     quality: 85,
-    format: 'webp',
-    fit: 'cover'
+    format: "webp",
+    fit: "cover",
   });
 }
 
@@ -98,8 +98,8 @@ export function getThumbnailImageUrl(imageUrl: string): string {
     width: 300,
     height: 200,
     quality: 75,
-    format: 'webp',
-    fit: 'cover'
+    format: "webp",
+    fit: "cover",
   });
 }
 
@@ -107,13 +107,13 @@ export function getThumbnailImageUrl(imageUrl: string): string {
  * Formate la taille d'un fichier
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
+  if (bytes === 0) return "0 Bytes";
+
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
 /**
@@ -122,42 +122,44 @@ export function formatFileSize(bytes: number): string {
 export function sortImagesByOrder(images: GalleryImage[]): GalleryImage[] {
   return [...images].sort((a, b) => {
     if (a.display_order !== b.display_order) {
-      return a.display_order - b.display_order;
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
     }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime();
   });
 }
 
 /**
  * Filtre les images selon les critères
  */
-export function filterImages(images: GalleryImage[], filters: {
-  isPublic?: boolean;
-  isFeatured?: boolean;
-  search?: string;
-}): GalleryImage[] {
-  return images.filter(image => {
+export function filterImages(
+  images: GalleryImage[],
+  filters: {
+    isPublic?: boolean;
+    isFeatured?: boolean;
+    search?: string;
+  },
+): GalleryImage[] {
+  return images.filter((image) => {
     if (filters.isPublic !== undefined && image.is_public !== filters.isPublic) {
       return false;
     }
-    
+
     if (filters.isFeatured !== undefined && image.is_featured !== filters.isFeatured) {
       return false;
     }
-    
+
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      const searchableText = [
-        image.image_name,
-        image.image_description,
-        image.alt_text
-      ].filter(Boolean).join(' ').toLowerCase();
-      
+      const searchableText = [image.image_name, image.image_description, image.alt_text]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
       if (!searchableText.includes(searchTerm)) {
         return false;
       }
     }
-    
+
     return true;
   });
 }
@@ -166,18 +168,14 @@ export function filterImages(images: GalleryImage[], filters: {
  * Obtient les images mises en avant pour le carousel
  */
 export function getFeaturedImages(images: GalleryImage[]): GalleryImage[] {
-  return sortImagesByOrder(
-    filterImages(images, { isPublic: true, isFeatured: true })
-  );
+  return sortImagesByOrder(filterImages(images, { isPublic: true, isFeatured: true }));
 }
 
 /**
  * Obtient les images publiques pour la galerie
  */
 export function getPublicImages(images: GalleryImage[]): GalleryImage[] {
-  return sortImagesByOrder(
-    filterImages(images, { isPublic: true })
-  );
+  return sortImagesByOrder(filterImages(images, { isPublic: true }));
 }
 
 /**
@@ -191,22 +189,23 @@ export function generateStoragePath(organizationId: string, establishmentId: str
  * Extrait le chemin du fichier depuis une URL Supabase
  */
 export function extractFilePathFromUrl(url: string): string {
-  const urlParts = url.split('/');
-  const bucketIndex = urlParts.findIndex(part => part === 'gallery');
+  const urlParts = url.split("/");
+  const bucketIndex = urlParts.findIndex((part) => part === "gallery");
   if (bucketIndex === -1) {
-    throw new Error('URL invalide');
+    throw new Error("URL invalide");
   }
-  return urlParts.slice(bucketIndex + 1).join('/');
+  return urlParts.slice(bucketIndex + 1).join("/");
 }
 
 /**
  * Vérifie si une image est en cours d'upload
  */
 export function isImageUploading(file: File, uploadingFiles: File[]): boolean {
-  return uploadingFiles.some(uploadingFile => 
-    uploadingFile.name === file.name && 
-    uploadingFile.size === file.size &&
-    uploadingFile.lastModified === file.lastModified
+  return uploadingFiles.some(
+    (uploadingFile) =>
+      uploadingFile.name === file.name &&
+      uploadingFile.size === file.size &&
+      uploadingFile.lastModified === file.lastModified,
   );
 }
 
@@ -228,7 +227,7 @@ export function generateDragId(image: GalleryImage): string {
  * Vérifie si une image peut être mise en avant
  */
 export function canBeFeatured(image: GalleryImage): boolean {
-  return image.is_public && !image.deleted;
+  return !!image.is_public && !image.deleted;
 }
 
 /**
@@ -236,4 +235,4 @@ export function canBeFeatured(image: GalleryImage): boolean {
  */
 export function canBePublic(image: GalleryImage): boolean {
   return !image.deleted;
-} 
+}

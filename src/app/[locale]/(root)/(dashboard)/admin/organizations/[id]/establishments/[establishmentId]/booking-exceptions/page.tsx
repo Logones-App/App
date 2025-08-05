@@ -22,7 +22,7 @@ export default function BookingExceptionsPage({ params }: BookingExceptionsPageP
       <div className="container mx-auto p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">Accès refusé</h1>
-          <p className="text-muted-foreground">Vous n'avez pas les permissions pour accéder à cette page.</p>
+          <p className="text-muted-foreground">Vous n&apos;avez pas les permissions pour accéder à cette page.</p>
         </div>
       </div>
     );

@@ -57,7 +57,7 @@ export function RealtimeMessages() {
         <CardContent>
           <ScrollArea className="h-64">
             <div className="space-y-2">
-              {messages.map((message) => (
+              {messages.map((message, index) => (
                 <div key={message.id} className="bg-muted/50 rounded-lg border p-3">
                   <div className="mb-1 flex items-start justify-between">
                     <span className="text-sm font-medium">{message.title}</span>

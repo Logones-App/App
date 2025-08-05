@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 import { LogOut, User, Building, Settings } from "lucide-react";
-import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
-import { useAuthStore } from "@/lib/stores/auth-store";
 import { useLogout } from "@/lib/queries/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { getInitials } from "@/lib/utils";
 
 export function AccountSwitcher() {
@@ -29,13 +29,13 @@ export function AccountSwitcher() {
 
   if (!user) return null;
 
-  const initials = getInitials(user.email || "");
+  const initials = getInitials(user.email ?? "");
   const userName =
     userMetadata?.firstname && userMetadata?.lastname
       ? `${userMetadata.firstname} ${userMetadata.lastname}`
       : user.email;
 
-  const userRole = userMetadata?.role || "Utilisateur";
+  const userRole = userMetadata?.role ?? "Utilisateur";
   const organizationName = userRole === "system_admin" ? "Administration Système" : "Organisation";
 
   const handleLogout = async () => {

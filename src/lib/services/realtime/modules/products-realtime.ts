@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { realtimeService, type RealtimeSubscription } from "../../realtime-service";
 
@@ -13,12 +14,12 @@ export interface ProductWithStock extends Product {
 export interface ProductsRealtimeEvent {
   type: "INSERT" | "UPDATE" | "DELETE";
   table: "products" | "product_stocks";
-  record: any;
-  oldRecord?: any;
+  record: Product | ProductStock;
+  oldRecord?: Product | ProductStock;
 }
 
 class ProductsRealtime {
-  private subscriptions: any[] = [];
+  private subscriptions: RealtimeChannel[] = [];
   private eventHandlers: ((event: ProductsRealtimeEvent) => void)[] = [];
 
   /**
@@ -43,25 +44,25 @@ class ProductsRealtime {
         },
         (payload) => {
           // Filtrer côté client pour cet établissement et organisation
-          const record = payload.new || payload.old;
+          const record = payload.new ?? payload.old;
           if (
             record &&
-            (record as any).establishment_id === establishmentId &&
-            (record as any).organization_id === organizationId
+            (record as ProductStock).establishment_id === establishmentId &&
+            (record as ProductStock).organization_id === organizationId
           ) {
             const event: ProductsRealtimeEvent = {
               type: payload.eventType,
               table: "product_stocks",
-              record: payload.new,
-              oldRecord: payload.old,
+              record: payload.new as ProductStock,
+              oldRecord: payload.old as ProductStock,
             };
 
             console.log(
               "📡 Product stocks realtime event:",
               event.type,
-              (record as any).id,
-              (record as any).establishment_id,
-              (record as any).organization_id,
+              (record as ProductStock).id,
+              (record as ProductStock).establishment_id,
+              (record as ProductStock).organization_id,
             );
             this.notifyEventHandlers(event);
             onEvent?.(event);
@@ -82,16 +83,16 @@ class ProductsRealtime {
         },
         (payload) => {
           // Filtrer côté client pour cette organisation
-          const record = payload.new || payload.old;
-          if (record && (record as any).organization_id === organizationId) {
+          const record = payload.new ?? payload.old;
+          if (record && (record as Product).organization_id === organizationId) {
             const event: ProductsRealtimeEvent = {
               type: payload.eventType,
               table: "products",
-              record: payload.new,
-              oldRecord: payload.old,
+              record: payload.new as Product,
+              oldRecord: payload.old as Product,
             };
 
-            console.log("📡 Products realtime event:", event.type, (record as any).id, (record as any).organization_id);
+            console.log("📡 Products realtime event:", event.type, (record as Product).id, (record as Product).organization_id);
             this.notifyEventHandlers(event);
             onEvent?.(event);
           }

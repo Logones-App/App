@@ -21,7 +21,7 @@ export const useOrganizationEstablishments = (organizationId?: string) => {
         .order("name");
 
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: !!organizationId,
   });

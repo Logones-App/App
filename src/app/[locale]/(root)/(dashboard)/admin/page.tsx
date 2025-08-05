@@ -6,7 +6,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Tableau de bord administrateur</h1>
-        <p className="text-muted-foreground">Vue d'ensemble du système et des organisations</p>
+        <p className="text-muted-foreground">Vue d&apos;ensemble du système et des organisations</p>
       </div>
 
       {/* Statistiques principales */}

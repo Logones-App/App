@@ -109,7 +109,7 @@ export const useAllOrganizations = () => {
       const { data, error } = await supabase.from("organizations").select("*").eq("deleted", false).order("name");
 
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: userRole === "system_admin",
   });

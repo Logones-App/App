@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Image as ImageIcon } from "lucide-react";
+
 import { GallerySectionImage } from "@/types/gallery";
 
 interface SortableSectionImageItemProps {
@@ -43,7 +44,11 @@ export function SortableSectionImageItem({ image }: SortableSectionImageItemProp
       {/* Image */}
       <div className="bg-muted h-12 w-12 flex-shrink-0 overflow-hidden rounded">
         {image.image_url ? (
-          <img src={image.image_url} alt={image.alt_text ?? image.image_name} className="h-full w-full object-cover" />
+          <img
+            src={image.image_url}
+            alt={image.alt_text ?? image.image_name ?? "Image"}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <ImageIcon className="text-muted-foreground h-6 w-6" />

@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 
-import { Link, useRouter } from "@/i18n/navigation";
-
 import { format } from "date-fns";
 import { Calendar, ArrowLeft, Clock, Users, MapPin, Phone, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useRouter } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 

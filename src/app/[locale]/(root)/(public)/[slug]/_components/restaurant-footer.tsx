@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+
 import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;

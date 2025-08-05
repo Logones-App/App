@@ -15,9 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-crud";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
-import { useBookingExceptionsRealtime } from "@/hooks/use-booking-exceptions-crud";
 
 type BookingException = Tables<"booking_exceptions">;
 

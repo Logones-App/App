@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 import { cookies } from "next/headers";
 
+import { LanguageSwitcher } from "@/components/i18n";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeMessages } from "@/components/realtime/realtime-messages";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +16,6 @@ import { AppSidebar } from "./_components/sidebar/app-sidebar";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
 import { SearchDialog } from "./_components/sidebar/search-dialog";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
-import { LanguageSwitcher } from "@/components/i18n";
 
 export default async function Layout({
   children,

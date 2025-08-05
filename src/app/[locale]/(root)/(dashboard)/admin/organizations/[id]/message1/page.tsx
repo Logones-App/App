@@ -157,9 +157,7 @@ export default function Message1Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => (
-        <div className="text-sm">{new Date(row.getValue("created_at") as string).toLocaleString()}</div>
-      ),
+      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
       enableSorting: true,
     },
     {

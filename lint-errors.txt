@@ -1,0 +1,390 @@
+﻿
+35:44  Error: Arrow function has a complexity of 13. Maximum allowed is 10.  complexity
+46:63  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+47:53  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+5:8  Error: Async function 'POST' has a complexity of 12. Maximum allowed is 10.  complexity
+153:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+158:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+1:1  Error: There should be at least one empty line between import groups  import/order
+11:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+18:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+60:2  Error: Trailing spaces not allowed.  no-trailing-spaces
+15:77  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+21:40  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+160:23  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+163:15  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+185:44  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+193:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+194:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+111:39  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+131:39  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+224:30  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+258:44  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+266:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+267:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+347:1  Error: File has too many lines (302). Maximum allowed is 300.  max-lines
+179:59  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+25:54  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `react` import should occur before import of `next/navigation`  import/order
+7:1  Error: `@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-site-configuration-shared` import should occur before import of `@/lib/supabase/client`  import/order
+161:44  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+169:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+170:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+76:9  Error: Async arrow function has a complexity of 13. Maximum allowed is 10.  complexity
+89:31  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+102:31  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+172:30  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+206:44  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+214:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+215:27  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+154:59  Error: This assertion is unnecessary since it does not change the type of the expression.  @typescript-eslint/no-unnecessary-type-assertion
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/card`  import/order
+23:16  Error: Function 'OrganizationManagementPage' has a complexity of 11. Maximum allowed is 10.  complexity
+74:45  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+127:66  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+18:50  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+5:1  Error: `date-fns` import should occur before import of `@/i18n/navigation`  import/order
+6:1  Error: `date-fns/locale` import should occur before import of `@/i18n/navigation`  import/order
+7:1  Error: `lucide-react` import should occur before import of `@/i18n/navigation`  import/order
+16:1  Error: `@/components/ui/badge` import should occur before import of `@/i18n/navigation`  import/order
+17:1  Error: `@/components/ui/button` import should occur before import of `@/i18n/navigation`  import/order
+18:1  Error: `@/components/ui/dropdown-menu` import should occur before import of `@/i18n/navigation`  import/order
+26:1  Error: There should be at least one empty line between import groups  import/order
+27:1  Error: `@tanstack/react-table` type import should occur before import of `@/i18n/navigation`  import/order
+64:53  Error: Arrow function has a complexity of 12. Maximum allowed is 10.  complexity
+9:51  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+7:1  Error: `@/hooks/use-orga-user-organization-id` import should occur before import of `@/hooks/use-user-metadata`  import/order
+26:54  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+39:65  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+6:1  Error: `@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-gallery-shared` import should occur before import of `@/hooks/use-orga-user-organization-id`  import/order
+19:47  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+7:1  Error: `@/hooks/use-orga-user-organization-id` import should occur before import of `@/lib/supabase/client`  import/order
+8:1  Error: `@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-site-configuration-shared` import should occur before import of `@/lib/supabase/client`  import/order
+17:1  Error: There should be at least one empty line between import groups  import/order
+18:1  Error: `@/components/i18n` import should occur before import of `@/components/providers/realtime-provider`  import/order
+20:1  Error: `@/hooks/use-booking-exceptions-crud` import should occur before import of `@/lib/supabase/client`  import/order
+47:38  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+71:74  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+80:32  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+261:76  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+1:1  Error: Filename is not in kebab case. Rename it to `back-to-establishment-button.tsx`.  unicorn/filename-case
+2:1  Error: There should be at least one empty line between import groups  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+29:23  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+34:57  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+24:85  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+8:1  Error: `@/components/ui/badge` import should occur before import of `@/components/ui/button`  import/order
+9:1  Error: There should be at least one empty line between import groups  import/order
+9:1  Error: `@/components/ui/alert` import should occur before import of `@/components/ui/button`  import/order
+10:1  Error: There should be at least one empty line between import groups  import/order
+10:1  Error: `lucide-react` import should occur before import of `@/components/ui/button`  import/order
+11:1  Error: `@/components/gallery/gallery-upload` import should occur before import of `@/components/ui/button`  import/order
+12:1  Error: `@/components/gallery/gallery-grid` import should occur before import of `@/components/ui/button`  import/order
+13:1  Error: `@/components/gallery/gallery-lightbox` import should occur before import of `@/components/ui/button`  import/order
+15:1  Error: There should be at least one empty line between import groups  import/order
+16:1  Error: There should be at least one empty line between import groups  import/order
+16:1  Error: `sonner` import should occur before import of `@/components/ui/button`  import/order
+17:1  Error: `@/components/gallery/gallery-reorder` import should occur before import of `@/components/ui/button`  import/order
+18:1  Error: `@/lib/supabase/client` import should occur before import of `@/types/gallery`  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+8:1  Error: There should be at least one empty line between import groups  import/order
+19:8  Error: Function 'EstablishmentSiteConfigurationShared' has a complexity of 33. Maximum allowed is 10.  complexity
+350:1  Error: File has too many lines (939). Maximum allowed is 300.  max-lines
+499:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+503:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+507:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+511:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+515:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+519:26  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+733:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+781:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+842:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+896:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+950:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+1009:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+18:1  Error: There should be no empty line within import group  import/order
+20:1  Error: More than 1 blank line not allowed.  no-multiple-empty-lines
+21:1  Error: There should be no empty line within import group  import/order
+23:1  Error: `@/components/ui/select` import should occur before import of `@/lib/queries/establishments`  import/order
+258:39  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+303:25  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+319:25  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+336:23  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+355:1  Error: File has too many lines (497). Maximum allowed is 300.  max-lines
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: `@fullcalendar/react` import should occur after import of `@fullcalendar/interaction`  import/order
+6:1  Error: `@fullcalendar/timegrid` import should occur after import of `@fullcalendar/rrule`  import/order
+8:1  Error: There should be at least one empty line between import groups  import/order
+9:1  Error: `@/components/ui/card` import should occur after import of `date-fns`  import/order
+10:1  Error: There should be at least one empty line between import groups  import/order
+10:1  Error: `@/components/ui/badge` import should occur after import of `date-fns`  import/order
+11:1  Error: `lucide-react` import should occur after import of `date-fns`  import/order
+49:7  Error: 'checkDate' is never reassigned. Use 'const' instead.  prefer-const
+116:1  Error: Function 'prepareScheduleForDisplay' has a complexity of 11. Maximum allowed is 10.  complexity
+118:17  Error: Arrow function has a complexity of 17. Maximum allowed is 10.  complexity
+145:41  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+145:73  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+145:92  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+145:125  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+148:61  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+194:26  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+195:28  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+208:30  Error: Arrow function has a complexity of 19. Maximum allowed is 10.  complexity
+231:28  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+232:30  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+243:28  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+244:30  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+255:28  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+256:30  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+6:1  Error: 'lucide-react' import is duplicated.  no-duplicate-imports
+10:1  Error: '@/lib/queries/establishments' import is duplicated.  no-duplicate-imports
+11:1  Error: '@/lib/queries/establishments' import is duplicated.  no-duplicate-imports
+12:1  Error: '@/lib/queries/establishments' import is duplicated.  no-duplicate-imports
+13:1  Error: `@/components/ui/card` import should occur before import of `@/lib/queries/establishments`  import/order
+14:1  Error: There should be at least one empty line between import groups  import/order
+14:1  Error: `@/components/ui/skeleton` import should occur before import of `@/lib/queries/establishments`  import/order
+15:1  Error: There should be at least one empty line between import groups  import/order
+15:1  Error: `react` import should occur before import of `next/link`  import/order
+16:1  Error: `@/components/ui/dialog` import should occur before import of `@/lib/queries/establishments`  import/order
+17:1  Error: There should be at least one empty line between import groups  import/order
+17:1  Error: `@/components/ui/table` import should occur before import of `@/lib/queries/establishments`  import/order
+18:1  Error: There should be at least one empty line between import groups  import/order
+18:1  Error: `@tanstack/react-query` import should occur before import of `lucide-react`  import/order
+19:1  Error: There should be at least one empty line between import groups  import/order
+20:1  Error: There should be at least one empty line between import groups  import/order
+20:1  Error: `react-hook-form` import should occur before import of `@/components/ui/button`  import/order
+21:1  Error: `@/components/ui/input` import should occur before import of `@/lib/queries/establishments`  import/order
+22:1  Error: There should be at least one empty line between import groups  import/order
+22:1  Error: `@/components/ui/alert-dialog` import should occur before import of `@/components/ui/button`  import/order
+32:1  Error: There should be at least one empty line between import groups  import/order
+33:1  Error: There should be at least one empty line between import groups  import/order
+33:1  Error: `@/components/ui/switch` import should occur before import of `@/lib/queries/establishments`  import/order
+34:1  Error: '@tanstack/react-query' import is duplicated.  no-duplicate-imports
+34:1  Error: There should be at least one empty line between import groups  import/order
+34:1  Error: `@tanstack/react-query` import should occur before import of `lucide-react`  import/order
+35:1  Error: There should be at least one empty line between import groups  import/order
+36:1  Error: There should be at least one empty line between import groups  import/order
+36:1  Error: `@/components/ui/tabs` import should occur before import of `@/lib/queries/establishments`  import/order
+37:1  Error: 'lucide-react' import is duplicated.  no-duplicate-imports
+37:1  Error: There should be at least one empty line between import groups  import/order
+37:1  Error: `lucide-react` import should occur before import of `@/components/ui/button`  import/order
+38:1  Error: '@/lib/queries/establishments' import is duplicated.  no-duplicate-imports
+38:1  Error: `@/lib/queries/establishments` import should occur before import of `@/lib/supabase/client`  import/order
+129:36  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+141:69  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+146:43  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+174:31  Error: Arrow function has a complexity of 18. Maximum allowed is 10.  complexity
+229:42  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+230:32  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+253:28  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+261:48  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+266:72  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+271:40  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+309:34  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+313:25  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+325:1  Error: File has too many lines (906). Maximum allowed is 300.  max-lines
+416:23  Error: Arrow function has a complexity of 11. Maximum allowed is 10.  complexity
+426:53  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+427:49  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+428:53  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+429:55  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+450:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+457:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+464:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+471:47  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+496:60  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+497:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+498:42  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+499:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+500:48  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+592:8  Error: Function 'MenusShared' has a complexity of 12. Maximum allowed is 10.  complexity
+706:30  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+728:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+732:44  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+809:39  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+904:69  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+18:1  Error: There should be no empty line within import group  import/order
+20:1  Error: More than 1 blank line not allowed.  no-multiple-empty-lines
+21:1  Error: There should be no empty line within import group  import/order
+23:1  Error: `@/components/ui/select` import should occur before import of `@/lib/queries/establishments`  import/order
+313:25  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+329:25  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+346:23  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+353:56  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+354:1  Error: File has too many lines (476). Maximum allowed is 300.  max-lines
+354:68  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+354:83  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+375:40  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+398:51  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+502:93  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+140:8  Error: Function 'ProductsShared' has a complexity of 27. Maximum allowed is 10.  complexity
+291:66  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+369:1  Error: File has too many lines (1065). Maximum allowed is 300.  max-lines
+451:28  Error: Arrow function has a complexity of 11. Maximum allowed is 10.  complexity
+459:40  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+467:40  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+526:107  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+852:46  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+877:57  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+881:56  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+893:61  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+1098:52  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+1129:62  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1133:62  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+1148:67  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+7:1  Error: `@/components/ui/button` import should occur before import of `@/components/ui/card`  import/order
+8:1  Error: There should be at least one empty line between import groups  import/order
+8:1  Error: `@/components/ui/badge` import should occur before import of `@/components/ui/card`  import/order
+9:1  Error: There should be at least one empty line between import groups  import/order
+10:1  Error: There should be at least one empty line between import groups  import/order
+10:1  Error: `@/types/gallery` import should occur before import of `./site-configuration-section`  import/order
+11:1  Error: `@dnd-kit/core` import should occur before import of `next-intl`  import/order
+20:1  Error: There should be at least one empty line between import groups  import/order
+20:1  Error: `@dnd-kit/sortable` import should occur before import of `next-intl`  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+8:1  Error: `@/components/ui/badge` import should occur before import of `@/components/ui/button`  import/order
+9:1  Error: There should be at least one empty line between import groups  import/order
+9:1  Error: `@/components/ui/alert` import should occur before import of `@/components/ui/button`  import/order
+10:1  Error: `@dnd-kit/core` import should occur before import of `next-intl`  import/order
+19:1  Error: There should be at least one empty line between import groups  import/order
+19:1  Error: `@dnd-kit/sortable` import should occur before import of `next-intl`  import/order
+25:1  Error: There should be at least one empty line between import groups  import/order
+26:1  Error: `@/types/gallery` import should occur before import of `./sortable-section-image-item`  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+8:1  Error: `@/components/ui/dialog` import should occur before import of `@/components/ui/input`  import/order
+9:1  Error: `@/components/ui/badge` import should occur before import of `@/components/ui/button`  import/order
+12:1  Error: `@/lib/supabase/database.types` import should occur before import of `@/types/gallery`  import/order
+68:99  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+69:113  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+3:1  Error: There should be at least one empty line between import groups  import/order
+4:1  Error: There should be at least one empty line between import groups  import/order
+6:1  Error: `@/components/ui/badge` import should occur before import of `@/components/ui/button`  import/order
+7:1  Error: There should be at least one empty line between import groups  import/order
+7:1  Error: `@/components/ui/alert` import should occur before import of `@/components/ui/button`  import/order
+8:1  Error: There should be at least one empty line between import groups  import/order
+8:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+10:1  Error: There should be at least one empty line between import groups  import/order
+10:1  Error: `@/hooks/gallery/use-gallery-section-realtime` import should occur before import of `@/types/gallery`  import/order
+12:1  Error: There should be at least one empty line between import groups  import/order
+12:1  Error: `./site-configuration-image-reorder` import should occur before import of `./site-configuration-image-selector`  import/order
+13:1  Error: '@/types/gallery' import is duplicated.  no-duplicate-imports
+13:1  Error: `@/types/gallery` import should occur before import of `./site-configuration-image-selector`  import/order
+23:8  Error: Function 'SiteConfigurationSection' has a complexity of 12. Maximum allowed is 10.  complexity
+5:1  Error: There should be at least one empty line between import groups  import/order
+7:1  Error: `next-intl` import should occur before import of `sonner`  import/order
+21:1  Error: `@/lib/queries/auth` import should occur before import of `@/lib/stores/auth-store`  import/order
+24:8  Error: Function 'AccountSwitcher' has a complexity of 11. Maximum allowed is 10.  complexity
+32:43  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+38:39  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+19:1  Error: '@/navigation/sidebar/sidebar-items' import is duplicated.  no-duplicate-imports
+71:34  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+71:63  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+74:30  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+42:74  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+43:73  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+5:1  Error: 'next/navigation' import is duplicated.  no-duplicate-imports
+23:15  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+23:109  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+3:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/input`  import/order
+40:20  Error: Async arrow function has a complexity of 11. Maximum allowed is 10.  complexity
+3:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/input`  import/order
+52:20  Error: Async arrow function has a complexity of 11. Maximum allowed is 10.  complexity
+151:34  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+23:15  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+23:106  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+24:22  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+3:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/input`  import/order
+5:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/card`  import/order
+174:1  Error: Function 'SlotsGrid' has a complexity of 13. Maximum allowed is 10.  complexity
+206:41  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+212:65  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+280:16  Error: Function 'BookingSlotsPage' has a complexity of 15. Maximum allowed is 10.  complexity
+357:1  Error: File has too many lines (321). Maximum allowed is 300.  max-lines
+6:1  Error: There should be at least one empty line between import groups  import/order
+6:1  Error: `@/lib/queries/establishments-related-queries` import should occur before import of `@/lib/supabase/database.types`  import/order
+1:1  Error: There should be at least one empty line between import groups  import/order
+2:1  Error: There should be at least one empty line between import groups  import/order
+33:107  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+3:1  Error: There should be at least one empty line between import groups  import/order
+7:1  Error: `./_components/restaurant-footer` import should occur before import of `./_components/restaurant-header`  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `@/components/ui/card` import should occur before import of `@/lib/supabase/database.types`  import/order
+6:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: There should be at least one empty line between import groups  import/order
+5:1  Error: `@/components/ui/card` import should occur before import of `@/lib/supabase/database.types`  import/order
+6:1  Error: `lucide-react` import should occur before import of `next-intl`  import/order
+30:67  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+45:33  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+3:1  Error: `@/i18n/navigation` import should occur after import of `@/components/ui/input`  import/order
+37:1  Error: There should be at least one empty line between import groups  import/order
+38:1  Error: `sonner` import should occur before import of `@/components/ui/badge`  import/order
+51:8  Error: Function 'GalleryItem' has a complexity of 12. Maximum allowed is 10.  complexity
+87:38  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+226:75  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+248:85  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+276:85  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+330:1  Error: File has too many lines (314). Maximum allowed is 300.  max-lines
+66:45  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+108:67  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+114:70  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+7:1  Error: There should be no empty line within import group  import/order
+9:1  Error: There should be at least one empty line between import groups  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+11:1  Error: There should be no empty line within import group  import/order
+3:1  Error: There should be at least one empty line between import groups  import/order
+11:1  Error: There should be no empty line within import group  import/order
+15:1  Error: `@/app/[locale]/(root)/(public)/[slug]/booking/_components/slots-components` import should occur before import of `@/components/ui/badge`  import/order
+126:42  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+13:8  Error: Function 'UserProfileCard' has a complexity of 18. Maximum allowed is 10.  complexity
+3:1  Error: There should be at least one empty line between import groups  import/order
+89:2  Error: Trailing spaces not allowed.  no-trailing-spaces
+3:1  Error: There should be at least one empty line between import groups  import/order
+70:14  Error: Arrow function has a complexity of 12. Maximum allowed is 10.  complexity
+143:5  Error: Unnecessary try/catch wrapper.  no-useless-catch
+165:22  Error: Trailing spaces not allowed.  no-trailing-spaces
+166:30  Error: Trailing spaces not allowed.  no-trailing-spaces
+187:5  Error: Unnecessary try/catch wrapper.  no-useless-catch
+203:5  Error: Unnecessary try/catch wrapper.  no-useless-catch
+228:2  Error: Trailing spaces not allowed.  no-trailing-spaces
+3:1  Error: There should be at least one empty line between import groups  import/order
+81:2  Error: Trailing spaces not allowed.  no-trailing-spaces
+1:1  Error: There should be at least one empty line between import groups  import/order
+29:5  Error: Async arrow function has a complexity of 14. Maximum allowed is 10.  complexity
+35:8  Error: Function 'useSlotsWithExceptions' has a complexity of 15. Maximum allowed is 10.  complexity
+68:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+73:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+86:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+91:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+115:57  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+118:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+87:63  Error: Prefer using nullish coalescing operator (`??`) instead of a logical or (`||`), as it is a safer operator.  @typescript-eslint/prefer-nullish-coalescing
+209:54  Error: Trailing spaces not allowed.  no-trailing-spaces
+139:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+143:1  Error: Trailing spaces not allowed.  no-trailing-spaces
+
+

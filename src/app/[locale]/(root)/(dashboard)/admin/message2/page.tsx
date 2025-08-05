@@ -221,15 +221,16 @@ export default function Message2Page() {
       accessorKey: "organization",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Organisation" />,
       cell: ({ row }) => {
-        const organization = row.getValue("organization") as OrganizationData;
-        return organization ? (
+        const organization = row.getValue("organization");
+        const org = organization as OrganizationData;
+        return org ? (
           <div className="flex items-center gap-2">
             <Building2 className="text-muted-foreground h-4 w-4" />
             <div>
-              <div className="font-medium">{organization.name}</div>
-              <div className="text-muted-foreground text-xs">{organization.slug}</div>
+              <div className="font-medium">{org.name}</div>
+              <div className="text-muted-foreground text-xs">{org.slug}</div>
             </div>
-            {organization.deleted && (
+            {org.deleted && (
               <Badge variant="destructive" className="text-xs">
                 Supprimée
               </Badge>
@@ -254,9 +255,7 @@ export default function Message2Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => (
-        <div className="text-sm">{new Date(row.getValue("created_at") as string).toLocaleString()}</div>
-      ),
+      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
       enableSorting: true,
     },
     {

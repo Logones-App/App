@@ -1,15 +1,17 @@
 "use client";
 
 import React from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
+
 import { Navigation, Pagination, Autoplay, Keyboard } from "swiper/modules";
-import { GalleryCarouselProps } from "@/types/gallery";
-import { getCarouselImageUrl } from "@/lib/utils/gallery-helpers";
+import { Swiper, SwiperSlide } from "swiper/react";
 
 // Import Swiper styles
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
+
+import { getCarouselImageUrl } from "@/lib/utils/gallery-helpers";
+import { GalleryCarouselProps } from "@/types/gallery";
 
 export function GalleryCarousel({
   images,
@@ -47,13 +49,13 @@ export function GalleryCarousel({
             <div className="relative h-full w-full">
               <img
                 src={getCarouselImageUrl(image.image_url)}
-                alt={image.alt_text ?? image.image_name}
+                alt={image.alt_text ?? image.image_name ?? "Image"}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
 
               {/* Overlay avec informations */}
-              {(image.image_name || image.image_description) && (
+              {(image.image_name ?? image.image_description) && (
                 <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                   {image.image_name && <h3 className="mb-1 text-lg font-medium text-white">{image.image_name}</h3>}
                   {image.image_description && <p className="text-sm text-white/90">{image.image_description}</p>}

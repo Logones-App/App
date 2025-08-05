@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+
 import { useParams } from "next/navigation";
+
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+
 import { EstablishmentSiteConfigurationShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-site-configuration-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import { createClient } from "@/lib/supabase/client";
 
 export function EstablishmentSiteConfigurationClient() {
   const params = useParams();

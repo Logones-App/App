@@ -12,13 +12,13 @@ export default function NotFound() {
           <CardDescription className="text-xl">Page non trouvée</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-gray-600">Désolé, la page que vous recherchez n'existe pas ou a été déplacée.</p>
+          <p className="text-gray-600">Désolé, la page que vous recherchez n&apos;existe pas ou a été déplacée.</p>
           <div className="space-y-2">
             <Button asChild className="w-full">
               <Link href="/dashboard">Retour au dashboard</Link>
             </Button>
             <Button variant="outline" asChild className="w-full">
-              <Link href="/">Retour à l'accueil</Link>
+              <Link href="/">Retour à l&apos;accueil</Link>
             </Button>
           </div>
         </CardContent>

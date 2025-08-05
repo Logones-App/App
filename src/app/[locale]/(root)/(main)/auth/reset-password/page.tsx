@@ -20,8 +20,8 @@ export default function ResetPasswordPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              "La sécurité de nos données est primordiale. Cette plateforme nous donne une tranquillité d'esprit
-              totale."
+              &quot;La sécurité de nos données est primordiale. Cette plateforme nous donne une tranquillité
+              d&apos;esprit totale.&quot;
             </p>
             <footer className="text-sm">Marc Dubois, Chef de Cuisine</footer>
           </blockquote>

@@ -42,7 +42,7 @@ export function UserManagement() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            {t("error")}: Vous n'avez pas les permissions nécessaires pour gérer les utilisateurs.
+            {t("error")}: Vous n&apos;avez pas les permissions nécessaires pour gérer les utilisateurs.
           </p>
         </CardContent>
       </Card>
@@ -86,7 +86,7 @@ export function UserManagement() {
   };
 
   const getRoleBadge = (user: User) => {
-    const role = user.app_metadata?.role || user.user_metadata?.role;
+    const role = user.app_metadata?.role ?? user.user_metadata?.role;
     if (role === "system_admin") {
       return <Badge variant="destructive">System Admin</Badge>;
     } else if (role === "org_admin") {
@@ -97,7 +97,7 @@ export function UserManagement() {
   };
 
   const getPermissions = (user: User) => {
-    const permissions = user.app_metadata?.permissions || [];
+    const permissions = user.app_metadata?.permissions ?? [];
     return permissions.map((permission: string) => (
       <Badge key={permission} variant="outline" className="mr-1 mb-1 text-xs">
         {permission}
@@ -185,7 +185,7 @@ export function UserManagement() {
               <div>
                 <Label htmlFor="role">Rôle</Label>
                 <Select
-                  defaultValue={selectedUser.app_metadata?.role || selectedUser.user_metadata?.role}
+                  defaultValue={selectedUser.app_metadata?.role ?? selectedUser.user_metadata?.role}
                   onValueChange={(value) => {
                     if (selectedUser) {
                       handleUpdateUserRole(selectedUser.id, value);

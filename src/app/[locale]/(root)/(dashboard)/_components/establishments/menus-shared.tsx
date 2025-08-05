@@ -1,24 +1,16 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Pencil, Trash2, Eye } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { useEstablishmentMenus } from "@/lib/queries/establishments";
-import { useMenuProducts } from "@/lib/queries/establishments";
-import { useEstablishmentProductsNotInMenus } from "@/lib/queries/establishments";
-import { useOrganizationProducts, useEstablishmentProductsWithStocks } from "@/lib/queries/establishments";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Input } from "@/components/ui/input";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,92 +21,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { BackToEstablishmentButton } from "./BackToEstablishmentButton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { useQuery } from "@tanstack/react-query";
-import { MenuCalendar } from "./menus-calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus } from "lucide-react";
+import { useEstablishmentMenus } from "@/lib/queries/establishments";
+import { useMenuProducts } from "@/lib/queries/establishments";
+import { useEstablishmentProductsNotInMenus } from "@/lib/queries/establishments";
+import { useOrganizationProducts, useEstablishmentProductsWithStocks } from "@/lib/queries/establishments";
 import { useEstablishmentMenusWithSchedules } from "@/lib/queries/establishments";
+import { createClient } from "@/lib/supabase/client";
+import type { Tables } from "@/lib/supabase/database.types";
 
-function MenuProductsList({ menuId }: { menuId: string }) {
-  const { data: products, isLoading, isError } = useMenuProducts(menuId);
-  if (isLoading) return <Skeleton className="h-8 w-full" />;
-  if (isError) return <p className="text-destructive text-xs">Erreur lors du chargement des produits du menu.</p>;
-  if (!products || products.length === 0)
-    return <p className="text-muted-foreground text-xs">Aucun produit dans ce menu.</p>;
-  return (
-    <div className="mt-2 space-y-2">
-      {products.map((product: any) => (
-        <div key={product.id} className="bg-muted/50 flex items-center gap-4 rounded border p-2">
-          {product.image_url && (
-            <img src={product.image_url} alt={product.name} className="h-8 w-8 rounded object-cover" />
-          )}
-          <div className="flex-1">
-            <div className="font-medium">{product.name}</div>
-            {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
-          </div>
-          <div className="text-sm font-semibold">
-            {product.menu_price != null ? (
-              product.menu_price + " €"
-            ) : (
-              <span className="text-muted-foreground italic">(prix ?)</span>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ProductsNotInMenusList({
-  establishmentId,
-  organizationId,
-}: {
-  establishmentId: string;
-  organizationId: string;
-}) {
-  const { data: products, isLoading, isError } = useEstablishmentProductsNotInMenus(establishmentId, organizationId);
-  if (isLoading) return <Skeleton className="h-8 w-full" />;
-  if (isError) return <p className="text-destructive text-xs">Erreur lors du chargement des produits hors menu.</p>;
-  if (!products || products.length === 0)
-    return <p className="text-muted-foreground text-xs">Aucun produit hors menu.</p>;
-  return (
-    <div className="mt-2 space-y-2">
-      {products.map((product: any) => (
-        <div key={product.id} className="bg-muted/30 flex items-center gap-4 rounded border p-2">
-          {product.image_url && (
-            <img src={product.image_url} alt={product.name} className="h-8 w-8 rounded object-cover" />
-          )}
-          <div className="flex-1">
-            <div className="font-medium">{product.name}</div>
-            {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
-          </div>
-          <div className="text-xs">
-            Stock : {product.stock?.current_stock ?? <span className="text-muted-foreground italic">?</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ProductMenusList({ productId, menus }: { productId: string; menus: any[] }) {
-  // Pour chaque menu, vérifier si le produit y est associé
-  return (
-    <div className="flex flex-wrap gap-2">
-      {menus.map((menu) => {
-        const menuProduct = menu.products?.find((p: any) => p.id === productId);
-        if (!menuProduct) return null;
-        return (
-          <span key={menu.id} className="bg-muted rounded px-2 py-0.5 text-xs">
-            {menu.name} ({menuProduct.menu_price != null ? menuProduct.menu_price + " €" : "prix ?"})
-          </span>
-        );
-      })}
-    </div>
-  );
-}
+import { BackToEstablishmentButton } from "./BackToEstablishmentButton";
+import { MenuCalendar } from "./menus-calendar";
+import { MenuProductsList, ProductsNotInMenusList, ProductMenusList } from "./_components";
 
 function ProductsTab({ establishmentId, organizationId }: { establishmentId: string; organizationId: string }) {
   const { data: products, isLoading: loadingProducts } = useOrganizationProducts(organizationId);
@@ -126,7 +51,7 @@ function ProductsTab({ establishmentId, organizationId }: { establishmentId: str
 
   // Pour chaque menu, récupérer les produits associés (avec prix)
   // On prépare une map menuId -> produits du menu
-  const menusWithProducts = (menus || []).map((menu: any) => {
+  const menusWithProducts = (menus ?? []).map((menu: Tables<"menus">) => {
     // On utilise le hook useMenuProducts pour chaque menu
     // (pour la démo, on suppose que les produits sont déjà chargés)
     // En production, il faudrait optimiser avec un hook global ou une requête jointe
@@ -142,13 +67,10 @@ function ProductsTab({ establishmentId, organizationId }: { establishmentId: str
 
   return (
     <div className="space-y-2">
-      {products.map((product: any) => {
-        const stock = (productsWithStocks || []).find((p: any) => p.id === product.id)?.stock;
+      {products.map((product: Tables<"products">) => {
+        const stock = (productsWithStocks ?? []).find((p: Tables<"products">) => p.id === product.id)?.stock;
         return (
           <div key={product.id} className="bg-muted/30 flex items-center gap-4 rounded border p-2">
-            {product.image_url && (
-              <img src={product.image_url} alt={product.name} className="h-8 w-8 rounded object-cover" />
-            )}
             <div className="flex-1">
               <div className="font-medium">{product.name}</div>
               {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
@@ -181,9 +103,6 @@ function StocksTab({ establishmentId, organizationId }: { establishmentId: strin
             key={product.id}
             className={`flex items-center gap-4 rounded border p-2 ${isCritical ? "bg-red-100" : isLow ? "bg-yellow-100" : "bg-muted/30"}`}
           >
-            {product.image_url && (
-              <img src={product.image_url} alt={product.name} className="h-8 w-8 rounded object-cover" />
-            )}
             <div className="flex-1">
               <div className="font-medium">{product.name}</div>
               {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
@@ -226,8 +145,8 @@ function AddProductToMenuModal({
   const queryClient = useQueryClient();
 
   // Produits non encore associés à ce menu
-  const availableProducts = (orgProducts || []).filter(
-    (p: any) => !(menuProducts || []).some((mp: any) => mp.id === p.id),
+  const availableProducts = (orgProducts ?? []).filter(
+    (p: Tables<"products">) => !(menuProducts ?? []).some((mp: Tables<"products">) => mp.id === p.id),
   );
 
   const mutation = useMutation({
@@ -235,8 +154,8 @@ function AddProductToMenuModal({
       setError(null);
       const supabase = createClient();
       const { error } = await supabase.from("menus_products").insert({
-        menus_id: menuId || "",
-        products_id: productId || "",
+        menus_id: menuId ?? "",
+        products_id: productId ?? "",
         organization_id: organizationId,
         price: null, // à éditer après si besoin
         deleted: false,
@@ -249,8 +168,8 @@ function AddProductToMenuModal({
       setSelectedProductId(null);
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      setError(err.message || "Erreur lors de l'association");
+    onError: (err: Error) => {
+      setError(err.message ?? "Erreur lors de l'association");
     },
   });
 
@@ -268,13 +187,13 @@ function AddProductToMenuModal({
           <div className="space-y-2">
             <select
               className="w-full rounded border p-2"
-              value={selectedProductId || ""}
+              value={selectedProductId ?? ""}
               onChange={(e) => setSelectedProductId(e.target.value)}
             >
               <option value="" disabled>
                 Sélectionner un produit
               </option>
-              {availableProducts.map((p: any) => (
+              {availableProducts.map((p: Tables<"products">) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -302,15 +221,15 @@ function MenuFormModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: any) => void;
-  initialValues?: any;
+  onSubmit: (values: Tables<"menus">) => void;
+  initialValues?: Tables<"menus">;
 }) {
   const { register, handleSubmit, reset, setValue, watch } = useForm({
-    defaultValues: initialValues || { name: "", description: "", type: "" },
+    defaultValues: initialValues ?? { name: "", description: "", type: "" },
   });
   const [permanent, setPermanent] = useState(true);
   useEffect(() => {
-    reset(initialValues || { name: "", description: "", type: "" });
+    reset(initialValues ?? { name: "", description: "", type: "" });
     setPermanent(true);
   }, [initialValues, reset]);
   return (
@@ -655,7 +574,7 @@ export function MenusShared({ establishmentId, organizationId }: { establishment
     // Pour l'instant, nous n'avons pas d'état pour la date sélectionnée, donc rien de spécifique ici.
   };
 
-  const handleEventClick = (event: any) => {
+  const handleEventClick = (event: { id: string; title: string; start: string; end: string }) => {
     console.log("Event clicked:", event);
     // Vous pouvez ouvrir un modal de modification de menu pour cet événement
     // Par exemple, si vous voulez modifier un menu existant, vous pouvez passer l'ID du menu

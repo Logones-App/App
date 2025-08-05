@@ -1,30 +1,33 @@
 import { useEffect, useCallback } from "react";
+
 import { useQueryClient } from "@tanstack/react-query";
-import { useUserMetadata } from '@/hooks/use-user-metadata';
-import { organizationsRealtime, type OrganizationRealtimeEvent } from '@/lib/services/realtime/modules';
-import { useAuthStore } from '@/lib/stores/auth-store';
+
+import { organizationsRealtime, type OrganizationRealtimeEvent } from "@/lib/services/realtime/modules";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function useOrganizationsRealtime() {
   const { user } = useAuthStore();
-  const { userMetadata } = useUserMetadata();
   const queryClient = useQueryClient();
 
   /**
    * S'abonner aux changements des organisations
    */
-  const subscribeToOrganizations = useCallback((onEvent?: (event: OrganizationRealtimeEvent) => void) => {
-    const subscriptionId = organizationsRealtime.subscribeToOrganizations((event) => {
-      // Invalider le cache TanStack Query
-      queryClient.invalidateQueries({
-        queryKey: ["all-organizations"]
+  const subscribeToOrganizations = useCallback(
+    (onEvent?: (event: OrganizationRealtimeEvent) => void) => {
+      const subscriptionId = organizationsRealtime.subscribeToOrganizations((event) => {
+        // Invalider le cache TanStack Query
+        queryClient.invalidateQueries({
+          queryKey: ["all-organizations"],
+        });
+
+        // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
+        // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
       });
-      
-      // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
-      // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
-    });
-    
-    return subscriptionId;
-  }, [queryClient]);
+
+      return subscriptionId;
+    },
+    [queryClient],
+  );
 
   /**
    * S'abonner aux utilisateurs d'une organisation
@@ -34,13 +37,13 @@ export function useOrganizationsRealtime() {
       const subscriptionId = organizationsRealtime.subscribeToOrganizationUsers(organizationId, (event) => {
         // Invalider le cache TanStack Query
         queryClient.invalidateQueries({
-          queryKey: ["organization-users", organizationId]
+          queryKey: ["organization-users", organizationId],
         });
-        
+
         // Le module gère déjà les toasts, pas besoin d'appeler le callback ici
         // onEvent?.(event); // ❌ SUPPRIMÉ pour éviter les toasts redondants
       });
-      
+
       return subscriptionId;
     },
     [queryClient],
@@ -53,12 +56,7 @@ export function useOrganizationsRealtime() {
     async (title: string, message: string, organizationId: string, data?: any) => {
       if (!user) return;
 
-      await organizationsRealtime.sendOrganizationNotification(
-        title,
-        message,
-        organizationId,
-        data
-      );
+      await organizationsRealtime.sendOrganizationNotification(title, message, organizationId, data);
     },
     [user],
   );
@@ -70,11 +68,7 @@ export function useOrganizationsRealtime() {
     async (action: string, organizationId: string, data?: any) => {
       if (!user) return;
 
-      await organizationsRealtime.sendOrganizationAction(
-        action,
-        organizationId,
-        data
-      );
+      await organizationsRealtime.sendOrganizationAction(action, organizationId, data);
     },
     [user],
   );

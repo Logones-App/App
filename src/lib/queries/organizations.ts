@@ -40,7 +40,7 @@ export const useUserOrganizations = (userId?: string) => {
 
       if (error) throw error;
       return (
-        (data || []).map((item: { organizations: Partial<Organization> }) => item.organizations).filter(Boolean) || []
+        (data ?? []).map((item: { organizations: Partial<Organization> }) => item.organizations).filter(Boolean) || []
       );
     },
     enabled: !!userId,

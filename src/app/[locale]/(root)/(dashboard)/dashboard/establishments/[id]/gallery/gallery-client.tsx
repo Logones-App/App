@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+
 import { useParams } from "next/navigation";
-import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+
 import { EstablishmentGalleryShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/establishment-gallery-shared";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 
 export function EstablishmentGalleryClient() {
   const params = useParams();

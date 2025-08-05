@@ -68,10 +68,10 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   const params = useParams();
 
   // Utilise le rôle passé en props (SSR) ou le calcule côté client
-  const finalUserRole = userRole || user?.user_metadata?.role || user?.app_metadata?.role;
+  const finalUserRole = userRole ?? user?.user_metadata?.role ?? user?.app_metadata?.role;
 
   // Utilise la locale passée en props ou depuis les paramètres
-  const finalLocale = locale || (params?.locale as string);
+  const finalLocale = locale ?? (params?.locale as string);
 
   // Calcule les items côté client pour éviter les problèmes d'icônes
   const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale);

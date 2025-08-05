@@ -8,5 +8,5 @@ export function OpeningHoursClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId();
-  return <OpeningHoursShared establishmentId={establishmentId} organizationId={organizationId || ""} />;
+  return <OpeningHoursShared establishmentId={establishmentId} organizationId={organizationId ?? ""} />;
 }

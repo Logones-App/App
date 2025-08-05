@@ -1,17 +1,9 @@
 "use client";
 
-import { useRouter } from "@/i18n/navigation";
-
+import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  Building,
-  CheckCircle,
-  Mail,
-  MoreHorizontal,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { Building, CheckCircle, Mail, MoreHorizontal, Trash2, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "@/i18n/navigation";
 import type { Database } from "@/lib/supabase/database.types";
-import type { ColumnDef } from "@tanstack/react-table";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
 
@@ -107,11 +99,7 @@ export const columns: ColumnDef<Organization>[] = [
     header: "Description",
     cell: ({ row }) => {
       const organization = row.original;
-      return (
-        <div className="text-muted-foreground text-sm">
-          {organization.description ?? "Aucune description"}
-        </div>
-      );
+      return <div className="text-muted-foreground text-sm">{organization.description ?? "Aucune description"}</div>;
     },
   },
   {
