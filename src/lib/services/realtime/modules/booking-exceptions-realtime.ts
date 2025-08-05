@@ -1,8 +1,8 @@
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type BookingException = Database["public"]["Tables"]["booking_exceptions"]["Row"];
 
@@ -19,26 +19,31 @@ export type BookingExceptionEvent = {
 class BookingExceptionsRealtime {
   private subscriptions: RealtimeChannel[] = [];
 
-  private createEvent(payload: RealtimePostgresChangesPayload<BookingException>, establishmentId: string, organizationId: string): BookingExceptionEvent {
+  private createEvent(
+    payload: RealtimePostgresChangesPayload<BookingException>,
+    establishmentId: string,
+    organizationId: string,
+  ): BookingExceptionEvent {
     return {
       type: this.getEventType(payload.eventType),
       exceptionId: (payload.new as BookingException)?.id ?? (payload.old as BookingException)?.id ?? "",
       establishmentId,
       organizationId,
-      data: (payload.new as BookingException) ?? (payload.old as BookingException) ?? {
-        booking_slot_id: null,
-        closed_slots: null,
-        created_at: null,
-        created_by: null,
-        date: null,
-        deleted: null,
-        description: null,
-        establishment_id: null,
-        id: "",
-        organization_id: null,
-        reason: null,
-        updated_at: null,
-      },
+      data: (payload.new as BookingException) ??
+        (payload.old as BookingException) ?? {
+          booking_slot_id: null,
+          closed_slots: null,
+          created_at: null,
+          created_by: null,
+          date: null,
+          deleted: null,
+          description: null,
+          establishment_id: null,
+          id: "",
+          organization_id: null,
+          reason: null,
+          updated_at: null,
+        },
       oldData: (payload.old as BookingException) ?? {
         booking_slot_id: null,
         closed_slots: null,
@@ -117,7 +122,9 @@ class BookingExceptionsRealtime {
         (payload: RealtimePostgresChangesPayload<BookingException>) => {
           const event = this.createEvent(
             payload,
-            (payload.new as BookingException)?.establishment_id ?? (payload.old as BookingException)?.establishment_id ?? "",
+            (payload.new as BookingException)?.establishment_id ??
+              (payload.old as BookingException)?.establishment_id ??
+              "",
             organizationId,
           );
           this.handleEvent(event, onEvent);

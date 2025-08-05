@@ -1,6 +1,7 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { realtimeService, type RealtimeSubscription } from "../../realtime-service";
 
@@ -92,7 +93,12 @@ class ProductsRealtime {
               oldRecord: payload.old as Product,
             };
 
-            console.log("📡 Products realtime event:", event.type, (record as Product).id, (record as Product).organization_id);
+            console.log(
+              "📡 Products realtime event:",
+              event.type,
+              (record as Product).id,
+              (record as Product).organization_id,
+            );
             this.notifyEventHandlers(event);
             onEvent?.(event);
           }
