@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEstablishmentMenus } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
+import type { Tables } from "@/lib/supabase/database.types";
 
 interface MenuSchedulesListProps {
   menuId: string;
@@ -20,11 +21,20 @@ interface MenuSchedulesListProps {
 
 export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<any>(null);
+  const [editingSchedule, setEditingSchedule] = useState<Tables<"menu_schedules"> | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: menus } = useEstablishmentMenus(organizationId);
-  const currentMenu = menus?.find((menu: any) => menu.id === menuId);
+  const { data: schedules } = useQuery({
+    queryKey: ["menu-schedules", menuId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.from("menu_schedules").select("*").eq("menu_id", menuId);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const form = useForm();
 
   const mutation = useMutation({
     mutationFn: async (schedule: any) => {
@@ -82,7 +92,7 @@ export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListP
         </Button>
       </div>
 
-      {currentMenu?.schedules?.map((schedule: any) => (
+      {schedules?.map((schedule: Tables<"menu_schedules">) => (
         <Card key={schedule.id}>
           <CardHeader>
             <CardTitle className="text-sm">
@@ -108,17 +118,15 @@ export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListP
             <DialogTitle>{editingSchedule ? "Modifier la plage horaire" : "Ajouter une plage horaire"}</DialogTitle>
             <DialogDescription>Configurez les horaires d&apos;application de ce menu.</DialogDescription>
           </DialogHeader>
-          <Form>
+          <Form {...form}>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
+              onSubmit={form.handleSubmit((data) => {
                 handleSubmit({
-                  day_of_week: formData.get("day_of_week") as string,
-                  start_time: formData.get("start_time") as string,
-                  end_time: formData.get("end_time") as string,
+                  day_of_week: data.day_of_week,
+                  start_time: data.start_time,
+                  end_time: data.end_time,
                 });
-              }}
+              })}
               className="space-y-4"
             >
               <FormField
@@ -127,7 +135,7 @@ export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListP
                   <FormItem>
                     <FormLabel>Jour de la semaine</FormLabel>
                     <FormControl>
-                      <Select defaultValue={editingSchedule?.day_of_week} onValueChange={field.onChange}>
+                      <Select defaultValue={editingSchedule?.day_of_week?.toString()} onValueChange={field.onChange}>
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner un jour" />
                         </SelectTrigger>
@@ -152,7 +160,7 @@ export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListP
                   <FormItem>
                     <FormLabel>Heure de début</FormLabel>
                     <FormControl>
-                      <Input type="time" defaultValue={editingSchedule?.start_time} {...field} />
+                      <Input type="time" defaultValue={editingSchedule?.start_time ?? ""} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,7 +172,7 @@ export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListP
                   <FormItem>
                     <FormLabel>Heure de fin</FormLabel>
                     <FormControl>
-                      <Input type="time" defaultValue={editingSchedule?.end_time} {...field} />
+                      <Input type="time" defaultValue={editingSchedule?.end_time ?? ""} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -67,14 +67,14 @@ export function MenusShared({ establishmentId, organizationId }: { establishment
             setActiveMenuId={setActiveMenuId}
             showMenuForm={showMenuForm}
             setShowMenuForm={setShowMenuForm}
-            editMenu={editMenu}
+            editMenu={editMenu ?? undefined}
             setEditMenu={setEditMenu}
             deleteMenuId={deleteMenuId}
             setDeleteMenuId={setDeleteMenuId}
             activeMenu={activeMenu}
-            addMenuMutation={addMenuMutation}
-            editMenuMutation={editMenuMutation}
-            deleteMenuMutation={deleteMenuMutation}
+            addMenuMutation={addMenuMutation as any}
+            editMenuMutation={editMenuMutation as any}
+            deleteMenuMutation={deleteMenuMutation as any}
           />
         </TabsContent>
 

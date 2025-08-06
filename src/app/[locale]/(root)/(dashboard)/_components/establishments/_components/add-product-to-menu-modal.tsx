@@ -27,8 +27,9 @@ export function AddProductToMenuModal({ menuId, organizationId, open, onOpenChan
     mutationFn: async (productId: string) => {
       const supabase = createClient();
       const { error } = await supabase.from("menus_products").insert({
-        menu_id: menuId,
-        product_id: productId,
+        menus_id: menuId,
+        products_id: productId,
+        organization_id: organizationId,
       });
       if (error) throw error;
     },

@@ -34,7 +34,7 @@ function StockInfo({ stock }: { stock: any }) {
   );
 }
 
-function StockProductItem({ product }: { product: Tables<"products"> }) {
+function StockProductItem({ product }: { product: any }) {
   const stock = product.stock;
   const { className } = getStockStatus(stock);
 
@@ -58,7 +58,7 @@ export function StocksTab({ establishmentId, organizationId }: StocksTabProps) {
 
   return (
     <div className="space-y-2">
-      {productsWithStocks.map((product: Tables<"products">) => (
+      {productsWithStocks.map((product: any) => (
         <StockProductItem key={product.id} product={product} />
       ))}
     </div>

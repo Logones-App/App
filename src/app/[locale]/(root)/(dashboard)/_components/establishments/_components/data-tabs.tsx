@@ -95,10 +95,7 @@ export function DataTabs({
   combinedDataFilter,
   setCombinedDataFilter,
 }: DataTabsProps) {
-  const transformedData =
-    combinedDataFilter === "hero_carousel"
-      ? combinedData.filter((item: Tables<"establishment_gallery">) => item.section === "hero_carousel")
-      : combinedData;
+  const transformedData = combinedData;
 
   return (
     <>
