@@ -4,11 +4,12 @@ import { Play, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Tables } from "@/lib/supabase/database.types";
 
 interface DataCardProps {
   title: string;
   description: string;
-  data: any[];
+  data: Tables<"establishment_gallery">[] | Tables<"establishment_gallery_sections">[];
   loading: boolean;
   isRealtimeActive: boolean;
   toggleRealtime: () => void;
@@ -38,12 +39,12 @@ function DataCard({ title, description, data, loading, isRealtimeActive, toggleR
 }
 
 interface DataTabsProps {
-  galleryData: any[];
-  sectionsData: any[];
-  combinedData: any[];
-  heroCarouselData: any[];
-  homeCardsData: any[];
-  gallerySectionData: any[];
+  galleryData: Tables<"establishment_gallery">[];
+  sectionsData: Tables<"establishment_gallery_sections">[];
+  combinedData: Tables<"establishment_gallery">[];
+  heroCarouselData: Tables<"establishment_gallery">[];
+  homeCardsData: Tables<"establishment_gallery">[];
+  gallerySectionData: Tables<"establishment_gallery">[];
   galleryLoading: boolean;
   sectionsLoading: boolean;
   combinedLoading: boolean;
@@ -96,7 +97,7 @@ export function DataTabs({
 }: DataTabsProps) {
   const transformedData =
     combinedDataFilter === "hero_carousel"
-      ? combinedData.filter((item: any) => item.section === "hero_carousel")
+      ? combinedData.filter((item: Tables<"establishment_gallery">) => item.section === "hero_carousel")
       : combinedData;
 
   return (

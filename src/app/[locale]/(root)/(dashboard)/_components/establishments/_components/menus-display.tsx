@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 
+import { useMutation } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
 
 import {
@@ -117,9 +118,9 @@ interface MenusDisplayProps {
   deleteMenuId: string | null;
   setDeleteMenuId: (id: string | null) => void;
   activeMenu: Tables<"menus"> | undefined;
-  addMenuMutation: any;
-  editMenuMutation: any;
-  deleteMenuMutation: any;
+  addMenuMutation: ReturnType<typeof useMutation>;
+  editMenuMutation: ReturnType<typeof useMutation>;
+  deleteMenuMutation: ReturnType<typeof useMutation>;
 }
 
 export function MenusDisplay({
