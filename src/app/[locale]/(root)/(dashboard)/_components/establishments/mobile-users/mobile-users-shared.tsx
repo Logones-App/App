@@ -8,9 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Users, UserPlus, UserX, UserCheck, Edit, Trash2 } from "lucide-react";
 import { useMobileUsers } from "@/lib/queries/mobile-users-queries";
 import { useCreateMobileUser, useUpdateMobileUser, useDeleteMobileUser } from "@/lib/queries/mobile-users-mutations";
-import type { Database } from "@/lib/supabase/database.types";
-
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
 
 interface MobileUsersSharedProps {
   establishmentId: string;
@@ -18,8 +15,29 @@ interface MobileUsersSharedProps {
   isAdmin: boolean;
 }
 
+// Fonctions utilitaires pour réduire la complexité
+function getPageTitle(isAdmin: boolean, establishmentId: string): string {
+  return isAdmin
+    ? `Admin - Utilisateurs Mobile (Établissement: ${establishmentId})`
+    : `Utilisateurs Mobile - ${establishmentId}`;
+}
+
+function getPageDescription(isAdmin: boolean, establishmentId: string): string {
+  return isAdmin
+    ? `Gestion des utilisateurs de l&apos;application mobile pour l&apos;établissement ${establishmentId}`
+    : `Gestion des utilisateurs de votre application mobile`;
+}
+
+function getStatsCards(mobileUsers: any[]) {
+  const totalUsers = mobileUsers.length;
+  const activeUsers = mobileUsers.filter((user) => user.is_active).length;
+  const inactiveUsers = mobileUsers.filter((user) => !user.is_active).length;
+
+  return { totalUsers, activeUsers, inactiveUsers };
+}
+
 export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: MobileUsersSharedProps) {
-  const { user, userRole } = useAuthStore();
+  const { user } = useAuthStore();
 
   // Queries
   const { data: mobileUsers = [], isLoading, error } = useMobileUsers(establishmentId);
@@ -39,13 +57,9 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
   }
 
   // Logique différente selon le type d'accès
-  const pageTitle = isAdmin
-    ? `Admin - Utilisateurs Mobile (Établissement: ${establishmentId})`
-    : `Utilisateurs Mobile - ${establishmentId}`;
-
-  const pageDescription = isAdmin
-    ? `Gestion des utilisateurs de l&apos;application mobile pour l&apos;établissement ${establishmentId}`
-    : `Gestion des utilisateurs de votre application mobile`;
+  const pageTitle = getPageTitle(isAdmin, establishmentId);
+  const pageDescription = getPageDescription(isAdmin, establishmentId);
+  const { totalUsers, activeUsers, inactiveUsers } = getStatsCards(mobileUsers);
 
   return (
     <div className="space-y-6">
@@ -76,7 +90,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
             <Users className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mobileUsers.length}</div>
+            <div className="text-2xl font-bold">{totalUsers}</div>
             <p className="text-muted-foreground text-xs">Utilisateurs enregistrés</p>
           </CardContent>
         </Card>
@@ -87,7 +101,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
             <UserCheck className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mobileUsers.filter((user) => user.is_active).length}</div>
+            <div className="text-2xl font-bold">{activeUsers}</div>
             <p className="text-muted-foreground text-xs">Utilisateurs actifs</p>
           </CardContent>
         </Card>
@@ -98,7 +112,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
             <UserX className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mobileUsers.filter((user) => !user.is_active).length}</div>
+            <div className="text-2xl font-bold">{inactiveUsers}</div>
             <p className="text-muted-foreground text-xs">Utilisateurs inactifs</p>
           </CardContent>
         </Card>
@@ -212,7 +226,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
                 <strong>Utilisateur actuel:</strong> {user.email}
               </p>
               <p>
-                <strong>Rôle utilisateur:</strong> {userRole}
+                <strong>Rôle utilisateur:</strong> {user?.user_metadata?.role || "Non défini"}
               </p>
             </div>
           </CardContent>

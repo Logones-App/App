@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+
 type MobileUserInsert = Database["public"]["Tables"]["mobile_users"]["Insert"];
 type MobileUserUpdate = Database["public"]["Tables"]["mobile_users"]["Update"];
 
@@ -23,7 +23,7 @@ export function useCreateMobileUser() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Invalider les queries pour rafraîchir les données
       queryClient.invalidateQueries({ queryKey: ["mobile-users"] });
       toast.success("Utilisateur mobile créé avec succès");

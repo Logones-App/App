@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+
 
 // Query pour récupérer tous les utilisateurs mobile d'un établissement
 export function useMobileUsers(establishmentId: string) {
