@@ -157,15 +157,18 @@ export default function Message1Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
+      cell: ({ row }) => {
+        const createdAt = row.getValue("created_at");
+        return <div className="text-sm">{createdAt ? new Date(createdAt).toLocaleString() : "-"}</div>;
+      },
       enableSorting: true,
     },
     {
       accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Modifié le" />,
       cell: ({ row }) => {
-        const updatedAt = row.getValue("updated_at") as string;
-        const createdAt = row.getValue("created_at") as string;
+        const updatedAt = row.getValue("updated_at");
+        const createdAt = row.getValue("created_at");
         return updatedAt && updatedAt !== createdAt ? (
           <div className="text-sm">{new Date(updatedAt).toLocaleString()}</div>
         ) : (

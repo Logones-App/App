@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+
 import { createClient } from "@/lib/supabase/client";
-
-
 
 // Query pour récupérer tous les utilisateurs mobile d'un établissement
 export function useMobileUsers(establishmentId: string) {
@@ -15,7 +14,7 @@ export function useMobileUsers(establishmentId: string) {
         .eq("establishment_id", establishmentId)
         .eq("deleted", false) // Exclure les utilisateurs supprimés
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       console.log("Mobile users data:", data); // Debug
       return data;
@@ -30,15 +29,11 @@ export function useMobileUser(id: string) {
     queryKey: ["mobile-user", id],
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("mobile_users")
-        .select("*")
-        .eq("id", id)
-        .single();
-      
+      const { data, error } = await supabase.from("mobile_users").select("*").eq("id", id).single();
+
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
-} 
+}

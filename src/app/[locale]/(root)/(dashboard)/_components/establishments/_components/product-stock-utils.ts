@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, CheckCircle, XCircle, Package } from "lucide-react";
+
 import type { ProductStock } from "./use-products-data";
 
 // Fonction pour obtenir le statut du stock
@@ -29,4 +30,4 @@ export const getStockStatus = (stock: ProductStock | null) => {
   }
 
   return { status: "normal", color: "green", text: "Normal", icon: CheckCircle };
-}; 
+};

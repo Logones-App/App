@@ -31,6 +31,63 @@ type MessageWithOrganization = Message & {
   organization?: OrganizationData | null;
 };
 
+// Composant pour l'en-tête de la page
+function PageHeader({ isConnected, addTestMessage }: { isConnected: boolean; addTestMessage: () => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <CardTitle>Messages Realtime (Message2) - Tableau avec Organisations</CardTitle>
+      <div className="flex gap-2">
+        <Badge variant={isConnected ? "default" : "destructive"}>{isConnected ? "🟢 Connecté" : "🔴 Déconnecté"}</Badge>
+        <Button onClick={addTestMessage} size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          Ajouter un message
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Composant pour le contenu de la page
+function PageContent({
+  error,
+  messages,
+  table,
+  columns,
+}: {
+  error: string | null;
+  messages: MessageWithOrganization[];
+  table: any;
+  columns: ColumnDef<MessageWithOrganization>[];
+}) {
+  return (
+    <CardContent>
+      {error && <div className="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700">{error}</div>}
+
+      <div className="rounded-md border">
+        <DataTable table={table} columns={columns} />
+      </div>
+
+      {messages.length === 0 && <div className="py-8 text-center text-gray-500">Aucun message trouvé</div>}
+    </CardContent>
+  );
+}
+
+// Composant pour l'état de chargement
+function LoadingState() {
+  return (
+    <div className="container mx-auto p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Messages (Message2)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">Chargement...</div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Message2Page() {
   const [messages, setMessages] = useState<MessageWithOrganization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,46 +154,12 @@ export default function Message2Page() {
 
           if (payload.eventType === "INSERT") {
             console.log("➕ Nouveau message (Message2):", payload.new);
-
-            // Charger les données d'organisation pour le nouveau message
-            if (payload.new.organization_id) {
-              const { data: orgData } = await supabase
-                .from("organizations")
-                .select("id, name, slug, deleted")
-                .eq("id", payload.new.organization_id)
-                .single();
-
-              const messageWithOrg: MessageWithOrganization = {
-                ...payload.new,
-                organization: orgData || null,
-              };
-
-              setMessages((prev) => [messageWithOrg, ...prev]);
-            } else {
-              setMessages((prev) => [payload.new as MessageWithOrganization, ...prev]);
-            }
+            // Recharger les messages pour obtenir les données d'organisation
+            await loadMessages();
           } else if (payload.eventType === "UPDATE") {
-            console.log("✏️ Message modifié (Message2):", payload.new);
-
-            // Charger les données d'organisation pour le message modifié
-            if (payload.new.organization_id) {
-              const { data: orgData } = await supabase
-                .from("organizations")
-                .select("id, name, slug, deleted")
-                .eq("id", payload.new.organization_id)
-                .single();
-
-              const messageWithOrg: MessageWithOrganization = {
-                ...payload.new,
-                organization: orgData || null,
-              };
-
-              setMessages((prev) => prev.map((msg) => (msg.id === payload.new.id ? messageWithOrg : msg)));
-            } else {
-              setMessages((prev) =>
-                prev.map((msg) => (msg.id === payload.new.id ? (payload.new as MessageWithOrganization) : msg)),
-              );
-            }
+            console.log("✏️ Message mis à jour (Message2):", payload.new);
+            // Recharger les messages pour obtenir les données d'organisation
+            await loadMessages();
           } else if (payload.eventType === "DELETE") {
             console.log("🗑️ Message supprimé (Message2):", payload.old);
             setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
@@ -144,39 +167,39 @@ export default function Message2Page() {
         },
       )
       .subscribe((status) => {
-        console.log("📡 Statut de l'abonnement messages (Message2):", status);
+        console.log("📡 Statut de l'abonnement realtime (Message2):", status);
         setIsConnected(status === "SUBSCRIBED");
       });
 
     channelRef.current = channel;
 
     return () => {
-      console.log("🔌 Déconnexion du realtime messages (Message2)");
+      console.log("🧹 Nettoyage du realtime (Message2)...");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
       }
     };
-  }, [loadMessages, supabase]);
+  }, [supabase, loadMessages]);
 
   // Fonction pour ajouter un message de test
   const addTestMessage = async () => {
     try {
       const testMessage = {
-        content: `Message test créé à ${new Date().toLocaleTimeString()} - ${Date.now()} (Message2)`,
-        organization_id: null, // ou l'ID d'une organisation si nécessaire
+        content: `Message de test ${new Date().toLocaleString()}`,
+        organization_id: "00000000-0000-0000-0000-000000000000", // ID d'organisation de test
       };
 
-      const { data, error } = await supabase.from("messages").insert(testMessage).select().single();
+      const { error } = await supabase.from("messages").insert(testMessage);
 
       if (error) {
         console.error("❌ Erreur lors de l'ajout:", error);
         setError(error.message);
       } else {
-        console.log("✅ Message ajouté (Message2):", data);
+        console.log("✅ Message de test ajouté (Message2)");
+        setError(null);
       }
     } catch (err) {
-      console.error("❌ Erreur inattendue:", err);
+      console.error("❌ Erreur inattendue lors de l'ajout:", err);
       setError("Erreur lors de l'ajout du message");
     }
   };
@@ -191,9 +214,10 @@ export default function Message2Page() {
         setError(error.message);
       } else {
         console.log("✅ Message supprimé (Message2):", id);
+        setError(null);
       }
     } catch (err) {
-      console.error("❌ Erreur inattendue:", err);
+      console.error("❌ Erreur inattendue lors de la suppression:", err);
       setError("Erreur lors de la suppression du message");
     }
   };
@@ -255,15 +279,18 @@ export default function Message2Page() {
     {
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
-      cell: ({ row }) => <div className="text-sm">{new Date(row.getValue("created_at")).toLocaleString()}</div>,
+      cell: ({ row }) => {
+        const createdAt = row.getValue("created_at");
+        return <div className="text-sm">{createdAt ? new Date(createdAt).toLocaleString() : "-"}</div>;
+      },
       enableSorting: true,
     },
     {
       accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Modifié le" />,
       cell: ({ row }) => {
-        const updatedAt = row.getValue("updated_at") as string;
-        const createdAt = row.getValue("created_at") as string;
+        const updatedAt = row.getValue("updated_at");
+        const createdAt = row.getValue("created_at");
         return updatedAt && updatedAt !== createdAt ? (
           <div className="text-sm">{new Date(updatedAt).toLocaleString()}</div>
         ) : (
@@ -301,46 +328,16 @@ export default function Message2Page() {
   });
 
   if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Messages (Message2)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">Chargement...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <div className="container mx-auto p-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Messages Realtime (Message2) - Tableau avec Organisations</CardTitle>
-            <div className="flex gap-2">
-              <Badge variant={isConnected ? "default" : "destructive"}>
-                {isConnected ? "🟢 Connecté" : "🔴 Déconnecté"}
-              </Badge>
-              <Button onClick={addTestMessage} size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Ajouter un message
-              </Button>
-            </div>
-          </div>
+          <PageHeader isConnected={isConnected} addTestMessage={addTestMessage} />
         </CardHeader>
-        <CardContent>
-          {error && <div className="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700">{error}</div>}
-
-          <div className="rounded-md border">
-            <DataTable table={table} columns={columns} />
-          </div>
-
-          {messages.length === 0 && <div className="py-8 text-center text-gray-500">Aucun message trouvé</div>}
-        </CardContent>
+        <PageContent error={error} messages={messages} table={table} columns={columns} />
       </Card>
     </div>
   );

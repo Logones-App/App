@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
       role: user.app_metadata?.role ?? user.user_metadata?.role ?? null,
       permissions: user.app_metadata?.permissions ?? [],
       features: user.app_metadata?.features ?? [],
-      subscription_tier: user.app_metadata?.subscription_tier || "free",
-      access_level: user.app_metadata?.access_level || "user",
+      subscription_tier: user.app_metadata?.subscription_tier ?? "free",
+      access_level: user.app_metadata?.access_level ?? "user",
     }));
 
     return NextResponse.json({

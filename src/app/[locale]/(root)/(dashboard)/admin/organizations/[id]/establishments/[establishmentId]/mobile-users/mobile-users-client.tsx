@@ -1,7 +1,9 @@
 "use client";
 
 import React from "react";
+
 import { useParams } from "next/navigation";
+
 import { MobileUsersShared } from "@/app/[locale]/(root)/(dashboard)/_components/establishments/mobile-users/mobile-users-shared";
 
 export function MobileUsersClient() {

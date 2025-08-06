@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+
 import { RealtimePostgresChangesPayload, RealtimeChannel } from "@supabase/supabase-js";
+
 import { createClient } from "@/lib/supabase/client";
 
 // Type pour les horaires d'ouverture
@@ -93,4 +95,4 @@ export function useOpeningHoursRealtime(establishmentId: string) {
   }, [loadOpeningHours, supabase, establishmentId]);
 
   return { openingHours, loading, error, isConnected, setOpeningHours };
-} 
+}

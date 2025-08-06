@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/lib/supabase/database.types";
 
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
 
 type MobileUserInsert = Database["public"]["Tables"]["mobile_users"]["Insert"];
 type MobileUserUpdate = Database["public"]["Tables"]["mobile_users"]["Update"];
@@ -10,16 +10,12 @@ type MobileUserUpdate = Database["public"]["Tables"]["mobile_users"]["Update"];
 // Mutation pour créer un utilisateur mobile
 export function useCreateMobileUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (userData: MobileUserInsert) => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("mobile_users")
-        .insert(userData)
-        .select()
-        .single();
-      
+      const { data, error } = await supabase.from("mobile_users").insert(userData).select().single();
+
       if (error) throw error;
       return data;
     },
@@ -38,17 +34,12 @@ export function useCreateMobileUser() {
 // Mutation pour mettre à jour un utilisateur mobile
 export function useUpdateMobileUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: MobileUserUpdate }) => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("mobile_users")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-      
+      const { data, error } = await supabase.from("mobile_users").update(updates).eq("id", id).select().single();
+
       if (error) throw error;
       return data;
     },
@@ -68,15 +59,12 @@ export function useUpdateMobileUser() {
 // Mutation pour supprimer un utilisateur mobile
 export function useDeleteMobileUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("mobile_users")
-        .delete()
-        .eq("id", id);
-      
+      const { error } = await supabase.from("mobile_users").delete().eq("id", id);
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -89,4 +77,4 @@ export function useDeleteMobileUser() {
       console.error(error);
     },
   });
-} 
+}

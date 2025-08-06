@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 import type {
@@ -70,4 +71,4 @@ export function useProductsData(establishmentId: string, organizationId: string)
   });
 
   return { products, isLoading, error };
-} 
+}
