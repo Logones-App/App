@@ -13,8 +13,7 @@ export function MenuProductsList({ menuId }: MenuProductsListProps) {
 
   if (isLoading) return <Skeleton className="h-8 w-full" />;
   if (isError) return <p className="text-destructive text-xs">Erreur lors du chargement des produits du menu.</p>;
-  if (!products || products.length === 0)
-    return <p className="text-muted-foreground text-xs">Aucun produit dans ce menu.</p>;
+  if (!products?.length) return <p className="text-muted-foreground text-xs">Aucun produit dans ce menu.</p>;
 
   return (
     <div className="mt-2 space-y-2">
@@ -25,11 +24,7 @@ export function MenuProductsList({ menuId }: MenuProductsListProps) {
             {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
           </div>
           <div className="text-sm font-semibold">
-            {product.price != null ? (
-              product.price + " €"
-            ) : (
-              <span className="text-muted-foreground italic">(prix ?)</span>
-            )}
+            {product.price ? product.price + " €" : <span className="text-muted-foreground italic">(prix ?)</span>}
           </div>
         </div>
       ))}

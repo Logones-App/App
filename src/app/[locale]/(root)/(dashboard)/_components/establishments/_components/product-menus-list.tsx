@@ -3,11 +3,10 @@
 import type { Tables } from "@/lib/supabase/database.types";
 
 interface ProductMenusListProps {
-  productId: string;
   menus: Tables<"menus">[];
 }
 
-export function ProductMenusList({ productId, menus }: ProductMenusListProps) {
+export function ProductMenusList({ menus }: ProductMenusListProps) {
   // Pour l'instant, on affiche tous les menus car la relation products-menus n'est pas disponible
   const productMenus = menus;
 

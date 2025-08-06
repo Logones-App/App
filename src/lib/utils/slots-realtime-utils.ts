@@ -1,5 +1,3 @@
-import { format } from "date-fns";
-
 import { Tables } from "@/lib/supabase/database.types";
 
 export type BookingException = Tables<"booking_exceptions">;
@@ -17,131 +15,120 @@ export interface ServiceGroup {
   slots: TimeSlot[];
 }
 
-// Fonction pour vérifier une exception de type "period"
+// Fonction pour vérifier les exceptions de période
 export function checkPeriodException(exception: BookingException, date: string): boolean {
   if (!exception.start_date || !exception.end_date) return false;
-  return date >= exception.start_date && date <= exception.end_date;
+  const exceptionDate = new Date(date);
+  const startDate = new Date(exception.start_date);
+  const endDate = new Date(exception.end_date);
+  return exceptionDate >= startDate && exceptionDate <= endDate;
 }
 
-// Fonction pour vérifier une exception de type "single_day"
+// Fonction pour vérifier les exceptions de jour unique
 export function checkSingleDayException(exception: BookingException, date: string): boolean {
-  // Convertir la date reçue en Date object pour utiliser format()
-  const dateObj = new Date(date + "T00:00:00");
-  const formattedDate = format(dateObj, "yyyy-MM-dd");
-
-  return exception.date === formattedDate;
+  if (!exception.date) return false;
+  return exception.date === date;
 }
 
-// Fonction pour vérifier une exception de type "service"
+// Fonction pour vérifier les exceptions de service
 export function checkServiceException(exception: BookingException, slot: BookingSlot, date: string): boolean {
-  if (!exception.date || !exception.booking_slot_id) return false;
-  return date === exception.date && exception.booking_slot_id === slot.id;
+  if (!exception.booking_slot_id || slot.id !== exception.booking_slot_id) return false;
+  return checkPeriodException(exception, date) || checkSingleDayException(exception, date);
 }
 
-// Fonction pour vérifier une exception de type "time_slots"
+// Fonction pour vérifier si un créneau est fermé par une exception
 export function checkTimeSlotException(
   exception: BookingException,
   timeSlot: TimeSlot,
   slot: BookingSlot,
   date: string,
 ): boolean {
-  // Vérifier d'abord la date
-  if (!exception.date || exception.date !== date) {
+  // Vérifier si l'exception s'applique à ce slot
+  if (exception.booking_slot_id && exception.booking_slot_id !== slot.id) {
     return false;
   }
 
-  // Vérifier le booking_slot_id
-  if (exception.booking_slot_id !== slot.id) {
-    return false;
+  // Vérifier la date
+  const isDateAffected = checkPeriodException(exception, date) || checkSingleDayException(exception, date);
+  if (!isDateAffected) return false;
+
+  // Vérifier les créneaux fermés si spécifiés
+  if (exception.closed_slots && exception.closed_slots.length > 0) {
+    const slotTime = timeToSlot(timeSlot.time);
+    return exception.closed_slots.includes(slotTime);
   }
 
-  // Vérifier les créneaux fermés
-  const closedSlots = exception.closed_slots ?? [];
-  const slotIndex = timeToSlot(timeSlot.time);
-  const isClosed = closedSlots.includes(slotIndex);
-
-  return isClosed;
+  return true;
 }
 
-// Fonction pour convertir une heure en index de créneau
+// Fonction pour convertir une heure en numéro de créneau
 export function timeToSlot(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
-  return hours * 4 + Math.floor(minutes / 15);
+  return hours * 60 + minutes;
 }
 
-// Fonction pour convertir un index de créneau en heure
+// Fonction pour convertir un numéro de créneau en heure
 export function slotToTime(slot: number): string {
-  const hours = Math.floor(slot / 4);
-  const minutes = (slot % 4) * 15;
+  const hours = Math.floor(slot / 60);
+  const minutes = slot % 60;
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
-// Fonction pour vérifier si un créneau spécifique est fermé par une exception
+// Fonction pour vérifier si un créneau est fermé par une exception
 export function isTimeSlotClosedByException(
   timeSlot: TimeSlot,
   slot: BookingSlot,
   exceptions: BookingException[],
   date: string,
 ): boolean {
-  for (const exception of exceptions) {
-    let isClosed = false;
+  return exceptions.some((exception) => {
+    // Vérifier si l'exception n'est pas supprimée
+    if (exception.deleted) return false;
 
+    // Vérifier le type d'exception
     switch (exception.exception_type) {
       case "period":
-        isClosed = checkPeriodException(exception, date);
-        break;
+        return checkPeriodException(exception, date) && checkTimeSlotException(exception, timeSlot, slot, date);
       case "single_day":
-        isClosed = checkSingleDayException(exception, date);
-        break;
+        return checkSingleDayException(exception, date) && checkTimeSlotException(exception, timeSlot, slot, date);
       case "service":
-        isClosed = checkServiceException(exception, slot, date);
-        break;
+        return checkServiceException(exception, slot, date) && checkTimeSlotException(exception, timeSlot, slot, date);
       case "time_slots":
-        isClosed = checkTimeSlotException(exception, timeSlot, slot, date);
-        break;
+        return checkTimeSlotException(exception, timeSlot, slot, date);
+      default:
+        return false;
     }
-
-    if (isClosed) {
-      return true;
-    }
-  }
-
-  return false;
+  });
 }
 
-// Fonction pour générer les créneaux à partir d'un créneau de base de données
+// Fonction pour générer les créneaux à partir d'un slot de base de données
 export function generateSlotsFromDatabase(slot: BookingSlot): TimeSlot[] {
   const slots: TimeSlot[] = [];
-  const startTime = new Date(`2000-01-01T${slot.start_time}`);
-  const endTime = new Date(`2000-01-01T${slot.end_time}`);
+  const startTime = timeToSlot(slot.start_time);
+  const endTime = timeToSlot(slot.end_time);
+  const interval = 30; // Intervalle fixe de 30 minutes
 
-  const currentTime = new Date(startTime);
-  while (currentTime < endTime) {
-    const timeString = currentTime.toTimeString().slice(0, 5);
+  for (let time = startTime; time <= endTime - interval; time += interval) {
     slots.push({
-      time: timeString,
+      time: slotToTime(time),
       isAvailable: true,
-      maxCapacity: slot.max_capacity ?? 50,
+      maxCapacity: slot.max_capacity ?? 1,
       slotId: slot.id,
     });
-
-    // Incrémenter de 15 minutes
-    currentTime.setMinutes(currentTime.getMinutes() + 15);
   }
 
   return slots;
 }
 
-// Fonction pour filtrer les créneaux par jour de la semaine
+// Fonction pour filtrer les créneaux par jour
 function filterSlotsByDay(slots: BookingSlot[], date: string): BookingSlot[] {
-  // Forcer l'interprétation en timezone local pour éviter les décalages
-  const dayOfWeek = new Date(date + "T00:00:00").getDay();
+  const targetDate = new Date(date);
+  const dayOfWeek = targetDate.getDay();
 
-  const filteredSlots = slots.filter((slot) => {
+  return slots.filter((slot) => {
+    // Utiliser le jour de la semaine du slot
     return slot.day_of_week === dayOfWeek;
   });
-
-  return filteredSlots;
 }
 
 // Fonction pour traiter un slot et ses créneaux avec exceptions
@@ -170,7 +157,7 @@ export function groupSlotsByServiceRealtime(
 
   // Grouper par nom de service
   filteredSlots.forEach((slot) => {
-    const serviceName = slot.slot_name ?? "Service par défaut";
+    const serviceName = slot.slot_name || "Service par défaut";
 
     if (!(serviceName in serviceGroups)) {
       serviceGroups[serviceName] = {
@@ -216,7 +203,7 @@ export function calculateExceptionImpact(
 
     if (isAffected) {
       affectedSlots.push(slot);
-      const serviceName = slot.slot_name ?? "Service par défaut";
+      const serviceName = slot.slot_name || "Service par défaut";
       affectedServices.add(serviceName);
     }
   });
@@ -224,17 +211,5 @@ export function calculateExceptionImpact(
   return {
     affectedSlots: affectedSlots.length,
     affectedServices: Array.from(affectedServices),
-  };
-}
-
-// Fonction de debounce pour optimiser les performances
-export function debounce<T extends (...args: unknown[]) => unknown>(
-  func: T,
-  wait: number,
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
   };
 }
