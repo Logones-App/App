@@ -28,7 +28,17 @@ function getPageDescription(isAdmin: boolean, establishmentId: string): string {
     : `Gestion des utilisateurs de votre application mobile`;
 }
 
-function getStatsCards(mobileUsers: any[]) {
+type MobileUser = {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  is_active: boolean;
+};
+
+function getStatsCards(mobileUsers: MobileUser[]) {
   const totalUsers = mobileUsers.length;
   const activeUsers = mobileUsers.filter((user) => user.is_active).length;
   const inactiveUsers = mobileUsers.filter((user) => !user.is_active).length;
@@ -36,30 +46,73 @@ function getStatsCards(mobileUsers: any[]) {
   return { totalUsers, activeUsers, inactiveUsers };
 }
 
-export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: MobileUsersSharedProps) {
-  const { user } = useAuthStore();
-
-  // Queries
+function useMobileUsersData(establishmentId: string) {
   const { data: mobileUsers = [], isLoading, error } = useMobileUsers(establishmentId);
+  return { mobileUsers, isLoading, error };
+}
+
+function useMobileUsersMutations() {
+  const createUserMutation = useCreateMobileUser();
+  const updateUserMutation = useUpdateMobileUser();
+  const deleteUserMutation = useDeleteMobileUser();
+  return { createUserMutation, updateUserMutation, deleteUserMutation };
+}
+
+function useMobileUsersLogic(establishmentId: string, isAdmin: boolean) {
+  const { user } = useAuthStore();
+  const { mobileUsers, isLoading, error } = useMobileUsersData(establishmentId);
+  const { createUserMutation, updateUserMutation, deleteUserMutation } = useMobileUsersMutations();
 
   // Debug
   console.log("Establishment ID:", establishmentId);
   console.log("Mobile Users:", mobileUsers);
 
-  // Mutations
-  const createUserMutation = useCreateMobileUser();
-  const updateUserMutation = useUpdateMobileUser();
-  const deleteUserMutation = useDeleteMobileUser();
-
   // Vérification des permissions
   if (!user) {
-    return <div>Non autorisé</div>;
+    return { user: null, mobileUsers, isLoading, error, createUserMutation, updateUserMutation, deleteUserMutation };
   }
 
   // Logique différente selon le type d'accès
   const pageTitle = getPageTitle(isAdmin, establishmentId);
   const pageDescription = getPageDescription(isAdmin, establishmentId);
   const { totalUsers, activeUsers, inactiveUsers } = getStatsCards(mobileUsers);
+
+  return {
+    user,
+    mobileUsers,
+    isLoading,
+    error,
+    createUserMutation,
+    updateUserMutation,
+    deleteUserMutation,
+    pageTitle,
+    pageDescription,
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+  };
+}
+
+export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: MobileUsersSharedProps) {
+  const {
+    user,
+    mobileUsers,
+    isLoading,
+    error,
+    createUserMutation,
+    updateUserMutation,
+    deleteUserMutation,
+    pageTitle,
+    pageDescription,
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+  } = useMobileUsersLogic(establishmentId, isAdmin);
+
+  // Vérification des permissions
+  if (!user) {
+    return <div>Non autorisé</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -226,7 +279,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
                 <strong>Utilisateur actuel:</strong> {user.email}
               </p>
               <p>
-                <strong>Rôle utilisateur:</strong> {user?.user_metadata?.role || "Non défini"}
+                <strong>Rôle utilisateur:</strong> {user?.user_metadata?.role ?? "Non défini"}
               </p>
             </div>
           </CardContent>
