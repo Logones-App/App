@@ -15,7 +15,7 @@ export type ProductWithStock = Tables<"products"> & {
  * Organisation avec ses utilisateurs
  */
 export type OrganizationWithUsers = Tables<"organizations"> & {
-  users: Tables<"users">[];
+  mobile_users: Tables<"mobile_users">[];
 };
 
 /**

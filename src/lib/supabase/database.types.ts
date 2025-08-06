@@ -918,6 +918,72 @@ export type Database = {
           },
         ]
       }
+      mobile_users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          deleted: boolean | null
+          email: string | null
+          establishment_id: string
+          firstname: string
+          id: string
+          is_active: boolean | null
+          lastname: string
+          organization_id: string | null
+          password: string
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          establishment_id: string
+          firstname: string
+          id?: string
+          is_active?: boolean | null
+          lastname: string
+          organization_id?: string | null
+          password: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          establishment_id?: string
+          firstname?: string
+          id?: string
+          is_active?: boolean | null
+          lastname?: string
+          organization_id?: string | null
+          password?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opening_hours: {
         Row: {
           close_time: string
@@ -1827,72 +1893,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tables_connections_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      users: {
-        Row: {
-          avatar_url: string | null
-          created_at: string | null
-          deleted: boolean | null
-          email: string | null
-          establishment_id: string
-          firstname: string
-          id: string
-          is_active: boolean | null
-          lastname: string
-          organization_id: string | null
-          password: string
-          phone: string | null
-          role: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string | null
-          deleted?: boolean | null
-          email?: string | null
-          establishment_id: string
-          firstname: string
-          id?: string
-          is_active?: boolean | null
-          lastname: string
-          organization_id?: string | null
-          password: string
-          phone?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string | null
-          deleted?: boolean | null
-          email?: string | null
-          establishment_id?: string
-          firstname?: string
-          id?: string
-          is_active?: boolean | null
-          lastname?: string
-          organization_id?: string | null
-          password?: string
-          phone?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "users_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "users_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
