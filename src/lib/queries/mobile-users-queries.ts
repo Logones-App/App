@@ -1,39 +1,56 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
 
-// Query pour récupérer tous les utilisateurs mobile d'un établissement
-export function useMobileUsers(establishmentId: string) {
+type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+
+// Hook pour récupérer tous les mobile users d'un établissement
+export function useEstablishmentMobileUsers(establishmentId: string) {
+  const supabase = createClient();
+
   return useQuery({
-    queryKey: ["mobile-users", establishmentId],
-    queryFn: async () => {
-      const supabase = createClient();
+    queryKey: ["mobile-users", "establishment", establishmentId],
+    queryFn: async (): Promise<MobileUser[]> => {
       const { data, error } = await supabase
         .from("mobile_users")
         .select("*")
         .eq("establishment_id", establishmentId)
-        .eq("deleted", false) // Exclure les utilisateurs supprimés
+        .eq("deleted", false)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      console.log("Mobile users data:", data); // Debug
-      return data;
+      if (error) {
+        throw new Error(`Erreur lors de la récupération des utilisateurs mobile: ${error.message}`);
+      }
+
+      return data || [];
     },
     enabled: !!establishmentId,
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-// Query pour récupérer un utilisateur mobile spécifique
-export function useMobileUser(id: string) {
-  return useQuery({
-    queryKey: ["mobile-user", id],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase.from("mobile_users").select("*").eq("id", id).single();
+// Hook pour récupérer un mobile user spécifique
+export function useMobileUser(userId: string) {
+  const supabase = createClient();
 
-      if (error) throw error;
+  return useQuery({
+    queryKey: ["mobile-users", userId],
+    queryFn: async (): Promise<MobileUser | null> => {
+      const { data, error } = await supabase
+        .from("mobile_users")
+        .select("*")
+        .eq("id", userId)
+        .eq("deleted", false)
+        .single();
+
+      if (error) {
+        throw new Error(`Erreur lors de la récupération de l'utilisateur mobile: ${error.message}`);
+      }
+
       return data;
     },
-    enabled: !!id,
+    enabled: !!userId,
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 }

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCreateMobileUser, useUpdateMobileUser, useDeleteMobileUser } from "@/lib/queries/mobile-users-mutations";
-import { useMobileUsers } from "@/lib/queries/mobile-users-queries";
+import { useEstablishmentMobileUsers } from "@/lib/queries/mobile-users-queries";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -35,7 +35,7 @@ type MobileUserFormData = {
 
 export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: MobileUsersSharedProps) {
   const { user } = useAuthStore();
-  const { data: mobileUsers = [], isLoading, error } = useMobileUsers(establishmentId);
+  const { data: mobileUsers = [], isLoading, error } = useEstablishmentMobileUsers(establishmentId);
   const createUserMutation = useCreateMobileUser();
   const updateUserMutation = useUpdateMobileUser();
   const deleteUserMutation = useDeleteMobileUser();
