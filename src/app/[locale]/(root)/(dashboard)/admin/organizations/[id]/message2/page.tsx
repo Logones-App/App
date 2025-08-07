@@ -205,7 +205,11 @@ export default function Message2Page() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Créé le" />,
       cell: ({ row }) => {
         const createdAt = row.getValue("created_at");
-        return <div className="text-sm">{createdAt ? new Date(createdAt).toLocaleString() : "-"}</div>;
+        return (
+          <div className="text-sm">
+            {createdAt && typeof createdAt === "string" ? new Date(createdAt).toLocaleString() : "-"}
+          </div>
+        );
       },
       enableSorting: true,
     },
@@ -215,7 +219,7 @@ export default function Message2Page() {
       cell: ({ row }) => {
         const updatedAt = row.getValue("updated_at");
         const createdAt = row.getValue("created_at");
-        return updatedAt && updatedAt !== createdAt ? (
+        return updatedAt && typeof updatedAt === "string" && updatedAt !== createdAt ? (
           <div className="text-sm">{new Date(updatedAt).toLocaleString()}</div>
         ) : (
           <span className="text-muted-foreground">-</span>
