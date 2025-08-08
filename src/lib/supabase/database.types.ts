@@ -442,6 +442,53 @@ export type Database = {
           },
         ]
       }
+      devices: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          device_id: string
+          device_type: string
+          establishment_id: string | null
+          id: string
+          last_seen: string | null
+          name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          device_id: string
+          device_type?: string
+          establishment_id?: string | null
+          id?: string
+          last_seen?: string | null
+          name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          device_id?: string
+          device_type?: string
+          establishment_id?: string | null
+          id?: string
+          last_seen?: string | null
+          name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           booking_id: string | null
