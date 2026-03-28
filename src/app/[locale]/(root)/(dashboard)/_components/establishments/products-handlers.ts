@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import type { ProductWithStock } from "@/lib/types/database-extensions";
 
-import type { Product, ProductStock } from "./_components";
+import type { Product } from "./_components";
 
 // Hook pour les fonctions de gestion des produits
 export function useProductsHandlers() {
@@ -18,6 +18,7 @@ export function useProductsHandlers() {
 
   // États pour les formulaires
   const [addForm, setAddForm] = useState({
+    category_id: "",
     name: "",
     description: "",
     price: 0,

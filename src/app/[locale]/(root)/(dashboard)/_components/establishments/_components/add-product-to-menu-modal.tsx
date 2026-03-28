@@ -9,15 +9,23 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstablishmentProductsNotInMenus } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
+import type { Tables } from "@/lib/supabase/database.types";
 
 interface AddProductToMenuModalProps {
   menuId: string;
+  establishmentId: string;
   organizationId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AddProductToMenuModal({ menuId, organizationId, open, onOpenChange }: AddProductToMenuModalProps) {
+export function AddProductToMenuModal({
+  menuId,
+  establishmentId,
+  organizationId,
+  open,
+  onOpenChange,
+}: AddProductToMenuModalProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const queryClient = useQueryClient();
 
@@ -27,6 +35,7 @@ export function AddProductToMenuModal({ menuId, organizationId, open, onOpenChan
     mutationFn: async (productId: string) => {
       const supabase = createClient();
       const { error } = await supabase.from("menus_products").insert({
+        establishment_id: establishmentId,
         menus_id: menuId,
         products_id: productId,
         organization_id: organizationId,
@@ -67,7 +76,7 @@ export function AddProductToMenuModal({ menuId, organizationId, open, onOpenChan
                     Chargement...
                   </SelectItem>
                 ) : availableProducts && availableProducts.length > 0 ? (
-                  availableProducts.map((product: any) => (
+                  availableProducts.map((product: Tables<"products">) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name}
                     </SelectItem>

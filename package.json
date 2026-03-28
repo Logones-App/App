@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "update-types": "npx supabase gen types typescript --project-id vhjaiftoxttkygixepkw > src\\lib\\supabase\\database.types.ts"
+    "update-types-remote": "npx supabase gen types typescript --project-id vhjaiftoxttkygixepkw --schema public > src\\lib\\supabase\\database.types.ts"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

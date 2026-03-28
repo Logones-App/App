@@ -4,6 +4,7 @@ import Image from "next/image";
 
 import { useMutation } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import {
   AlertDialog,
@@ -17,26 +18,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Tables } from "@/lib/supabase/database.types";
 
-import { BackToEstablishmentButton } from "../back-to-establishment-button";
-
-import { AddProductToMenuModal } from "./add-product-to-menu-modal";
 import { MenuFormModal } from "./menu-form-modal";
-import { MenuProductsTable } from "./menu-products-table";
+import { MenuProductsGridPanel } from "./menu-products-grid-panel";
 import { MenuSchedulesList } from "./menu-schedules-list";
 
 interface MenuCardProps {
-  activeMenu: Tables<"menus">;
+  menu: Tables<"menus">;
   organizationId: string;
   deleteMenuId: string | null;
   setEditMenu: (menu: Tables<"menus"> | null) => void;
   setDeleteMenuId: (id: string | null) => void;
-  deleteMenuMutation: any;
+  deleteMenuMutation: ReturnType<typeof useMutation>;
 }
 
 function MenuCard({
-  activeMenu,
+  menu,
   organizationId,
   deleteMenuId,
   setEditMenu,
@@ -48,41 +47,36 @@ function MenuCard({
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            {activeMenu.image_url && (
+            {menu.image_url && (
               <Image
-                src={activeMenu.image_url}
-                alt={activeMenu.name ?? "Menu"}
+                src={menu.image_url}
+                alt={menu.name ?? "Menu"}
                 width={32}
                 height={32}
                 className="h-8 w-8 rounded object-cover"
               />
             )}
-            <span>{activeMenu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}</span>
+            <span>{menu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}</span>
           </CardTitle>
-          <div className="text-muted-foreground mt-1 text-sm">{activeMenu.description}</div>
+          <div className="text-muted-foreground mt-1 text-sm">{menu.description}</div>
           <div className="mt-2 flex gap-2 text-xs">
-            {activeMenu.type && <span className="bg-muted rounded px-2 py-0.5">Type : {activeMenu.type}</span>}
-            {activeMenu.is_active && <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Actif</span>}
-            {activeMenu.is_public && <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">Public</span>}
-            {typeof activeMenu.display_order === "number" && (
-              <span className="bg-muted rounded px-2 py-0.5">Ordre : {activeMenu.display_order}</span>
+            {menu.type && <span className="bg-muted rounded px-2 py-0.5">Type : {menu.type}</span>}
+            {menu.is_active && <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Actif</span>}
+            {menu.is_public && <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">Public</span>}
+            {typeof menu.display_order === "number" && (
+              <span className="bg-muted rounded px-2 py-0.5">Ordre : {menu.display_order}</span>
             )}
             <span className="bg-muted rounded px-2 py-0.5">Carte permanente</span>
           </div>
-          <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
+          <MenuSchedulesList menuId={menu.id} organizationId={organizationId} />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" title="Éditer le menu" onClick={() => setEditMenu(activeMenu)}>
+          <Button variant="outline" size="icon" title="Éditer le menu" onClick={() => setEditMenu(menu)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <AlertDialog open={deleteMenuId === activeMenu.id} onOpenChange={(open) => !open && setDeleteMenuId(null)}>
+          <AlertDialog open={deleteMenuId === menu.id} onOpenChange={(open) => !open && setDeleteMenuId(null)}>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="icon"
-                title="Supprimer"
-                onClick={() => setDeleteMenuId(activeMenu.id)}
-              >
+              <Button variant="destructive" size="icon" title="Supprimer" onClick={() => setDeleteMenuId(menu.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
@@ -93,9 +87,7 @@ function MenuCard({
               <div>Cette action est irréversible. Tous les liens avec les produits seront supprimés.</div>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteMenuMutation.mutate(activeMenu.id)}>
-                  Supprimer
-                </AlertDialogAction>
+                <AlertDialogAction onClick={() => deleteMenuMutation.mutate(menu.id)}>Supprimer</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -117,7 +109,6 @@ interface MenusDisplayProps {
   setEditMenu: (menu: Tables<"menus"> | null) => void;
   deleteMenuId: string | null;
   setDeleteMenuId: (id: string | null) => void;
-  activeMenu: Tables<"menus"> | undefined;
   addMenuMutation: ReturnType<typeof useMutation>;
   editMenuMutation: ReturnType<typeof useMutation>;
   deleteMenuMutation: ReturnType<typeof useMutation>;
@@ -135,38 +126,14 @@ export function MenusDisplay({
   setEditMenu,
   deleteMenuId,
   setDeleteMenuId,
-  activeMenu,
   addMenuMutation,
   editMenuMutation,
   deleteMenuMutation,
 }: MenusDisplayProps) {
+  const t = useTranslations("establishments.menus_page");
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <BackToEstablishmentButton establishmentId={establishmentId} organizationId={organizationId} />
-        <Button variant="default" size="sm" className="ml-auto" onClick={() => setShowMenuForm(true)}>
-          + Ajouter un menu
-        </Button>
-      </div>
-
-      {/* Tabs pour chaque menu */}
-      <div className="mb-4 flex gap-2 border-b pb-2">
-        {menus?.map((menu) => (
-          <button
-            key={menu.id}
-            className={`border-b-2 px-4 py-2 font-medium transition-colors ${
-              activeMenuId === menu.id
-                ? "border-primary text-primary"
-                : "text-muted-foreground hover:text-primary border-transparent"
-            }`}
-            onClick={() => setActiveMenuId(menu.id)}
-            type="button"
-          >
-            {menu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}
-          </button>
-        ))}
-      </div>
-
       <MenuFormModal open={showMenuForm} onOpenChange={setShowMenuForm} onSubmit={addMenuMutation.mutate} />
       <MenuFormModal
         open={!!editMenu}
@@ -177,28 +144,47 @@ export function MenusDisplay({
         initialValues={editMenu}
       />
 
-      {/* Card infos menu + actions */}
-      {activeMenu && (
-        <MenuCard
-          activeMenu={activeMenu}
-          organizationId={organizationId}
-          deleteMenuId={deleteMenuId}
-          setEditMenu={setEditMenu}
-          setDeleteMenuId={setDeleteMenuId}
-          deleteMenuMutation={deleteMenuMutation}
-        />
+      {!menus?.length ? (
+        <p className="text-muted-foreground text-sm">{t("no_menus")}</p>
+      ) : (
+        <Tabs value={activeMenuId ?? menus[0]?.id} onValueChange={(v) => setActiveMenuId(v)} className="w-full">
+          <TabsList className="bg-muted/40 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
+            {menus.map((menu) => (
+              <TabsTrigger key={menu.id} value={menu.id} className="max-w-[220px] truncate">
+                {menu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {menus.map((menu) => (
+            <TabsContent key={menu.id} value={menu.id} className="mt-6 space-y-4 focus-visible:outline-none">
+              <Tabs defaultValue="properties" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="properties">{t("tab_properties")}</TabsTrigger>
+                  <TabsTrigger value="products">{t("tab_products")}</TabsTrigger>
+                </TabsList>
+                <TabsContent value="properties" className="mt-4 space-y-4">
+                  <MenuCard
+                    menu={menu}
+                    organizationId={organizationId}
+                    deleteMenuId={deleteMenuId}
+                    setEditMenu={setEditMenu}
+                    setDeleteMenuId={setDeleteMenuId}
+                    deleteMenuMutation={deleteMenuMutation}
+                  />
+                </TabsContent>
+                <TabsContent value="products" className="mt-4">
+                  <MenuProductsGridPanel
+                    menuId={menu.id}
+                    establishmentId={establishmentId}
+                    organizationId={organizationId}
+                  />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
-
-      {/* Tableau des produits du menu */}
-      {activeMenuId && <MenuProductsTable menuId={activeMenuId} onAddProduct={() => setShowMenuForm(true)} />}
-
-      {/* Modale d'association produit/menu */}
-      <AddProductToMenuModal
-        menuId={activeMenuId!}
-        organizationId={organizationId}
-        open={showMenuForm}
-        onOpenChange={setShowMenuForm}
-      />
     </div>
   );
 }

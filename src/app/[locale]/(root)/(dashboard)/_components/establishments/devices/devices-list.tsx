@@ -4,7 +4,7 @@ import { Edit, Trash2, Plus, Smartphone, Tablet, Monitor, Wrench } from "lucide-
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Device = Database["public"]["Tables"]["devices"]["Row"];
@@ -32,8 +32,8 @@ export function DevicesList({
   isUpdateLoading,
   isDeleteLoading,
 }: DevicesListProps) {
-  const getDeviceIcon = (deviceType: string) => {
-    switch (deviceType) {
+  const getDeviceIcon = (deviceRole: string) => {
+    switch (deviceRole) {
       case "phone":
         return <Smartphone className="h-4 w-4" />;
       case "tablet":
@@ -98,8 +98,8 @@ export function DevicesList({
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {getDeviceIcon(device.device_type)}
-                <CardTitle className="text-lg">{device.name}</CardTitle>
+                {getDeviceIcon(device.device_role)}
+                <CardTitle className="text-lg">{device.serial_number}</CardTitle>
               </div>
               <div className="flex items-center space-x-2">
                 {getStatusBadge(device.status)}
@@ -115,17 +115,21 @@ export function DevicesList({
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm font-medium">ID Device:</span>
-                <span className="text-muted-foreground text-sm">{device.device_id}</span>
+                <span className="text-sm font-medium">Rôle:</span>
+                <span className="text-muted-foreground text-sm capitalize">{device.device_role}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Type:</span>
-                <span className="text-muted-foreground text-sm capitalize">{device.device_type}</span>
+                <span className="text-sm font-medium">Fabricant:</span>
+                <span className="text-muted-foreground text-sm">{device.manufacturer ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Dernière activité:</span>
+                <span className="text-sm font-medium">Modèle:</span>
+                <span className="text-muted-foreground text-sm">{device.model ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Dernière synchro:</span>
                 <span className="text-muted-foreground text-sm">
-                  {device.last_seen ? new Date(device.last_seen).toLocaleString("fr-FR") : "Jamais"}
+                  {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString("fr-FR") : "Jamais"}
                 </span>
               </div>
               <div className="flex justify-between">

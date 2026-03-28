@@ -9,24 +9,26 @@ type Device = Database["public"]["Tables"]["devices"]["Row"];
 
 export function useDeviceForm(initialData?: Device) {
   const [formData, setFormData] = useState<DeviceFormData>({
-    name: "",
-    device_id: "",
     establishment_id: "",
-    device_type: "tablet",
+    serial_number: "",
+    device_role: "tablet",
     status: "active",
-    last_seen: "",
+    manufacturer: "",
+    model: "",
+    port_attribue: undefined,
   });
 
   // ✅ NOUVEAU PATTERN : useEffect avec dépendance sur initialData
   useEffect(() => {
     if (initialData) {
       setFormData({
-        name: initialData.name ?? "",
-        device_id: initialData.device_id ?? "",
-        establishment_id: initialData.establishment_id ?? "",
-        device_type: initialData.device_type ?? "tablet",
-        status: initialData.status ?? "active",
-        last_seen: initialData.last_seen ?? "",
+        establishment_id: initialData.establishment_id,
+        serial_number: initialData.serial_number,
+        device_role: initialData.device_role,
+        status: initialData.status,
+        manufacturer: initialData.manufacturer ?? "",
+        model: initialData.model ?? "",
+        port_attribue: initialData.port_attribue ?? undefined,
       });
     }
   }, [initialData]);

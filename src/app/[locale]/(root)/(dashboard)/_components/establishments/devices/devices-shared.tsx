@@ -36,7 +36,6 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
 
   // Handlers extraits dans un hook personnalisé
   const { handleCreateDevice, handleUpdateDevice, handleDeleteDevice, openEditModal } = useDeviceHandlers({
-    user,
     establishmentId,
     createDeviceMutation,
     updateDeviceMutation,

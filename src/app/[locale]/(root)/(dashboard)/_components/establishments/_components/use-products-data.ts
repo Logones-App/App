@@ -24,6 +24,7 @@ export function useProductsData(establishmentId: string, organizationId: string)
     isLoading,
     error,
   } = useQuery({
+    // TODO(refetch): voir products-mutations.ts — invalidations pas encore alignées sur cette clé.
     queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
     queryFn: async () => {
       const supabase = createClient();
@@ -47,7 +48,7 @@ export function useProductsData(establishmentId: string, organizationId: string)
       if (error) throw error;
 
       // Transformer les données pour correspondre au type ProductWithStock
-      return ((data as ProductStockJoin[]) || []).map((item) => ({
+      return ((data ?? []) as ProductStockJoin[]).map((item) => ({
         ...item.product,
         stock: {
           id: item.id,

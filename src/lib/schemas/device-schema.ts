@@ -1,12 +1,17 @@
 import { z } from "zod";
 
 export const deviceSchema = z.object({
-  name: z.string().min(1, "Le nom du device est requis"),
-  device_id: z.string().min(1, "L'ID du device est requis"),
   establishment_id: z.string().uuid("ID établissement invalide"),
-  device_type: z.string().default("tablet"),
+  serial_number: z.string().min(1, "Le numéro de série est requis"),
+  device_role: z.string().min(1, "Le rôle du device est requis").default("tablet"),
   status: z.string().default("active"),
-  last_seen: z.string().optional(),
+  manufacturer: z.string().optional(),
+  model: z.string().optional(),
+  port_attribue: z
+    .union([z.number(), z.string()])
+    .optional()
+    .transform((v) => (typeof v === "string" && v.trim() !== "" ? Number(v) : typeof v === "number" ? v : undefined))
+    .refine((v) => v === undefined || Number.isFinite(v), "Port invalide"),
 });
 
 export type DeviceFormData = z.infer<typeof deviceSchema>;

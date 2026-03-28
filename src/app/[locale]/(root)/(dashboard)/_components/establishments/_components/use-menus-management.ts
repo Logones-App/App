@@ -26,7 +26,7 @@ export function useMenusManagement({ establishmentId, organizationId, menus }: U
       const { error } = await supabase.from("menus").insert({
         ...values,
         organization_id: organizationId,
-        establishments_id: establishmentId,
+        establishment_id: establishmentId,
         deleted: false,
       });
       if (error) throw error;

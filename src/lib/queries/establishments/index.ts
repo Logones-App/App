@@ -11,8 +11,15 @@ export {
   useOrganizationProducts,
   useEstablishmentStocks,
   useEstablishmentProductsWithStocks,
+  useOrganizationCategories,
+} from "../establishments-related-queries";
+
+export {
   useEstablishmentMenus,
   useMenuProducts,
   useEstablishmentProductsNotInMenus,
   useEstablishmentMenusWithSchedules,
-} from "../establishments-related-queries";
+  useMenuCategoryGridItems,
+  useMenuPaletteCatalog,
+  type MenuPaletteCategory,
+} from "../establishments-menu-queries";

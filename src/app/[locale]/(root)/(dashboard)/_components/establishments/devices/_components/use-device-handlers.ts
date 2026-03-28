@@ -11,7 +11,6 @@ type CreateDevicePayload = Database["public"]["Tables"]["devices"]["Insert"];
 type UpdateDevicePayload = Database["public"]["Tables"]["devices"]["Update"];
 
 interface UseDeviceHandlersProps {
-  user: { id: string; email?: string } | null;
   establishmentId: string;
   createDeviceMutation: UseMutationResult<Device, Error, CreateDevicePayload>;
   updateDeviceMutation: UseMutationResult<Device, Error, { id: string; updates: UpdateDevicePayload }>;
@@ -22,7 +21,6 @@ interface UseDeviceHandlersProps {
 }
 
 export function useDeviceHandlers({
-  user,
   establishmentId,
   createDeviceMutation,
   updateDeviceMutation,
@@ -33,12 +31,13 @@ export function useDeviceHandlers({
 }: UseDeviceHandlersProps) {
   const handleCreateDevice = (formData: DeviceFormData) => {
     const deviceData = {
-      name: formData.name,
-      device_id: formData.device_id,
       establishment_id: establishmentId,
-      device_type: formData.device_type,
+      serial_number: formData.serial_number,
+      device_role: formData.device_role,
       status: formData.status,
-      last_seen: formData.last_seen ?? null,
+      manufacturer: formData.manufacturer ?? null,
+      model: formData.model ?? null,
+      port_attribue: formData.port_attribue ?? null,
     };
 
     createDeviceMutation.mutate(deviceData, {
@@ -56,11 +55,12 @@ export function useDeviceHandlers({
     if (!formData.id) return;
 
     const updateData = {
-      name: formData.name,
-      device_id: formData.device_id,
-      device_type: formData.device_type,
+      serial_number: formData.serial_number,
+      device_role: formData.device_role,
       status: formData.status,
-      last_seen: formData.last_seen ?? null,
+      manufacturer: formData.manufacturer ?? null,
+      model: formData.model ?? null,
+      port_attribue: formData.port_attribue ?? null,
     };
 
     updateDeviceMutation.mutate(

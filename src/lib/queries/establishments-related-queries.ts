@@ -1,6 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
+
+type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
+type ProductStockRow = Database["public"]["Tables"]["product_stocks"]["Row"];
+
+/**
+ * Catalogue catégories d’une organisation — requête directe sur `categories`.
+ * (Même filtre RLS `categories_select_universal` : `organization_id` ∈ orgs de l’utilisateur.)
+ */
+export const useOrganizationCategories = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["organization-categories", organizationId],
+    queryFn: async (): Promise<CategoryRow[]> => {
+      if (!organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as CategoryRow[];
+    },
+    enabled: !!organizationId,
+  });
+};
 
 // Query pour récupérer les horaires d'ouverture d'un établissement
 export const useEstablishmentOpeningHours = (establishmentId?: string) => {
@@ -107,20 +134,33 @@ export const useEstablishmentProductsWithStocks = (establishmentId?: string, org
       const supabase = createClient();
 
       // Récupérer les stocks pour cet établissement spécifique
-      const { data: stocks, error: stocksError } = await supabase
+      const { data: stocksRaw, error: stocksError } = await supabase
         .from("product_stocks")
-        .select("*")
+        .select(
+          `
+          *,
+          product_compositions ( main_product_id )
+        `,
+        )
         .eq("establishment_id", establishmentId)
         .eq("organization_id", organizationId)
         .eq("deleted", false);
 
       if (stocksError) throw stocksError;
 
-      // Récupérer seulement les produits qui ont un stock associé
-      const productIds = stocks.map((stock) => stock.product_id);
+      type StockWithComposition = ProductStockRow & {
+        product_compositions: { main_product_id: string } | null;
+      };
+      const stocks = (stocksRaw ?? []) as StockWithComposition[];
+
+      const productIds = [
+        ...new Set(
+          stocks.map((s) => s.product_compositions?.main_product_id).filter((id): id is string => Boolean(id)),
+        ),
+      ];
 
       if (productIds.length === 0) {
-        return []; // Aucun produit associé
+        return [];
       }
 
       const { data: products, error: productsError } = await supabase
@@ -132,15 +172,15 @@ export const useEstablishmentProductsWithStocks = (establishmentId?: string, org
 
       if (productsError) throw productsError;
 
-      // Combiner les produits avec leurs stocks
-      const productsWithStocks = products.map((product) => {
-        const stock = stocks.find((s) => s.product_id === product.id);
+      const productsWithStocks = (products ?? []).map((product) => {
+        const stock = stocks.find((s) => s.product_compositions?.main_product_id === product.id);
         return {
           ...product,
           stock: stock
             ? {
                 id: stock.id,
-                product_id: stock.product_id,
+                product_id: product.id,
+                product_composition_id: stock.product_composition_id,
                 establishment_id: stock.establishment_id,
                 organization_id: stock.organization_id,
                 current_stock: stock.current_stock,
@@ -160,147 +200,6 @@ export const useEstablishmentProductsWithStocks = (establishmentId?: string, org
       });
 
       return productsWithStocks;
-    },
-    enabled: !!establishmentId && !!organizationId,
-  });
-};
-
-// Query pour récupérer les menus d'un établissement
-export const useEstablishmentMenus = (establishmentId?: string, organizationId?: string) => {
-  return useQuery({
-    queryKey: ["establishment-menus", establishmentId, organizationId],
-    queryFn: async () => {
-      if (!establishmentId || !organizationId) return [];
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("menus")
-        .select("*")
-        .eq("establishments_id", establishmentId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .order("display_order", { ascending: true });
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!establishmentId && !!organizationId,
-  });
-};
-
-// Query pour récupérer les produits d'un menu (avec prix spécifique)
-export const useMenuProducts = (menuId?: string) => {
-  return useQuery({
-    queryKey: ["menu-products", menuId],
-    queryFn: async () => {
-      if (!menuId) return [];
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("menus_products")
-        .select(
-          `
-          *,
-          product:products(*)
-        `,
-        )
-        .eq("menus_id", menuId)
-        .eq("deleted", false);
-      if (error) throw error;
-      // On retourne les infos du produit + le prix spécifique au menu
-      return (data ?? []).map((row: any) => ({
-        ...row.product,
-        menu_price: row.price,
-        menus_products_id: row.id,
-      }));
-    },
-    enabled: !!menuId,
-  });
-};
-
-// Query pour récupérer les produits en stock dans l'établissement mais non associés à un menu
-export const useEstablishmentProductsNotInMenus = (establishmentId?: string, organizationId?: string) => {
-  return useQuery({
-    queryKey: ["establishment-products-not-in-menus", establishmentId, organizationId],
-    queryFn: async () => {
-      if (!establishmentId || !organizationId) return [];
-      const supabase = createClient();
-      // Récupérer tous les produits en stock dans l'établissement
-      const { data: stocks, error: stocksError } = await supabase
-        .from("product_stocks")
-        .select("* , product:products(*)")
-        .eq("establishment_id", establishmentId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .eq("product.deleted", false);
-      if (stocksError) throw stocksError;
-      // Récupérer tous les menus de l'établissement
-      const { data: menus, error: menusError } = await supabase
-        .from("menus")
-        .select("id")
-        .eq("establishments_id", establishmentId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false);
-      if (menusError) throw menusError;
-      const menuIds = (menus ?? []).map((m: any) => m.id);
-      // Récupérer tous les produits associés à un menu
-      let productsInMenus: string[] = [];
-      if (menuIds.length > 0) {
-        const { data: menusProducts, error: mpError } = await supabase
-          .from("menus_products")
-          .select("products_id")
-          .in("menus_id", menuIds)
-          .eq("deleted", false);
-        if (mpError) throw mpError;
-        productsInMenus = (menusProducts ?? []).map((mp: any) => mp.products_id);
-      }
-      // Retourner les produits en stock qui ne sont dans aucun menu
-      return (stocks ?? [])
-        .filter((s: any) => s.product && !productsInMenus.includes(s.product_id))
-        .map((s: any) => ({ ...s.product, stock: s }));
-    },
-    enabled: !!establishmentId && !!organizationId,
-  });
-};
-
-// Query pour récupérer les menus avec leurs plannings
-export const useEstablishmentMenusWithSchedules = (establishmentId?: string, organizationId?: string) => {
-  return useQuery({
-    queryKey: ["establishment-menus-with-schedules", establishmentId, organizationId],
-    queryFn: async () => {
-      if (!establishmentId || !organizationId) return [];
-      const supabase = createClient();
-
-      // Récupérer les menus
-      const { data: menus, error: menusError } = await supabase
-        .from("menus")
-        .select("*")
-        .eq("establishments_id", establishmentId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .order("display_order", { ascending: true });
-
-      if (menusError) throw menusError;
-
-      // Récupérer les plannings pour tous les menus
-      const menuIds = (menus ?? []).map((m: any) => m.id);
-      let schedules: any[] = [];
-
-      if (menuIds.length > 0) {
-        const { data: schedulesData, error: schedulesError } = await supabase
-          .from("menu_schedules")
-          .select("*")
-          .in("menu_id", menuIds)
-          .eq("deleted", false);
-
-        if (schedulesError) throw schedulesError;
-        schedules = schedulesData ?? [];
-      }
-
-      // Associer les plannings aux menus
-      const result = (menus ?? []).map((menu: any) => ({
-        ...menu,
-        schedules: schedules.filter((s: any) => s.menu_id === menu.id),
-      }));
-
-      return result;
     },
     enabled: !!establishmentId && !!organizationId,
   });

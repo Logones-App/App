@@ -11,6 +11,10 @@ import type { Product, ProductStock } from "./_components";
 export function useProductsMutations(establishmentId: string) {
   const queryClient = useQueryClient();
 
+  // TODO(refetch): les invalidations utilisent ["products", establishmentId] alors que useProductsData
+  // utilise ["establishment-products-with-stocks", establishmentId, organizationId]. À harmoniser
+  // (et passer organizationId ici si besoin) quand le module produits sera aligné sur le schéma — peut attendre.
+
   // Mutation pour ajouter un produit
   const addProductMutation = useMutation({
     mutationFn: async (productData: CreateProductPayload) => {

@@ -40,12 +40,13 @@ export function createHandlerFunctions({
   setErrorMsg,
 }: HandlerFunctionsProps) {
   const handleAdd = () => {
-    if (!addForm.name || addForm.price <= 0) {
+    if (!addForm.category_id || !addForm.name || addForm.price <= 0) {
       setErrorMsg("Veuillez remplir tous les champs obligatoires");
       return;
     }
 
     const productData: CreateProductPayload = {
+      category_id: addForm.category_id,
       name: addForm.name,
       description: addForm.description,
       price: addForm.price,
@@ -58,6 +59,7 @@ export function createHandlerFunctions({
       onSuccess: () => {
         setShowAddForm(false);
         setAddForm({
+          category_id: "",
           name: "",
           description: "",
           price: 0,

@@ -1,88 +1,69 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
+import { MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrganizationEstablishments } from "@/lib/queries/establishments";
 
 export function EstablishmentsShared({ organizationId }: { organizationId: string }) {
   const t = useTranslations("establishments");
   const { data: establishments = [], isLoading, error } = useOrganizationEstablishments(organizationId);
   const pathname = usePathname();
-  const params = useParams();
 
-  // Détecter le contexte (system_admin ou org_admin) selon l'URL courante
   const isSystemAdmin = pathname.includes("/admin/organizations/");
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("title")}</h1>
-        <button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2">
-          {t("new_establishment")}
-        </button>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("description")}</p>
+        </div>
+        <Button type="button">{t("new_establishment")}</Button>
       </div>
-      <div className="bg-card text-card-foreground rounded-lg border p-6 shadow-sm">
-        {isLoading ? (
-          <p className="text-muted-foreground">{t("loading", { ns: "loading" })}</p>
-        ) : error ? (
-          <p className="text-destructive">
-            {t("error_loading", { default: "Erreur lors du chargement des établissements" })}
-          </p>
-        ) : establishments.length === 0 ? (
-          <p className="text-muted-foreground">{t("empty.description")}</p>
-        ) : (
-          <ul className="divide-border divide-y">
-            {establishments.map((establishment) => {
-              // Générer le bon lien selon le contexte
-              const detailHref = isSystemAdmin
-                ? `/admin/organizations/${organizationId}/establishments/${establishment.id}`
-                : `/dashboard/establishments/${establishment.id}`;
-              return (
-                <li
-                  key={establishment.id}
-                  className="flex flex-col gap-2 py-4 md:flex-row md:items-center md:justify-between"
-                >
-                  <div>
-                    <span className="text-lg font-semibold">{establishment.name}</span>
-                    {establishment.address && (
-                      <span className="text-muted-foreground ml-2 text-sm">{establishment.address}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Link href={detailHref} className="text-primary text-sm underline">
-                      {t("view", { default: "Voir" })}
-                    </Link>
-                    {/* Lien vers la gestion des créneaux horaires */}
-                    <Link
-                      href={
-                        isSystemAdmin
-                          ? `/admin/organizations/${organizationId}/establishments/${establishment.id}/slots`
-                          : `/dashboard/establishments/${establishment.id}/slots`
-                      }
-                      className="text-sm text-blue-600 underline"
-                    >
-                      Gérer les créneaux
-                    </Link>
-                    {/* Lien vers la gestion de la galerie photo */}
-                    <Link
-                      href={
-                        isSystemAdmin
-                          ? `/admin/organizations/${organizationId}/establishments/${establishment.id}/gallery`
-                          : `/dashboard/establishments/${establishment.id}/gallery`
-                      }
-                      className="text-sm text-pink-600 underline"
-                    >
-                      Gérer la galerie photo
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+
+      {isLoading ? (
+        <p className="text-muted-foreground">{t("loading")}</p>
+      ) : error ? (
+        <p className="text-destructive">{t("error_loading")}</p>
+      ) : establishments.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("empty.title")}</CardTitle>
+            <CardDescription>{t("empty.description")}</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {establishments.map((establishment) => {
+            const detailHref = isSystemAdmin
+              ? `/admin/organizations/${organizationId}/establishments/${establishment.id}`
+              : `/dashboard/establishments/${establishment.id}`;
+            return (
+              <Card key={establishment.id} className="flex h-full flex-col">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-xl leading-tight">{establishment.name}</CardTitle>
+                  {establishment.address ? (
+                    <CardDescription className="flex items-start gap-2 pt-1">
+                      <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+                      <span>{establishment.address}</span>
+                    </CardDescription>
+                  ) : null}
+                </CardHeader>
+                <CardFooter className="mt-auto border-t">
+                  <Button className="w-full" asChild>
+                    <Link href={detailHref}>{t("manage")}</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

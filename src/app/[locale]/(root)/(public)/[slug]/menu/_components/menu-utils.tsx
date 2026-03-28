@@ -2,10 +2,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;
-type MenuProduct = Tables<"menus_products">;
-type Menu = Tables<"menus">;
-type Product = Tables<"products">;
-type Category = Tables<"categories">;
 
 // Interface pour un produit de menu avec ses détails
 export interface MenuItemWithDetails {
@@ -52,11 +48,6 @@ export async function getEstablishmentBySlug(slug: string): Promise<Establishmen
       return null;
     }
 
-    if (!data) {
-      console.log("⚠️ Aucun établissement trouvé avec le slug:", slug);
-      return null;
-    }
-
     // Vérifier si l'établissement est public
     if (!data.is_public) {
       console.log("🚫 Établissement non public:", data.name);
@@ -85,7 +76,7 @@ export async function getEstablishmentMenu(establishmentId: string): Promise<{
     const { data: menus, error: menusError } = await supabase
       .from("menus")
       .select("id, name, description")
-      .eq("establishments_id", establishmentId)
+      .eq("establishment_id", establishmentId)
       .eq("deleted", false);
 
     if (menusError) {
@@ -93,7 +84,7 @@ export async function getEstablishmentMenu(establishmentId: string): Promise<{
       return { categories: [], itemsByCategory: {} };
     }
 
-    if (!menus || menus.length === 0) {
+    if (menus.length === 0) {
       console.log("⚠️ Aucun menu trouvé pour l'établissement");
       return { categories: [], itemsByCategory: {} };
     }
@@ -137,7 +128,7 @@ export async function getEstablishmentMenu(establishmentId: string): Promise<{
       uncategorized: [],
     };
 
-    menuProducts?.forEach((menuProduct) => {
+    menuProducts.forEach((menuProduct) => {
       if (!menuProduct.products) return;
 
       const product = menuProduct.products;

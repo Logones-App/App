@@ -7,13 +7,70 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
   }
   public: {
     Tables: {
+      actions: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          deleted: boolean | null
+          display_name: string
+          establishment_id: string
+          id: string
+          is_system_action: boolean | null
+          name: string
+          organization_id: string
+          parameters: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          deleted?: boolean | null
+          display_name: string
+          establishment_id: string
+          id?: string
+          is_system_action?: boolean | null
+          name: string
+          organization_id: string
+          parameters?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          deleted?: boolean | null
+          display_name?: string
+          establishment_id?: string
+          id?: string
+          is_system_action?: boolean | null
+          name?: string
+          organization_id?: string
+          parameters?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_exceptions: {
         Row: {
           booking_slot_id: string | null
@@ -76,6 +133,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           day_of_week: number
+          default_duration_minutes: number
           deleted: boolean | null
           display_order: number | null
           end_time: string
@@ -83,7 +141,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           max_capacity: number | null
-          organization_id: string | null
+          organization_id: string
           slot_name: string
           start_time: string
           updated_at: string | null
@@ -94,6 +152,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           day_of_week: number
+          default_duration_minutes?: number
           deleted?: boolean | null
           display_order?: number | null
           end_time: string
@@ -101,7 +160,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           max_capacity?: number | null
-          organization_id?: string | null
+          organization_id: string
           slot_name: string
           start_time: string
           updated_at?: string | null
@@ -112,6 +171,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           day_of_week?: number
+          default_duration_minutes?: number
           deleted?: boolean | null
           display_order?: number | null
           end_time?: string
@@ -119,7 +179,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           max_capacity?: number | null
-          organization_id?: string | null
+          organization_id?: string
           slot_name?: string
           start_time?: string
           updated_at?: string | null
@@ -134,10 +194,96 @@ export type Database = {
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "booking_slots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_table_allocations: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          deleted: boolean
+          end_datetime: string
+          establishment_id: string
+          id: string
+          organization_id: string
+          room_id: string | null
+          start_datetime: string
+          table_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          deleted?: boolean
+          end_datetime: string
+          establishment_id: string
+          id?: string
+          organization_id: string
+          room_id?: string | null
+          start_datetime: string
+          table_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          deleted?: boolean
+          end_datetime?: string
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          room_id?: string | null
+          start_datetime?: string
+          table_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_table_allocations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_table_allocations_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_table_allocations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_table_allocations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_table_allocations_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bookings: {
         Row: {
+          booking_slot_id: string | null
           created_at: string | null
           created_by: string | null
           customer_email: string
@@ -146,17 +292,20 @@ export type Database = {
           customer_phone: string
           date: string
           deleted: boolean | null
+          end_time: string
           establishment_id: string
           id: string
           number_of_guests: number
           organization_id: string
           service_name: string
           special_requests: string | null
+          start_time: string
           status: string
           time: string
           updated_at: string | null
         }
         Insert: {
+          booking_slot_id?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_email: string
@@ -165,17 +314,20 @@ export type Database = {
           customer_phone: string
           date: string
           deleted?: boolean | null
+          end_time?: string
           establishment_id: string
           id?: string
           number_of_guests: number
           organization_id: string
           service_name: string
           special_requests?: string | null
+          start_time?: string
           status?: string
           time: string
           updated_at?: string | null
         }
         Update: {
+          booking_slot_id?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_email?: string
@@ -184,17 +336,26 @@ export type Database = {
           customer_phone?: string
           date?: string
           deleted?: boolean | null
+          end_time?: string
           establishment_id?: string
           id?: string
           number_of_guests?: number
           organization_id?: string
           service_name?: string
           special_requests?: string | null
+          start_time?: string
           status?: string
           time?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_booking_slot_id_fkey"
+            columns: ["booking_slot_id"]
+            isOneToOne: false
+            referencedRelation: "booking_slots"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_establishment_id_fkey"
             columns: ["establishment_id"]
@@ -211,15 +372,75 @@ export type Database = {
           },
         ]
       }
+      cash_withdrawals: {
+        Row: {
+          amount: number
+          created_at: string
+          daily_found_id: string
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          daily_found_id: string
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          daily_found_id?: string
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_withdrawals_daily_found_id_fkey"
+            columns: ["daily_found_id"]
+            isOneToOne: false
+            referencedRelation: "daily_found"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_withdrawals_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_withdrawals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           id: string
           name: string
           organization_id: string | null
           parent_category_id: string | null
+          printer_id: string | null
           updated_at: string | null
           vat_rate: number
         }
@@ -227,10 +448,12 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           id?: string
           name: string
           organization_id?: string | null
           parent_category_id?: string | null
+          printer_id?: string | null
           updated_at?: string | null
           vat_rate?: number
         }
@@ -238,10 +461,12 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           id?: string
           name?: string
           organization_id?: string | null
           parent_category_id?: string | null
+          printer_id?: string | null
           updated_at?: string | null
           vat_rate?: number
         }
@@ -260,61 +485,83 @@ export type Database = {
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "categories_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       category_grid_items: {
         Row: {
+          action: Json | null
           background_color: string | null
           category_id: string | null
           created_at: string | null
           created_by: string | null
+          deleted: boolean | null
           display_order: number
+          establishment_id: string
           grid_column: number
           grid_row: number
           icon_url: string | null
           id: string
-          is_clickable: boolean
           is_visible: boolean
+          item_type: string
+          label: string | null
+          menu_id: string | null
           organization_id: string
-          parent_category_id: string | null
+          parent_item_id: string | null
           product_id: string | null
           text_color: string | null
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
+          action?: Json | null
           background_color?: string | null
           category_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean | null
           display_order?: number
+          establishment_id: string
           grid_column?: number
           grid_row?: number
           icon_url?: string | null
           id?: string
-          is_clickable?: boolean
           is_visible?: boolean
+          item_type?: string
+          label?: string | null
+          menu_id?: string | null
           organization_id: string
-          parent_category_id?: string | null
+          parent_item_id?: string | null
           product_id?: string | null
           text_color?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
+          action?: Json | null
           background_color?: string | null
           category_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean | null
           display_order?: number
+          establishment_id?: string
           grid_column?: number
           grid_row?: number
           icon_url?: string | null
           id?: string
-          is_clickable?: boolean
           is_visible?: boolean
+          item_type?: string
+          label?: string | null
+          menu_id?: string | null
           organization_id?: string
-          parent_category_id?: string | null
+          parent_item_id?: string | null
           product_id?: string | null
           text_color?: string | null
           updated_at?: string | null
@@ -329,6 +576,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "category_grid_items_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_grid_items_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "menus"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "category_grid_items_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -336,10 +597,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "category_grid_items_parent_category_id_fkey"
-            columns: ["parent_category_id"]
+            foreignKeyName: "category_grid_items_parent_item_id_fkey"
+            columns: ["parent_item_id"]
             isOneToOne: false
-            referencedRelation: "categories"
+            referencedRelation: "category_grid_items"
             referencedColumns: ["id"]
           },
           {
@@ -401,34 +662,46 @@ export type Database = {
       daily_found: {
         Row: {
           closed_at_at: string | null
+          closing_cash_count: number | null
+          closing_cash_to_keep: number | null
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           id: string
           opened: boolean | null
-          opened_at_at: string | null
+          opened_at: string | null
+          opening_cash_amount: number | null
           organization_id: string | null
           updated_at: string | null
         }
         Insert: {
           closed_at_at?: string | null
+          closing_cash_count?: number | null
+          closing_cash_to_keep?: number | null
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           id?: string
           opened?: boolean | null
-          opened_at_at?: string | null
+          opened_at?: string | null
+          opening_cash_amount?: number | null
           organization_id?: string | null
           updated_at?: string | null
         }
         Update: {
           closed_at_at?: string | null
+          closing_cash_count?: number | null
+          closing_cash_to_keep?: number | null
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           id?: string
           opened?: boolean | null
-          opened_at_at?: string | null
+          opened_at?: string | null
+          opening_cash_amount?: number | null
           organization_id?: string | null
           updated_at?: string | null
         }
@@ -442,40 +715,134 @@ export type Database = {
           },
         ]
       }
+      device_sessions: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          establishment_id: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          last_activity: string | null
+          mobile_user_id: string | null
+          orga_user_id: string
+          organization_id: string
+          session_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          establishment_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          mobile_user_id?: string | null
+          orga_user_id: string
+          organization_id: string
+          session_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          establishment_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          mobile_user_id?: string | null
+          orga_user_id?: string
+          organization_id?: string
+          session_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_sessions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_sessions_mobile_user_id_fkey"
+            columns: ["mobile_user_id"]
+            isOneToOne: false
+            referencedRelation: "mobile_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           created_at: string | null
           deleted: boolean | null
-          device_id: string
-          device_type: string
+          device_info: Json | null
+          device_role: string
+          display: string
           establishment_id: string | null
+          establishment_name: string | null
           id: string
-          last_seen: string | null
-          name: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          manufacturer: string | null
+          model: string | null
+          mods: string[]
+          organization_id: string | null
+          port_attribue: number | null
+          serial_number: string
+          software_version: string | null
           status: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           deleted?: boolean | null
-          device_id: string
-          device_type?: string
+          device_info?: Json | null
+          device_role?: string
+          display?: string
           establishment_id?: string | null
+          establishment_name?: string | null
           id?: string
-          last_seen?: string | null
-          name: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          mods?: string[]
+          organization_id?: string | null
+          port_attribue?: number | null
+          serial_number: string
+          software_version?: string | null
           status?: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           deleted?: boolean | null
-          device_id?: string
-          device_type?: string
+          device_info?: Json | null
+          device_role?: string
+          display?: string
           establishment_id?: string | null
+          establishment_name?: string | null
           id?: string
-          last_seen?: string | null
-          name?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          mods?: string[]
+          organization_id?: string | null
+          port_attribue?: number | null
+          serial_number?: string
+          software_version?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -485,6 +852,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -681,6 +1055,9 @@ export type Database = {
       establishments: {
         Row: {
           address: string | null
+          city: string | null
+          code_naf: string | null
+          country: string | null
           cover_image_url: string | null
           created_at: string | null
           created_by: string | null
@@ -691,16 +1068,23 @@ export type Database = {
           is_public: boolean | null
           logo_url: string | null
           name: string
+          no_tva: string | null
           organization_id: string
           phone: string | null
+          postal_code: number | null
+          printer_id: string | null
           seo_description: string | null
           seo_title: string | null
+          siret: string | null
           slug: string | null
           updated_at: string | null
           website: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
+          code_naf?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -711,16 +1095,23 @@ export type Database = {
           is_public?: boolean | null
           logo_url?: string | null
           name: string
+          no_tva?: string | null
           organization_id: string
           phone?: string | null
+          postal_code?: number | null
+          printer_id?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          siret?: string | null
           slug?: string | null
           updated_at?: string | null
           website?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
+          code_naf?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -731,10 +1122,14 @@ export type Database = {
           is_public?: boolean | null
           logo_url?: string | null
           name?: string
+          no_tva?: string | null
           organization_id?: string
           phone?: string | null
+          postal_code?: number | null
+          printer_id?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          siret?: string | null
           slug?: string | null
           updated_at?: string | null
           website?: string | null
@@ -742,6 +1137,216 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "establishments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishments_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formula_products: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          display_order: number | null
+          establishment_id: string
+          formula_id: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          organization_id: string
+          product_id: string
+          slot_id: string
+          supplement_price: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number | null
+          establishment_id: string
+          formula_id: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          organization_id: string
+          product_id: string
+          slot_id: string
+          supplement_price?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number | null
+          establishment_id?: string
+          formula_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          organization_id?: string
+          product_id?: string
+          slot_id?: string
+          supplement_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formula_products_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_products_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_products_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "formula_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formula_slots: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          establishment_id: string
+          formula_id: string
+          id: string
+          name: string
+          organization_id: string
+          slot_order: number
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          establishment_id: string
+          formula_id: string
+          id?: string
+          name?: string
+          organization_id: string
+          slot_order: number
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          establishment_id?: string
+          formula_id?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          slot_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formula_slots_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_slots_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_slots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formulas: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          description: string | null
+          display_order: number | null
+          establishment_id: string | null
+          id: string
+          is_active: boolean | null
+          menu_id: string
+          name: string
+          organization_id: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          description?: string | null
+          display_order?: number | null
+          establishment_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          menu_id: string
+          name: string
+          organization_id: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          description?: string | null
+          display_order?: number | null
+          establishment_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          menu_id?: string
+          name?: string
+          organization_id?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formulas_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formulas_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "menus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formulas_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -813,7 +1418,7 @@ export type Database = {
           deleted: boolean | null
           description: string | null
           display_order: number | null
-          establishments_id: string | null
+          establishment_id: string | null
           id: string
           image_url: string | null
           is_active: boolean | null
@@ -829,7 +1434,7 @@ export type Database = {
           deleted?: boolean | null
           description?: string | null
           display_order?: number | null
-          establishments_id?: string | null
+          establishment_id?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -845,7 +1450,7 @@ export type Database = {
           deleted?: boolean | null
           description?: string | null
           display_order?: number | null
-          establishments_id?: string | null
+          establishment_id?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -858,7 +1463,7 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "menus_establishments_id_fkey"
-            columns: ["establishments_id"]
+            columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
@@ -876,6 +1481,7 @@ export type Database = {
         Row: {
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           id: string
           menus_id: string | null
           organization_id: string
@@ -886,6 +1492,7 @@ export type Database = {
         Insert: {
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           id?: string
           menus_id?: string | null
           organization_id: string
@@ -896,6 +1503,7 @@ export type Database = {
         Update: {
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           id?: string
           menus_id?: string | null
           organization_id?: string
@@ -904,6 +1512,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "menus_products_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "menus_products_menus_id_fkey"
             columns: ["menus_id"]
@@ -1028,7 +1643,6 @@ export type Database = {
       }
       mobile_users: {
         Row: {
-          avatar_url: string | null
           created_at: string | null
           deleted: boolean | null
           email: string | null
@@ -1038,13 +1652,12 @@ export type Database = {
           is_active: boolean | null
           lastname: string
           organization_id: string | null
-          password: string
           phone: string | null
+          pin_code: string | null
           role: string | null
           updated_at: string | null
         }
         Insert: {
-          avatar_url?: string | null
           created_at?: string | null
           deleted?: boolean | null
           email?: string | null
@@ -1054,13 +1667,12 @@ export type Database = {
           is_active?: boolean | null
           lastname: string
           organization_id?: string | null
-          password: string
           phone?: string | null
+          pin_code?: string | null
           role?: string | null
           updated_at?: string | null
         }
         Update: {
-          avatar_url?: string | null
           created_at?: string | null
           deleted?: boolean | null
           email?: string | null
@@ -1070,8 +1682,8 @@ export type Database = {
           is_active?: boolean | null
           lastname?: string
           organization_id?: string | null
-          password?: string
           phone?: string | null
+          pin_code?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -1085,6 +1697,543 @@ export type Database = {
           },
           {
             foreignKeyName: "users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_config: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
+      nf525_jet: {
+        Row: {
+          code_event: number
+          created_at: string | null
+          device_id: string | null
+          establishment_id: string | null
+          event_at: string
+          event_id: number
+          hash_chain_input: string | null
+          id: string
+          label: string | null
+          operator_code: string | null
+          organization_id: string | null
+          previous_signature_base64url: string | null
+          purgeable: boolean
+          report_previous_signature: string | null
+          signature_base64url: string | null
+        }
+        Insert: {
+          code_event: number
+          created_at?: string | null
+          device_id?: string | null
+          establishment_id?: string | null
+          event_at: string
+          event_id: number
+          hash_chain_input?: string | null
+          id?: string
+          label?: string | null
+          operator_code?: string | null
+          organization_id?: string | null
+          previous_signature_base64url?: string | null
+          purgeable?: boolean
+          report_previous_signature?: string | null
+          signature_base64url?: string | null
+        }
+        Update: {
+          code_event?: number
+          created_at?: string | null
+          device_id?: string | null
+          establishment_id?: string | null
+          event_at?: string
+          event_id?: number
+          hash_chain_input?: string | null
+          id?: string
+          label?: string | null
+          operator_code?: string | null
+          organization_id?: string | null
+          previous_signature_base64url?: string | null
+          purgeable?: boolean
+          report_previous_signature?: string | null
+          signature_base64url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_jet_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_jet_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_jet_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_justificatifs: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          establishment_id: string
+          hash_chain_input: string | null
+          id: string
+          is_duplicate: boolean
+          justificatif_number: string
+          nf525_piece_id: string | null
+          order_id: string | null
+          organization_id: string | null
+          previous_signature_base64url: string | null
+          print_count: number
+          recorded_at: string
+          signature_base64url: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          establishment_id: string
+          hash_chain_input?: string | null
+          id?: string
+          is_duplicate?: boolean
+          justificatif_number: string
+          nf525_piece_id?: string | null
+          order_id?: string | null
+          organization_id?: string | null
+          previous_signature_base64url?: string | null
+          print_count?: number
+          recorded_at: string
+          signature_base64url?: string | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          establishment_id?: string
+          hash_chain_input?: string | null
+          id?: string
+          is_duplicate?: boolean
+          justificatif_number?: string
+          nf525_piece_id?: string | null
+          order_id?: string | null
+          organization_id?: string | null
+          previous_signature_base64url?: string | null
+          print_count?: number
+          recorded_at?: string
+          signature_base64url?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_justificatifs_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_justificatifs_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_justificatifs_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_justificatifs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_justificatifs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_piece_recap_tva: {
+        Row: {
+          amount_vat: number
+          created_at: string | null
+          id: string
+          nf525_piece_id: string
+          total_ht: number
+          vat_rate: number
+        }
+        Insert: {
+          amount_vat: number
+          created_at?: string | null
+          id?: string
+          nf525_piece_id: string
+          total_ht: number
+          vat_rate: number
+        }
+        Update: {
+          amount_vat?: number
+          created_at?: string | null
+          id?: string
+          nf525_piece_id?: string
+          total_ht?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_piece_recap_tva_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_pieces: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          emitter_snapshot: Json | null
+          establishment_id: string
+          hash_chain_input: string | null
+          id: string
+          line_count: number
+          mobile_user_id: string | null
+          operation_type: string
+          order_id: string
+          organization_id: string | null
+          piece_number: string
+          piece_type: string
+          previous_signature_base64url: string | null
+          print_count: number
+          recorded_at: string
+          signature_base64url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          emitter_snapshot?: Json | null
+          establishment_id: string
+          hash_chain_input?: string | null
+          id?: string
+          line_count?: number
+          mobile_user_id?: string | null
+          operation_type?: string
+          order_id: string
+          organization_id?: string | null
+          piece_number: string
+          piece_type: string
+          previous_signature_base64url?: string | null
+          print_count?: number
+          recorded_at: string
+          signature_base64url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          emitter_snapshot?: Json | null
+          establishment_id?: string
+          hash_chain_input?: string | null
+          id?: string
+          line_count?: number
+          mobile_user_id?: string | null
+          operation_type?: string
+          order_id?: string
+          organization_id?: string | null
+          piece_number?: string
+          piece_type?: string
+          previous_signature_base64url?: string | null
+          print_count?: number
+          recorded_at?: string
+          signature_base64url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_pieces_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_pieces_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_pieces_mobile_user_id_fkey"
+            columns: ["mobile_user_id"]
+            isOneToOne: false
+            referencedRelation: "mobile_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_pieces_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_pieces_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_restitutions: {
+        Row: {
+          amount_ttc: number
+          covers: number | null
+          created_at: string
+          device_id: string
+          doc_type: string
+          duplicate_of_id: string | null
+          establishment_id: string
+          id: string
+          is_refund_valid: boolean
+          nf525_piece_id: string | null
+          order_id: string | null
+          organization_id: string | null
+          payment_id: string | null
+          print_index: number
+          printed_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount_ttc: number
+          covers?: number | null
+          created_at?: string
+          device_id: string
+          doc_type: string
+          duplicate_of_id?: string | null
+          establishment_id: string
+          id?: string
+          is_refund_valid?: boolean
+          nf525_piece_id?: string | null
+          order_id?: string | null
+          organization_id?: string | null
+          payment_id?: string | null
+          print_index?: number
+          printed_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_ttc?: number
+          covers?: number | null
+          created_at?: string
+          device_id?: string
+          doc_type?: string
+          duplicate_of_id?: string | null
+          establishment_id?: string
+          id?: string
+          is_refund_valid?: boolean
+          nf525_piece_id?: string | null
+          order_id?: string | null
+          organization_id?: string | null
+          payment_id?: string | null
+          print_index?: number
+          printed_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_restitutions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_restitutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_sequences: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          establishment_id: string
+          id: string
+          last_number: number
+          organization_id: string | null
+          piece_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          establishment_id: string
+          id?: string
+          last_number?: number
+          organization_id?: string | null
+          piece_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          establishment_id?: string
+          id?: string
+          last_number?: number
+          organization_id?: string | null
+          piece_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_sequences_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_sequences_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_sequences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_signing_keys: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          id: string
+          organization_id: string
+          signing_key_base64: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          id?: string
+          organization_id: string
+          signing_key_base64: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          signing_key_base64?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_signing_keys_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_signing_keys_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1220,73 +2369,144 @@ export type Database = {
           },
         ]
       }
-      orders: {
+      order_formulas: {
         Row: {
           created_at: string | null
-          created_by: string | null
-          daily_found_id: string | null
           deleted: boolean | null
-          description: string | null
+          establishment_id: string
+          formula_id: string
+          formula_name: string
           id: string
-          opened: boolean | null
-          organization_id: string | null
-          tables_id: string | null
+          order_id: string
+          organization_id: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          created_by?: string | null
-          daily_found_id?: string | null
           deleted?: boolean | null
-          description?: string | null
+          establishment_id: string
+          formula_id: string
+          formula_name: string
           id?: string
-          opened?: boolean | null
-          organization_id?: string | null
-          tables_id?: string | null
+          order_id: string
+          organization_id: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          created_by?: string | null
-          daily_found_id?: string | null
           deleted?: boolean | null
-          description?: string | null
+          establishment_id?: string
+          formula_id?: string
+          formula_name?: string
           id?: string
-          opened?: boolean | null
-          organization_id?: string | null
-          tables_id?: string | null
+          order_id?: string
+          organization_id?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "orders_daily_found_id_fkey"
-            columns: ["daily_found_id"]
+            foreignKeyName: "order_formulas_formula_id_fkey"
+            columns: ["formula_id"]
             isOneToOne: false
-            referencedRelation: "daily_found"
+            referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_organization_id_fkey"
+            foreignKeyName: "order_formulas_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_settlements: {
+        Row: {
+          amount: number
+          base_amount: number | null
+          created_at: string | null
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          extra_amount: number
+          extra_type: string | null
+          id: string
+          orders_payments_id: string
+          organization_id: string | null
+          payment_method_id: string
+          payment_method_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          base_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          extra_amount?: number
+          extra_type?: string | null
+          id?: string
+          orders_payments_id: string
+          organization_id?: string | null
+          payment_method_id: string
+          payment_method_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          base_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          extra_amount?: number
+          extra_type?: string | null
+          id?: string
+          orders_payments_id?: string
+          organization_id?: string | null
+          payment_method_id?: string
+          payment_method_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_settlements_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payment_settlements_orders_payments_id_fkey"
+            columns: ["orders_payments_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payment_settlements_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_tables_id_fkey"
-            columns: ["tables_id"]
+            foreignKeyName: "order_payment_settlements_payment_method_id_fkey"
+            columns: ["payment_method_id"]
             isOneToOne: false
-            referencedRelation: "tables"
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
       }
-      orders_payments: {
+      order_payments: {
         Row: {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
           description: string | null
+          establishment_id: string
           id: string
           name: string
           orders_id: string | null
@@ -1299,6 +2519,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          establishment_id: string
           id?: string
           name: string
           orders_id?: string | null
@@ -1311,6 +2532,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          establishment_id?: string
           id?: string
           name?: string
           orders_id?: string | null
@@ -1335,13 +2557,15 @@ export type Database = {
           },
         ]
       }
-      orders_payments_rows: {
+      order_payments_rows: {
         Row: {
           amount: number | null
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string | null
           id: string
+          order_products_id: string | null
           orders_payments_id: string | null
           organization_id: string | null
           payment_type: string | null
@@ -1353,7 +2577,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
+          order_products_id?: string | null
           orders_payments_id?: string | null
           organization_id?: string | null
           payment_type?: string | null
@@ -1365,7 +2591,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
+          order_products_id?: string | null
           orders_payments_id?: string | null
           organization_id?: string | null
           payment_type?: string | null
@@ -1374,10 +2602,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "order_payments_rows_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_rows_order_products_id_fkey"
+            columns: ["order_products_id"]
+            isOneToOne: false
+            referencedRelation: "order_products"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_payments_rows_orders_payments_id_fkey"
             columns: ["orders_payments_id"]
             isOneToOne: false
-            referencedRelation: "orders_payments"
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
           {
@@ -1389,59 +2631,190 @@ export type Database = {
           },
         ]
       }
-      orders_rows: {
+      order_products: {
         Row: {
-          created_at: string | null
+          cancel_reason: string | null
+          cancelled: boolean
+          created_at: string
           created_by: string | null
-          deleted: boolean | null
-          description: string | null
+          deleted: boolean
+          establishment_id: string
           id: string
-          name: string
-          orders_id: string | null
-          organization_id: string | null
-          price: number | null
-          total: boolean | null
-          updated_at: string | null
+          kitchen_print_count: number
+          kitchen_sent_at: string | null
+          notes: string | null
+          order_formulas_id: string | null
+          order_id: string
+          organization_id: string
+          product_compositions: Json | null
+          product_description: string | null
+          product_id: string
+          product_name: string
+          product_options: Json | null
+          quantity: number
+          special_instructions: string | null
+          suite_id: string | null
+          suite_position: number | null
+          total_price: number
+          unit_price: number
+          updated_at: string
           vat_rate: number | null
         }
         Insert: {
-          created_at?: string | null
+          cancel_reason?: string | null
+          cancelled?: boolean
+          created_at?: string
           created_by?: string | null
-          deleted?: boolean | null
-          description?: string | null
+          deleted?: boolean
+          establishment_id: string
           id?: string
-          name: string
-          orders_id?: string | null
-          organization_id?: string | null
-          price?: number | null
-          total?: boolean | null
-          updated_at?: string | null
+          kitchen_print_count?: number
+          kitchen_sent_at?: string | null
+          notes?: string | null
+          order_formulas_id?: string | null
+          order_id: string
+          organization_id: string
+          product_compositions?: Json | null
+          product_description?: string | null
+          product_id: string
+          product_name: string
+          product_options?: Json | null
+          quantity?: number
+          special_instructions?: string | null
+          suite_id?: string | null
+          suite_position?: number | null
+          total_price: number
+          unit_price: number
+          updated_at?: string
           vat_rate?: number | null
         }
         Update: {
-          created_at?: string | null
+          cancel_reason?: string | null
+          cancelled?: boolean
+          created_at?: string
           created_by?: string | null
-          deleted?: boolean | null
-          description?: string | null
+          deleted?: boolean
+          establishment_id?: string
           id?: string
-          name?: string
-          orders_id?: string | null
-          organization_id?: string | null
-          price?: number | null
-          total?: boolean | null
-          updated_at?: string | null
+          kitchen_print_count?: number
+          kitchen_sent_at?: string | null
+          notes?: string | null
+          order_formulas_id?: string | null
+          order_id?: string
+          organization_id?: string
+          product_compositions?: Json | null
+          product_description?: string | null
+          product_id?: string
+          product_name?: string
+          product_options?: Json | null
+          quantity?: number
+          special_instructions?: string | null
+          suite_id?: string | null
+          suite_position?: number | null
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
           vat_rate?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "orders_rows_orders_id_fkey"
-            columns: ["orders_id"]
+            foreignKeyName: "order_products_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_products_order_formulas_id_fkey"
+            columns: ["order_formulas_id"]
+            isOneToOne: false
+            referencedRelation: "order_formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_products_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_rows_organization_id_fkey"
+            foreignKeyName: "order_products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_products_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "order_suites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_suites: {
+        Row: {
+          created_at: string | null
+          custom_name: string | null
+          deleted: boolean | null
+          establishment_id: string
+          id: string
+          is_active: boolean | null
+          order: number
+          order_id: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_name?: string | null
+          deleted?: boolean | null
+          establishment_id: string
+          id?: string
+          is_active?: boolean | null
+          order?: number
+          order_id: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_name?: string | null
+          deleted?: boolean | null
+          establishment_id?: string
+          id?: string
+          is_active?: boolean | null
+          order?: number
+          order_id?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_suites_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_suites_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_suites_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1449,69 +2822,76 @@ export type Database = {
           },
         ]
       }
-      orders_rows_parts: {
+      orders: {
         Row: {
-          amount: number | null
           created_at: string | null
           created_by: string | null
+          daily_found_id: string | null
           deleted: boolean | null
           description: string | null
+          establishment_id: string
           id: string
-          name: string
-          orders_payments_id: string | null
-          orders_rows_id: string | null
+          opened: boolean | null
           organization_id: string | null
+          server_id: string
+          tables_id: string | null
           updated_at: string | null
-          vat_rate: number | null
         }
         Insert: {
-          amount?: number | null
           created_at?: string | null
           created_by?: string | null
+          daily_found_id?: string | null
           deleted?: boolean | null
           description?: string | null
+          establishment_id: string
           id?: string
-          name: string
-          orders_payments_id?: string | null
-          orders_rows_id?: string | null
+          opened?: boolean | null
           organization_id?: string | null
+          server_id: string
+          tables_id?: string | null
           updated_at?: string | null
-          vat_rate?: number | null
         }
         Update: {
-          amount?: number | null
           created_at?: string | null
           created_by?: string | null
+          daily_found_id?: string | null
           deleted?: boolean | null
           description?: string | null
+          establishment_id?: string
           id?: string
-          name?: string
-          orders_payments_id?: string | null
-          orders_rows_id?: string | null
+          opened?: boolean | null
           organization_id?: string | null
+          server_id?: string
+          tables_id?: string | null
           updated_at?: string | null
-          vat_rate?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "orders_rows_parts_orders_payments_fkey"
-            columns: ["orders_payments_id"]
+            foreignKeyName: "orders_daily_found_id_fkey"
+            columns: ["daily_found_id"]
             isOneToOne: false
-            referencedRelation: "orders_payments"
+            referencedRelation: "daily_found"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_rows_parts_orders_rows_id_fkey"
-            columns: ["orders_rows_id"]
-            isOneToOne: false
-            referencedRelation: "orders_rows"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_rows_parts_organization_id_fkey"
+            foreignKeyName: "orders_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "mobile_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tables_id_fkey"
+            columns: ["tables_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
             referencedColumns: ["id"]
           },
         ]
@@ -1552,6 +2932,57 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          establishment_id: string
+          id: string
+          is_active: boolean | null
+          organization_id: string
+          payment_method_name: string
+          payment_method_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          establishment_id: string
+          id?: string
+          is_active?: boolean | null
+          organization_id: string
+          payment_method_name: string
+          payment_method_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          establishment_id?: string
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string
+          payment_method_name?: string
+          payment_method_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       printers: {
         Row: {
           bdaddress: string | null
@@ -1560,10 +2991,12 @@ export type Database = {
           deleted: boolean | null
           devicename: string | null
           devicetype: string | null
+          establishment_id: string | null
           id: string
           ipaddress: string | null
           location: string | null
           macaddress: string | null
+          name: string | null
           organization_id: string | null
           target: string | null
           updated_at: string | null
@@ -1575,10 +3008,12 @@ export type Database = {
           deleted?: boolean | null
           devicename?: string | null
           devicetype?: string | null
+          establishment_id?: string | null
           id?: string
           ipaddress?: string | null
           location?: string | null
           macaddress?: string | null
+          name?: string | null
           organization_id?: string | null
           target?: string | null
           updated_at?: string | null
@@ -1590,20 +3025,218 @@ export type Database = {
           deleted?: boolean | null
           devicename?: string | null
           devicetype?: string | null
+          establishment_id?: string | null
           id?: string
           ipaddress?: string | null
           location?: string | null
           macaddress?: string | null
+          name?: string | null
           organization_id?: string | null
           target?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "printers_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "printers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_compositions: {
+        Row: {
+          auto_open_modal: boolean | null
+          component_product_id: string
+          composition_kind: string
+          created_at: string | null
+          default_quantity: number | null
+          deleted: boolean | null
+          display_order: number | null
+          establishment_id: string
+          id: string
+          is_required: boolean | null
+          main_product_id: string
+          max_quantity: number | null
+          organization_id: string
+          price_multiplier: number | null
+          show_in_customization: boolean
+          unit_supplement_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_open_modal?: boolean | null
+          component_product_id: string
+          composition_kind?: string
+          created_at?: string | null
+          default_quantity?: number | null
+          deleted?: boolean | null
+          display_order?: number | null
+          establishment_id: string
+          id?: string
+          is_required?: boolean | null
+          main_product_id: string
+          max_quantity?: number | null
+          organization_id: string
+          price_multiplier?: number | null
+          show_in_customization?: boolean
+          unit_supplement_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_open_modal?: boolean | null
+          component_product_id?: string
+          composition_kind?: string
+          created_at?: string | null
+          default_quantity?: number | null
+          deleted?: boolean | null
+          display_order?: number | null
+          establishment_id?: string
+          id?: string
+          is_required?: boolean | null
+          main_product_id?: string
+          max_quantity?: number | null
+          organization_id?: string
+          price_multiplier?: number | null
+          show_in_customization?: boolean
+          unit_supplement_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_compositions_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_compositions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_compositions_main_product_id_fkey"
+            columns: ["main_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_compositions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_options: {
+        Row: {
+          allow_quantity: boolean | null
+          auto_open_modal: boolean | null
+          created_at: string | null
+          deleted: boolean | null
+          display_order: number
+          establishment_id: string
+          id: string
+          is_default: boolean | null
+          is_required: boolean | null
+          is_visible: boolean | null
+          max_quantity: number | null
+          max_selections: number | null
+          min_quantity: number | null
+          option_group: string | null
+          option_name: string
+          option_price: number
+          option_value: string
+          organization_id: string
+          price_adjustment: number | null
+          product_id: string
+          selection_type: string
+          tva_rate: number
+          updated_at: string | null
+        }
+        Insert: {
+          allow_quantity?: boolean | null
+          auto_open_modal?: boolean | null
+          created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number
+          establishment_id: string
+          id?: string
+          is_default?: boolean | null
+          is_required?: boolean | null
+          is_visible?: boolean | null
+          max_quantity?: number | null
+          max_selections?: number | null
+          min_quantity?: number | null
+          option_group?: string | null
+          option_name: string
+          option_price?: number
+          option_value: string
+          organization_id: string
+          price_adjustment?: number | null
+          product_id: string
+          selection_type?: string
+          tva_rate?: number
+          updated_at?: string | null
+        }
+        Update: {
+          allow_quantity?: boolean | null
+          auto_open_modal?: boolean | null
+          created_at?: string | null
+          deleted?: boolean | null
+          display_order?: number
+          establishment_id?: string
+          id?: string
+          is_default?: boolean | null
+          is_required?: boolean | null
+          is_visible?: boolean | null
+          max_quantity?: number | null
+          max_selections?: number | null
+          min_quantity?: number | null
+          option_group?: string | null
+          option_name?: string
+          option_price?: number
+          option_value?: string
+          organization_id?: string
+          price_adjustment?: number | null
+          product_id?: string
+          selection_type?: string
+          tva_rate?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_options_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_options_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1617,12 +3250,13 @@ export type Database = {
           deleted: boolean | null
           establishment_id: string
           id: string
+          inventory_tracked: boolean
           last_updated_by: string | null
           low_stock_threshold: number | null
           max_stock: number | null
           min_stock: number
           organization_id: string
-          product_id: string
+          product_composition_id: string
           reserved_stock: number
           unit: string
           updated_at: string | null
@@ -1635,12 +3269,13 @@ export type Database = {
           deleted?: boolean | null
           establishment_id: string
           id?: string
+          inventory_tracked?: boolean
           last_updated_by?: string | null
           low_stock_threshold?: number | null
           max_stock?: number | null
           min_stock?: number
           organization_id: string
-          product_id: string
+          product_composition_id: string
           reserved_stock?: number
           unit?: string
           updated_at?: string | null
@@ -1653,12 +3288,13 @@ export type Database = {
           deleted?: boolean | null
           establishment_id?: string
           id?: string
+          inventory_tracked?: boolean
           last_updated_by?: string | null
           low_stock_threshold?: number | null
           max_stock?: number | null
           min_stock?: number
           organization_id?: string
-          product_id?: string
+          product_composition_id?: string
           reserved_stock?: number
           unit?: string
           updated_at?: string | null
@@ -1679,60 +3315,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_stocks_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "product_stocks_product_composition_id_fkey"
+            columns: ["product_composition_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "product_compositions"
             referencedColumns: ["id"]
           },
         ]
       }
       products: {
         Row: {
+          category_id: string
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
           description: string | null
+          display_order: number | null
           id: string
           is_available: boolean | null
           name: string
           organization_id: string | null
           price: number
+          printer_id: string | null
           updated_at: string | null
-          vat_rate: number
+          vat_rate_id: string | null
         }
         Insert: {
+          category_id: string
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          display_order?: number | null
           id?: string
           is_available?: boolean | null
           name: string
           organization_id?: string | null
           price: number
+          printer_id?: string | null
           updated_at?: string | null
-          vat_rate?: number
+          vat_rate_id?: string | null
         }
         Update: {
+          category_id?: string
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          display_order?: number | null
           id?: string
           is_available?: boolean | null
           name?: string
           organization_id?: string | null
           price?: number
+          printer_id?: string | null
           updated_at?: string | null
-          vat_rate?: number
+          vat_rate_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_products_category_id"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_vat_rate_id_fkey"
+            columns: ["vat_rate_id"]
+            isOneToOne: false
+            referencedRelation: "vat_rate"
             referencedColumns: ["id"]
           },
         ]
@@ -1787,6 +3453,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           id: string
           name: string
           organization_id: string | null
@@ -1797,6 +3464,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           id?: string
           name: string
           organization_id?: string | null
@@ -1807,6 +3475,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           id?: string
           name?: string
           organization_id?: string | null
@@ -1826,6 +3495,7 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string
+          deleted: boolean | null
           id: string
           movement_type: string
           notes: string | null
@@ -1841,6 +3511,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by: string
+          deleted?: boolean | null
           id?: string
           movement_type: string
           notes?: string | null
@@ -1856,6 +3527,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string
+          deleted?: boolean | null
           id?: string
           movement_type?: string
           notes?: string | null
@@ -1891,6 +3563,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           height: number
           id: string
           is_primary: boolean | null
@@ -1911,6 +3584,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           height?: number
           id?: string
           is_primary?: boolean | null
@@ -1931,6 +3605,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           height?: number
           id?: string
           is_primary?: boolean | null
@@ -1947,6 +3622,13 @@ export type Database = {
           y?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "tables_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tables_organization_id_fkey"
             columns: ["organization_id"]
@@ -2048,6 +3730,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
+          establishment_id: string
           id: string
           name: string | null
           organization_id: string | null
@@ -2059,6 +3742,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id: string
           id?: string
           name?: string | null
           organization_id?: string | null
@@ -2070,6 +3754,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
+          establishment_id?: string
           id?: string
           name?: string | null
           organization_id?: string | null
@@ -2078,6 +3763,13 @@ export type Database = {
           vat_assoc_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vat_rate_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vat_rate_organization_id_fkey"
             columns: ["organization_id"]
@@ -2154,226 +3846,231 @@ export type Database = {
     Functions: {
       add_stock_movement: {
         Args: {
-          p_product_id: string
-          p_organization_id: string
           p_movement_type: string
-          p_quantity: number
-          p_reference_type?: string
-          p_reference_id?: string
           p_notes?: string
+          p_organization_id: string
+          p_product_id: string
+          p_quantity: number
+          p_reference_id?: string
+          p_reference_type?: string
           p_work_session_id?: string
         }
         Returns: string
       }
-      cleanup_old_cache: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_expired_device_sessions: { Args: never; Returns: undefined }
+      cleanup_old_cache: { Args: never; Returns: number }
       cleanup_old_email_logs: {
         Args: { days_to_keep?: number }
         Returns: number
       }
-      cleanup_orphaned_gallery_images: {
-        Args: Record<PropertyKey, never>
-        Returns: number
+      cleanup_orphaned_gallery_images: { Args: never; Returns: number }
+      create_default_payment_methods_for_establishment: {
+        Args: { p_establishment_id: string; p_organization_id: string }
+        Returns: undefined
+      }
+      ensure_self_product_composition: {
+        Args: {
+          p_establishment_id: string
+          p_organization_id: string
+          p_product_id: string
+        }
+        Returns: string
       }
       generate_15min_slots: {
-        Args: { p_establishment_id: string; p_date: string }
+        Args: { p_date: string; p_establishment_id: string }
         Returns: {
-          slot_time: string
-          service_name: string
-          is_available: boolean
           available_capacity: number
+          is_available: boolean
           max_capacity: number
+          service_name: string
+          slot_time: string
         }[]
       }
       generate_slots_for_date: {
-        Args: { p_establishment_id: string; p_date: string }
+        Args: { p_date: string; p_establishment_id: string }
         Returns: undefined
       }
       get_active_exceptions_for_date: {
-        Args: { p_establishment_id: string; p_date: string }
+        Args: { p_date: string; p_establishment_id: string }
         Returns: {
-          id: string
-          exception_type: string
           booking_slot_id: string
           closed_slots: number[]
-          reason: string
           description: string
+          exception_type: string
+          id: string
+          reason: string
         }[]
       }
       get_active_menus_by_time: {
         Args: {
-          p_organization_id: string
           p_current_time?: string
           p_establishment_id?: string
+          p_organization_id: string
         }
         Returns: {
+          display_order: number
+          end_time: string
+          image_url: string
+          is_public: boolean
+          menu_description: string
           menu_id: string
           menu_name: string
-          menu_description: string
           menu_type: string
           start_time: string
-          end_time: string
-          is_public: boolean
-          display_order: number
-          image_url: string
         }[]
       }
       get_available_slots_simple: {
-        Args: { p_establishment_id: string; p_date: string }
+        Args: { p_date: string; p_establishment_id: string }
         Returns: {
+          date: string
+          end_time: string
+          establishment_id: string
+          is_available: boolean
           slot_id: string
           start_time: string
-          end_time: string
-          is_available: boolean
-          establishment_id: string
-          date: string
         }[]
       }
       get_available_stock: {
-        Args: { p_product_id: string; p_organization_id: string }
+        Args: { p_organization_id: string; p_product_id: string }
         Returns: number
       }
-      get_current_organization_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_organization_id: { Args: never; Returns: string }
       get_establishment_gallery_images: {
         Args: { p_establishment_id: string; p_organization_id?: string }
         Returns: {
-          id: string
-          image_url: string
-          image_name: string
-          image_description: string
           alt_text: string
-          file_size: number
-          mime_type: string
+          created_at: string
           dimensions: Json
           display_order: number
-          is_public: boolean
+          file_size: number
+          id: string
+          image_description: string
+          image_name: string
+          image_url: string
           is_featured: boolean
-          created_at: string
+          is_public: boolean
+          mime_type: string
         }[]
       }
       get_establishment_gallery_section_images: {
         Args: { p_establishment_id: string; p_section: string }
         Returns: {
-          id: string
-          establishment_id: string
-          organization_id: string
-          image_id: string
-          section: string
-          display_order: number
-          image_url: string
-          image_name: string
-          image_description: string
           alt_text: string
-          file_size: number
-          mime_type: string
-          dimensions: Json
           created_at: string
+          dimensions: Json
+          display_order: number
+          establishment_id: string
+          file_size: number
+          id: string
+          image_description: string
+          image_id: string
+          image_name: string
+          image_url: string
+          mime_type: string
+          organization_id: string
+          section: string
           updated_at: string
         }[]
       }
       get_gallery_image_url: {
         Args: {
-          p_organization_id: string
           p_establishment_id: string
           p_image_name: string
+          p_organization_id: string
         }
         Returns: string
       }
       get_menu_products: {
         Args: { p_menu_id: string }
         Returns: {
-          product_id: string
-          product_name: string
-          product_description: string
-          menu_price: number
-          product_base_price: number
-          vat_rate: number
           category_id: string
           category_name: string
+          menu_price: number
+          product_base_price: number
+          product_description: string
+          product_id: string
+          product_name: string
+          vat_rate: number
         }[]
+      }
+      get_next_nf525_piece_number: {
+        Args: {
+          p_device_id: string
+          p_establishment_id: string
+          p_organization_id?: string
+          p_piece_type: string
+        }
+        Returns: number
       }
       get_stock_alerts: {
         Args: { p_organization_id?: string }
         Returns: {
-          product_id: string
-          product_name: string
-          current_stock: number
-          min_stock: number
-          unit: string
           alert_level: string
           alert_message: string
+          current_stock: number
+          min_stock: number
+          product_id: string
+          product_name: string
+          unit: string
         }[]
       }
-      get_user_organization: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
+      get_user_organization: { Args: { user_uuid: string }; Returns: string }
       hard_delete_record: {
-        Args: { table_name: string; record_id: string }
+        Args: { record_id: string; table_name: string }
         Returns: boolean
       }
       is_slot_closed_by_exception: {
         Args: {
-          p_establishment_id: string
-          p_date: string
-          p_slot_number: number
           p_booking_slot_id?: string
+          p_date: string
+          p_establishment_id: string
+          p_slot_number: number
         }
         Returns: boolean
       }
+      reserve_nf525_piece_number_range: {
+        Args: {
+          p_count?: number
+          p_device_id: string
+          p_establishment_id: string
+          p_organization_id?: string
+          p_piece_type: string
+        }
+        Returns: {
+          range_end: number
+          range_start: number
+        }[]
+      }
       reserve_stock: {
         Args: {
-          p_product_id: string
           p_organization_id: string
+          p_product_id: string
           p_quantity: number
-          p_reference_type: string
           p_reference_id: string
+          p_reference_type: string
         }
         Returns: boolean
       }
       restore_deleted_record: {
-        Args: { table_name: string; record_id: string }
+        Args: { record_id: string; table_name: string }
         Returns: boolean
       }
-      slot_to_time: {
-        Args: { slot_number: number }
-        Returns: string
-      }
+      slot_to_time: { Args: { slot_number: number }; Returns: string }
       soft_delete_custom_domain: {
         Args: { domain_id: string }
         Returns: boolean
       }
-      soft_delete_establishment: {
-        Args: { est_id: string }
-        Returns: boolean
-      }
-      soft_delete_order: {
-        Args: { order_id: string }
-        Returns: boolean
-      }
-      soft_delete_organization: {
-        Args: { org_id: string }
-        Returns: boolean
-      }
-      soft_delete_product: {
-        Args: { product_id: string }
-        Returns: boolean
-      }
+      soft_delete_establishment: { Args: { est_id: string }; Returns: boolean }
+      soft_delete_order: { Args: { order_id: string }; Returns: boolean }
+      soft_delete_organization: { Args: { org_id: string }; Returns: boolean }
+      soft_delete_product: { Args: { product_id: string }; Returns: boolean }
       soft_delete_record: {
-        Args: { table_name: string; record_id: string }
+        Args: { record_id: string; table_name: string }
         Returns: boolean
       }
-      soft_delete_user: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
+      soft_delete_user: { Args: { user_id: string }; Returns: boolean }
       test_auth_uid: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           current_user_id: string
           current_user_role: string
@@ -2381,27 +4078,21 @@ export type Database = {
         }[]
       }
       time_range_to_slots: {
-        Args: { start_time: string; end_time: string }
+        Args: { end_time: string; start_time: string }
         Returns: number[]
       }
-      time_to_slot: {
-        Args: { time_value: string }
-        Returns: number
-      }
+      time_to_slot: { Args: { time_value: string }; Returns: number }
       unreserve_stock: {
         Args: {
-          p_product_id: string
           p_organization_id: string
+          p_product_id: string
           p_quantity: number
-          p_reference_type: string
           p_reference_id: string
+          p_reference_type: string
         }
         Returns: boolean
       }
-      validate_closed_slots: {
-        Args: { slots: number[] }
-        Returns: boolean
-      }
+      validate_closed_slots: { Args: { slots: number[] }; Returns: boolean }
     }
     Enums: {
       TodosWithChildren: "todos" | "todos1"

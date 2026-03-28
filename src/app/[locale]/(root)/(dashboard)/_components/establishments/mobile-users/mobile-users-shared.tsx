@@ -66,7 +66,6 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
       phone: formData.phone ?? "",
       role: formData.role ?? null,
       is_active: formData.is_active,
-      password: formData.password ?? "",
     };
 
     createUserMutation.mutate(userData, {
@@ -91,11 +90,6 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
       role: formData.role ?? null,
       is_active: formData.is_active,
     };
-
-    // Only include password if it's provided
-    if (formData.password) {
-      updateData.password = formData.password;
-    }
 
     updateUserMutation.mutate(
       {
