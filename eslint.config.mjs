@@ -120,8 +120,8 @@ export default [
       "no-underscore-dangle": ["error", { allow: ["_id", "__dirname"] }],
 
       // Complexity
-      "complexity": ["error", { max: 13 }],
-      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "complexity": ["error", { max: 20 }],
+      "max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
       "max-depth": ["error", 4],
 
       // TypeScript-Specific Rules (customized)

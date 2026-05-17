@@ -143,79 +143,55 @@ export function useGallerySectionRealtime({
 
   // Fonctions CRUD pour cette section spécifique
   const addImageToSection = async (imageId: string) => {
-    try {
-      // ✅ Calculer le prochain ordre d'affichage
-      const nextOrder = images.length;
+    const nextOrder = images.length;
 
-      // ✅ Tentative d'INSERT normale
-      const { error: insertError } = await supabase.from("establishment_gallery_sections").insert({
-        establishment_id: establishmentId,
-        organization_id: organizationId,
-        image_id: imageId,
-        section: section,
-        display_order: nextOrder,
-        deleted: false,
-      });
+    const { error: insertError } = await supabase.from("establishment_gallery_sections").insert({
+      establishment_id: establishmentId,
+      organization_id: organizationId,
+      image_id: imageId,
+      section: section,
+      display_order: nextOrder,
+      deleted: false,
+    });
 
-      if (insertError) {
-        // ❌ Erreur de contrainte d'unicité → L'association existe déjà
-        if (insertError.code === "23505") {
-          // Code PostgreSQL pour violation d'unicité
-          // ✅ UPDATE pour récupérer l'association existante
-          const { error: updateError } = await supabase
-            .from("establishment_gallery_sections")
-            .update({
-              deleted: false,
-              display_order: nextOrder,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("establishment_id", establishmentId)
-            .eq("image_id", imageId)
-            .eq("section", section);
+    if (insertError) {
+      if (insertError.code === "23505") {
+        // Violation d'unicité → l'association existe déjà, on la réactive
+        const { error: updateError } = await supabase
+          .from("establishment_gallery_sections")
+          .update({
+            deleted: false,
+            display_order: nextOrder,
+          })
+          .eq("establishment_id", establishmentId)
+          .eq("image_id", imageId)
+          .eq("section", section);
 
-          if (updateError) {
-            throw updateError;
-          }
-        } else {
-          throw insertError;
-        }
+        if (updateError) throw updateError;
+      } else {
+        throw insertError;
       }
-    } catch (err) {
-      throw err;
     }
   };
 
   const removeImageFromSection = async (sectionId: string) => {
-    try {
-      // ✅ SOFT DELETE de l'association image-section
-      const { error } = await supabase
-        .from("establishment_gallery_sections")
-        .update({ deleted: true })
-        .eq("id", sectionId);
+    const { error } = await supabase
+      .from("establishment_gallery_sections")
+      .update({ deleted: true })
+      .eq("id", sectionId);
 
-      if (error) {
-        throw error;
-      }
-    } catch (err) {
-      throw err;
-    }
+    if (error) throw error;
   };
 
   const updateImageOrder = async (imageId: string, newOrder: number) => {
-    try {
-      const { error } = await supabase
-        .from("establishment_gallery_sections")
-        .update({ display_order: newOrder })
-        .eq("image_id", imageId)
-        .eq("section", section)
-        .eq("establishment_id", establishmentId);
+    const { error } = await supabase
+      .from("establishment_gallery_sections")
+      .update({ display_order: newOrder })
+      .eq("image_id", imageId)
+      .eq("section", section)
+      .eq("establishment_id", establishmentId);
 
-      if (error) {
-        throw error;
-      }
-    } catch (err) {
-      throw err;
-    }
+    if (error) throw error;
   };
 
   return {

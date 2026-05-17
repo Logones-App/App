@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Calendar, Clock, Package, List, UtensilsCrossed, Image, ArrowLeft, Settings } from "lucide-react";
+import { Calendar, Clock, Package, UtensilsCrossed, Image, ArrowLeft, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useEstablishment } from "@/lib/queries/establishments";
@@ -89,13 +89,6 @@ export function EstablishmentDetailsShared({
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
               <Package className="h-6 w-6" />
               <span>Produits</span>
-            </Button>
-          </Link>
-
-          <Link href={getLink("categories")}>
-            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
-              <List className="h-6 w-6" />
-              <span>Catégories</span>
             </Button>
           </Link>
 

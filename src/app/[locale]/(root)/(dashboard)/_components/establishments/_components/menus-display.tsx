@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { MenuFormModal } from "./menu-form-modal";
+import { MenuFormulasPanel } from "./menu-formulas-panel";
 import { MenuProductsGridPanel } from "./menu-products-grid-panel";
 import { MenuSchedulesList } from "./menu-schedules-list";
 
@@ -159,9 +160,10 @@ export function MenusDisplay({
           {menus.map((menu) => (
             <TabsContent key={menu.id} value={menu.id} className="mt-6 space-y-4 focus-visible:outline-none">
               <Tabs defaultValue="properties" className="w-full">
-                <TabsList className="grid w-full max-w-md grid-cols-2">
+                <TabsList className="grid w-full max-w-2xl grid-cols-3">
                   <TabsTrigger value="properties">{t("tab_properties")}</TabsTrigger>
                   <TabsTrigger value="products">{t("tab_products")}</TabsTrigger>
+                  <TabsTrigger value="formulas">{t("tab_formulas")}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="properties" className="mt-4 space-y-4">
                   <MenuCard
@@ -175,6 +177,13 @@ export function MenusDisplay({
                 </TabsContent>
                 <TabsContent value="products" className="mt-4">
                   <MenuProductsGridPanel
+                    menuId={menu.id}
+                    establishmentId={establishmentId}
+                    organizationId={organizationId}
+                  />
+                </TabsContent>
+                <TabsContent value="formulas" className="mt-4">
+                  <MenuFormulasPanel
                     menuId={menu.id}
                     establishmentId={establishmentId}
                     organizationId={organizationId}

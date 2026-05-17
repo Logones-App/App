@@ -49,11 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Si c'est un system_admin, supprimer l'organisation
     if (role === "system_admin") {
-      await supabase
-        .from("users_organizations")
-        .update({ deleted: true, updated_at: new Date().toISOString() })
-        .eq("user_id", userId)
-        .eq("deleted", false);
+      await supabase.from("users_organizations").update({ deleted: true }).eq("user_id", userId).eq("deleted", false);
     }
 
     return NextResponse.json({

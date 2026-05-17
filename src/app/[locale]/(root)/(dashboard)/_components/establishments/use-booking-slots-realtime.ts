@@ -52,9 +52,11 @@ export function useBookingSlotsRealtime(establishmentId: string) {
         },
         (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (payload.eventType === "INSERT") {
-            setBookingSlots((prev) => [...prev, payload.new as BookingSlot]);
+            setBookingSlots((prev) => [...prev, payload.new as unknown as BookingSlot]);
           } else if (payload.eventType === "UPDATE") {
-            setBookingSlots((prev) => prev.map((h) => (h.id === payload.new.id ? (payload.new as BookingSlot) : h)));
+            setBookingSlots((prev) =>
+              prev.map((h) => (h.id === payload.new.id ? (payload.new as unknown as BookingSlot) : h)),
+            );
           } else if (payload.eventType === "DELETE") {
             setBookingSlots((prev) => prev.filter((h) => h.id === (payload.old as { id: string }).id));
           }

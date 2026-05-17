@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addDays, format } from "date-fns";
 
 import { emailService } from "@/lib/services/email-service";
+import type { Tables } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
       const emailData = {
         booking,
-        establishment: fullEstablishment,
+        establishment: fullEstablishment as Tables<"establishments">,
         customerName,
         customerEmail: booking.customer_email,
         reservationDate: booking.date,

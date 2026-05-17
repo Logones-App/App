@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import { useMenuProducts } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,10 +23,22 @@ export function MenuProductsTable({ menuId, onAddProduct }: MenuProductsTablePro
   const [editPrice, setEditPrice] = useState<string>("");
 
   const mutation = useMutation({
-    mutationFn: async ({ menus_products_id, price }: { menus_products_id: string; price: number }) => {
+    mutationFn: async ({
+      menus_products_id,
+      price,
+      previousPrice,
+    }: {
+      menus_products_id: string;
+      price: number;
+      previousPrice: number | null | undefined;
+    }) => {
       const supabase = createClient();
+      const changed = previousPrice !== price;
       const { error } = await supabase.from("menus_products").update({ price }).eq("id", menus_products_id);
       if (error) throw error;
+      if (changed) {
+        await insertMenusProductPriceHistoryRow(supabase, menus_products_id, price, "menu_products_table");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
@@ -34,16 +47,14 @@ export function MenuProductsTable({ menuId, onAddProduct }: MenuProductsTablePro
     },
   });
 
-  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const deleteProductMutation = useMutation({
     mutationFn: async (menus_products_id: string) => {
       const supabase = createClient();
-      const { error } = await supabase.from("menus_products").delete().eq("id", menus_products_id);
+      const { error } = await supabase.from("menus_products").update({ deleted: true }).eq("id", menus_products_id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
-      setDeleteProductId(null);
     },
   });
 
@@ -80,7 +91,11 @@ export function MenuProductsTable({ menuId, onAddProduct }: MenuProductsTablePro
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
-                        mutation.mutate({ menus_products_id: product.menus_products_id, price: parseFloat(editPrice) });
+                        mutation.mutate({
+                          menus_products_id: product.menus_products_id,
+                          price: parseFloat(editPrice),
+                          previousPrice: product.menu_price,
+                        });
                       }}
                       className="flex items-center gap-2"
                     >
@@ -103,11 +118,11 @@ export function MenuProductsTable({ menuId, onAddProduct }: MenuProductsTablePro
                     <span
                       onClick={() => {
                         setEditingId(product.menus_products_id);
-                        setEditPrice(product.price?.toString() ?? "");
+                        setEditPrice(product.menu_price != null ? String(product.menu_price) : "");
                       }}
                       className="cursor-pointer hover:underline"
                     >
-                      {product.price ? `${product.price} €` : "Non défini"}
+                      {product.menu_price != null ? `${product.menu_price} €` : "Non défini"}
                     </span>
                   )}
                 </TableCell>
@@ -115,7 +130,11 @@ export function MenuProductsTable({ menuId, onAddProduct }: MenuProductsTablePro
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => setDeleteProductId(product.menus_products_id)}
+                    onClick={() => {
+                      if (confirm("Retirer ce produit du menu ?")) {
+                        deleteProductMutation.mutate(product.menus_products_id);
+                      }
+                    }}
                     disabled={deleteProductMutation.isPending}
                   >
                     Supprimer

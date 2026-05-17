@@ -2,15 +2,14 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
+import type { ProductWithStock } from "@/lib/types/database-extensions";
 
 import { realtimeService, type RealtimeSubscription } from "../../realtime-service";
 
 export type ProductStock = Tables<"product_stocks">;
 export type Product = Tables<"products">;
 
-export interface ProductWithStock extends Product {
-  stock: ProductStock | null;
-}
+export type { ProductWithStock };
 
 export interface ProductsRealtimeEvent {
   type: "INSERT" | "UPDATE" | "DELETE";

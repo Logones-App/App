@@ -439,10 +439,9 @@ export type Database = {
           id: string
           name: string
           organization_id: string | null
-          parent_category_id: string | null
           printer_id: string | null
           updated_at: string | null
-          vat_rate: number
+          vat_rate_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -452,10 +451,9 @@ export type Database = {
           id?: string
           name: string
           organization_id?: string | null
-          parent_category_id?: string | null
           printer_id?: string | null
           updated_at?: string | null
-          vat_rate?: number
+          vat_rate_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -465,10 +463,9 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string | null
-          parent_category_id?: string | null
           printer_id?: string | null
           updated_at?: string | null
-          vat_rate?: number
+          vat_rate_id?: string | null
         }
         Relationships: [
           {
@@ -479,17 +476,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "categories_parent_category_id_fkey"
-            columns: ["parent_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "categories_printer_id_fkey"
             columns: ["printer_id"]
             isOneToOne: false
             referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_vat_rate_id_fkey"
+            columns: ["vat_rate_id"]
+            isOneToOne: false
+            referencedRelation: "vat_rate"
             referencedColumns: ["id"]
           },
         ]
@@ -504,6 +501,7 @@ export type Database = {
           deleted: boolean | null
           display_order: number
           establishment_id: string
+          formula_id: string | null
           grid_column: number
           grid_row: number
           icon_url: string | null
@@ -528,6 +526,7 @@ export type Database = {
           deleted?: boolean | null
           display_order?: number
           establishment_id: string
+          formula_id?: string | null
           grid_column?: number
           grid_row?: number
           icon_url?: string | null
@@ -552,6 +551,7 @@ export type Database = {
           deleted?: boolean | null
           display_order?: number
           establishment_id?: string
+          formula_id?: string | null
           grid_column?: number
           grid_row?: number
           icon_url?: string | null
@@ -580,6 +580,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_grid_items_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
@@ -1425,6 +1432,7 @@ export type Database = {
           is_public: boolean | null
           name: string | null
           organization_id: string
+          pricing_strategy: string
           type: string | null
           updated_at: string | null
         }
@@ -1441,6 +1449,7 @@ export type Database = {
           is_public?: boolean | null
           name?: string | null
           organization_id: string
+          pricing_strategy?: string
           type?: string | null
           updated_at?: string | null
         }
@@ -1457,6 +1466,7 @@ export type Database = {
           is_public?: boolean | null
           name?: string | null
           organization_id?: string
+          pricing_strategy?: string
           type?: string | null
           updated_at?: string | null
         }
@@ -1538,6 +1548,50 @@ export type Database = {
             columns: ["products_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menus_products_price_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_from: string
+          id: string
+          menus_products_id: string
+          notes: string | null
+          sale_price: number
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          id?: string
+          menus_products_id: string
+          notes?: string | null
+          sale_price: number
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          id?: string
+          menus_products_id?: string
+          notes?: string | null
+          sale_price?: number
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menus_products_price_history_menus_products_id_fkey"
+            columns: ["menus_products_id"]
+            isOneToOne: false
+            referencedRelation: "menus_products"
             referencedColumns: ["id"]
           },
         ]
@@ -1797,99 +1851,6 @@ export type Database = {
           },
           {
             foreignKeyName: "nf525_jet_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      nf525_justificatifs: {
-        Row: {
-          created_at: string | null
-          device_id: string
-          establishment_id: string
-          hash_chain_input: string | null
-          id: string
-          is_duplicate: boolean
-          justificatif_number: string
-          nf525_piece_id: string | null
-          order_id: string | null
-          organization_id: string | null
-          previous_signature_base64url: string | null
-          print_count: number
-          recorded_at: string
-          signature_base64url: string | null
-          total_amount: number
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          device_id: string
-          establishment_id: string
-          hash_chain_input?: string | null
-          id?: string
-          is_duplicate?: boolean
-          justificatif_number: string
-          nf525_piece_id?: string | null
-          order_id?: string | null
-          organization_id?: string | null
-          previous_signature_base64url?: string | null
-          print_count?: number
-          recorded_at: string
-          signature_base64url?: string | null
-          total_amount: number
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          device_id?: string
-          establishment_id?: string
-          hash_chain_input?: string | null
-          id?: string
-          is_duplicate?: boolean
-          justificatif_number?: string
-          nf525_piece_id?: string | null
-          order_id?: string | null
-          organization_id?: string | null
-          previous_signature_base64url?: string | null
-          print_count?: number
-          recorded_at?: string
-          signature_base64url?: string | null
-          total_amount?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "nf525_justificatifs_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nf525_justificatifs_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nf525_justificatifs_nf525_piece_id_fkey"
-            columns: ["nf525_piece_id"]
-            isOneToOne: false
-            referencedRelation: "nf525_pieces"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nf525_justificatifs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nf525_justificatifs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2761,6 +2722,93 @@ export type Database = {
           },
         ]
       }
+      order_refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          device_id: string | null
+          establishment_id: string
+          id: string
+          organization_id: string
+          original_nf525_piece_signature: string | null
+          original_order_id: string
+          original_payment_id: string
+          reason: string | null
+          refund_method: string
+          refunded_at: string
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          device_id?: string | null
+          establishment_id: string
+          id?: string
+          organization_id: string
+          original_nf525_piece_signature?: string | null
+          original_order_id: string
+          original_payment_id: string
+          reason?: string | null
+          refund_method?: string
+          refunded_at?: string
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          device_id?: string | null
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          original_nf525_piece_signature?: string | null
+          original_order_id?: string
+          original_payment_id?: string
+          reason?: string | null
+          refund_method?: string
+          refunded_at?: string
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_refunds_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_original_payment_id_fkey"
+            columns: ["original_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_suites: {
         Row: {
           created_at: string | null
@@ -3234,6 +3282,70 @@ export type Database = {
           },
           {
             foreignKeyName: "product_options_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_purchase_price_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_from: string
+          establishment_id: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          product_id: string
+          supplier_ref: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          establishment_id?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          product_id: string
+          supplier_ref?: string | null
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          establishment_id?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          product_id?: string
+          supplier_ref?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_purchase_price_history_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_purchase_price_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_purchase_price_history_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"

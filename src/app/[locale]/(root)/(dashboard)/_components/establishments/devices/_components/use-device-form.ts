@@ -22,7 +22,7 @@ export function useDeviceForm(initialData?: Device) {
   useEffect(() => {
     if (initialData) {
       setFormData({
-        establishment_id: initialData.establishment_id,
+        establishment_id: initialData.establishment_id ?? "",
         serial_number: initialData.serial_number,
         device_role: initialData.device_role,
         status: initialData.status,

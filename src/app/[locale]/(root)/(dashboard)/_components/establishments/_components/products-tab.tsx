@@ -42,7 +42,9 @@ export function ProductsTab({ establishmentId, organizationId }: ProductsTabProp
   return (
     <div className="space-y-2">
       {products.map((product: Tables<"products">) => {
-        const stock = (productsWithStocks ?? []).find((p: Tables<"products">) => p.id === product.id)?.stock;
+        const withStock = (productsWithStocks ?? []).find((p) => p.id === product.id);
+        const stock = withStock?.stock;
+        const multi = withStock && withStock.stockLines.length > 1;
         return (
           <div key={product.id} className="bg-muted/30 flex items-center gap-4 rounded border p-2">
             <div className="flex-1">
@@ -50,8 +52,15 @@ export function ProductsTab({ establishmentId, organizationId }: ProductsTabProp
               {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
               <ProductMenusList menus={menusWithProducts} />
             </div>
-            <div className="text-xs">
-              Stock : {stock?.current_stock ?? <span className="text-muted-foreground italic">?</span>}
+            <div className="text-right text-xs">
+              <div>
+                Stock : {stock?.current_stock ?? <span className="text-muted-foreground italic">?</span>}
+                {multi ? (
+                  <span className="text-muted-foreground block text-[10px]">
+                    {withStock.stockLines.length} fiches (vue synthétique)
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
         );

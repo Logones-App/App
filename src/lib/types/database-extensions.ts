@@ -4,10 +4,20 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database
 // TYPES POUR LES JOINTURES
 // ============================================================================
 
+/** Une fiche `product_stocks` telle qu’affichée dans les listes établissement (avec contexte composition). */
+export type ProductStockListItem = {
+  stock: Tables<"product_stocks">;
+  /** `main_product_id === component_product_id` sur la composition liée. */
+  isSelfCompositionLine: boolean;
+};
+
 /**
- * Produit avec son stock associé
+ * Produit avec ses fiches stock (plusieurs compositions → plusieurs lignes possibles).
  */
 export type ProductWithStock = Tables<"products"> & {
+  /** Toutes les fiches stock liées au produit (main de la composition). */
+  stockLines: ProductStockListItem[];
+  /** Synthèse pour affichages courts : priorité à la ligne self suivie en inventaire. */
   stock: Tables<"product_stocks"> | null;
 };
 

@@ -77,7 +77,7 @@ export class RoleService {
         // Supprimer l'organisation si elle existe
         await this.supabase
           .from("users_organizations")
-          .update({ deleted: true, updated_at: new Date().toISOString() })
+          .update({ deleted: true })
           .eq("user_id", userId)
           .eq("deleted", false);
 

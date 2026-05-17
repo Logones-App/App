@@ -5,6 +5,13 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
+type FormulaRow = Database["public"]["Tables"]["formulas"]["Row"];
+type FormulaSlotRow = Database["public"]["Tables"]["formula_slots"]["Row"];
+type FormulaProductRow = Database["public"]["Tables"]["formula_products"]["Row"];
+
+export type FormulaProductWithProduct = FormulaProductRow & {
+  product: { id: string; name: string } | null;
+};
 
 /** Libellés issus de `public.categories` (palette, listes). */
 export type MenuPaletteCategory = Pick<CategoryRow, "id" | "name">;
@@ -30,6 +37,89 @@ export const useEstablishmentMenus = (establishmentId?: string, organizationId?:
   });
 };
 
+/** Formules rattachées à un menu (`formulas.menu_id`). */
+export const useMenuFormulas = (menuId?: string, establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["menu-formulas", menuId, establishmentId, organizationId],
+    queryFn: async (): Promise<FormulaRow[]> => {
+      if (!menuId || !establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("formulas")
+        .select("*")
+        .eq("menu_id", menuId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as FormulaRow[];
+    },
+    enabled: !!menuId && !!establishmentId && !!organizationId,
+  });
+};
+
+/** Emplacements (slots) d'une formule. */
+export const useFormulaSlots = (formulaId?: string, establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["formula-slots", formulaId, establishmentId, organizationId],
+    queryFn: async (): Promise<FormulaSlotRow[]> => {
+      if (!formulaId || !establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("formula_slots")
+        .select("*")
+        .eq("formula_id", formulaId)
+        .eq("establishment_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("slot_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      const rows = (data ?? []) as FormulaSlotRow[];
+      const byId = new Map<string, FormulaSlotRow>();
+      for (const r of rows) {
+        if (r?.id && !byId.has(r.id)) byId.set(r.id, r);
+      }
+      return Array.from(byId.values());
+    },
+    enabled: !!formulaId && !!establishmentId && !!organizationId,
+  });
+};
+
+/** Produits candidats par emplacement pour une formule. */
+export const useFormulaProductsByFormula = (formulaId?: string, establishmentId?: string, organizationId?: string) => {
+  return useQuery({
+    queryKey: ["formula-products", formulaId, establishmentId, organizationId],
+    queryFn: async (): Promise<FormulaProductWithProduct[]> => {
+      if (!formulaId || !establishmentId || !organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("formula_products")
+        .select(
+          `
+          *,
+          product:products(id, name)
+        `,
+        )
+        .eq("formula_id", formulaId)
+        .eq("establishment_id", establishmentId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true });
+      if (error) throw error;
+      const rows = (data ?? []) as FormulaProductWithProduct[];
+      const byId = new Map<string, FormulaProductWithProduct>();
+      for (const r of rows) {
+        if (r?.id && !byId.has(r.id)) byId.set(r.id, r);
+      }
+      return Array.from(byId.values());
+    },
+    enabled: !!formulaId && !!establishmentId && !!organizationId,
+  });
+};
+
 // Query pour récupérer les produits d'un menu (avec prix spécifique)
 export const useMenuProducts = (menuId?: string) => {
   return useQuery({
@@ -39,21 +129,23 @@ export const useMenuProducts = (menuId?: string) => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("menus_products")
-        .select(
-          `
-          *,
-          product:products(*)
-        `,
-        )
+        .select("*, product:products(*)")
         .eq("menus_id", menuId)
-        .eq("deleted", false);
+        .eq("deleted", false)
+        .order("id", { ascending: true });
       if (error) throw error;
-      // On retourne les infos du produit + le prix spécifique au menu
-      return (data ?? []).map((row: any) => ({
+      // Une même fiche produit peut apparaître sur plusieurs lignes menus_products (grille, doublons) :
+      // on ne garde qu’une entrée par product.id pour les listes / clés React.
+      const rows = (data ?? []).map((row: any) => ({
         ...row.product,
         menu_price: row.price,
         menus_products_id: row.id,
       }));
+      const byProductId = new Map<string,(typeof rows)[number]>();
+      for (const r of rows) {
+        if (r?.id && !byProductId.has(r.id)) byProductId.set(r.id, r);
+      }
+      return Array.from(byProductId.values());
     },
     enabled: !!menuId,
   });
@@ -210,6 +302,7 @@ export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?:
           .from("categories")
           .select("*")
           .eq("organization_id", organizationId)
+          .eq("establishment_id", establishmentId)
           .eq("deleted", false)
           .order("name", { ascending: true }),
         supabase

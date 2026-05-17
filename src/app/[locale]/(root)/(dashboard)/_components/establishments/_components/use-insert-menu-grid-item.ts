@@ -7,6 +7,7 @@ import {
   defaultCategoryGridAction,
   type CategoryGridAction,
 } from "@/lib/menu-grid/category-grid-action";
+import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -31,6 +32,53 @@ export function useInsertMenuGridItemMutation() {
   return useMutation({
     mutationFn: async (p: InsertMenuGridItemPayload) => {
       const supabase = createClient();
+
+      if (p.itemType === "product" && p.productId) {
+        const { data: mp, error: mpSelErr } = await supabase
+          .from("menus_products")
+          .select("id, deleted")
+          .eq("menus_id", p.menuId)
+          .eq("products_id", p.productId)
+          .eq("establishment_id", p.establishmentId)
+          .limit(1)
+          .maybeSingle();
+        if (mpSelErr) throw mpSelErr;
+
+        const { data: prod, error: prodErr } = await supabase
+          .from("products")
+          .select("price")
+          .eq("id", p.productId)
+          .maybeSingle();
+        if (prodErr) throw prodErr;
+        const price = prod?.price ?? 0;
+
+        if (mp) {
+          if (mp.deleted) {
+            const { error: upErr } = await supabase
+              .from("menus_products")
+              .update({ deleted: false, price })
+              .eq("id", mp.id);
+            if (upErr) throw upErr;
+            await insertMenusProductPriceHistoryRow(supabase, mp.id, price, "grid_ui");
+          }
+        } else {
+          const { data: inserted, error: insMpErr } = await supabase
+            .from("menus_products")
+            .insert({
+              menus_id: p.menuId,
+              establishment_id: p.establishmentId,
+              organization_id: p.organizationId,
+              products_id: p.productId,
+              price,
+              deleted: false,
+            })
+            .select("id")
+            .single();
+          if (insMpErr) throw insMpErr;
+          if (!inserted?.id) throw new Error("menus_products: insert sans id");
+          await insertMenusProductPriceHistoryRow(supabase, inserted.id, price, "grid_ui");
+        }
+      }
 
       /** Ne pas envoyer `action` pour category/product : base sans colonne → 400 PostgREST ; défaut SQL s’applique si la colonne existe. */
       const base = {
@@ -64,6 +112,12 @@ export function useInsertMenuGridItemMutation() {
       queryClient.invalidateQueries({
         queryKey: ["menu-category-grid-items", p.menuId, p.establishmentId, p.organizationId],
       });
+      if (p.itemType === "product" && p.productId) {
+        queryClient.invalidateQueries({ queryKey: ["menu-products", p.menuId] });
+        queryClient.invalidateQueries({
+          queryKey: ["establishment-products-not-in-menus", p.establishmentId, p.organizationId],
+        });
+      }
     },
   });
 }
