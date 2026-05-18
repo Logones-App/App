@@ -72,11 +72,11 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
 // ─── Section catégorie ────────────────────────────────────────────────────────
 
-export function CategorySection({ name, products }: { name: string; products: PublicProduct[] }) {
+export function CategorySection({ name, products }: { name: string | null; products: PublicProduct[] }) {
   if (!products.length) return null;
   return (
     <section className="mb-8">
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{name}</h2>
+      <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{name ?? "Autres"}</h2>
       <div className="bg-primary mb-4 h-0.5 w-12 rounded" />
       <div>
         {products.map((p) => (

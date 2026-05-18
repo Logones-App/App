@@ -19,9 +19,9 @@ export type PublicProduct = {
 
 export type PublicMenu = {
   id: string;
-  name: string;
+  name: string | null;
   description: string | null;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string | null }[];
   productsByCategory: Record<string, PublicProduct[]>;
 };
 

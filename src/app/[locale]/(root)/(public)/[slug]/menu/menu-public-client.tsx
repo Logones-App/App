@@ -126,7 +126,7 @@ export default function MenuPublicClient({ params }: Props) {
             <TabsList className="mb-6 flex h-auto flex-wrap gap-1">
               {menus.map((m) => (
                 <TabsTrigger key={m.id} value={m.id} className="text-sm">
-                  {m.name}
+                  {m.name ?? "Menu"}
                 </TabsTrigger>
               ))}
             </TabsList>
