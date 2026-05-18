@@ -8,7 +8,7 @@ export function MenuPricesCard({
   menuPrices,
   setMenuPrices,
 }: {
-  menus: { id: string; name: string }[];
+  menus: { id: string; name: string | null }[];
   menuPrices: Record<string, string>;
   setMenuPrices: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
