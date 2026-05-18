@@ -10,10 +10,13 @@ import type {
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { ProductFicheTechniquePanel } from "./product-dashboard-fiche-technique-panel";
+import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { ProductOptionsAndCompositionsPanel } from "./product-dashboard-options-compositions-panel";
 import { PrixPanel } from "./product-dashboard-prix-panel";
 import { ProductProprieteForm } from "./product-dashboard-propriete-form";
+import { ProductPurchasePricePanel } from "./product-dashboard-purchase-price-panel";
 import { ProductStockPanel } from "./product-dashboard-stock-panel";
+import { ProductSuppliersPanel } from "./product-dashboard-suppliers-panel";
 
 type TabsProps = {
   product: ProductWithCategoryName;
@@ -48,6 +51,9 @@ export function ProductEstablishmentDashboardTabs({
         <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>
         <TabsTrigger value="stock">Stock</TabsTrigger>
         <TabsTrigger value="fiche">Fiche technique</TabsTrigger>
+        <TabsTrigger value="marge">Marge</TabsTrigger>
+        <TabsTrigger value="achat">Prix d&apos;achat</TabsTrigger>
+        <TabsTrigger value="fournisseurs">Fournisseurs</TabsTrigger>
       </TabsList>
 
       <TabsContent value="propriete">
@@ -90,7 +96,30 @@ export function ProductEstablishmentDashboardTabs({
       </TabsContent>
 
       <TabsContent value="fiche">
-        <ProductFicheTechniquePanel product={product} compositions={compositions} />
+        <ProductFicheTechniquePanel
+          product={product}
+          compositions={compositions}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+          newProductHref={`${backHref.replace(/\/$/, "")}/new`}
+        />
+      </TabsContent>
+
+      <TabsContent value="marge">
+        <ProductMargePanel
+          product={product}
+          compositions={compositions}
+          menuProductPricing={menuProductPricing}
+          organizationId={organizationId}
+        />
+      </TabsContent>
+
+      <TabsContent value="achat">
+        <ProductPurchasePricePanel product={product} organizationId={organizationId} />
+      </TabsContent>
+
+      <TabsContent value="fournisseurs">
+        <ProductSuppliersPanel productId={productId} organizationId={organizationId} />
       </TabsContent>
     </Tabs>
   );

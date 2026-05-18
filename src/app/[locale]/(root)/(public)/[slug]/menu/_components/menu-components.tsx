@@ -1,92 +1,88 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tables } from "@/lib/supabase/database.types";
+"use client";
 
-type MenuProduct = Tables<"menus_products">;
-type Menu = Tables<"menus">;
-type Product = Tables<"products">;
+import { allergenInfo, formatPrice, labelInfo, type PublicProduct } from "./menu-utils";
 
-// Interface pour un produit de menu avec ses détails
-interface MenuItemWithDetails {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number | null;
-  category_id: string | null;
-  category_name?: string;
+// ─── Badge allergène ──────────────────────────────────────────────────────────
+
+function AllergenTag({ allergenKey }: { allergenKey: string }) {
+  const info = allergenInfo(allergenKey);
+  if (!info) return null;
+  return (
+    <span
+      title={info.label}
+      className="inline-flex items-center gap-0.5 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+    >
+      {info.emoji}
+      <span className="hidden sm:inline">{info.label}</span>
+    </span>
+  );
 }
 
-// Composant pour afficher un élément de menu
-export function MenuItemCard({ item }: { item: MenuItemWithDetails }) {
+// ─── Badge label ──────────────────────────────────────────────────────────────
+
+function LabelTag({ labelKey }: { labelKey: string }) {
+  const info = labelInfo(labelKey);
+  if (!info) return null;
   return (
-    <Card className="h-full transition-all hover:shadow-md">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg">{item.name}</CardTitle>
-            {item.description && (
-              <CardDescription className="mt-2 text-sm text-gray-600">{item.description}</CardDescription>
-            )}
-          </div>
-          {item.price && (
-            <Badge variant="secondary" className="ml-2 shrink-0">
-              {item.price.toFixed(2)} €
-            </Badge>
-          )}
+    <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-medium ${info.color}`}>
+      {info.emoji}
+      <span>{info.label}</span>
+    </span>
+  );
+}
+
+// ─── Carte produit ────────────────────────────────────────────────────────────
+
+export function ProductCard({ product }: { product: PublicProduct }) {
+  const hasAllergens = product.allergens.length > 0;
+  const hasLabels = product.labels.length > 0;
+  const portion =
+    product.portionWeight != null && product.portionUnit ? `${product.portionWeight} ${product.portionUnit}` : null;
+
+  return (
+    <div className="flex items-start justify-between gap-4 border-b py-4 last:border-0">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{product.name}</h3>
+          {portion && <span className="text-muted-foreground text-xs">{portion}</span>}
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {item.category_name && (
-          <div className="mt-2">
-            <p className="text-muted-foreground text-xs">
-              <strong>Catégorie :</strong> {item.category_name}
-            </p>
+
+        {product.description && <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{product.description}</p>}
+
+        {(hasAllergens || hasLabels) && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {product.labels.map((k) => (
+              <LabelTag key={k} labelKey={k} />
+            ))}
+            {product.allergens.map((k) => (
+              <AllergenTag key={k} allergenKey={k} />
+            ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {product.price != null && (
+        <p className="shrink-0 text-right font-semibold text-gray-900 tabular-nums dark:text-gray-100">
+          {formatPrice(product.price)}
+        </p>
+      )}
+    </div>
   );
 }
 
-// Composant pour afficher une catégorie de menu
-export function MenuCategorySection({
-  category,
-  items,
-}: {
-  category: { id: string; name: string; description?: string };
-  items: MenuItemWithDetails[];
-}) {
+// ─── Section catégorie ────────────────────────────────────────────────────────
+
+export function CategorySection({ name, products }: { name: string; products: PublicProduct[] }) {
+  if (!products.length) return null;
   return (
-    <div className="mb-8">
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">{category.name}</h2>
-        {category.description && <p className="text-muted-foreground mt-1">{category.description}</p>}
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <MenuItemCard key={item.id} item={item} />
+    <section className="mb-8">
+      <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{name}</h2>
+      <div className="bg-primary mb-4 h-0.5 w-12 rounded" />
+      <div>
+        {products.map((p) => (
+          <ProductCard key={p.menuProductId} product={p} />
         ))}
       </div>
-    </div>
-  );
-}
-
-// Composant pour afficher le menu complet
-export function MenuDisplay({
-  categories,
-  itemsByCategory,
-}: {
-  categories: { id: string; name: string; description?: string }[];
-  itemsByCategory: Record<string, MenuItemWithDetails[]>;
-}) {
-  return (
-    <div className="space-y-8">
-      {categories.map((category) => {
-        const items = itemsByCategory[category.id] ?? [];
-        if (items.length === 0) return null;
-
-        return <MenuCategorySection key={category.id} category={category} items={items} />;
-      })}
-    </div>
+    </section>
   );
 }

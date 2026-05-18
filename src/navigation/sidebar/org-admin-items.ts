@@ -1,6 +1,7 @@
 import {
   Home,
   Building2,
+  Truck,
   Utensils,
   Calendar,
   Users,
@@ -8,17 +9,25 @@ import {
   Settings,
   Bell,
   HelpCircle,
-  FileText,
-  ShoppingCart,
+  ShoppingBag,
   Clock,
+  Package,
+  Monitor,
+  Image,
+  MapPin,
+  Wrench,
+  GraduationCap,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
 
-export const getOrgAdminSidebarItems = (locale?: string): NavGroup[] => {
+export const getOrgAdminSidebarItems = (locale?: string, establishmentId?: string | null): NavGroup[] => {
   const baseUrl = locale ? `/${locale}` : "";
+  // Base de l'établissement actif — null si aucun sélectionné
+  const est = establishmentId ? `${baseUrl}/dashboard/establishments/${establishmentId}` : null;
 
   return [
+    // ─── Tableau de bord ──────────────────────────────────────────────────────
     {
       id: 1,
       label: "Tableau de bord",
@@ -33,181 +42,138 @@ export const getOrgAdminSidebarItems = (locale?: string): NavGroup[] => {
           url: `${baseUrl}/dashboard/analytics`,
           icon: BarChart3,
         },
-        {
-          title: "Activité récente",
-          url: `${baseUrl}/dashboard/activity`,
-          icon: Clock,
-        },
       ],
     },
-    {
-      id: 2,
-      label: "Gestion restaurant",
-      items: [
-        {
-          title: "Établissements",
-          url: `${baseUrl}/dashboard/establishments`,
-          icon: Building2,
-          subItems: [
-            {
-              title: "Mes établissements",
-              url: `${baseUrl}/dashboard/establishments`,
-            },
-            {
-              title: "Nouvel établissement",
-              url: `${baseUrl}/dashboard/establishments/new`,
-            },
-            {
-              title: "Paramètres",
-              url: `${baseUrl}/dashboard/establishments/settings`,
-            },
-          ],
-        },
-        {
-          title: "Menus",
-          url: `${baseUrl}/dashboard/menus`,
-          icon: Utensils,
-          subItems: [
-            {
-              title: "Tous les menus",
-              url: `${baseUrl}/dashboard/menus`,
-            },
-            {
-              title: "Nouveau menu",
-              url: `${baseUrl}/dashboard/menus/new`,
-            },
-            {
-              title: "Catégories",
-              url: `${baseUrl}/dashboard/menus/categories`,
-            },
-            {
-              title: "Ingrédients",
-              url: `${baseUrl}/dashboard/menus/ingredients`,
-            },
-          ],
-        },
-        {
-          title: "Réservations",
-          url: `${baseUrl}/dashboard/reservations`,
-          icon: Calendar,
-          subItems: [
-            {
-              title: "Calendrier",
-              url: `${baseUrl}/dashboard/reservations/calendar`,
-            },
-            {
-              title: "Liste des réservations",
-              url: `${baseUrl}/dashboard/reservations/list`,
-            },
-            {
-              title: "Nouvelle réservation",
-              url: `${baseUrl}/dashboard/reservations/new`,
-            },
-            {
-              title: "Paramètres",
-              url: `${baseUrl}/dashboard/reservations/settings`,
-            },
-          ],
-        },
-        {
-          title: "Commandes",
-          url: `${baseUrl}/dashboard/orders`,
-          icon: ShoppingCart,
-          subItems: [
-            {
-              title: "Commandes en cours",
-              url: `${baseUrl}/dashboard/orders/pending`,
-            },
-            {
-              title: "Historique",
-              url: `${baseUrl}/dashboard/orders/history`,
-            },
-            {
-              title: "Statistiques",
-              url: `${baseUrl}/dashboard/orders/analytics`,
-            },
-          ],
-        },
-      ],
-    },
+
+    // ─── Gestion restaurant (lié à l'établissement actif) ─────────────────────
     {
       id: 3,
-      label: "Gestion équipe",
+      label: "Gestion restaurant",
+      items: est
+        ? [
+            {
+              title: "Produits",
+              url: `${est}/products`,
+              icon: Package,
+              subItems: [
+                { title: "Catalogue", url: `${est}/products` },
+                { title: "Nouveau produit", url: `${est}/products/new` },
+              ],
+            },
+            {
+              title: "Menus",
+              url: `${est}/menus`,
+              icon: Utensils,
+            },
+            {
+              title: "Réservations",
+              url: `${est}/bookings`,
+              icon: Calendar,
+            },
+            {
+              title: "Commandes POS",
+              url: `${est}/orders`,
+              icon: ShoppingBag,
+            },
+            {
+              title: "Rapport journalier",
+              url: `${est}/daily-report`,
+              icon: BarChart3,
+            },
+            {
+              title: "Horaires",
+              url: `${est}/opening-hours`,
+              icon: Clock,
+            },
+            {
+              title: "Galerie",
+              url: `${est}/gallery`,
+              icon: Image,
+            },
+            {
+              title: "Appareils",
+              url: `${est}/devices`,
+              icon: Monitor,
+            },
+            {
+              title: "Site & domaines",
+              url: `${est}/site-configuration`,
+              icon: MapPin,
+            },
+            {
+              title: "Stocks",
+              url: `${est}/products`,
+              icon: Wrench,
+            },
+          ]
+        : [
+            {
+              title: "← Sélectionnez un établissement",
+              url: `${baseUrl}/dashboard/establishments`,
+              icon: Building2,
+              comingSoon: false,
+            },
+          ],
+    },
+
+    // ─── Catalogue organisation (transversal) ─────────────────────────────────
+    {
+      id: 4,
+      label: "Catalogue",
       items: [
         {
-          title: "Équipe",
-          url: `${baseUrl}/dashboard/team`,
-          icon: Users,
-          subItems: [
-            {
-              title: "Membres de l'équipe",
-              url: `${baseUrl}/dashboard/team/members`,
-            },
-            {
-              title: "Inviter un membre",
-              url: `${baseUrl}/dashboard/team/invite`,
-            },
-            {
-              title: "Rôles et permissions",
-              url: `${baseUrl}/dashboard/team/roles`,
-            },
-            {
-              title: "Planning",
-              url: `${baseUrl}/dashboard/team/schedule`,
-            },
-          ],
+          title: "Tous les établissements",
+          url: `${baseUrl}/dashboard/establishments`,
+          icon: Building2,
         },
         {
-          title: "Formation",
-          url: `${baseUrl}/dashboard/training`,
-          icon: FileText,
-          subItems: [
-            {
-              title: "Modules de formation",
-              url: `${baseUrl}/dashboard/training/modules`,
-            },
-            {
-              title: "Suivi des progrès",
-              url: `${baseUrl}/dashboard/training/progress`,
-            },
-            {
-              title: "Certifications",
-              url: `${baseUrl}/dashboard/training/certifications`,
-            },
-          ],
+          title: "Fournisseurs",
+          url: `${baseUrl}/dashboard/suppliers`,
+          icon: Truck,
         },
       ],
     },
+
+    // ─── Gestion équipe ────────────────────────────────────────────────────────
     {
-      id: 4,
+      id: 5,
+      label: "Gestion équipe",
+      items: est
+        ? [
+            {
+              title: "Utilisateurs mobiles",
+              url: `${est}/mobile-users`,
+              icon: Users,
+            },
+            {
+              title: "Permissions",
+              url: `${est}/mobile-user-permissions`,
+              icon: Settings,
+            },
+            {
+              title: "Formation",
+              url: `${baseUrl}/dashboard/training`,
+              icon: GraduationCap,
+            },
+          ]
+        : [
+            {
+              title: "← Sélectionnez un établissement",
+              url: `${baseUrl}/dashboard/establishments`,
+              icon: Building2,
+            },
+          ],
+    },
+
+    // ─── Configuration ─────────────────────────────────────────────────────────
+    {
+      id: 6,
       label: "Configuration",
       items: [
         {
           title: "Paramètres",
           url: `${baseUrl}/dashboard/settings`,
           icon: Settings,
-          subItems: [
-            {
-              title: "Profil organisation",
-              url: `${baseUrl}/dashboard/settings/profile`,
-            },
-            {
-              title: "Préférences",
-              url: `${baseUrl}/dashboard/settings/preferences`,
-            },
-            {
-              title: "Notifications",
-              url: `${baseUrl}/dashboard/settings/notifications`,
-            },
-            {
-              title: "Intégrations",
-              url: `${baseUrl}/dashboard/settings/integrations`,
-            },
-            {
-              title: "Facturation",
-              url: `${baseUrl}/dashboard/settings/billing`,
-            },
-          ],
         },
         {
           title: "Notifications",
@@ -215,7 +181,7 @@ export const getOrgAdminSidebarItems = (locale?: string): NavGroup[] => {
           icon: Bell,
         },
         {
-          title: "Aide et support",
+          title: "Aide",
           url: `${baseUrl}/dashboard/support`,
           icon: HelpCircle,
         },

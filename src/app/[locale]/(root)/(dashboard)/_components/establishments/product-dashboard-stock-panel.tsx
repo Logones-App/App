@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 
 import { CompositionStockCard } from "./product-composition-dashboard-blocks";
+import { StockMovementsSection } from "./product-dashboard-stock-movements";
 import { PRODUCT_DASHBOARD_QUERY_KEY } from "./product-stock-quick-adjust";
 
 const DEFAULT_STOCK_UNIT = "u";
@@ -355,6 +356,10 @@ export function ProductStockPanel({
   establishmentId: string;
   organizationId: string;
 }) {
+  // Stock courant depuis la self-composition
+  const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
+  const currentStock = selfRow?.lineStock?.current_stock ?? 0;
+
   return (
     <div className="space-y-4">
       {compositionStockRows.length > 0 ? (
@@ -367,8 +372,7 @@ export function ProductStockPanel({
               <span className="font-medium">suppléments (modifier)</span>. Le self suivi peut coexister avec le suivi
               des <span className="font-medium">modifier</span> (hybride) ; les lignes{" "}
               <span className="font-medium">recette</span> du même plat ne sont pas débitées en parallèle du self. Une
-              fiche <span className="font-medium">product_stocks</span> par maillon suivi. Pour un ingrédient qui est
-              lui-même un produit composé, les sous-lignes apparaissent ci-dessous (profondeur limitée, cycles ignorés).
+              fiche <span className="font-medium">product_stocks</span> par maillon suivi.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -382,6 +386,8 @@ export function ProductStockPanel({
         organizationId={organizationId}
         nestingLevel={0}
       />
+
+      <StockMovementsSection productId={productId} organizationId={organizationId} currentStock={currentStock} />
     </div>
   );
 }

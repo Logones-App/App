@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
+import { History } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// product.price n'est plus affiché dans ce panel — le prix de référence est supprimé du SaaS
 import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import {
   MENU_PRICING_STRATEGY_LABELS,
@@ -64,75 +69,8 @@ export function PrixPanel({
   const queryClient = useQueryClient();
   const menuIds = [...new Set(menuProductPricing.map((x) => x.menu?.id).filter(Boolean) as string[])];
 
-  const [catalogInput, setCatalogInput] = useState(String(product.price));
-  useEffect(() => {
-    setCatalogInput(String(product.price));
-  }, [product.price]);
-
-  const catalogMutation = useMutation({
-    mutationFn: async (price: number) => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("products")
-        .update({ price })
-        .eq("id", productId)
-        .eq("organization_id", organizationId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Prix catalogue enregistré.");
-      invalidateProductPricingQueries(queryClient, { productId, establishmentId, organizationId, menuIds });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Échec."),
-  });
-
-  const parsePrice = (s: string) => {
-    const n = Number(String(s).replace(",", "."));
-    return Number.isFinite(n) ? n : NaN;
-  };
-
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Prix catalogue</CardTitle>
-          <CardDescription>
-            Prix de base du produit (organisation), utilisé selon la stratégie de chaque menu
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-xs">Montant (EUR)</p>
-            <Input
-              className="w-40 tabular-nums"
-              type="text"
-              inputMode="decimal"
-              value={catalogInput}
-              onChange={(e) => setCatalogInput(e.target.value)}
-            />
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={catalogMutation.isPending}
-            onClick={() => {
-              const t = catalogInput.trim();
-              const n = Number(t.replace(",", "."));
-              if (!Number.isFinite(n) || n < 0) {
-                toast.error("Montant invalide.");
-                return;
-              }
-              catalogMutation.mutate(n);
-            }}
-          >
-            Enregistrer
-          </Button>
-          <p className="text-muted-foreground w-full text-sm tabular-nums">
-            Actuellement affiché : {eur.format(product.price)}
-          </p>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Prix par menu</CardTitle>
@@ -203,6 +141,80 @@ function MenuPricingLegend() {
         </li>
       </ul>
     </div>
+  );
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  grid_ui: "Grille menu",
+  product_dashboard: "Fiche produit",
+  product_creation: "Création produit",
+  menu_products_table: "Tableau menus",
+};
+
+function PriceHistoryDialog({ menuProductId, menuName }: { menuProductId: string; menuName: string }) {
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ["menu-price-history", menuProductId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("menus_products_price_history")
+        .select("*")
+        .eq("menus_products_id", menuProductId)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Historique des prix">
+          <History className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Historique des prix — {menuName}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <p className="text-muted-foreground text-sm">Chargement…</p>
+        ) : history.length === 0 ? (
+          <p className="text-muted-foreground py-4 text-center text-sm">Aucun changement de prix enregistré.</p>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Prix TTC</TableHead>
+                  <TableHead>Source</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((row, idx) => (
+                  <TableRow key={row.id} className={idx === 0 ? "bg-muted/20" : ""}>
+                    <TableCell className="text-sm tabular-nums">
+                      {format(parseISO(row.created_at), "d MMM yyyy à HH:mm", { locale: fr })}
+                      {idx === 0 && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          actuel
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{eur.format(row.sale_price)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {SOURCE_LABELS[row.source ?? ""] ?? row.source ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -313,6 +325,7 @@ function MenuPricingRow({
           >
             Enregistrer
           </Button>
+          <PriceHistoryDialog menuProductId={menuProduct.id} menuName={menu?.name ?? "Menu"} />
           <Button
             type="button"
             size="sm"

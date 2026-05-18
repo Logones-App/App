@@ -1,184 +1,173 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
 
-import { ArrowLeft, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tables } from "@/lib/supabase/database.types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Import des composants extraits
-import { MenuDisplay } from "./_components/menu-components";
-import { getEstablishmentBySlug, getEstablishmentMenu, type MenuItemWithDetails } from "./_components/menu-utils";
+import { CategorySection } from "./_components/menu-components";
+import {
+  getPublicEstablishmentBySlug,
+  getPublicMenus,
+  type PublicEstablishment,
+  type PublicMenu,
+} from "./_components/menu-utils";
 
-type Establishment = Tables<"establishments">;
-
-interface MenuPageProps {
-  params: Promise<{
-    slug?: string;
-    establishmentSlug?: string;
-    "establishment-slug"?: string;
-    locale: string;
-  }>;
+interface Props {
+  params: Promise<{ slug: string; locale: string }>;
 }
 
-export default function MenuPublicClient({ params }: MenuPageProps) {
-  const [establishment, setEstablishment] = useState<Establishment | null>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string; description?: string }[]>([]);
-  const [itemsByCategory, setItemsByCategory] = useState<Record<string, MenuItemWithDetails[]>>({});
+export default function MenuPublicClient({ params }: Props) {
+  const [establishment, setEstablishment] = useState<PublicEstablishment | null>(null);
+  const [menus, setMenus] = useState<PublicMenu[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const resolvedParams = await params;
-        const establishmentSlug =
-          resolvedParams.slug ?? resolvedParams["establishment-slug"] ?? resolvedParams.establishmentSlug;
-
-        if (!establishmentSlug) {
-          console.error("❌ Slug manquant");
-          setError("Slug d'établissement manquant");
-          return;
-        }
-
-        // Récupérer l'établissement
-        const establishmentData = await getEstablishmentBySlug(establishmentSlug);
-        if (!establishmentData) {
-          setError("Établissement non trouvé");
-          return;
-        }
-
-        setEstablishment(establishmentData);
-
-        // Récupérer le menu
-        const menuData = await getEstablishmentMenu(establishmentData.id);
-        setCategories(menuData.categories);
-        setItemsByCategory(menuData.itemsByCategory);
-      } catch (error) {
-        console.error("❌ Erreur lors du chargement:", error);
-        setError("Erreur lors du chargement du menu");
-      } finally {
+    params.then(async ({ slug }) => {
+      const estab = await getPublicEstablishmentBySlug(slug);
+      if (!estab) {
+        setNotFound(true);
         setLoading(false);
+        return;
       }
-    }
-
-    loadData();
+      setEstablishment(estab);
+      const menuData = await getPublicMenus(estab.id);
+      setMenus(menuData);
+      setLoading(false);
+    });
   }, [params]);
 
-  // Afficher un loader pendant le chargement
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="border-primary mx-auto h-32 w-32 animate-spin rounded-full border-b-2"></div>
-          <p className="text-muted-foreground mt-4">Chargement du menu...</p>
+          <div className="border-primary mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-t-transparent" />
+          <p className="text-muted-foreground text-sm">Chargement du menu…</p>
         </div>
       </div>
     );
   }
 
-  // Afficher une erreur si l'établissement n'est pas trouvé
-  if (error || !establishment) {
+  if (notFound || !establishment) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <h1 className="text-destructive mb-4 text-2xl font-bold">Erreur</h1>
-          <p className="text-muted-foreground mb-4">{error ?? "Impossible de charger le menu."}</p>
-          <Link href={`/${establishment?.slug ?? ""}`}>
-            <Button>Retour à l&apos;accueil</Button>
-          </Link>
+      <div className="flex min-h-screen items-center justify-center p-6 text-center">
+        <div>
+          <UtensilsCrossed className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+          <h1 className="mb-2 text-xl font-bold">Menu non disponible</h1>
+          <p className="text-muted-foreground text-sm">Cet établissement n&apos;est pas public ou n&apos;existe pas.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <div className="border-b bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href={`/${establishment.slug}`}>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Retour
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">Menu - {establishment.name}</h1>
-                <p className="text-sm text-gray-500">Découvrez notre carte</p>
-              </div>
-            </div>
+      <header className="sticky top-0 z-10 border-b bg-white/95 shadow-sm backdrop-blur dark:bg-gray-900/95">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+          <Link
+            href={`/${establishment.slug}`}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Link>
+          <div className="flex-1 truncate">
+            <h1 className="truncate font-semibold">{establishment.name}</h1>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Informations de l'établissement */}
-        <Card className="mb-8 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UtensilsCrossed className="text-primary h-5 w-5" />
-              {establishment.name}
-            </CardTitle>
-            <CardDescription>{establishment.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">Adresse :</span>
-                <span>{establishment.address}</span>
-              </div>
-              {establishment.phone && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-medium">Téléphone :</span>
-                  <span>{establishment.phone}</span>
-                </div>
-              )}
-              {establishment.email && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-medium">Email :</span>
-                  <span>{establishment.email}</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        {/* Infos établissement */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{establishment.name}</h2>
+          {establishment.description && (
+            <p className="text-muted-foreground mt-1 text-sm">{establishment.description}</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-4">
+            {establishment.address && (
+              <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                <MapPin className="h-3.5 w-3.5" />
+                {establishment.address}
+              </span>
+            )}
+            {establishment.phone && (
+              <a
+                href={`tel:${establishment.phone}`}
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {establishment.phone}
+              </a>
+            )}
+          </div>
+        </div>
 
-        {/* Menu */}
-        {categories.length === 0 ? (
-          <Card className="shadow-lg">
-            <CardContent className="py-12 text-center">
-              <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-                <UtensilsCrossed className="text-muted-foreground h-6 w-6" />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">Menu non disponible</h3>
-              <p className="text-muted-foreground">Le menu de cet établissement n&apos;est pas encore configuré.</p>
-            </CardContent>
-          </Card>
+        {/* Menus */}
+        {menus.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-12 text-center">
+            <UtensilsCrossed className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
+            <h3 className="font-semibold">Menu non configuré</h3>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Le menu de cet établissement n&apos;est pas encore disponible.
+            </p>
+          </div>
+        ) : menus.length === 1 ? (
+          // Un seul menu — affichage direct
+          <MenuContent menu={menus[0]} />
         ) : (
-          <MenuDisplay categories={categories} itemsByCategory={itemsByCategory} />
+          // Plusieurs menus — onglets
+          <Tabs defaultValue={menus[0].id}>
+            <TabsList className="mb-6 flex h-auto flex-wrap gap-1">
+              {menus.map((m) => (
+                <TabsTrigger key={m.id} value={m.id} className="text-sm">
+                  {m.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {menus.map((m) => (
+              <TabsContent key={m.id} value={m.id}>
+                <MenuContent menu={m} />
+              </TabsContent>
+            ))}
+          </Tabs>
         )}
 
-        {/* Bouton retour */}
-        <div className="mt-8">
-          <Card>
-            <CardContent className="pt-6">
-              <Link href={`/${establishment.slug}`}>
-                <Button variant="outline" className="w-full">
-                  ← Retour à l&apos;accueil
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Légende allergènes */}
+        {menus.some((m) =>
+          Object.values(m.productsByCategory).some((ps) => ps.some((p) => p.allergens.length > 0)),
+        ) && (
+          <p className="text-muted-foreground mt-8 text-center text-xs">
+            Les allergènes sont indiqués en rouge sur chaque plat. En cas de doute, demandez à notre équipe.
+          </p>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function MenuContent({ menu }: { menu: PublicMenu }) {
+  const totalProducts = Object.values(menu.productsByCategory).reduce((s, ps) => s + ps.length, 0);
+
+  if (totalProducts === 0) {
+    return (
+      <div className="rounded-xl border border-dashed p-8 text-center">
+        <p className="text-muted-foreground text-sm">Aucun plat disponible pour ce menu.</p>
       </div>
+    );
+  }
+
+  return (
+    <div>
+      {menu.description && <p className="text-muted-foreground mb-6 text-sm">{menu.description}</p>}
+      {menu.categories.map((cat) => (
+        <CategorySection key={cat.id} name={cat.name} products={menu.productsByCategory[cat.id] ?? []} />
+      ))}
     </div>
   );
 }

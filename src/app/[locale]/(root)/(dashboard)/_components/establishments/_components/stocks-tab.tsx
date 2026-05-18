@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -173,8 +173,41 @@ export function StocksTab({ establishmentId, organizationId }: StocksTabProps) {
     );
   }
 
+  // Alertes stock
+  const allStockLines = productsWithStocks.flatMap((p) => p.stockLines.map((sl) => ({ product: p, stock: sl.stock })));
+  const criticalLines = allStockLines.filter(
+    ({ stock }) =>
+      stock && stock.critical_stock_threshold != null && stock.current_stock <= stock.critical_stock_threshold,
+  );
+  const lowLines = allStockLines.filter(
+    ({ stock }) =>
+      stock &&
+      stock.low_stock_threshold != null &&
+      stock.current_stock <= stock.low_stock_threshold &&
+      !(stock.critical_stock_threshold != null && stock.current_stock <= stock.critical_stock_threshold),
+  );
+
   return (
     <div className="space-y-3">
+      {criticalLines.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Stock critique</strong> sur {criticalLines.length} fiche{criticalLines.length > 1 ? "s" : ""} :{" "}
+            {[...new Set(criticalLines.map((l) => l.product.name))].join(", ")}.
+          </span>
+        </div>
+      )}
+      {lowLines.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Stock bas</strong> sur {lowLines.length} fiche{lowLines.length > 1 ? "s" : ""} :{" "}
+            {[...new Set(lowLines.map((l) => l.product.name))].join(", ")}.
+          </span>
+        </div>
+      )}
+
       <p className="text-muted-foreground text-xs">
         Chaque produit peut avoir plusieurs fiches (unité vendue, lignes de recette, pool d&apos;ingrédient). Les seuils
         colorent chaque ligne. Ajustez le <span className="font-medium">stock réel</span> sans quitter la liste ; le nom

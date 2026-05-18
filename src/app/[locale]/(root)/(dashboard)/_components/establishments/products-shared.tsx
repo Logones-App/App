@@ -4,11 +4,13 @@ import { useMemo } from "react";
 
 import { usePathname } from "next/navigation";
 
-import { Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEstablishmentCategories, useOrganizationProducts } from "@/lib/queries/establishments";
+import { exportProductsToCSV } from "@/lib/utils/csv-export";
 
 import { StocksTab } from "./_components/stocks-tab";
 import { BackToEstablishmentButton } from "./back-to-establishment-button";
@@ -68,6 +70,15 @@ export function ProductsShared({
             établissement sert aux options, compositions et menus.
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportProductsToCSV(products ?? [], categoryById)}
+          disabled={!products?.length}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Exporter CSV
+        </Button>
       </div>
 
       <Tabs defaultValue="catalogue" className="w-full gap-4">

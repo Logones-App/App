@@ -2,9 +2,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Calendar, Clock, Package, UtensilsCrossed, Image, ArrowLeft, Settings } from "lucide-react";
+import {
+  BarChart3,
+  Calendar,
+  Clock,
+  Package,
+  UtensilsCrossed,
+  Image,
+  ArrowLeft,
+  Settings,
+  ShoppingBag,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { QrCodeDialog } from "@/components/ui/qr-code-dialog";
 import { useEstablishment } from "@/lib/queries/establishments";
 
 export function EstablishmentDetailsShared({
@@ -112,6 +123,30 @@ export function EstablishmentDetailsShared({
               <span>Configuration du site</span>
             </Button>
           </Link>
+
+          <Link href={getLink("orders")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <ShoppingBag className="h-6 w-6" />
+              <span>Commandes POS</span>
+            </Button>
+          </Link>
+
+          <Link href={getLink("daily-report")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <BarChart3 className="h-6 w-6" />
+              <span>Rapport journalier</span>
+            </Button>
+          </Link>
+
+          {establishment.slug && (
+            <div className="border-primary/40 flex h-20 w-full items-center justify-center rounded-lg border">
+              <QrCodeDialog
+                url={`${typeof window !== "undefined" ? window.location.origin : ""}/fr/${establishment.slug}/menu`}
+                label="Carte client & QR Code"
+                description={`Lien et QR Code pour la carte numérique de ${establishment.name}`}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

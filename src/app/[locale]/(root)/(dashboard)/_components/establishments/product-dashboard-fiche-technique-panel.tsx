@@ -1,25 +1,406 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
+import Link from "next/link";
+
+import { Check, ExternalLink, Plus, Trash2, X } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useOrganizationProducts } from "@/lib/queries/establishments";
 import type { ProductCompositionRow, ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
+import {
+  getCurrentPurchasePrice,
+  useComponentCurrentPurchasePrices,
+  useProductPurchasePriceHistory,
+} from "@/lib/queries/purchase-price-queries";
+
+import { useCompositionInlineEdit } from "./use-composition-inline-edit";
+
+function MargeCard({
+  selfPurchasePrice,
+  technicalLines,
+  componentPrices,
+}: {
+  selfPurchasePrice: number | null;
+  technicalLines: ProductCompositionRow[];
+  componentPrices: Map<string, number>;
+}) {
+  const recipeCostHT = technicalLines
+    .filter((c) => c.composition_kind === "recipe")
+    .reduce((sum, c) => {
+      const unitCostHT = componentPrices.get(c.component_product_id);
+      if (unitCostHT == null) return sum;
+      return sum + (c.default_quantity ?? 1) * unitCostHT;
+    }, 0);
+
+  const hasComponentPrices = technicalLines.some((c) => componentPrices.has(c.component_product_id));
+  const costHT = hasComponentPrices ? recipeCostHT : selfPurchasePrice;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Coût matière HT</CardTitle>
+        <CardDescription>
+          {hasComponentPrices
+            ? "Somme Σ (qté recette × prix d'achat HT du composant)."
+            : "Prix d'achat HT du produit (aucun ingrédient). Consultez l'onglet Marge pour les marges par menu."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg border p-4">
+          <p className="text-muted-foreground text-sm">
+            {hasComponentPrices ? "Coût matière HT (recette)" : "Prix d'achat HT"}
+          </p>
+          {costHT != null ? (
+            <p className="text-2xl font-semibold tabular-nums">{eur.format(costHT)}</p>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-lg">—</p>
+              <p className="text-muted-foreground text-xs">
+                Renseignez les prix d&apos;achat dans l&apos;onglet dédié.
+              </p>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
-function kindLabel(kind: string) {
-  if (kind === "recipe") return "Recette (BOM / quantités)";
-  if (kind === "modifier") return "Modificateur (supplément)";
-  return kind;
+const KIND_OPTIONS = [
+  { value: "recipe", label: "Recette (BOM)" },
+  { value: "modifier", label: "Modificateur" },
+];
+
+// ─── Cellule select Kind ─────────────────────────────────────────────────────
+
+function InlineKindCell({
+  value,
+  isActive,
+  onActivate,
+  onSave,
+  onTabNext,
+}: {
+  value: string;
+  isActive: boolean;
+  onActivate: () => void;
+  onSave: (v: string) => void;
+  onTabNext: () => void;
+}) {
+  if (isActive) {
+    return (
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          onSave(v);
+          onTabNext();
+        }}
+        open
+        onOpenChange={(o) => {
+          if (!o) onTabNext();
+        }}
+      >
+        <SelectTrigger className="h-7 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {KIND_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+  const label = KIND_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="text-muted-foreground hover:bg-muted/60 focus:ring-ring rounded px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
+    >
+      {label}
+    </button>
+  );
 }
+
+// ─── Cellule nombre éditable ─────────────────────────────────────────────────
+
+function InlineNumberCell({
+  value,
+  nullable,
+  isActive,
+  onActivate,
+  onSave,
+  onTabNext,
+}: {
+  value: number | null;
+  nullable?: boolean;
+  isActive: boolean;
+  onActivate: () => void;
+  onSave: (v: number | null) => void;
+  onTabNext: () => void;
+}) {
+  const [draft, setDraft] = useState(String(value ?? ""));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isActive) {
+      setDraft(value != null ? String(value) : "");
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isActive, value]);
+
+  const commit = () => {
+    const t = draft.trim().replace(",", ".");
+    if (nullable && t === "") {
+      onSave(null);
+      return;
+    }
+    const n = parseFloat(t);
+    onSave(Number.isFinite(n) ? n : value);
+  };
+
+  if (isActive) {
+    return (
+      <Input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+            onTabNext();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onTabNext();
+          }
+          if (e.key === "Tab") {
+            e.preventDefault();
+            commit();
+            onTabNext();
+          }
+        }}
+        inputMode="decimal"
+        className="h-7 w-20 px-2 text-sm tabular-nums"
+        placeholder={nullable ? "—" : "0"}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="hover:bg-muted/60 focus:ring-ring w-full rounded px-1 py-0.5 text-right tabular-nums focus:ring-1 focus:outline-none"
+    >
+      {value ?? <span className="text-muted-foreground">—</span>}
+    </button>
+  );
+}
+
+// ─── Composant principal ─────────────────────────────────────────────────────
 
 export function ProductFicheTechniquePanel({
   product,
   compositions,
+  establishmentId,
+  organizationId,
+  newProductHref,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
+  establishmentId: string;
+  organizationId: string;
+  newProductHref?: string;
 }) {
+  const edit = useCompositionInlineEdit({
+    productId: product.id,
+    establishmentId,
+    organizationId,
+  });
+
+  const { data: orgProducts = [] } = useOrganizationProducts(organizationId || undefined);
+  const availableComponents = orgProducts.filter((p) => p.id !== product.id);
+
   const technicalLines = compositions.filter((c) => c.main_product_id !== c.component_product_id);
+  const componentIds = technicalLines.map((c) => c.component_product_id);
+  const { data: componentPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
+  const { data: selfHistory = [] } = useProductPurchasePriceHistory(product.id, organizationId);
+  const selfPurchasePrice = getCurrentPurchasePrice(selfHistory)?.unit_cost ?? null;
+
+  const renderExistingRow = (c: ProductCompositionRow) => (
+    <TableRow key={c.id}>
+      <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
+      <TableCell>
+        <InlineKindCell
+          value={c.composition_kind}
+          isActive={edit.isCell(c.id, "composition_kind")}
+          onActivate={() => edit.setActiveCell({ id: c.id, field: "composition_kind" })}
+          onSave={(v) => edit.saveCell(c.id, "composition_kind", v)}
+          onTabNext={() => edit.tabToNext(c.id, "composition_kind")}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <InlineNumberCell
+          value={c.default_quantity}
+          isActive={edit.isCell(c.id, "default_quantity")}
+          onActivate={() => edit.setActiveCell({ id: c.id, field: "default_quantity" })}
+          onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
+          onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <InlineNumberCell
+          value={c.max_quantity}
+          nullable
+          isActive={edit.isCell(c.id, "max_quantity")}
+          onActivate={() => edit.setActiveCell({ id: c.id, field: "max_quantity" })}
+          onSave={(v) => edit.saveCell(c.id, "max_quantity", v)}
+          onTabNext={() => edit.tabToNext(c.id, "max_quantity")}
+        />
+      </TableCell>
+      <TableCell>
+        <button
+          type="button"
+          onClick={() => edit.saveCell(c.id, "show_in_customization", !c.show_in_customization)}
+          className="focus:ring-ring rounded focus:ring-1 focus:outline-none"
+        >
+          <Badge variant={c.show_in_customization ? "default" : "secondary"}>
+            {c.show_in_customization ? "Visible" : "Masquée"}
+          </Badge>
+        </button>
+      </TableCell>
+      <TableCell className="text-right">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive h-7 w-7"
+          onClick={() => edit.deleteRow(c.id)}
+          disabled={edit.isPending}
+          aria-label="Supprimer"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+
+  const renderNewRow = () => (
+    <TableRow className="bg-muted/20">
+      <TableCell>
+        <Select
+          value={edit.newDraft.component_product_id || undefined}
+          onValueChange={(v) => edit.patchNewDraft({ component_product_id: v })}
+        >
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue placeholder="Choisir un ingrédient…" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableComponents.map((p) => (
+              <SelectItem key={p.id} value={p.id} className="text-xs">
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Select
+          value={edit.newDraft.composition_kind}
+          onValueChange={(v) => edit.patchNewDraft({ composition_kind: v as "recipe" | "modifier" })}
+        >
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {KIND_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Input
+          value={String(edit.newDraft.default_quantity)}
+          onChange={(e) => {
+            const n = parseFloat(e.target.value.replace(",", "."));
+            edit.patchNewDraft({ default_quantity: Number.isFinite(n) ? n : 1 });
+          }}
+          inputMode="decimal"
+          className="h-7 w-20 px-2 text-sm tabular-nums"
+          placeholder="1"
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          value={String(edit.newDraft.max_quantity ?? "")}
+          onChange={(e) => {
+            const t = e.target.value.replace(",", ".");
+            const n = parseFloat(t);
+            edit.patchNewDraft({ max_quantity: t === "" ? null : Number.isFinite(n) ? n : null });
+          }}
+          inputMode="decimal"
+          className="h-7 w-20 px-2 text-sm tabular-nums"
+          placeholder="—"
+        />
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={edit.newDraft.show_in_customization}
+            onCheckedChange={(v) => edit.patchNewDraft({ show_in_customization: v })}
+            id="new-row-modal"
+          />
+          <label htmlFor="new-row-modal" className="cursor-pointer text-xs">
+            {edit.newDraft.show_in_customization ? "Visible" : "Masquée"}
+          </label>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-green-600 hover:text-green-700"
+            onClick={edit.confirmAdd}
+            disabled={edit.isPending || !edit.newDraft.component_product_id}
+            aria-label="Confirmer"
+          >
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive h-7 w-7"
+            onClick={edit.cancelAdd}
+            aria-label="Annuler"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 
   return (
     <div className="space-y-6">
@@ -27,82 +408,67 @@ export function ProductFicheTechniquePanel({
         <CardHeader>
           <CardTitle>Fiche technique — recette</CardTitle>
           <CardDescription>
-            Ingrédients et quantités pour documenter la recette (poids, portions, coûts). Les lignes en{" "}
-            <span className="font-medium">recipe</span> participent au BOM caisse ; en{" "}
-            <span className="font-medium">modifier</span>, ce sont des suppléments client.
+            Ingrédients et quantités pour documenter la recette. Les lignes <span className="font-medium">Recette</span>{" "}
+            participent au BOM caisse ; <span className="font-medium">Modificateur</span>, ce sont des suppléments
+            client. Cliquez sur une cellule pour la modifier directement.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-muted-foreground text-sm">
-            Pour des ingrédients <span className="font-medium">uniquement informatifs</span> (pas à la carte, pas en
-            modale), vous pouvez aujourd&apos;hui utiliser une ligne <span className="font-medium">recipe</span> avec{" "}
-            <span className="font-medium">show_in_customization = false</span> : elles restent dans la recette pour les
-            quantités, sans proposition en perso. Une valeur dédiée du type{" "}
-            <span className="font-medium">technical</span> pourra être ajoutée en base si vous voulez les exclure
-            explicitement du BOM tout en gardant les quantités.
-          </p>
-          {technicalLines.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucun ingrédient (hors ligne self) sur ce produit.</p>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ingrédient</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Qté défaut</TableHead>
+                  <TableHead className="text-right">Qté max</TableHead>
+                  <TableHead>Modale</TableHead>
+                  <TableHead className="w-[60px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {technicalLines.length === 0 && !edit.isAddingRow ? (
                   <TableRow>
-                    <TableHead>Ingrédient</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Qté défaut</TableHead>
-                    <TableHead className="text-right">Qté max</TableHead>
-                    <TableHead>Modale</TableHead>
+                    <TableCell colSpan={6} className="text-muted-foreground h-16 text-center text-sm">
+                      Aucun ingrédient. Cliquez sur &quot;Ajouter un ingrédient&quot; pour commencer.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {technicalLines.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{kindLabel(c.composition_kind)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{c.default_quantity ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{c.max_quantity ?? "—"}</TableCell>
-                      <TableCell>{c.show_in_customization ? "Visible" : "Masquée"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                ) : (
+                  technicalLines.map(renderExistingRow)
+                )}
+                {edit.isAddingRow && renderNewRow()}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={edit.startAddRow}
+              disabled={edit.isAddingRow || edit.isPending}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un ingrédient
+            </Button>
+            {newProductHref && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={newProductHref} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                  Créer un nouveau produit
+                </Link>
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Coûts et marge (cible)</CardTitle>
-          <CardDescription>
-            Prix de vente catalogue vs coût de revient des composants — calcul automatique à brancher lorsque les prix
-            d&apos;achat seront stockés (ex. sur <span className="font-medium">products</span> ou table fournisseurs).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1 rounded-lg border p-4">
-              <p className="text-muted-foreground text-sm">Prix de vente (catalogue)</p>
-              <p className="text-2xl font-semibold tabular-nums">{eur.format(product.price)}</p>
-            </div>
-            <div className="space-y-1 rounded-lg border border-dashed p-4">
-              <p className="text-muted-foreground text-sm">Coût matière estimé</p>
-              <p className="text-muted-foreground text-lg">—</p>
-              <p className="text-muted-foreground text-xs">
-                Sera la somme Σ (quantité recette × prix d&apos;achat unitaire du composant), hors options.
-              </p>
-            </div>
-          </div>
-          <div className="rounded-lg border border-dashed p-4">
-            <p className="text-muted-foreground text-sm">Marge brute</p>
-            <p className="text-muted-foreground">—</p>
-            <p className="text-muted-foreground text-xs">
-              (Prix vente − coût matière) / prix vente, une fois les achats renseignés.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <MargeCard
+        selfPurchasePrice={selfPurchasePrice}
+        technicalLines={technicalLines}
+        componentPrices={componentPrices ?? new Map()}
+      />
     </div>
   );
 }

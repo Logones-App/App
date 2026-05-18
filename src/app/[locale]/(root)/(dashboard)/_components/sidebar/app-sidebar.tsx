@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { useParams } from "next/navigation";
 
-import { Settings, CircleHelp, Search, Database, ClipboardList, File, Command } from "lucide-react";
+import { Command } from "lucide-react";
 
 import {
   Sidebar,
@@ -15,66 +17,47 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useCurrentEstablishmentStore } from "@/lib/stores/current-establishment-store";
 import { getSidebarItemsByRole } from "@/navigation/sidebar/sidebar-items";
-import { type NavGroup } from "@/navigation/sidebar/sidebar-items";
 
+import { EstablishmentSwitcher } from "./establishment-switcher";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
-
-const data = {
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: CircleHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: Search,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: Database,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: ClipboardList,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: File,
-    },
-  ],
-};
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   userRole?: string | null;
   locale?: string;
 }
 
+const LS_KEY = "current-establishment";
+
 export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   const { user } = useAuthStore();
   const params = useParams();
+  const { establishmentId, setEstablishment } = useCurrentEstablishmentStore();
 
-  // Utilise le rôle passé en props (SSR) ou le calcule côté client
+  // Hydrate le store depuis localStorage au premier rendu client
+  useEffect(() => {
+    if (establishmentId) return; // déjà initialisé dans cette session
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const { id, name } = JSON.parse(raw) as { id: string; name: string };
+        if (id && name) setEstablishment(id, name);
+      }
+    } catch {
+      // localStorage inaccessible ou JSON invalide — on ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const finalUserRole = userRole ?? user?.user_metadata?.role ?? user?.app_metadata?.role;
-
-  // Utilise la locale passée en props ou depuis les paramètres
   const finalLocale = locale ?? (params?.locale as string);
+  const isOrgAdmin = finalUserRole === "org_admin";
 
-  // Calcule les items côté client pour éviter les problèmes d'icônes
-  const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale);
+  const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale, establishmentId);
+  const beforeSwitcher = isOrgAdmin ? sidebarItems.slice(0, 1) : sidebarItems;
+  const afterSwitcher = isOrgAdmin ? sidebarItems.slice(1) : [];
 
   return (
     <Sidebar {...props}>
@@ -91,9 +74,12 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={sidebarItems} />
-        {/* <NavDocuments items={data.documents} /> */}
-        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        <NavMain items={beforeSwitcher} />
+
+        {isOrgAdmin && <EstablishmentSwitcher />}
+
+        {/* key force le remount complet quand l'établissement change */}
+        {isOrgAdmin && <NavMain key={establishmentId ?? "none"} items={afterSwitcher} />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

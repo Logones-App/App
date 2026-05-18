@@ -1489,6 +1489,7 @@ export type Database = {
       }
       menus_products: {
         Row: {
+          created_at: string | null
           created_by: string | null
           deleted: boolean | null
           establishment_id: string
@@ -1500,6 +1501,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           establishment_id: string
@@ -1511,6 +1513,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           establishment_id?: string
@@ -2381,6 +2384,51 @@ export type Database = {
           },
         ]
       }
+      order_payment_pools: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          establishment_id: string
+          id: string
+          label: string | null
+          n_shares: number
+          order_id: string
+          organization_id: string
+          pool_type: string
+          product_keys: Json
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          label?: string | null
+          n_shares: number
+          order_id: string
+          organization_id: string
+          pool_type: string
+          product_keys?: Json
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          label?: string | null
+          n_shares?: number
+          order_id?: string
+          organization_id?: string
+          pool_type?: string
+          product_keys?: Json
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_payment_settlements: {
         Row: {
           amount: number
@@ -2467,9 +2515,13 @@ export type Database = {
           created_by: string | null
           deleted: boolean | null
           description: string | null
+          discount_amount: number
+          discount_reason: string | null
+          division_state: Json | null
           establishment_id: string
           id: string
           name: string
+          order_discount_share: number
           orders_id: string | null
           organization_id: string | null
           paid: boolean | null
@@ -2480,9 +2532,13 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          discount_amount?: number
+          discount_reason?: string | null
+          division_state?: Json | null
           establishment_id: string
           id?: string
           name: string
+          order_discount_share?: number
           orders_id?: string | null
           organization_id?: string | null
           paid?: boolean | null
@@ -2493,9 +2549,13 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
+          discount_amount?: number
+          discount_reason?: string | null
+          division_state?: Json | null
           establishment_id?: string
           id?: string
           name?: string
+          order_discount_share?: number
           orders_id?: string | null
           organization_id?: string | null
           paid?: boolean | null
@@ -2530,6 +2590,7 @@ export type Database = {
           orders_payments_id: string | null
           organization_id: string | null
           payment_type: string | null
+          pool_id: string | null
           updated_at: string | null
           vat_rate: number | null
         }
@@ -2544,6 +2605,7 @@ export type Database = {
           orders_payments_id?: string | null
           organization_id?: string | null
           payment_type?: string | null
+          pool_id?: string | null
           updated_at?: string | null
           vat_rate?: number | null
         }
@@ -2558,6 +2620,7 @@ export type Database = {
           orders_payments_id?: string | null
           organization_id?: string | null
           payment_type?: string | null
+          pool_id?: string | null
           updated_at?: string | null
           vat_rate?: number | null
         }
@@ -2574,6 +2637,13 @@ export type Database = {
             columns: ["order_products_id"]
             isOneToOne: false
             referencedRelation: "order_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_rows_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_pools"
             referencedColumns: ["id"]
           },
           {
@@ -2599,6 +2669,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted: boolean
+          discount_amount: number
+          discount_reason: string | null
           establishment_id: string
           id: string
           kitchen_print_count: number
@@ -2627,6 +2699,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          discount_amount?: number
+          discount_reason?: string | null
           establishment_id: string
           id?: string
           kitchen_print_count?: number
@@ -2655,6 +2729,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          discount_amount?: number
+          discount_reason?: string | null
           establishment_id?: string
           id?: string
           kitchen_print_count?: number
@@ -2877,6 +2953,8 @@ export type Database = {
           daily_found_id: string | null
           deleted: boolean | null
           description: string | null
+          discount_amount: number
+          discount_reason: string | null
           establishment_id: string
           id: string
           opened: boolean | null
@@ -2891,6 +2969,8 @@ export type Database = {
           daily_found_id?: string | null
           deleted?: boolean | null
           description?: string | null
+          discount_amount?: number
+          discount_reason?: string | null
           establishment_id: string
           id?: string
           opened?: boolean | null
@@ -2905,6 +2985,8 @@ export type Database = {
           daily_found_id?: string | null
           deleted?: boolean | null
           description?: string | null
+          discount_amount?: number
+          discount_reason?: string | null
           establishment_id?: string
           id?: string
           opened?: boolean | null
@@ -3300,6 +3382,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           product_id: string
+          supplier_id: string | null
           supplier_ref: string | null
           unit_cost: number
         }
@@ -3313,6 +3396,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           product_id: string
+          supplier_id?: string | null
           supplier_ref?: string | null
           unit_cost: number
         }
@@ -3326,6 +3410,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           product_id?: string
+          supplier_id?: string | null
           supplier_ref?: string | null
           unit_cost?: number
         }
@@ -3349,6 +3434,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_purchase_price_history_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -3435,52 +3527,149 @@ export type Database = {
           },
         ]
       }
+      product_suppliers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          is_preferred: boolean
+          lead_time_days: number | null
+          notes: string | null
+          order_quantity: number | null
+          order_unit: string | null
+          organization_id: string
+          product_id: string
+          supplier_id: string
+          supplier_product_name: string | null
+          supplier_product_ref: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          is_preferred?: boolean
+          lead_time_days?: number | null
+          notes?: string | null
+          order_quantity?: number | null
+          order_unit?: string | null
+          organization_id: string
+          product_id: string
+          supplier_id: string
+          supplier_product_name?: string | null
+          supplier_product_ref?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          is_preferred?: boolean
+          lead_time_days?: number | null
+          notes?: string | null
+          order_quantity?: number | null
+          order_unit?: string | null
+          organization_id?: string
+          product_id?: string
+          supplier_id?: string
+          supplier_product_name?: string | null
+          supplier_product_ref?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_suppliers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_suppliers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          allergens: Json
           category_id: string
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
           description: string | null
           display_order: number | null
+          food_cost_target: number | null
           id: string
           is_available: boolean | null
+          labels: Json
           name: string
           organization_id: string | null
+          portion_unit: string | null
+          portion_weight: number | null
           price: number
           printer_id: string | null
+          product_type: string | null
+          sku: string | null
           updated_at: string | null
           vat_rate_id: string | null
         }
         Insert: {
+          allergens?: Json
           category_id: string
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
           display_order?: number | null
+          food_cost_target?: number | null
           id?: string
           is_available?: boolean | null
+          labels?: Json
           name: string
           organization_id?: string | null
+          portion_unit?: string | null
+          portion_weight?: number | null
           price: number
           printer_id?: string | null
+          product_type?: string | null
+          sku?: string | null
           updated_at?: string | null
           vat_rate_id?: string | null
         }
         Update: {
+          allergens?: Json
           category_id?: string
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
           description?: string | null
           display_order?: number | null
+          food_cost_target?: number | null
           id?: string
           is_available?: boolean | null
+          labels?: Json
           name?: string
           organization_id?: string | null
+          portion_unit?: string | null
+          portion_weight?: number | null
           price?: number
           printer_id?: string | null
+          product_type?: string | null
+          sku?: string | null
           updated_at?: string | null
           vat_rate_id?: string | null
         }
@@ -3665,6 +3854,65 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3956,19 +4204,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_stock_movement: {
-        Args: {
-          p_movement_type: string
-          p_notes?: string
-          p_organization_id: string
-          p_product_id: string
-          p_quantity: number
-          p_reference_id?: string
-          p_reference_type?: string
-          p_work_session_id?: string
-        }
-        Returns: string
-      }
       cleanup_expired_device_sessions: { Args: never; Returns: undefined }
       cleanup_old_cache: { Args: never; Returns: number }
       cleanup_old_email_logs: {
@@ -4042,28 +4277,6 @@ export type Database = {
           start_time: string
         }[]
       }
-      get_available_stock: {
-        Args: { p_organization_id: string; p_product_id: string }
-        Returns: number
-      }
-      get_current_organization_id: { Args: never; Returns: string }
-      get_establishment_gallery_images: {
-        Args: { p_establishment_id: string; p_organization_id?: string }
-        Returns: {
-          alt_text: string
-          created_at: string
-          dimensions: Json
-          display_order: number
-          file_size: number
-          id: string
-          image_description: string
-          image_name: string
-          image_url: string
-          is_featured: boolean
-          is_public: boolean
-          mime_type: string
-        }[]
-      }
       get_establishment_gallery_section_images: {
         Args: { p_establishment_id: string; p_section: string }
         Returns: {
@@ -4092,19 +4305,6 @@ export type Database = {
         }
         Returns: string
       }
-      get_menu_products: {
-        Args: { p_menu_id: string }
-        Returns: {
-          category_id: string
-          category_name: string
-          menu_price: number
-          product_base_price: number
-          product_description: string
-          product_id: string
-          product_name: string
-          vat_rate: number
-        }[]
-      }
       get_next_nf525_piece_number: {
         Args: {
           p_device_id: string
@@ -4113,23 +4313,6 @@ export type Database = {
           p_piece_type: string
         }
         Returns: number
-      }
-      get_stock_alerts: {
-        Args: { p_organization_id?: string }
-        Returns: {
-          alert_level: string
-          alert_message: string
-          current_stock: number
-          min_stock: number
-          product_id: string
-          product_name: string
-          unit: string
-        }[]
-      }
-      get_user_organization: { Args: { user_uuid: string }; Returns: string }
-      hard_delete_record: {
-        Args: { record_id: string; table_name: string }
-        Returns: boolean
       }
       is_slot_closed_by_exception: {
         Args: {
@@ -4163,37 +4346,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      restore_deleted_record: {
-        Args: { record_id: string; table_name: string }
-        Returns: boolean
-      }
-      slot_to_time: { Args: { slot_number: number }; Returns: string }
-      soft_delete_custom_domain: {
-        Args: { domain_id: string }
-        Returns: boolean
-      }
-      soft_delete_establishment: { Args: { est_id: string }; Returns: boolean }
-      soft_delete_order: { Args: { order_id: string }; Returns: boolean }
-      soft_delete_organization: { Args: { org_id: string }; Returns: boolean }
-      soft_delete_product: { Args: { product_id: string }; Returns: boolean }
-      soft_delete_record: {
-        Args: { record_id: string; table_name: string }
-        Returns: boolean
-      }
-      soft_delete_user: { Args: { user_id: string }; Returns: boolean }
-      test_auth_uid: {
-        Args: never
-        Returns: {
-          current_user_id: string
-          current_user_role: string
-          test_result: string
-        }[]
-      }
-      time_range_to_slots: {
-        Args: { end_time: string; start_time: string }
-        Returns: number[]
-      }
-      time_to_slot: { Args: { time_value: string }; Returns: number }
       unreserve_stock: {
         Args: {
           p_organization_id: string
@@ -4204,7 +4356,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      validate_closed_slots: { Args: { slots: number[] }; Returns: boolean }
     }
     Enums: {
       TodosWithChildren: "todos" | "todos1"

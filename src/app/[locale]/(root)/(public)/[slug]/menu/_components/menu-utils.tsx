@@ -1,153 +1,164 @@
+import { ALLERGENS, LABELS } from "@/lib/constants/product-attributes";
 import { createClient } from "@/lib/supabase/client";
-import { Tables } from "@/lib/supabase/database.types";
 
-type Establishment = Tables<"establishments">;
-
-// Interface pour un produit de menu avec ses détails
-export interface MenuItemWithDetails {
-  id: string;
+export type PublicProduct = {
+  menuProductId: string;
+  productId: string;
   name: string;
   description: string | null;
   price: number | null;
-  category_id: string | null;
-  category_name?: string;
+  allergens: string[];
+  labels: string[];
+  productType: string | null;
+  portionWeight: number | null;
+  portionUnit: string | null;
+  categoryId: string;
+  categoryName: string;
+  isAvailable: boolean;
+};
+
+export type PublicMenu = {
+  id: string;
+  name: string;
+  description: string | null;
+  categories: { id: string; name: string }[];
+  productsByCategory: Record<string, PublicProduct[]>;
+};
+
+export type PublicEstablishment = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  logo_url: string | null;
+};
+
+export async function getPublicEstablishmentBySlug(slug: string): Promise<PublicEstablishment | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("establishments")
+    .select("id, name, slug, description, address, phone, email, website, logo_url")
+    .eq("slug", slug)
+    .eq("deleted", false)
+    .eq("is_public", true)
+    .single();
+  if (error || !data) return null;
+  return data as PublicEstablishment;
 }
 
-// Fonction pour récupérer l'établissement par slug
-export async function getEstablishmentBySlug(slug: string): Promise<Establishment | null> {
-  try {
-    console.log("🔍 Recherche de l'établissement avec le slug:", slug);
+export async function getPublicMenus(establishmentId: string): Promise<PublicMenu[]> {
+  const supabase = createClient();
 
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("establishments")
-      .select(
-        `
-        id,
-        name,
-        slug,
-        description,
-        address,
-        phone,
-        email,
-        logo_url,
-        cover_image_url,
-        website,
-        is_public,
-        created_at,
-        updated_at,
-        deleted
-      `,
-      )
-      .eq("slug", slug)
-      .eq("deleted", false)
-      .single();
+  // 1. Récupérer les menus actifs
+  const { data: menus, error: menusError } = await supabase
+    .from("menus")
+    .select("id, name, description")
+    .eq("establishment_id", establishmentId)
+    .eq("deleted", false)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
 
-    if (error) {
-      console.error("❌ Erreur lors de la récupération de l'établissement:", error);
-      return null;
-    }
+  if (menusError || !menus?.length) return [];
 
-    // Vérifier si l'établissement est public
-    if (!data.is_public) {
-      console.log("🚫 Établissement non public:", data.name);
-      return null;
-    }
+  // 2. Pour chaque menu, récupérer les produits avec catégories + attributs
+  const results: PublicMenu[] = [];
 
-    console.log("✅ Établissement trouvé:", data.name);
-    return data as Establishment;
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération de l'établissement:", error);
-    return null;
-  }
-}
-
-// Fonction pour récupérer le menu de l'établissement
-export async function getEstablishmentMenu(establishmentId: string): Promise<{
-  categories: { id: string; name: string; description?: string }[];
-  itemsByCategory: Record<string, MenuItemWithDetails[]>;
-}> {
-  try {
-    console.log("🔍 Récupération du menu pour l'établissement:", establishmentId);
-
-    const supabase = createClient();
-
-    // Récupérer les menus de l'établissement
-    const { data: menus, error: menusError } = await supabase
-      .from("menus")
-      .select("id, name, description")
-      .eq("establishment_id", establishmentId)
-      .eq("deleted", false);
-
-    if (menusError) {
-      console.error("❌ Erreur lors de la récupération des menus:", menusError);
-      return { categories: [], itemsByCategory: {} };
-    }
-
-    if (menus.length === 0) {
-      console.log("⚠️ Aucun menu trouvé pour l'établissement");
-      return { categories: [], itemsByCategory: {} };
-    }
-
-    // Récupérer les produits des menus
-    const menuIds = menus.map((menu) => menu.id);
-    const { data: menuProducts, error: menuProductsError } = await supabase
+  for (const menu of menus) {
+    const { data: menuProducts, error: mpError } = await supabase
       .from("menus_products")
       .select(
         `
         id,
-        menus_id,
-        products_id,
         price,
-        products (
-          id,
-          name,
-          description
+        product:products(
+          id, name, description, is_available,
+          allergens, labels, product_type,
+          portion_weight, portion_unit,
+          category:categories(id, name)
         )
       `,
       )
-      .in("menus_id", menuIds)
+      .eq("menus_id", menu.id)
       .eq("deleted", false);
 
-    if (menuProductsError) {
-      console.error("❌ Erreur lors de la récupération des produits:", menuProductsError);
-      return { categories: [], itemsByCategory: {} };
-    }
+    if (mpError || !menuProducts) continue;
 
-    // Catégorie par défaut
-    const categories = [
-      {
-        id: "uncategorized",
-        name: "Sans catégorie",
-        description: "Produits sans catégorie spécifique",
-      },
-    ];
+    const categoryMap = new Map<string, { id: string; name: string }>();
+    const productsByCategory: Record<string, PublicProduct[]> = {};
 
-    // Organiser les produits
-    const itemsByCategory: Record<string, MenuItemWithDetails[]> = {
-      uncategorized: [],
-    };
+    for (const mp of menuProducts) {
+      const product = mp.product as {
+        id: string;
+        name: string;
+        description: string | null;
+        is_available: boolean | null;
+        allergens: unknown;
+        labels: unknown;
+        product_type: string | null;
+        portion_weight: number | null;
+        portion_unit: string | null;
+        category: { id: string; name: string } | null;
+      } | null;
 
-    menuProducts.forEach((menuProduct) => {
-      if (!menuProduct.products) return;
+      if (!product) continue;
+      if (product.is_available === false) continue;
 
-      const product = menuProduct.products;
-      const menuItem: MenuItemWithDetails = {
-        id: menuProduct.id,
+      const cat = product.category;
+      const catId = cat?.id ?? "other";
+      const catName = cat?.name ?? "Autres";
+
+      if (!categoryMap.has(catId)) {
+        categoryMap.set(catId, { id: catId, name: catName });
+        productsByCategory[catId] = [];
+      }
+
+      productsByCategory[catId].push({
+        menuProductId: mp.id,
+        productId: product.id,
         name: product.name,
         description: product.description,
-        price: menuProduct.price,
-        category_id: "uncategorized",
-        category_name: "Sans catégorie",
-      };
+        price: mp.price,
+        allergens: (product.allergens as string[] | null) ?? [],
+        labels: (product.labels as string[] | null) ?? [],
+        productType: product.product_type,
+        portionWeight: product.portion_weight,
+        portionUnit: product.portion_unit,
+        categoryId: catId,
+        categoryName: catName,
+        isAvailable: product.is_available ?? true,
+      });
+    }
 
-      itemsByCategory.uncategorized.push(menuItem);
+    results.push({
+      id: menu.id,
+      name: menu.name,
+      description: menu.description,
+      categories: [...categoryMap.values()],
+      productsByCategory,
     });
-
-    console.log("✅ Menu récupéré avec succès");
-    return { categories, itemsByCategory };
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération du menu:", error);
-    return { categories: [], itemsByCategory: {} };
   }
+
+  return results;
+}
+
+// ─── Helpers affichage ────────────────────────────────────────────────────────
+
+export function allergenInfo(key: string) {
+  return ALLERGENS.find((a) => a.key === key);
+}
+
+export function labelInfo(key: string) {
+  return LABELS.find((l) => l.key === key);
+}
+
+export function formatPrice(price: number | null): string {
+  if (price === null) return "";
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(price);
 }

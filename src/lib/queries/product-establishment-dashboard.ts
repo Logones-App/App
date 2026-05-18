@@ -9,7 +9,15 @@ type SupabaseBrowserClient = ReturnType<typeof createClient>;
 
 export type ProductWithCategoryName = Tables<"products"> & {
   category: { name: string } | null;
+  vat_rate: { value: number | null } | null;
 };
+
+/** Convertit un prix TTC en HT selon le taux TVA du produit. */
+export function ttcToHt(ttc: number, vatRate: { value: number | null } | null): number {
+  const rate = vatRate?.value;
+  if (!rate) return ttc;
+  return ttc / (1 + rate / 100);
+}
 
 export type ProductCompositionRow = Tables<"product_compositions"> & {
   component: { id: string; name: string } | null;
@@ -245,7 +253,8 @@ export function useProductEstablishmentDashboard(
           .select(
             `
             *,
-            category:categories(name)
+            category:categories(name),
+            vat_rate:vat_rate(value)
           `,
           )
           .eq("id", pid)

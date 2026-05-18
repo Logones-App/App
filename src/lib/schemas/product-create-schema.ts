@@ -2,15 +2,9 @@ import { z } from "zod";
 
 import { productCatalogProprieteSchema } from "./product-catalog-propriete-schema";
 
+// TVA obligatoire à la création — on rejette __none__ et on exige un UUID valide
 export const productCreateSchema = productCatalogProprieteSchema.extend({
-  price: z.preprocess(
-    (val) => {
-      if (val === "" || val === null || val === undefined) return 0;
-      const n = typeof val === "string" ? Number(val.replace(",", ".")) : typeof val === "number" ? val : NaN;
-      return Number.isFinite(n) ? n : NaN;
-    },
-    z.number().min(0, "Le prix doit être positif ou nul"),
-  ),
+  vat_rate_id: z.string().uuid("La TVA est requise"),
 });
 
 export type ProductCreateParsed = z.output<typeof productCreateSchema>;
