@@ -204,6 +204,7 @@
       "products_palette_product_count": "{count, plural, =0 {0 produit} one {# produit} other {# produits}}",
       "products_palette_drag_handle_aria": "Glisser vers la grille",
       "products_palette_drag_category_hint": "Glisser cette catégorie",
+      "products_palette_categories_title": "Dossiers POS",
       "products_palette_actions_title": "Tuiles d’action (navigation)",
       "products_palette_actions_hint": "À placer sur la grille comme une catégorie ou un produit. Interprétation côté caisse via le JSON `action`.",
       "products_palette_action_back": "Niveau précédent (back)",

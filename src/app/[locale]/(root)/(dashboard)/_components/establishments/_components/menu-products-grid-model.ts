@@ -3,7 +3,9 @@ import type { Tables } from "@/lib/supabase/database.types";
 
 import { GRID_SIZE, PANEL_COUNT } from "./menu-products-grid-constants";
 
-export type GridItem = Tables<"category_grid_items">;
+export type GridItem = Tables<"category_grid_items"> & {
+  product?: { is_available: boolean | null } | null;
+};
 export type NavCrumb = { id: string; label: string | null };
 
 export function buildPanelMaps(items: GridItem[]) {

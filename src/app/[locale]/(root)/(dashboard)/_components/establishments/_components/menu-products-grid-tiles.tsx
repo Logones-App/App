@@ -74,6 +74,7 @@ export function GridTile({
   }
 
   const navigable = isCategoryNavigable(item) && Boolean(onCategoryEnter);
+  const isUnavailable = item.item_type === "product" && item.product?.is_available === false;
 
   return (
     <div className="relative h-full min-h-0 w-full min-w-0">
@@ -97,6 +98,7 @@ export function GridTile({
         className={cn(
           "flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 pt-5 pb-1 text-center shadow-sm transition-transform",
           !item.is_visible && "opacity-45",
+          isUnavailable && "opacity-50 grayscale",
           item.item_type === "action" && "border-amber-500/40 bg-amber-500/5",
           navigable && "cursor-pointer hover:brightness-95 active:scale-[0.98]",
           !navigable && "cursor-default",
@@ -117,6 +119,9 @@ export function GridTile({
       >
         <span className="line-clamp-3 w-full text-[10px] leading-tight font-medium">{item.label ?? "—"}</span>
         <span className="text-[8px] uppercase opacity-80">{item.item_type}</span>
+        {isUnavailable && (
+          <span className="bg-muted-foreground/20 rounded px-1 text-[7px] tracking-wide uppercase">indispo</span>
+        )}
       </div>
     </div>
   );

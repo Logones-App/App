@@ -257,7 +257,7 @@ export const useMenuCategoryGridItems = (
       const supabase = createClient();
       let q = supabase
         .from("category_grid_items")
-        .select("*")
+        .select("*, product:product_id(is_available)")
         .eq("menu_id", menuId)
         .eq("establishment_id", establishmentId)
         .eq("organization_id", organizationId)

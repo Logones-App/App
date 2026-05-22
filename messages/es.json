@@ -204,6 +204,7 @@
       "products_palette_product_count": "{count, plural, =0 {0 productos} one {# producto} other {# productos}}",
       "products_palette_drag_handle_aria": "Arrastrar a la cuadrícula",
       "products_palette_drag_category_hint": "Arrastrar esta categoría",
+      "products_palette_categories_title": "Carpetas POS",
       "products_palette_actions_title": "Fichas de acción (navegación)",
       "products_palette_actions_hint": "Colóquelas en la cuadrícula como una categoría o un producto. La caja interpreta el JSON `action`.",
       "products_palette_action_back": "Nivel anterior (back)",

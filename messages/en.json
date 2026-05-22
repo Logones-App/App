@@ -204,6 +204,7 @@
       "products_palette_product_count": "{count, plural, =0 {0 products} one {# product} other {# products}}",
       "products_palette_drag_handle_aria": "Drag to grid",
       "products_palette_drag_category_hint": "Drag this category",
+      "products_palette_categories_title": "POS folders",
       "products_palette_actions_title": "Action tiles (navigation)",
       "products_palette_actions_hint": "Drop on the grid like a category or product. The POS interprets the `action` JSON.",
       "products_palette_action_back": "Previous level (back)",

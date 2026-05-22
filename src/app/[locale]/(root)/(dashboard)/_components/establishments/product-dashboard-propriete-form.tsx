@@ -165,16 +165,26 @@ export function ProductProprieteForm({
   const archiveMutation = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("products")
-        .update({ deleted: true })
-        .eq("id", productId)
-        .eq("organization_id", organizationId);
-      if (error) throw error;
+
+      const [{ error: prodErr }, { error: gridErr }, { error: mpErr }] = await Promise.all([
+        supabase.from("products").update({ deleted: true }).eq("id", productId).eq("organization_id", organizationId),
+        supabase.from("category_grid_items").update({ deleted: true }).eq("product_id", productId),
+        supabase
+          .from("menus_products")
+          .update({ deleted: true })
+          .eq("products_id", productId)
+          .eq("organization_id", organizationId),
+      ]);
+
+      if (prodErr) throw prodErr;
+      if (gridErr) throw gridErr;
+      if (mpErr) throw mpErr;
     },
     onSuccess: () => {
       toast.success("Produit archivé.");
       invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
+      void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
       router.push(backHref);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Archivage impossible."),
