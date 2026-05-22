@@ -2681,7 +2681,7 @@ export type Database = {
           organization_id: string
           product_compositions: Json | null
           product_description: string | null
-          product_id: string
+          product_id: string | null
           product_name: string
           product_options: Json | null
           quantity: number
@@ -2711,7 +2711,7 @@ export type Database = {
           organization_id: string
           product_compositions?: Json | null
           product_description?: string | null
-          product_id: string
+          product_id?: string | null
           product_name: string
           product_options?: Json | null
           quantity?: number
@@ -2741,7 +2741,7 @@ export type Database = {
           organization_id?: string
           product_compositions?: Json | null
           product_description?: string | null
-          product_id?: string
+          product_id?: string | null
           product_name?: string
           product_options?: Json | null
           quantity?: number
@@ -3198,6 +3198,7 @@ export type Database = {
           max_quantity: number | null
           organization_id: string
           price_multiplier: number | null
+          quantity_unit: string | null
           show_in_customization: boolean
           unit_supplement_price: number | null
           updated_at: string | null
@@ -3217,6 +3218,7 @@ export type Database = {
           max_quantity?: number | null
           organization_id: string
           price_multiplier?: number | null
+          quantity_unit?: string | null
           show_in_customization?: boolean
           unit_supplement_price?: number | null
           updated_at?: string | null
@@ -3236,6 +3238,7 @@ export type Database = {
           max_quantity?: number | null
           organization_id?: string
           price_multiplier?: number | null
+          quantity_unit?: string | null
           show_in_customization?: boolean
           unit_supplement_price?: number | null
           updated_at?: string | null
@@ -3543,6 +3546,7 @@ export type Database = {
           supplier_id: string
           supplier_product_name: string | null
           supplier_product_ref: string | null
+          unit_price: number | null
           updated_at: string | null
         }
         Insert: {
@@ -3560,6 +3564,7 @@ export type Database = {
           supplier_id: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
+          unit_price?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -3577,6 +3582,7 @@ export type Database = {
           supplier_id?: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
+          unit_price?: number | null
           updated_at?: string | null
         }
         Relationships: [

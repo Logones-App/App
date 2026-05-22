@@ -12,7 +12,11 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\lib\\\\queries\" -Filter \"*.ts\")",
       "Bash(npx tsc *)",
       "Bash(npx lint-staged *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"Cache .next supprimé\")",
+      "Bash(Get-ChildItem -Recurse -Filter \"*database.types*\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 5)"
     ]
   }
 }

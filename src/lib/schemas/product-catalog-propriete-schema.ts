@@ -5,7 +5,7 @@ const fkOptional = z.union([z.literal("__none__"), z.string().uuid()]).transform
 export const productCatalogProprieteSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   description: z.string().optional(),
-  category_id: fkOptional,
+  category_id: fkOptional.optional(),
   is_available: z.boolean(),
   printer_id: fkOptional,
   vat_rate_id: z.string().uuid("La TVA est requise"),

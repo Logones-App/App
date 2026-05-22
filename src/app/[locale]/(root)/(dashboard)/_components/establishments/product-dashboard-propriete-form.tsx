@@ -33,11 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { AllergenKey, LabelKey, ProductTypeKey } from "@/lib/constants/product-attributes";
-import {
-  useEstablishmentCategories,
-  useEstablishmentPrinters,
-  useEstablishmentVatRates,
-} from "@/lib/queries/establishments";
+import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import type { ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
 import {
   productCatalogProprieteSchema,
@@ -50,7 +46,6 @@ const DASHBOARD_KEY = "product-establishment-dashboard" as const;
 type ProductProprieteDraft = {
   name: string;
   description: string;
-  category_id: string;
   is_available: boolean;
   printer_id: string;
   vat_rate_id: string;
@@ -60,7 +55,6 @@ function toFormDefaults(product: ProductWithCategoryName): ProductProprieteDraft
   return {
     name: product.name,
     description: product.description ?? "",
-    category_id: product.category_id ?? "__none__",
     is_available: product.is_available ?? true,
     printer_id: product.printer_id ?? "__none__",
     vat_rate_id: product.vat_rate_id ?? "",
@@ -82,7 +76,6 @@ export function ProductProprieteForm({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: categories = [] } = useEstablishmentCategories(establishmentId, organizationId);
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
 
@@ -127,7 +120,6 @@ export function ProductProprieteForm({
         .update({
           name: values.name,
           description: values.description?.trim() ? values.description.trim() : null,
-          category_id: values.category_id ?? null,
           is_available: values.is_available,
           printer_id: values.printer_id,
           vat_rate_id: values.vat_rate_id,
@@ -255,31 +247,6 @@ export function ProductProprieteForm({
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Catégorie</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choisir…" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none__">— Aucune</SelectItem>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

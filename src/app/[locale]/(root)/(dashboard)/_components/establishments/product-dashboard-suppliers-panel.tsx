@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Check, Plus, Star, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ type LinkForm = {
   lead_time_days: string;
   is_preferred: boolean;
   notes: string;
+  unit_price: string;
 };
 
 const emptyLink = (): LinkForm => ({
@@ -48,6 +49,7 @@ const emptyLink = (): LinkForm => ({
   lead_time_days: "",
   is_preferred: false,
   notes: "",
+  unit_price: "",
 });
 
 function AddSupplierForm({
@@ -74,6 +76,8 @@ function AddSupplierForm({
     if (!form.supplier_id) return;
     const qty = parseFloat(form.order_quantity.replace(",", "."));
     const days = parseInt(form.lead_time_days, 10);
+    const up = parseFloat(form.unit_price.replace(",", "."));
+    const unitPrice = Number.isFinite(up) && up > 0 ? Math.round(up * 10000) / 10000 : null;
     createMutation.mutate(
       {
         supplier_id: form.supplier_id,
@@ -85,6 +89,7 @@ function AddSupplierForm({
         lead_time_days: Number.isFinite(days) && days >= 0 ? days : null,
         is_preferred: form.is_preferred,
         notes: form.notes || null,
+        unit_price: unitPrice,
       },
       { onSuccess },
     );
@@ -131,6 +136,24 @@ function AddSupplierForm({
                   onChange={(e) => patch("supplier_product_name", e.target.value)}
                   placeholder="Nom chez le fournisseur"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Prix unitaire HT{" "}
+                  <span className="text-muted-foreground text-xs font-normal">
+                    (pour 1 {form.order_unit || "unité"})
+                  </span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    value={form.unit_price}
+                    onChange={(e) => patch("unit_price", e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    className="pr-6 tabular-nums"
+                  />
+                  <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Unité de commande</Label>
@@ -216,6 +239,9 @@ function ProductSupplierTableRow({ row, productId }: { row: ProductSupplierWithN
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm">{row.supplier_product_ref ?? "—"}</TableCell>
+      <TableCell className="text-muted-foreground text-sm tabular-nums">
+        {row.unit_price != null ? `${row.unit_price} €` : "—"}
+      </TableCell>
       <TableCell className="text-muted-foreground text-sm">
         {row.order_unit ? `${row.order_quantity ?? 1} ${row.order_unit}` : (row.order_quantity ?? "—")}
       </TableCell>
@@ -301,6 +327,7 @@ export function ProductSuppliersPanel({ productId, organizationId }: { productId
                 <TableRow>
                   <TableHead>Fournisseur</TableHead>
                   <TableHead>Réf. article</TableHead>
+                  <TableHead>Prix HT</TableHead>
                   <TableHead>Unité / Qté min</TableHead>
                   <TableHead>Délai</TableHead>
                   <TableHead>Notes</TableHead>
