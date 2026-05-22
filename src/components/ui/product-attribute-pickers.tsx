@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ALLERGENS,
   LABELS,
@@ -12,7 +13,6 @@ import {
   getLabelConfig,
 } from "@/lib/constants/product-attributes";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // ─── AllergenPicker ───────────────────────────────────────────────────────────
 
@@ -93,32 +93,62 @@ export function LabelPicker({
   );
 }
 
-// ─── ProductTypePicker ────────────────────────────────────────────────────────
+// ─── ProductTypePicker — 2 choix exclusifs (Recette / Ingrédient) ─────────────
 
 export function ProductTypePicker({
   value,
   onChange,
 }: {
-  value: ProductTypeKey | null;
-  onChange: (v: ProductTypeKey | null) => void;
+  value: ProductTypeKey[];
+  onChange: (v: ProductTypeKey[]) => void;
 }) {
+  const toggle = (key: ProductTypeKey) => {
+    onChange(value.includes(key) ? value.filter((k) => k !== key) : [...value, key]);
+  };
+
   return (
-    <Select
-      value={value ?? "__none__"}
-      onValueChange={(v) => onChange(v === "__none__" ? null : (v as ProductTypeKey))}
-    >
-      <SelectTrigger>
-        <SelectValue placeholder="Choisir un type…" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">— Non défini</SelectItem>
-        {PRODUCT_TYPES.map((t) => (
-          <SelectItem key={t.key} value={t.key}>
+    <div className="grid grid-cols-2 gap-2">
+      {PRODUCT_TYPES.map((t) => {
+        const active = value.includes(t.key);
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => toggle(t.key)}
+            className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
+              active
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            }`}
+          >
+            <span className="text-base">{t.emoji}</span>
+            <span className="mt-0.5 font-medium">{t.label}</span>
+            <span className={`mt-0.5 text-xs leading-tight ${active ? "text-primary/80" : "text-muted-foreground"}`}>
+              {t.description}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── ProductTypeBadges (lecture seule) ────────────────────────────────────────
+
+export function ProductTypeBadges({ types }: { types: string[] }) {
+  if (!types?.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {types.map((key) => {
+        const t = PRODUCT_TYPES.find((x) => x.key === key);
+        if (!t) return null;
+        return (
+          <span key={key} className="inline-flex items-center gap-0.5 rounded-full border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-xs text-primary">
             {t.emoji} {t.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

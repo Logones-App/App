@@ -3606,7 +3606,7 @@ export type Database = {
       products: {
         Row: {
           allergens: Json
-          category_id: string
+          category_id: string | null
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
@@ -3622,14 +3622,14 @@ export type Database = {
           portion_weight: number | null
           price: number
           printer_id: string | null
-          product_type: string | null
+          product_type: Json
           sku: string | null
           updated_at: string | null
           vat_rate_id: string | null
         }
         Insert: {
           allergens?: Json
-          category_id: string
+          category_id?: string | null
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
@@ -3645,14 +3645,14 @@ export type Database = {
           portion_weight?: number | null
           price: number
           printer_id?: string | null
-          product_type?: string | null
+          product_type?: Json
           sku?: string | null
           updated_at?: string | null
           vat_rate_id?: string | null
         }
         Update: {
           allergens?: Json
-          category_id?: string
+          category_id?: string | null
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
@@ -3668,7 +3668,7 @@ export type Database = {
           portion_weight?: number | null
           price?: number
           printer_id?: string | null
-          product_type?: string | null
+          product_type?: Json
           sku?: string | null
           updated_at?: string | null
           vat_rate_id?: string | null

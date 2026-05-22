@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { Building2, Check, ChevronsUpDown } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+
+import { Building2, Check, ChevronsUpDown, House } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -19,6 +22,9 @@ export function EstablishmentSwitcher() {
   const { data: establishments = [], isLoading } = useOrganizationEstablishments(organizationId);
   const { establishmentId, setEstablishment } = useCurrentEstablishmentStore();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "fr";
 
   // Auto-sélection si un seul établissement
   useEffect(() => {
@@ -35,6 +41,7 @@ export function EstablishmentSwitcher() {
   if (isLoading || establishments.length === 0) return null;
 
   const current = establishments.find((e) => e.id === establishmentId);
+  const homeHref = establishmentId ? `/${locale}/dashboard/establishments/${establishmentId}` : null;
 
   const handleSelect = (id: string) => {
     const found = establishments.find((e) => e.id === id);
@@ -46,6 +53,7 @@ export function EstablishmentSwitcher() {
       /* */
     }
     setOpen(false);
+    router.push(`/${locale}/dashboard/establishments/${found.id}`);
   };
 
   // Un seul établissement → affichage simple
@@ -55,9 +63,19 @@ export function EstablishmentSwitcher() {
         <SidebarGroupLabel>Établissement actif</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
-              <Building2 className="text-primary h-4 w-4 shrink-0" />
-              <span className="truncate font-medium">{establishments[0].name}</span>
+            <div className="flex items-center gap-2 py-1">
+              <div className="flex min-w-0 flex-1 items-center gap-2 py-0.5">
+                <Building2 className="text-primary h-4 w-4 shrink-0" />
+                <span className="truncate text-sm font-medium">{establishments[0].name}</span>
+              </div>
+              {homeHref && (
+                <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" asChild>
+                  <Link href={homeHref}>
+                    <House className="h-4 w-4" />
+                    <span className="sr-only">Accueil établissement</span>
+                  </Link>
+                </Button>
+              )}
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -71,14 +89,14 @@ export function EstablishmentSwitcher() {
       <SidebarGroupLabel>Établissement actif</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <div className="px-2 py-1">
+          <div className="flex items-center gap-2 py-1">
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={open}
-                  className="w-full justify-between text-sm font-normal"
+                  className="min-w-0 flex-1 justify-between text-sm font-normal"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <Building2 className="text-primary h-4 w-4 shrink-0" />
@@ -104,6 +122,14 @@ export function EstablishmentSwitcher() {
                 </Command>
               </PopoverContent>
             </Popover>
+            {homeHref && (
+              <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" asChild>
+                <Link href={homeHref}>
+                  <House className="h-4 w-4" />
+                  <span className="sr-only">Accueil établissement</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </SidebarMenuItem>
       </SidebarMenu>

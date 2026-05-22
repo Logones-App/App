@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { usePathname } from "next/navigation";
 
 import { Download, Loader2 } from "lucide-react";
@@ -9,7 +7,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEstablishmentCategories, useOrganizationProducts } from "@/lib/queries/establishments";
+import { useOrganizationProducts } from "@/lib/queries/establishments";
 import { exportProductsToCSV } from "@/lib/utils/csv-export";
 
 import { StocksTab } from "./_components/stocks-tab";
@@ -25,15 +23,6 @@ export function ProductsShared({
 }) {
   const pathname = usePathname();
   const { data: products, isLoading, error } = useOrganizationProducts(organizationId);
-  const { data: establishmentCategories = [] } = useEstablishmentCategories(establishmentId, organizationId);
-
-  const categoryById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of establishmentCategories) {
-      m.set(c.id, c.name);
-    }
-    return m;
-  }, [establishmentCategories]);
 
   if (isLoading) {
     return (
@@ -65,15 +54,14 @@ export function ProductsShared({
         <div>
           <h1 className="text-2xl font-bold">Produits</h1>
           <p className="text-muted-foreground">
-            Catalogue de l&apos;organisation — produits et catégories de cet établissement. Gérez les catégories depuis
-            le tableau (nouvelle catégorie, modifier, supprimer). « Nouveau produit » crée une fiche ; la fiche
-            établissement sert aux options, compositions et menus.
+            Catalogue de l&apos;organisation — produits groupés par type. «&nbsp;Nouveau produit&nbsp;» crée une fiche ;
+            la fiche établissement sert aux options, compositions et menus.
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => exportProductsToCSV(products ?? [], categoryById)}
+          onClick={() => exportProductsToCSV(products ?? [])}
           disabled={!products?.length}
         >
           <Download className="mr-2 h-4 w-4" />
@@ -89,9 +77,6 @@ export function ProductsShared({
         <TabsContent value="catalogue" className="mt-4">
           <ProductsListTable
             products={products ?? []}
-            establishmentCategories={establishmentCategories}
-            categoryById={categoryById}
-            establishmentId={establishmentId}
             organizationId={organizationId}
             basePath={pathname.replace(/\/$/, "")}
           />

@@ -5,53 +5,41 @@ import { useLocale } from "next-intl";
 import { useMenuPaletteCatalog } from "@/lib/queries/establishments";
 
 import {
+  MenuPaletteSidebarCatalog,
   MenuPaletteSidebarEmptyCatalog,
   MenuPaletteSidebarError,
-  MenuPaletteSidebarFullCatalog,
   MenuPaletteSidebarLoading,
-  MenuPaletteSidebarOrphansOnly,
 } from "./menu-palette-sidebar-views";
 
 export function MenuPaletteSidebar({
+  menuId,
   establishmentId,
   organizationId,
 }: {
+  menuId: string;
   establishmentId: string;
   organizationId: string;
 }) {
   const locale = useLocale();
-  const { data, isLoading, isError, error } = useMenuPaletteCatalog(establishmentId, organizationId);
+  const { data, isLoading, isError, error } = useMenuPaletteCatalog(establishmentId, organizationId, menuId);
 
-  if (isLoading) {
-    return <MenuPaletteSidebarLoading />;
-  }
-
-  if (isError) {
-    return <MenuPaletteSidebarError message={error instanceof Error ? error.message : undefined} />;
-  }
+  if (isLoading) return <MenuPaletteSidebarLoading />;
+  if (isError) return <MenuPaletteSidebarError message={error instanceof Error ? error.message : undefined} />;
 
   const categories = data?.categories ?? [];
-  const byCat = data?.productsByCategoryId ?? {};
-  const orphanProducts = data?.orphanProducts ?? [];
+  const products = data?.products ?? [];
+  const priceByProductId = data?.priceByProductId ?? {};
 
-  const hasCategories = categories.length > 0;
-  const totalListed = categories.reduce((n, cat) => n + (byCat[cat.id]?.length ?? 0), 0) + orphanProducts.length;
-
-  if (!hasCategories && orphanProducts.length === 0) {
+  if (categories.length === 0 && products.length === 0) {
     return <MenuPaletteSidebarEmptyCatalog />;
   }
 
-  if (!hasCategories) {
-    return <MenuPaletteSidebarOrphansOnly orphanProducts={orphanProducts} locale={locale} />;
-  }
-
   return (
-    <MenuPaletteSidebarFullCatalog
+    <MenuPaletteSidebarCatalog
       categories={categories}
-      byCat={byCat}
-      orphanProducts={orphanProducts}
+      products={products}
+      priceByProductId={priceByProductId}
       locale={locale}
-      totalListed={totalListed}
     />
   );
 }

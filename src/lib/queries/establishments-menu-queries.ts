@@ -278,21 +278,18 @@ export const useMenuCategoryGridItems = (
 };
 
 /**
- * Catégories + produits pour la palette menu.
- * Pas de JOIN SQL : deux requêtes (`categories`, puis `products` org), puis regroupement en mémoire
- * où `products.category_id` = `categories.id` (FK `fk_products_category_id`).
+ * Catégories + produits (liste plate) + prix menus pour la palette menu.
  */
-export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?: string) => {
+export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?: string, menuId?: string) => {
   return useQuery({
-    queryKey: ["menu-palette-catalog", establishmentId, organizationId],
+    queryKey: ["menu-palette-catalog", establishmentId, organizationId, menuId],
     queryFn: async (): Promise<{
       categories: MenuPaletteCategory[];
-      productsByCategoryId: Record<string, ProductRow[]>;
-      /** Produits dont `category_id` ne correspond à aucune catégorie chargée */
-      orphanProducts: ProductRow[];
+      products: ProductRow[];
+      priceByProductId: Record<string, number>;
     }> => {
       if (!establishmentId || !organizationId) {
-        return { categories: [], productsByCategoryId: {}, orphanProducts: [] };
+        return { categories: [], products: [], priceByProductId: {} };
       }
 
       const supabase = createClient();
@@ -300,7 +297,7 @@ export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?:
       const [{ data: categoriesRaw, error: catError }, { data: productsRaw, error: prodError }] = await Promise.all([
         supabase
           .from("categories")
-          .select("*")
+          .select("id, name")
           .eq("organization_id", organizationId)
           .eq("establishment_id", establishmentId)
           .eq("deleted", false)
@@ -316,27 +313,27 @@ export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?:
       if (catError) throw catError;
       if (prodError) throw prodError;
 
-      const list: MenuPaletteCategory[] = ((categoriesRaw ?? []) as CategoryRow[]).map((c) => ({
+      const categories: MenuPaletteCategory[] = ((categoriesRaw ?? []) as CategoryRow[]).map((c) => ({
         id: c.id,
         name: c.name,
       }));
-      const allProducts = productsRaw ?? [];
 
-      const productsByCategoryId: Record<string, ProductRow[]> = {};
-      for (const c of list) {
-        productsByCategoryId[c.id] = [];
-      }
-      const orphanProducts: ProductRow[] = [];
+      const products = (productsRaw ?? []) as ProductRow[];
 
-      for (const p of allProducts) {
-        if (Object.prototype.hasOwnProperty.call(productsByCategoryId, p.category_id)) {
-          productsByCategoryId[p.category_id].push(p);
-        } else {
-          orphanProducts.push(p);
+      const priceByProductId: Record<string, number> = {};
+      if (menuId) {
+        const { data: mpRaw } = await supabase
+          .from("menus_products")
+          .select("products_id, price")
+          .eq("menus_id", menuId)
+          .eq("establishment_id", establishmentId)
+          .eq("deleted", false);
+        for (const row of mpRaw ?? []) {
+          if (row.products_id != null) priceByProductId[row.products_id] = row.price ?? 0;
         }
       }
 
-      return { categories: list, productsByCategoryId, orphanProducts };
+      return { categories, products, priceByProductId };
     },
     enabled: !!establishmentId && !!organizationId,
   });

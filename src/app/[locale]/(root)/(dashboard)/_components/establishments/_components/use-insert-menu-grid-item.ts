@@ -22,6 +22,8 @@ export type InsertMenuGridItemPayload = {
   label: string;
   categoryId: string | null;
   productId: string | null;
+  /** Prix à utiliser pour menus_products — si fourni, court-circuite la lecture de products.price */
+  priceOverride?: number;
   /** Si `itemType === "action"`, obligatoire (comportement de la tuile). Sinon défaut `none`. */
   gridAction?: CategoryGridAction;
 };
@@ -44,13 +46,10 @@ export function useInsertMenuGridItemMutation() {
           .maybeSingle();
         if (mpSelErr) throw mpSelErr;
 
-        const { data: prod, error: prodErr } = await supabase
-          .from("products")
-          .select("price")
-          .eq("id", p.productId)
-          .maybeSingle();
-        if (prodErr) throw prodErr;
-        const price = prod?.price ?? 0;
+        const price =
+          p.priceOverride ??
+          (await supabase.from("products").select("price").eq("id", p.productId).maybeSingle()).data?.price ??
+          0;
 
         if (mp) {
           if (mp.deleted) {
@@ -75,7 +74,7 @@ export function useInsertMenuGridItemMutation() {
             .select("id")
             .single();
           if (insMpErr) throw insMpErr;
-          if (!inserted?.id) throw new Error("menus_products: insert sans id");
+          if (!inserted.id) throw new Error("menus_products: insert sans id");
           await insertMenusProductPriceHistoryRow(supabase, inserted.id, price, "grid_ui");
         }
       }

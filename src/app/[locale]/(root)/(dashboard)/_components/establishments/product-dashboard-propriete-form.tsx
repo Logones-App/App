@@ -51,7 +51,6 @@ type ProductProprieteDraft = {
   name: string;
   description: string;
   category_id: string;
-  display_order: number | null;
   is_available: boolean;
   printer_id: string;
   vat_rate_id: string;
@@ -61,11 +60,10 @@ function toFormDefaults(product: ProductWithCategoryName): ProductProprieteDraft
   return {
     name: product.name,
     description: product.description ?? "",
-    category_id: product.category_id,
-    display_order: product.display_order ?? 0,
+    category_id: product.category_id ?? "__none__",
     is_available: product.is_available ?? true,
     printer_id: product.printer_id ?? "__none__",
-    vat_rate_id: product.vat_rate_id ?? "__none__",
+    vat_rate_id: product.vat_rate_id ?? "",
   };
 }
 
@@ -97,10 +95,10 @@ export function ProductProprieteForm({
   }, [product, form]);
 
   // État des caractéristiques (initialisé depuis le produit)
-  const [allergens, setAllergens] = useState<AllergenKey[]>(() => (product.allergens as AllergenKey[]) ?? []);
-  const [labels, setLabels] = useState<LabelKey[]>(() => (product.labels as LabelKey[]) ?? []);
-  const [productType, setProductType] = useState<ProductTypeKey | null>(
-    () => (product.product_type as ProductTypeKey) ?? null,
+  const [allergens, setAllergens] = useState<AllergenKey[]>(() => (product.allergens as AllergenKey[] | null) ?? []);
+  const [labels, setLabels] = useState<LabelKey[]>(() => (product.labels as LabelKey[] | null) ?? []);
+  const [productTypes, setProductTypes] = useState<ProductTypeKey[]>(
+    () => (product.product_type as ProductTypeKey[] | null) ?? [],
   );
   const [portionWeight, setPortionWeight] = useState(() =>
     product.portion_weight != null ? String(product.portion_weight) : "",
@@ -129,8 +127,7 @@ export function ProductProprieteForm({
         .update({
           name: values.name,
           description: values.description?.trim() ? values.description.trim() : null,
-          category_id: values.category_id,
-          display_order: values.display_order ?? null,
+          category_id: values.category_id ?? null,
           is_available: values.is_available,
           printer_id: values.printer_id,
           vat_rate_id: values.vat_rate_id,
@@ -156,7 +153,7 @@ export function ProductProprieteForm({
         .update({
           allergens,
           labels,
-          product_type: productType,
+          product_type: productTypes,
           portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
           portion_unit: portionUnit || null,
           sku: sku.trim() || null,
@@ -236,7 +233,7 @@ export function ProductProprieteForm({
               onSubmit={form.handleSubmit((draft) => {
                 const parsed = productCatalogProprieteSchema.safeParse({
                   ...draft,
-                  description: draft.description?.trim() ? draft.description : undefined,
+                  description: draft.description.trim() ? draft.description : undefined,
                 });
                 if (!parsed.success) {
                   const msg = parsed.error.flatten().fieldErrors;
@@ -275,6 +272,7 @@ export function ProductProprieteForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="__none__">— Aucune</SelectItem>
                           {categories.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name}
@@ -293,29 +291,7 @@ export function ProductProprieteForm({
                     <FormItem className="sm:col-span-2">
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value ?? ""} rows={3} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="display_order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ordre d&apos;affichage</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          {...field}
-                          value={field.value === null || field.value === undefined ? "" : String(field.value)}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            field.onChange(raw === "" ? null : Number(raw));
-                          }}
-                        />
+                        <Textarea {...field} value={field.value} rows={3} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -346,7 +322,7 @@ export function ProductProprieteForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">Aucune</SelectItem>
+                          <SelectItem value="__none__">Défaut</SelectItem>
                           {orphanPrinter && product.printer_id ? (
                             <SelectItem value={product.printer_id}>Référence actuelle (liste indisponible)</SelectItem>
                           ) : null}
@@ -407,8 +383,10 @@ export function ProductProprieteForm({
         <CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Type de produit</label>
-              <ProductTypePicker value={productType} onChange={setProductType} />
+              <label className="text-sm font-medium">
+                Type de produit <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
+              </label>
+              <ProductTypePicker value={productTypes} onChange={setProductTypes} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Référence interne (SKU)</label>

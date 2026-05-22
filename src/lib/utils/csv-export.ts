@@ -18,7 +18,7 @@ function csvRow(cells: unknown[]): string {
 
 export function exportProductsToCSV(
   products: ProductRow[],
-  categoryById: Map<string, string>,
+  _categoryById?: Map<string, string>,
   filename = "produits.csv",
 ) {
   const headers = [
@@ -41,12 +41,13 @@ export function exportProductsToCSV(
     const labels = (p.labels as string[] | null) ?? [];
     const allergenLabels = allergens.map(getAllergenLabel).join("; ");
     const labelsList = labels.map((k) => getLabelConfig(k)?.label ?? k).join("; ");
-    const typeLabel = p.product_type ? getProductTypeLabel(p.product_type) : "";
+    const types = (p.product_type as string[] | null) ?? [];
+    const typeLabel = types.map(getProductTypeLabel).join(", ");
     const foodCostPct = p.food_cost_target != null ? String(Math.round(p.food_cost_target * 100)) : "";
 
     return csvRow([
       p.name,
-      categoryById.get(p.category_id) ?? "",
+      (p.category_id ? _categoryById?.get(p.category_id) : null) ?? "",
       p.description ?? "",
       typeLabel,
       p.sku ?? "",

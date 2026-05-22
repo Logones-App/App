@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,31 +12,22 @@ import { Input } from "@/components/ui/input";
 import { AllergenBadges, LabelBadges } from "@/components/ui/product-attribute-pickers";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PRODUCT_TYPES, resolveProductBehaviors } from "@/lib/constants/product-attributes";
 import type { Tables } from "@/lib/supabase/database.types";
 
-import {
-  CategoryDeleteBlockedDialog,
-  CategoryDeleteConfirmDialog,
-  CategoryUpsertDialog,
-} from "./product-category-dialogs";
 import { type EditableField, useProductInlineEdit } from "./use-product-inline-edit";
 
 type ProductRow = Tables<"products">;
-type CategoryRow = Tables<"categories">;
 
-const ORPHAN_KEY = "__orphan__";
+const NONE_KEY = "__none__";
 
-function groupKeyForProduct(p: ProductRow, categoryById: Map<string, string>): string {
-  return categoryById.has(p.category_id) ? p.category_id : ORPHAN_KEY;
-}
+// Ordre d'affichage fixe basé sur PRODUCT_TYPES + "Non défini" en dernier
+const TYPE_ORDER = [...PRODUCT_TYPES.map((t) => t.key), NONE_KEY];
 
-function labelForGroup(categoryId: string, categoryById: Map<string, string>): string {
-  if (categoryId === ORPHAN_KEY) return "Sans catégorie";
-  return categoryById.get(categoryId) ?? "Sans catégorie";
-}
-
-function countProductsInCategory(products: ProductRow[], categoryId: string): number {
-  return products.filter((p) => p.category_id === categoryId).length;
+function labelForType(key: string): { label: string; emoji: string } {
+  if (key === NONE_KEY) return { label: "Non classé", emoji: "📦" };
+  const found = PRODUCT_TYPES.find((t) => t.key === key);
+  return found ? { label: found.label, emoji: found.emoji } : { label: key, emoji: "📦" };
 }
 
 // ─── Cellule texte éditable ──────────────────────────────────────────────────
@@ -120,36 +111,23 @@ function InlineTextCell({
 
 type Props = {
   products: ProductRow[];
-  establishmentCategories: CategoryRow[];
-  categoryById: Map<string, string>;
-  establishmentId: string;
   organizationId: string;
   basePath: string;
 };
 
-export function ProductsListTable({
-  products,
-  establishmentCategories,
-  categoryById,
-  establishmentId,
-  organizationId,
-  basePath,
-}: Props) {
+export function ProductsListTable({ products, organizationId, basePath }: Props) {
   const [q, setQ] = useState("");
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const [upsertOpen, setUpsertOpen] = useState(false);
-  const [upsertCategory, setUpsertCategory] = useState<CategoryRow | null>(null);
-  const [deleteBlockedOpen, setDeleteBlockedOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  // Tous les groupes ouverts par défaut
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(TYPE_ORDER));
 
   const edit = useProductInlineEdit(organizationId);
   const normalizedBase = basePath.replace(/\/$/, "");
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleGroup = (key: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -168,52 +146,37 @@ export function ProductsListTable({
 
     const byKey = new Map<string, ProductRow[]>();
     for (const p of productList) {
-      const key = groupKeyForProduct(p, categoryById);
-      const arr = byKey.get(key);
-      if (arr) arr.push(p);
-      else byKey.set(key, [p]);
-    }
-
-    if (!searchActive) {
-      for (const cat of establishmentCategories) {
-        if (!byKey.has(cat.id)) byKey.set(cat.id, []);
+      // product_type est maintenant un tableau JSON
+      const types = (p.product_type as string[] | null) ?? [];
+      const keys = types.length > 0 ? types : [NONE_KEY];
+      for (const key of keys) {
+        const arr = byKey.get(key) ?? [];
+        arr.push(p);
+        byKey.set(key, arr);
       }
     }
 
-    let entries = [...byKey.entries()].map(([categoryId, prods]) => ({
-      categoryId,
-      label: labelForGroup(categoryId, categoryById),
+    let entries = [...byKey.entries()].map(([typeKey, prods]) => ({
+      typeKey,
+      ...labelForType(typeKey),
       products: [...prods].sort((a, b) => a.name.localeCompare(b.name, "fr")),
     }));
 
     if (searchActive) entries = entries.filter((e) => e.products.length > 0);
-    entries.sort((a, b) => a.label.localeCompare(b.label, "fr"));
+
+    // Tri selon l'ordre fixe de PRODUCT_TYPES
+    entries.sort((a, b) => {
+      const ia = TYPE_ORDER.indexOf(a.typeKey);
+      const ib = TYPE_ORDER.indexOf(b.typeKey);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
     return entries;
-  }, [products, q, categoryById, establishmentCategories, searchActive]);
+  }, [products, q, searchActive]);
 
   const isCell = (productId: string, field: EditableField) =>
     edit.activeCell?.productId === productId && edit.activeCell.field === field;
 
-  const openCreateCategory = () => {
-    setUpsertCategory(null);
-    setUpsertOpen(true);
-  };
-  const openEditCategory = (categoryId: string) => {
-    const row = establishmentCategories.find((c) => c.id === categoryId) ?? null;
-    if (!row) return;
-    setUpsertCategory(row);
-    setUpsertOpen(true);
-  };
-  const openDeleteCategory = (categoryId: string, label: string) => {
-    if (countProductsInCategory(products, categoryId) > 0) {
-      setDeleteBlockedOpen(true);
-      return;
-    }
-    setDeleteConfirm({ id: categoryId, name: label });
-  };
-
-  const hasAnyCategories = establishmentCategories.length > 0;
-  const hasAnyProducts = products.length > 0;
   const totalFilteredProducts = groups.reduce((n, g) => n + g.products.length, 0);
 
   const renderProductRow = (p: ProductRow) => {
@@ -316,16 +279,37 @@ export function ProductsListTable({
           })()}
         </TableCell>
         <TableCell>
-          <button
-            type="button"
-            onClick={() => edit.saveCell(p.id, "is_available", !p.is_available)}
-            className="focus:ring-ring rounded focus:ring-1 focus:outline-none"
-            title="Cliquer pour basculer"
-          >
-            <Badge variant={p.is_available ? "default" : "secondary"}>
-              {p.is_available ? "Disponible" : "Indisponible"}
-            </Badge>
-          </button>
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => edit.saveCell(p.id, "is_available", !p.is_available)}
+              className="focus:ring-ring rounded focus:ring-1 focus:outline-none"
+              title="Cliquer pour basculer"
+            >
+              <Badge variant={p.is_available ? "default" : "secondary"}>
+                {p.is_available ? "Disponible" : "Indisponible"}
+              </Badge>
+            </button>
+            {(() => {
+              const types = (p.product_type as string[] | null) ?? [];
+              const behavior = resolveProductBehaviors(types);
+              if (!behavior.isForSale && types.length > 0) {
+                return (
+                  <Badge variant="outline" className="text-muted-foreground text-xs">
+                    Non vendu
+                  </Badge>
+                );
+              }
+              if (!behavior.showInPOS && behavior.isForSale) {
+                return (
+                  <Badge variant="outline" className="text-muted-foreground text-xs">
+                    Hors POS
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
@@ -351,39 +335,17 @@ export function ProductsListTable({
     );
   };
 
-  if (!hasAnyProducts && !hasAnyCategories) {
+  if (products.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <Button type="button" variant="secondary" size="sm" onClick={openCreateCategory}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle catégorie
-          </Button>
+        <div className="flex justify-end">
           <Button asChild variant="outline" size="sm">
             <Link href={`${normalizedBase}/new`}>Nouveau produit</Link>
           </Button>
         </div>
-        <div className="space-y-4 rounded-md border border-dashed p-8 text-center">
-          <p className="text-muted-foreground text-sm">
-            Aucune catégorie ni produit pour cet établissement. Créez d&apos;abord une catégorie ou un produit.
-          </p>
+        <div className="rounded-md border border-dashed p-8 text-center">
+          <p className="text-muted-foreground text-sm">Aucun produit pour cet établissement.</p>
         </div>
-        <CategoryUpsertDialog
-          open={upsertOpen}
-          onOpenChange={setUpsertOpen}
-          category={upsertCategory}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-        />
-        <CategoryDeleteBlockedDialog open={deleteBlockedOpen} onOpenChange={setDeleteBlockedOpen} />
-        <CategoryDeleteConfirmDialog
-          open={deleteConfirm !== null}
-          onOpenChange={(o) => !o && setDeleteConfirm(null)}
-          categoryName={deleteConfirm?.name ?? ""}
-          categoryId={deleteConfirm?.id ?? ""}
-          organizationId={organizationId}
-          establishmentId={establishmentId}
-        />
       </div>
     );
   }
@@ -397,15 +359,9 @@ export function ProductsListTable({
           onChange={(e) => setQ(e.target.value)}
           className="max-w-md"
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={openCreateCategory}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle catégorie
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`${normalizedBase}/new`}>Nouveau produit</Link>
-          </Button>
-        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`${normalizedBase}/new`}>Nouveau produit</Link>
+        </Button>
       </div>
 
       <div className="rounded-md border">
@@ -421,104 +377,42 @@ export function ProductsListTable({
           <TableBody>
             {searchActive && totalFilteredProducts === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground h-24 text-center">
+                <TableCell colSpan={4} className="text-muted-foreground h-24 text-center">
                   Aucun résultat pour cette recherche.
                 </TableCell>
               </TableRow>
             ) : (
               groups.flatMap((group) => {
-                const isOpen = expandedIds.has(group.categoryId);
-                const isOrphan = group.categoryId === ORPHAN_KEY;
+                const isOpen = expandedIds.has(group.typeKey);
                 return [
-                  <TableRow key={`cat-${group.categoryId}`} className="bg-muted/60">
-                    <TableCell colSpan={5} className="p-0">
-                      <div className="flex w-full min-w-0 items-stretch gap-1">
-                        <button
-                          type="button"
-                          className="hover:bg-muted/80 flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-4 py-2.5 text-left font-semibold"
-                          onClick={() => toggleCategory(group.categoryId)}
-                          aria-expanded={isOpen}
-                        >
-                          {isOpen ? (
-                            <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
-                          ) : (
-                            <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-                          )}
-                          <span className="truncate">{group.label}</span>
-                          <Badge variant="secondary" className="shrink-0 font-normal">
-                            {group.products.length} produit{group.products.length > 1 ? "s" : ""}
-                          </Badge>
-                        </button>
-                        {!isOrphan ? (
-                          <div className="flex shrink-0 items-center gap-0.5 pr-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditCategory(group.categoryId);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive h-9 w-9"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDeleteCategory(group.categoryId, group.label);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
+                  <TableRow key={`type-${group.typeKey}`} className="bg-muted/60">
+                    <TableCell colSpan={4} className="p-0">
+                      <button
+                        type="button"
+                        className="hover:bg-muted/80 flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left font-semibold"
+                        onClick={() => toggleGroup(group.typeKey)}
+                        aria-expanded={isOpen}
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
+                        ) : (
+                          <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
+                        )}
+                        <span>{group.emoji}</span>
+                        <span className="truncate">{group.label}</span>
+                        <Badge variant="secondary" className="shrink-0 font-normal">
+                          {group.products.length} produit{group.products.length > 1 ? "s" : ""}
+                        </Badge>
+                      </button>
                     </TableCell>
                   </TableRow>,
-                  ...(isOpen
-                    ? group.products.length > 0
-                      ? group.products.map(renderProductRow)
-                      : [
-                          <TableRow key={`empty-${group.categoryId}`}>
-                            <TableCell
-                              colSpan={5}
-                              className="text-muted-foreground bg-muted/20 py-6 pl-8 text-sm italic md:pl-10"
-                            >
-                              Aucun produit dans cette catégorie.
-                            </TableCell>
-                          </TableRow>,
-                        ]
-                    : []),
+                  ...(isOpen ? group.products.map(renderProductRow) : []),
                 ];
               })
             )}
           </TableBody>
         </Table>
       </div>
-
-      <CategoryUpsertDialog
-        open={upsertOpen}
-        onOpenChange={setUpsertOpen}
-        category={upsertCategory}
-        establishmentId={establishmentId}
-        organizationId={organizationId}
-      />
-      <CategoryDeleteBlockedDialog open={deleteBlockedOpen} onOpenChange={setDeleteBlockedOpen} />
-      {deleteConfirm ? (
-        <CategoryDeleteConfirmDialog
-          open
-          onOpenChange={(o) => !o && setDeleteConfirm(null)}
-          categoryName={deleteConfirm.name}
-          categoryId={deleteConfirm.id}
-          organizationId={organizationId}
-          establishmentId={establishmentId}
-        />
-      ) : null}
     </div>
   );
 }

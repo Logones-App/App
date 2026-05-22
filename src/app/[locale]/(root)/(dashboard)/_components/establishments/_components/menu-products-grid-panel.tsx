@@ -12,14 +12,20 @@ import { Swiper, SwiperSlide } from "swiper/react";
 
 import { Button } from "@/components/ui/button";
 import { useMenuCategoryGridItems } from "@/lib/queries/establishments";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { MenuGridPriceModal } from "./menu-grid-price-modal";
 import { MenuPaletteSidebar } from "./menu-palette-sidebar";
 import { GRID_SIZE, PANEL_COUNT } from "./menu-products-grid-constants";
 import { MenuProductsGridInspector } from "./menu-products-grid-inspector";
 import { buildPanelMaps, type GridItem, isCategoryNavigable, type NavCrumb } from "./menu-products-grid-model";
 import { MenuGrid6x6 } from "./menu-products-grid-tiles";
-import { useInsertMenuGridItemMutation, useSoftDeleteMenuGridItemMutation } from "./use-insert-menu-grid-item";
+import {
+  type InsertMenuGridItemPayload,
+  useInsertMenuGridItemMutation,
+  useSoftDeleteMenuGridItemMutation,
+} from "./use-insert-menu-grid-item";
 import { useMenuProductsGridDragEnd } from "./use-menu-products-grid-drag-end";
 
 import "swiper/css";
@@ -39,6 +45,10 @@ export function MenuProductsGridPanel({
   const [activePanel, setActivePanel] = useState(0);
   const [navStack, setNavStack] = useState<NavCrumb[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{
+    payload: Omit<InsertMenuGridItemPayload, "priceOverride">;
+    productName: string;
+  } | null>(null);
 
   const parentItemId = navStack.length === 0 ? null : navStack.at(-1)!.id;
 
@@ -92,6 +102,31 @@ export function MenuProductsGridPanel({
     }),
   );
 
+  const handleProductDrop = useCallback(
+    async (payload: Omit<InsertMenuGridItemPayload, "priceOverride">, productName: string) => {
+      if (!payload.productId) return;
+      const supabase = createClient();
+      const { data: mp } = await supabase
+        .from("menus_products")
+        .select("id, deleted")
+        .eq("menus_id", menuId)
+        .eq("products_id", payload.productId)
+        .eq("establishment_id", establishmentId)
+        .maybeSingle();
+      const hasPrice = mp && !mp.deleted;
+      if (hasPrice) {
+        insertMutation.mutate(payload, {
+          onSuccess: () => toast.success(t("products_grid_drop_success")),
+          onError: (err) =>
+            toast.error(t("products_grid_drop_error"), { description: err instanceof Error ? err.message : undefined }),
+        });
+      } else {
+        setPendingDrop({ payload, productName });
+      }
+    },
+    [menuId, establishmentId, insertMutation, t],
+  );
+
   const handleDragEnd = useMenuProductsGridDragEnd({
     panelMaps,
     menuId,
@@ -99,6 +134,7 @@ export function MenuProductsGridPanel({
     organizationId,
     parentItemId,
     insertMutation,
+    onProductDrop: handleProductDrop,
     t,
   });
 
@@ -280,9 +316,28 @@ export function MenuProductsGridPanel({
         </div>
 
         <aside className="lg:col-span-1">
-          <MenuPaletteSidebar establishmentId={establishmentId} organizationId={organizationId} />
+          <MenuPaletteSidebar menuId={menuId} establishmentId={establishmentId} organizationId={organizationId} />
         </aside>
       </div>
+      <MenuGridPriceModal
+        open={pendingDrop !== null}
+        productName={pendingDrop?.productName ?? ""}
+        onConfirm={(price) => {
+          if (!pendingDrop) return;
+          insertMutation.mutate(
+            { ...pendingDrop.payload, priceOverride: price },
+            {
+              onSuccess: () => toast.success(t("products_grid_drop_success")),
+              onError: (err) =>
+                toast.error(t("products_grid_drop_error"), {
+                  description: err instanceof Error ? err.message : undefined,
+                }),
+            },
+          );
+          setPendingDrop(null);
+        }}
+        onCancel={() => setPendingDrop(null)}
+      />
     </DndContext>
   );
 }

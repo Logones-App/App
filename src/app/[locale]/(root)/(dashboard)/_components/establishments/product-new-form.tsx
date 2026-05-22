@@ -26,7 +26,6 @@ import { Textarea } from "@/components/ui/textarea";
 import type { AllergenKey, LabelKey, ProductTypeKey } from "@/lib/constants/product-attributes";
 import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import {
-  useEstablishmentCategories,
   useEstablishmentMenus,
   useEstablishmentPrinters,
   useEstablishmentVatRates,
@@ -39,21 +38,17 @@ import { MenuPricesCard } from "./product-new-form-menu-prices";
 type ProductCreateDraft = {
   name: string;
   description: string;
-  category_id: string;
   purchase_price: string;
-  display_order: number | null;
   is_available: boolean;
   printer_id: string;
   vat_rate_id: string;
 };
 
-function emptyDefaults(firstCategoryId: string, firstVatRateId: string): ProductCreateDraft {
+function emptyDefaults(firstVatRateId: string): ProductCreateDraft {
   return {
     name: "",
     description: "",
-    category_id: firstCategoryId,
     purchase_price: "",
-    display_order: 0,
     is_available: true,
     printer_id: "__none__",
     vat_rate_id: firstVatRateId,
@@ -75,7 +70,6 @@ export function ProductNewForm({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: categories = [], isLoading: catLoading } = useEstablishmentCategories(establishmentId, organizationId);
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
   const { data: menus = [] } = useEstablishmentMenus(establishmentId, organizationId);
@@ -86,24 +80,17 @@ export function ProductNewForm({
   // Nouveaux attributs produit
   const [allergens, setAllergens] = useState<AllergenKey[]>([]);
   const [labels, setLabels] = useState<LabelKey[]>([]);
-  const [productType, setProductType] = useState<ProductTypeKey | null>(null);
+  const [productTypes, setProductTypes] = useState<ProductTypeKey[]>([]);
   const [portionWeight, setPortionWeight] = useState("");
   const [portionUnit, setPortionUnit] = useState("");
   const [sku, setSku] = useState("");
   const [foodCostTarget, setFoodCostTarget] = useState("");
 
-  const firstCategoryId = categories[0]?.id ?? "";
   const firstVatRateId = vatRates[0]?.id ?? "";
 
   const form = useForm<ProductCreateDraft>({
-    defaultValues: emptyDefaults(firstCategoryId, firstVatRateId),
+    defaultValues: emptyDefaults(firstVatRateId),
   });
-
-  useEffect(() => {
-    if (firstCategoryId && !form.getValues("category_id")) {
-      form.setValue("category_id", firstCategoryId);
-    }
-  }, [firstCategoryId, form]);
 
   useEffect(() => {
     if (firstVatRateId && !form.getValues("vat_rate_id")) {
@@ -126,7 +113,7 @@ export function ProductNewForm({
       extras: {
         allergens: string[];
         labels: string[];
-        product_type: string | null;
+        product_type: string[];
         portion_weight: number | null;
         portion_unit: string | null;
         sku: string | null;
@@ -134,15 +121,16 @@ export function ProductNewForm({
       };
     }) => {
       const supabase = createClient();
+
       const { data, error } = await supabase
         .from("products")
         .insert({
           organization_id: organizationId,
           name: values.name,
           description: values.description?.trim() ? values.description.trim() : null,
-          category_id: values.category_id,
+          category_id: null,
           price: 0,
-          display_order: values.display_order ?? null,
+          display_order: null,
           is_available: values.is_available,
           printer_id: values.printer_id,
           vat_rate_id: values.vat_rate_id,
@@ -158,7 +146,7 @@ export function ProductNewForm({
         .select("id")
         .single();
       if (error) throw error;
-      if (!data?.id) throw new Error("Création sans identifiant produit.");
+      if (!data.id) throw new Error("Création sans identifiant produit.");
 
       if (purchasePrice != null && purchasePrice > 0) {
         await supabase.from("product_purchase_price_history").insert({
@@ -185,7 +173,7 @@ export function ProductNewForm({
           .select("id")
           .single();
         if (mpErr) throw mpErr;
-        if (inserted?.id) {
+        if (inserted.id) {
           await insertMenusProductPriceHistoryRow(supabase, inserted.id, entry.price, "product_creation");
         }
       }
@@ -202,32 +190,6 @@ export function ProductNewForm({
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Création impossible."),
   });
-
-  if (catLoading) {
-    return <div className="text-muted-foreground p-12 text-sm">Chargement des catégories…</div>;
-  }
-
-  if (categories.length === 0) {
-    return (
-      <div className="space-y-4">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={backHref}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la liste
-          </Link>
-        </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle>Création impossible</CardTitle>
-            <CardDescription>
-              Créez au moins une catégorie depuis la page Produits de cet établissement (bouton « Nouvelle catégorie »)
-              avant d&apos;ajouter un produit.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -248,7 +210,7 @@ export function ProductNewForm({
       <Card>
         <CardHeader>
           <CardTitle>Informations catalogue</CardTitle>
-          <CardDescription>Nom, catégorie, prix de base et paramètres optionnels.</CardDescription>
+          <CardDescription>Nom, type, prix et paramètres optionnels.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -257,7 +219,7 @@ export function ProductNewForm({
               onSubmit={form.handleSubmit((draft) => {
                 const parsed = productCreateSchema.safeParse({
                   ...draft,
-                  description: draft.description?.trim() ? draft.description : undefined,
+                  description: draft.description.trim() ? draft.description : undefined,
                 });
                 if (!parsed.success) {
                   const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0];
@@ -286,7 +248,7 @@ export function ProductNewForm({
                   extras: {
                     allergens,
                     labels,
-                    product_type: productType,
+                    product_type: productTypes,
                     portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
                     portion_unit: portionUnit || null,
                     sku: sku.trim() || null,
@@ -310,30 +272,10 @@ export function ProductNewForm({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Catégorie</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choisir…" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Type</FormLabel>
+                  <ProductTypePicker value={productTypes} onChange={setProductTypes} />
+                </FormItem>
                 <FormField
                   control={form.control}
                   name="purchase_price"
@@ -355,33 +297,12 @@ export function ProductNewForm({
                 />
                 <FormField
                   control={form.control}
-                  name="display_order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ordre d&apos;affichage</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={field.value === null || field.value === undefined ? "" : String(field.value)}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            field.onChange(raw === "" ? null : Number(raw));
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="description"
                   render={({ field }) => (
                     <FormItem className="sm:col-span-2">
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value ?? ""} rows={3} />
+                        <Textarea {...field} value={field.value} rows={3} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -408,11 +329,11 @@ export function ProductNewForm({
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Aucune" />
+                            <SelectValue placeholder="Défaut" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">Aucune</SelectItem>
+                          <SelectItem value="__none__">Défaut</SelectItem>
                           {printers.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.name ?? p.id.slice(0, 8)}
@@ -462,14 +383,10 @@ export function ProductNewForm({
       <Card>
         <CardHeader>
           <CardTitle>Caractéristiques</CardTitle>
-          <CardDescription>Type, portion, référence, allergènes et labels.</CardDescription>
+          <CardDescription>Portion, référence, allergènes et labels.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Type de produit</label>
-              <ProductTypePicker value={productType} onChange={setProductType} />
-            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Référence interne (SKU)</label>
               <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="EX-001" />

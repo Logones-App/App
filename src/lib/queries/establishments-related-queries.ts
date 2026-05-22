@@ -213,8 +213,8 @@ export const useEstablishmentPrinters = (establishmentId?: string, organizationI
         .from("printers")
         .select("id, name, establishment_id")
         .eq("organization_id", organizationId)
-        .eq("deleted", false)
-        .or(`establishment_id.eq.${establishmentId},establishment_id.is.null`);
+        .eq("establishment_id", establishmentId)
+        .eq("deleted", false);
       if (error) throw error;
       const rows = data ?? [];
       return [...rows].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));

@@ -11,9 +11,20 @@ import { cn } from "@/lib/utils";
 
 import type { PaletteDragData } from "./menu-dnd-types";
 
-function DraggableProductRow({ product, locale }: { product: Tables<"products">; locale: string }) {
+function DraggableProductRow({
+  product,
+  menuPrice,
+  locale,
+}: {
+  product: Tables<"products">;
+  menuPrice?: number;
+  locale: string;
+}) {
   const t = useTranslations("establishments.menus_page");
-  const formatted = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(product.price);
+  const formatted =
+    menuPrice !== undefined
+      ? new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(menuPrice)
+      : null;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-product-${product.id}`,
     data: {
@@ -44,7 +55,11 @@ function DraggableProductRow({ product, locale }: { product: Tables<"products">;
         <GripVertical className="size-3.5" />
       </button>
       <span className="min-w-0 flex-1 leading-snug">{product.name}</span>
-      <span className="text-muted-foreground shrink-0 tabular-nums">{formatted}</span>
+      {formatted !== null ? (
+        <span className="text-muted-foreground shrink-0 tabular-nums">{formatted}</span>
+      ) : (
+        <span className="text-muted-foreground/50 shrink-0 text-[10px] italic">—</span>
+      )}
     </div>
   );
 }
@@ -142,12 +157,24 @@ export function DraggableCategoryStrip({ categoryId, label }: { categoryId: stri
   );
 }
 
-export function ProductList({ products, locale }: { products: Tables<"products">[]; locale: string }) {
+export function ProductList({
+  products,
+  priceByProductId,
+  locale,
+}: {
+  products: Tables<"products">[];
+  priceByProductId?: Record<string, number>;
+  locale: string;
+}) {
   return (
     <ul className="space-y-0.5 pb-2" role="list">
       {products.map((p) => (
         <li key={p.id}>
-          <DraggableProductRow product={p} locale={locale} />
+          <DraggableProductRow
+            product={p}
+            menuPrice={priceByProductId && Object.hasOwn(priceByProductId, p.id) ? priceByProductId[p.id] : undefined}
+            locale={locale}
+          />
         </li>
       ))}
     </ul>
@@ -168,6 +195,7 @@ export function PaletteSystemActionsSection({ className }: { className?: string 
       <p className="text-muted-foreground mt-1 text-[10px] leading-relaxed">{t("products_palette_actions_hint")}</p>
       <div className="mt-2 space-y-1.5">
         {PALETTE_GRID_ACTION_PRESETS.map((preset) => (
+          // eslint-disable-next-line security/detect-object-injection
           <DraggableGridActionStrip key={preset} actionType={preset} label={t(PRESET_LABEL_KEYS[preset])} />
         ))}
       </div>

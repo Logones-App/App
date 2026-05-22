@@ -24,6 +24,7 @@ type DragEndDeps = {
   insertMutation: {
     mutate: (variables: InsertMenuGridItemPayload, options?: InsertMenuGridMutateOptions) => void;
   };
+  onProductDrop: (payload: Omit<InsertMenuGridItemPayload, "priceOverride">, productName: string) => void;
   t: (key: string) => string;
 };
 
@@ -34,6 +35,7 @@ export function useMenuProductsGridDragEnd({
   organizationId,
   parentItemId,
   insertMutation,
+  onProductDrop,
   t,
 }: DragEndDeps) {
   return useCallback(
@@ -100,10 +102,8 @@ export function useMenuProductsGridDragEnd({
           },
         );
         return;
-      }
-
-      if (raw.kind === "product") {
-        insertMutation.mutate(
+      } else {
+        onProductDrop(
           {
             ...basePayload,
             itemType: "product",
@@ -111,13 +111,10 @@ export function useMenuProductsGridDragEnd({
             categoryId: null,
             productId: raw.productId,
           },
-          {
-            onSuccess: () => toast.success(t("products_grid_drop_success")),
-            onError: onDropError,
-          },
+          raw.label,
         );
       }
     },
-    [panelMaps, menuId, establishmentId, organizationId, parentItemId, insertMutation, t],
+    [panelMaps, menuId, establishmentId, organizationId, parentItemId, insertMutation, onProductDrop, t],
   );
 }

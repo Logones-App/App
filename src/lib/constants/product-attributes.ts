@@ -118,17 +118,64 @@ export const LABELS: { key: LabelKey; label: string; emoji: string; color: strin
 
 // ─── Types de produit ─────────────────────────────────────────────────────────
 
-export type ProductTypeKey = "dish" | "drink" | "dessert" | "starter" | "ingredient" | "supplement" | "menu_item";
+export type ProductTypeKey = "recipe" | "ingredient";
 
-export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string }[] = [
-  { key: "dish", label: "Plat", emoji: "🍽️" },
-  { key: "starter", label: "Entrée", emoji: "🥗" },
-  { key: "dessert", label: "Dessert", emoji: "🍰" },
-  { key: "drink", label: "Boisson", emoji: "🥤" },
-  { key: "ingredient", label: "Ingrédient", emoji: "🧄" },
-  { key: "supplement", label: "Supplément", emoji: "➕" },
-  { key: "menu_item", label: "Élément de menu", emoji: "📋" },
+export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string; description: string }[] = [
+  {
+    key: "recipe",
+    label: "Recette",
+    emoji: "🍽️",
+    description: "Produit vendu au client, composé d'ingrédients (plat, boisson, dessert…)",
+  },
+  {
+    key: "ingredient",
+    label: "Ingrédient",
+    emoji: "🧄",
+    description: "Matière première achetée fournisseur, jamais vendue seule, utilisée dans les recettes",
+  },
 ];
+
+// ─── Comportements par type de produit ───────────────────────────────────────
+
+export type ProductTypeBehavior = {
+  /** Visible dans la grille tactile du POS caisse */
+  showInPOS: boolean;
+  /** Vendu directement au client (a un prix dans les menus) */
+  isForSale: boolean;
+  /** Peut être utilisé comme composant dans une recette */
+  canBeRecipeComponent: boolean;
+  /** Le prix d'achat HT est particulièrement important (calcul de coût) */
+  requiresPurchasePrice: boolean;
+};
+
+export const PRODUCT_TYPE_BEHAVIORS: Record<ProductTypeKey, ProductTypeBehavior> = {
+  recipe: { showInPOS: true, isForSale: true, canBeRecipeComponent: false, requiresPurchasePrice: false },
+  ingredient: { showInPOS: false, isForSale: false, canBeRecipeComponent: true, requiresPurchasePrice: true },
+};
+
+/**
+ * Fusionne les comportements de plusieurs types (logique OR).
+ * Un produit avec types ["dish","ingredient"] sera showInPOS=true ET canBeRecipeComponent=true.
+ */
+export function resolveProductBehaviors(types: string[]): ProductTypeBehavior {
+  const defaults: ProductTypeBehavior = {
+    showInPOS: false,
+    isForSale: false,
+    canBeRecipeComponent: false,
+    requiresPurchasePrice: false,
+  };
+  if (!types.length) return defaults;
+  return types.reduce((acc, key) => {
+    const b = PRODUCT_TYPE_BEHAVIORS[key as ProductTypeKey];
+    if (!b) return acc;
+    return {
+      showInPOS: acc.showInPOS || b.showInPOS,
+      isForSale: acc.isForSale || b.isForSale,
+      canBeRecipeComponent: acc.canBeRecipeComponent || b.canBeRecipeComponent,
+      requiresPurchasePrice: acc.requiresPurchasePrice || b.requiresPurchasePrice,
+    };
+  }, defaults);
+}
 
 // ─── Unités de portion ────────────────────────────────────────────────────────
 
