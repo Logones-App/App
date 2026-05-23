@@ -32,7 +32,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { AllergenKey, LabelKey, ProductTypeKey } from "@/lib/constants/product-attributes";
+import {
+  PORTION_UNITS,
+  type AllergenKey,
+  type LabelKey,
+  type ProductTypeKey,
+} from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import type { ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
 import {
@@ -358,42 +363,76 @@ export function ProductProprieteForm({
           <CardDescription>Type, portion, allergènes et labels. Sauvegardés indépendamment.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Type de produit <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
-              </label>
-              <ProductTypePicker value={productTypes} onChange={setProductTypes} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Référence interne (SKU)</label>
-              <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="EX-001" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Poids / volume de la portion</label>
-              <PortionInput
-                weight={portionWeight}
-                unit={portionUnit}
-                onWeightChange={setPortionWeight}
-                onUnitChange={setPortionUnit}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Food cost cible <span className="text-muted-foreground text-xs font-normal">(ratio coût/vente)</span>
-              </label>
-              <div className="relative">
-                <Input
-                  value={foodCostTarget}
-                  onChange={(e) => setFoodCostTarget(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="30"
-                  className="pr-8 tabular-nums"
-                />
-                <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">%</span>
+          {(() => {
+            const isIngredientOnly = productTypes.includes("ingredient") && !productTypes.includes("recipe");
+            return (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Type de produit{" "}
+                    <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
+                  </label>
+                  <ProductTypePicker value={productTypes} onChange={setProductTypes} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Référence interne (SKU)</label>
+                  <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="EX-001" />
+                </div>
+                {isIngredientOnly ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Unité d&apos;achat{" "}
+                      <span className="text-muted-foreground text-xs font-normal">
+                        (référence pour le prix HT — ex : kg, L)
+                      </span>
+                    </label>
+                    <Select
+                      value={portionUnit || "__none__"}
+                      onValueChange={(v) => setPortionUnit(v === "__none__" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="— Aucune" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Aucune</SelectItem>
+                        {PORTION_UNITS.map((u) => (
+                          <SelectItem key={u.key} value={u.key}>
+                            {u.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Poids de la portion vendue</label>
+                    <PortionInput
+                      weight={portionWeight}
+                      unit={portionUnit}
+                      onWeightChange={setPortionWeight}
+                      onUnitChange={setPortionUnit}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Food cost cible{" "}
+                    <span className="text-muted-foreground text-xs font-normal">(ratio coût/vente)</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      value={foodCostTarget}
+                      onChange={(e) => setFoodCostTarget(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="30"
+                      className="pr-8 tabular-nums"
+                    />
+                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">%</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">

@@ -196,21 +196,23 @@ export function ProductNewWizard({
   const patch = (updates: Partial<WizardData>) => setData((prev) => ({ ...prev, ...updates }));
 
   const isRecipe = data.product_types.includes("recipe");
+  const isIngredientOnly = data.product_types.includes("ingredient") && !data.product_types.includes("recipe");
   const canCreate = data.name.trim().length > 0 && data.vat_rate_id.length > 0;
 
   useEffect(() => {
     if (!isRecipe && step === 5) setStep(4);
-  }, [isRecipe, step]);
+    if (isIngredientOnly && step === 2) setStep(3);
+  }, [isRecipe, isIngredientOnly, step]);
 
   const steps: { id: WizardStep; label: string }[] = useMemo(
     () => [
       { id: 1, label: "Infos de base" },
-      { id: 2, label: "Prix & menus" },
+      ...(!isIngredientOnly ? ([{ id: 2, label: "Prix & menus" }] as { id: WizardStep; label: string }[]) : []),
       { id: 3, label: "Caractéristiques" },
       { id: 4, label: "Fournisseur" },
       ...(isRecipe ? ([{ id: 5, label: "Ingrédients" }] as { id: WizardStep; label: string }[]) : []),
     ],
-    [isRecipe],
+    [isRecipe, isIngredientOnly],
   );
 
   const createMutation = useMutation({
@@ -323,7 +325,7 @@ export function ProductNewWizard({
       {step === 1 && (
         <Step1BaseInfo data={data} patch={patch} establishmentId={establishmentId} organizationId={organizationId} />
       )}
-      {step === 2 && (
+      {step === 2 && !isIngredientOnly && (
         <Step2Prix data={data} patch={patch} establishmentId={establishmentId} organizationId={organizationId} />
       )}
       {step === 3 && <Step3Caracteristiques data={data} patch={patch} />}

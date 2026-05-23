@@ -15,6 +15,7 @@ import {
   useComponentCurrentPurchasePrices,
   useProductPurchasePriceHistory,
 } from "@/lib/queries/purchase-price-queries";
+import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const pct = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 1 });
@@ -56,8 +57,9 @@ export function ProductMargePanel({
     ? technicalLines
         .filter((c) => c.composition_kind === "recipe")
         .reduce((sum, c) => {
-          const unitCost = componentPrices?.get(c.component_product_id);
-          return unitCost != null ? sum + (c.default_quantity ?? 1) * unitCost : sum;
+          const uc = componentPrices?.get(c.component_product_id);
+          const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit);
+          return cost != null ? sum + cost : sum;
         }, 0)
     : null;
 

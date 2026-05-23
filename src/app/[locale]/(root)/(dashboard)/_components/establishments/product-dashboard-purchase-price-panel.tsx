@@ -94,7 +94,16 @@ export function ProductPurchasePricePanel({
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {current ? eur.format(current.unit_cost) : <span className="text-muted-foreground text-lg">—</span>}
+              {current ? (
+                <>
+                  {eur.format(current.unit_cost)}
+                  {product.portion_unit && (
+                    <span className="text-muted-foreground ml-1 text-base font-normal">/ {product.portion_unit}</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-muted-foreground text-lg">—</span>
+              )}
             </p>
             {current && (
               <p className="text-muted-foreground mt-1 text-xs">
@@ -131,7 +140,9 @@ export function ProductPurchasePricePanel({
               <TableHeader>
                 <TableRow>
                   <TableHead>En vigueur depuis</TableHead>
-                  <TableHead className="text-right">Prix unitaire HT</TableHead>
+                  <TableHead className="text-right">
+                    Prix HT{product.portion_unit ? ` / ${product.portion_unit}` : ""}
+                  </TableHead>
                   <TableHead>Fournisseur</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="w-[50px]" />
@@ -206,7 +217,7 @@ export function ProductPurchasePricePanel({
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="pp-cost">Prix unitaire HT (EUR) *</Label>
+                    <Label htmlFor="pp-cost">Prix HT{product.portion_unit ? ` / ${product.portion_unit}` : ""} *</Label>
                     <Input
                       id="pp-cost"
                       autoFocus

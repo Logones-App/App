@@ -20,7 +20,7 @@ export function ttcToHt(ttc: number, vatRate: { value: number | null } | null): 
 }
 
 export type ProductCompositionRow = Tables<"product_compositions"> & {
-  component: { id: string; name: string } | null;
+  component: { id: string; name: string; portion_unit: string | null } | null;
 };
 
 export type CompositionStockRow = {
@@ -104,7 +104,7 @@ async function fetchProductCompositions(
     .select(
       `
             *,
-            component:products!product_compositions_component_product_id_fkey(id, name)
+            component:products!product_compositions_component_product_id_fkey(id, name, portion_unit)
           `,
     )
     .eq("main_product_id", mainProductId)

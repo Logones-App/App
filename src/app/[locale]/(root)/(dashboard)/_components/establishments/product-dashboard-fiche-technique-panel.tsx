@@ -4,23 +4,28 @@ import { useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { Check, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { Check, ExternalLink, Pencil, Plus, Trash2, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
-import type { ProductCompositionRow, ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
+import type {
+  MenuProductPricingJoin,
+  ProductCompositionRow,
+  ProductWithCategoryName,
+} from "@/lib/queries/product-establishment-dashboard";
 import {
   getCurrentPurchasePrice,
   useComponentCurrentPurchasePrices,
   useProductPurchasePriceHistory,
 } from "@/lib/queries/purchase-price-queries";
+import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
+import { CompositionEditModal } from "./composition-edit-modal";
+import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
 function MargeCard({
@@ -35,9 +40,9 @@ function MargeCard({
   const recipeCostHT = technicalLines
     .filter((c) => c.composition_kind === "recipe")
     .reduce((sum, c) => {
-      const unitCostHT = componentPrices.get(c.component_product_id);
-      if (unitCostHT == null) return sum;
-      return sum + (c.default_quantity ?? 1) * unitCostHT;
+      const uc = componentPrices.get(c.component_product_id);
+      const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit);
+      return cost != null ? sum + cost : sum;
     }, 0);
 
   const hasComponentPrices = technicalLines.some((c) => componentPrices.has(c.component_product_id));
@@ -220,12 +225,14 @@ export function ProductFicheTechniquePanel({
   compositions,
   establishmentId,
   organizationId,
+  menuProductPricing = [],
   newProductHref,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
   establishmentId: string;
   organizationId: string;
+  menuProductPricing?: MenuProductPricingJoin[];
   newProductHref?: string;
 }) {
   const edit = useCompositionInlineEdit({
@@ -233,6 +240,9 @@ export function ProductFicheTechniquePanel({
     establishmentId,
     organizationId,
   });
+
+  const [editingComposition, setEditingComposition] = useState<string | null>(null);
+  const compositionQueryKey = ["product-establishment-dashboard", product.id, establishmentId, organizationId];
 
   const { data: orgProducts = [] } = useOrganizationProducts(organizationId || undefined);
   const availableComponents = orgProducts.filter((p) => p.id !== product.id);
@@ -243,63 +253,82 @@ export function ProductFicheTechniquePanel({
   const { data: selfHistory = [] } = useProductPurchasePriceHistory(product.id, organizationId);
   const selfPurchasePrice = getCurrentPurchasePrice(selfHistory)?.unit_cost ?? null;
 
-  const renderExistingRow = (c: ProductCompositionRow) => (
-    <TableRow key={c.id}>
-      <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
-      <TableCell>
-        <InlineKindCell
-          value={c.composition_kind}
-          isActive={edit.isCell(c.id, "composition_kind")}
-          onActivate={() => edit.setActiveCell({ id: c.id, field: "composition_kind" })}
-          onSave={(v) => edit.saveCell(c.id, "composition_kind", v)}
-          onTabNext={() => edit.tabToNext(c.id, "composition_kind")}
-        />
-      </TableCell>
-      <TableCell className="text-right">
-        <InlineNumberCell
-          value={c.default_quantity}
-          isActive={edit.isCell(c.id, "default_quantity")}
-          onActivate={() => edit.setActiveCell({ id: c.id, field: "default_quantity" })}
-          onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
-          onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
-        />
-      </TableCell>
-      <TableCell className="text-right">
-        <InlineNumberCell
-          value={c.max_quantity}
-          nullable
-          isActive={edit.isCell(c.id, "max_quantity")}
-          onActivate={() => edit.setActiveCell({ id: c.id, field: "max_quantity" })}
-          onSave={(v) => edit.saveCell(c.id, "max_quantity", v)}
-          onTabNext={() => edit.tabToNext(c.id, "max_quantity")}
-        />
-      </TableCell>
-      <TableCell>
-        <button
-          type="button"
-          onClick={() => edit.saveCell(c.id, "show_in_customization", !c.show_in_customization)}
-          className="focus:ring-ring rounded focus:ring-1 focus:outline-none"
-        >
-          <Badge variant={c.show_in_customization ? "default" : "secondary"}>
-            {c.show_in_customization ? "Visible" : "Masquée"}
-          </Badge>
-        </button>
-      </TableCell>
-      <TableCell className="text-right">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-destructive hover:text-destructive h-7 w-7"
-          onClick={() => edit.deleteRow(c.id)}
-          disabled={edit.isPending}
-          aria-label="Supprimer"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
+  const totalCostHT = technicalLines
+    .filter((c) => c.composition_kind === "recipe")
+    .reduce((sum, c) => {
+      const uc = componentPrices?.get(c.component_product_id);
+      const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit);
+      return cost != null ? sum + cost : sum;
+    }, 0);
+
+  const renderExistingRow = (c: ProductCompositionRow) => {
+    const unitCost = componentPrices?.get(c.component_product_id) ?? null;
+    const lineCost =
+      c.composition_kind === "recipe"
+        ? compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit)
+        : null;
+    const pct = lineCost != null && totalCostHT > 0 ? lineCost / totalCostHT : null;
+    return (
+      <TableRow key={c.id}>
+        <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
+        <TableCell>
+          <InlineKindCell
+            value={c.composition_kind}
+            isActive={edit.isCell(c.id, "composition_kind")}
+            onActivate={() => edit.setActiveCell({ id: c.id, field: "composition_kind" })}
+            onSave={(v) => edit.saveCell(c.id, "composition_kind", v)}
+            onTabNext={() => edit.tabToNext(c.id, "composition_kind")}
+          />
+        </TableCell>
+        <TableCell className="text-right">
+          <InlineNumberCell
+            value={c.default_quantity}
+            isActive={edit.isCell(c.id, "default_quantity")}
+            onActivate={() => edit.setActiveCell({ id: c.id, field: "default_quantity" })}
+            onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
+            onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
+          />
+        </TableCell>
+        <TableCell className="text-muted-foreground text-right text-sm tabular-nums">
+          {lineCost != null ? eur.format(lineCost) : <span className="opacity-40">—</span>}
+        </TableCell>
+        <TableCell className="text-right text-sm tabular-nums">
+          {pct != null ? (
+            <span className={pct > 0.4 ? "text-red-600" : pct > 0.25 ? "text-yellow-600" : "text-muted-foreground"}>
+              {new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 1 }).format(pct)}
+            </span>
+          ) : (
+            <span className="opacity-40">—</span>
+          )}
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setEditingComposition(c.id)}
+              aria-label="Modifier"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:text-destructive h-7 w-7"
+              onClick={() => edit.deleteRow(c.id)}
+              disabled={edit.isPending}
+              aria-label="Supprimer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   const renderNewRow = () => (
     <TableRow className="bg-muted/20">
@@ -349,31 +378,8 @@ export function ProductFicheTechniquePanel({
           placeholder="1"
         />
       </TableCell>
-      <TableCell>
-        <Input
-          value={String(edit.newDraft.max_quantity ?? "")}
-          onChange={(e) => {
-            const t = e.target.value.replace(",", ".");
-            const n = parseFloat(t);
-            edit.patchNewDraft({ max_quantity: t === "" ? null : Number.isFinite(n) ? n : null });
-          }}
-          inputMode="decimal"
-          className="h-7 w-20 px-2 text-sm tabular-nums"
-          placeholder="—"
-        />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={edit.newDraft.show_in_customization}
-            onCheckedChange={(v) => edit.patchNewDraft({ show_in_customization: v })}
-            id="new-row-modal"
-          />
-          <label htmlFor="new-row-modal" className="cursor-pointer text-xs">
-            {edit.newDraft.show_in_customization ? "Visible" : "Masquée"}
-          </label>
-        </div>
-      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">—</TableCell>
+      <TableCell className="text-muted-foreground text-sm">—</TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1">
           <Button
@@ -420,10 +426,10 @@ export function ProductFicheTechniquePanel({
                 <TableRow>
                   <TableHead>Ingrédient</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Qté défaut</TableHead>
-                  <TableHead className="text-right">Qté max</TableHead>
-                  <TableHead>Modale</TableHead>
-                  <TableHead className="w-[60px]" />
+                  <TableHead className="text-right">Qté</TableHead>
+                  <TableHead className="text-right">Coût HT</TableHead>
+                  <TableHead className="text-right">%</TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -469,6 +475,31 @@ export function ProductFicheTechniquePanel({
         technicalLines={technicalLines}
         componentPrices={componentPrices ?? new Map()}
       />
+
+      {menuProductPricing.length > 0 && (
+        <ProductMargePanel
+          product={product}
+          compositions={compositions}
+          menuProductPricing={menuProductPricing}
+          organizationId={organizationId}
+        />
+      )}
+
+      {editingComposition !== null &&
+        (() => {
+          const comp = technicalLines.find((c) => c.id === editingComposition);
+          if (!comp) return null;
+          return (
+            <CompositionEditModal
+              composition={comp}
+              componentName={comp.component?.name ?? "—"}
+              currentUnitCost={componentPrices?.get(comp.component_product_id) ?? null}
+              organizationId={organizationId}
+              queryKey={compositionQueryKey}
+              onClose={() => setEditingComposition(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

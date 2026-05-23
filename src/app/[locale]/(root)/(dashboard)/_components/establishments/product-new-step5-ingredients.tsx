@@ -15,35 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
+import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
 import type { WizardComposition, WizardData } from "./product-new-wizard";
 
-// ─── Conversion d'unités ──────────────────────────────────────────────────────
-
-const UNIT_FACTORS: Partial<Record<string, number>> = {
-  g_kg: 0.001,
-  kg_g: 1000,
-  ml_cl: 0.1,
-  cl_ml: 10,
-  ml_l: 0.001,
-  l_ml: 1000,
-  cl_l: 0.01,
-  l_cl: 100,
-};
-
-function convertUnit(value: number, from: string, to: string): number | null {
-  if (from === to) return value;
-  const key = `${from.toLowerCase()}_${to.toLowerCase()}`;
-  // eslint-disable-next-line security/detect-object-injection
-  const factor = UNIT_FACTORS[key] ?? null;
-  return factor != null ? value * factor : null;
-}
-
 function estimateCost(comp: WizardComposition): number | null {
-  if (!comp.unit_cost || !comp.ingredient_portion_unit) return null;
-  const qty = convertUnit(comp.default_quantity, comp.quantity_unit, comp.ingredient_portion_unit);
-  if (qty == null) return null;
-  return Math.round(qty * comp.unit_cost * 10000) / 10000;
+  return compositionLineCost(comp.default_quantity, comp.quantity_unit, comp.unit_cost, comp.ingredient_portion_unit);
 }
 
 // ─── Formulaire ajout ingrédient existant ─────────────────────────────────────

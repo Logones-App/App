@@ -10,7 +10,6 @@ import type {
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { ProductFicheTechniquePanel } from "./product-dashboard-fiche-technique-panel";
-import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { ProductOptionsAndCompositionsPanel } from "./product-dashboard-options-compositions-panel";
 import { PrixPanel } from "./product-dashboard-prix-panel";
 import { ProductProprieteForm } from "./product-dashboard-propriete-form";
@@ -42,16 +41,17 @@ export function ProductEstablishmentDashboardTabs({
   menuProductPricing,
 }: TabsProps) {
   const persoCount = options.length + compositionStockRows.length;
+  const types = (product.product_type as string[] | null) ?? [];
+  const isIngredientOnly = types.includes("ingredient") && !types.includes("recipe");
 
   return (
     <Tabs defaultValue="propriete" className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
-        <TabsTrigger value="prix">Prix</TabsTrigger>
+        {!isIngredientOnly && <TabsTrigger value="prix">Prix</TabsTrigger>}
         <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>
         <TabsTrigger value="stock">Stock</TabsTrigger>
         <TabsTrigger value="fiche">Fiche technique</TabsTrigger>
-        <TabsTrigger value="marge">Marge</TabsTrigger>
         <TabsTrigger value="achat">Prix d&apos;achat</TabsTrigger>
         <TabsTrigger value="fournisseurs">Fournisseurs</TabsTrigger>
       </TabsList>
@@ -66,15 +66,17 @@ export function ProductEstablishmentDashboardTabs({
         />
       </TabsContent>
 
-      <TabsContent value="prix">
-        <PrixPanel
-          product={product}
-          productId={productId}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-          menuProductPricing={menuProductPricing}
-        />
-      </TabsContent>
+      {!isIngredientOnly && (
+        <TabsContent value="prix">
+          <PrixPanel
+            product={product}
+            productId={productId}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+            menuProductPricing={menuProductPricing}
+          />
+        </TabsContent>
+      )}
 
       <TabsContent value="personnalisation">
         <ProductOptionsAndCompositionsPanel
@@ -101,16 +103,8 @@ export function ProductEstablishmentDashboardTabs({
           compositions={compositions}
           establishmentId={establishmentId}
           organizationId={organizationId}
-          newProductHref={`${backHref.replace(/\/$/, "")}/new`}
-        />
-      </TabsContent>
-
-      <TabsContent value="marge">
-        <ProductMargePanel
-          product={product}
-          compositions={compositions}
           menuProductPricing={menuProductPricing}
-          organizationId={organizationId}
+          newProductHref={`${backHref.replace(/\/$/, "")}/new`}
         />
       </TabsContent>
 
