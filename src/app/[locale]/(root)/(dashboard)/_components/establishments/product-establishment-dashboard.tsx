@@ -1,8 +1,13 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect } from "react";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,9 +23,20 @@ type Props = {
 };
 
 export function ProductEstablishmentDashboard({ productId, establishmentId, organizationId, backHref }: Props) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useProductEstablishmentDashboard(productId, establishmentId, organizationId);
 
-  if (isLoading) {
+  const productNotFound = !isLoading && !error && data?.product === null;
+
+  useEffect(() => {
+    if (!productNotFound) return;
+    void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
+    toast.error("Ce produit n'est plus disponible (archivé ou supprimé).");
+    router.replace(backHref);
+  }, [productNotFound, queryClient, organizationId, router, backHref]);
+
+  if (isLoading || productNotFound) {
     return (
       <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -45,21 +61,7 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
     menuProductPricing: [],
   };
 
-  if (!product) {
-    return (
-      <div className="space-y-4">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={backHref}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la liste
-          </Link>
-        </Button>
-        <Alert>
-          <AlertDescription>Produit introuvable ou non accessible pour cette organisation.</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  if (!product) return null;
 
   return (
     <div className="space-y-6">

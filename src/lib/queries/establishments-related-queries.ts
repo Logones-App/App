@@ -226,6 +226,7 @@ export const useEstablishmentPrinters = (establishmentId?: string, organizationI
 export const useOrganizationProducts = (organizationId?: string) => {
   return useQuery({
     queryKey: ["organization-products", organizationId],
+    refetchOnMount: true,
     queryFn: async () => {
       if (!organizationId) return [];
       const supabase = createClient();

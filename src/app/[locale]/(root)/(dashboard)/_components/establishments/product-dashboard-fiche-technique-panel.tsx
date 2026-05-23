@@ -209,12 +209,16 @@ export function ProductFicheTechniquePanel({
     }, 0);
 
   const renderExistingRow = (c: ProductCompositionRow) => {
+    const isArchived = c.component?.deleted === true;
     const unitCost = componentPrices?.get(c.component_product_id) ?? null;
     const lineCost = compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit);
     const pct = lineCost != null && totalCostHT > 0 ? lineCost / totalCostHT : null;
     return (
-      <TableRow key={c.id}>
-        <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
+      <TableRow key={c.id} className={isArchived ? "opacity-50" : undefined}>
+        <TableCell className="font-medium">
+          {c.component?.name ?? "—"}
+          {isArchived && <span className="text-destructive ml-2 text-xs font-normal">(archivé)</span>}
+        </TableCell>
         <TableCell className="text-right">
           <InlineNumberCell
             value={c.default_quantity}

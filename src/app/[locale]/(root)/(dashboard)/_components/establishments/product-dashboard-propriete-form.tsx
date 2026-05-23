@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -171,7 +171,7 @@ export function ProductProprieteForm({
     mutationFn: async () => {
       const supabase = createClient();
 
-      const [{ error: prodErr }, { error: gridErr }, { error: mpErr }] = await Promise.all([
+      const [{ error: prodErr }, { error: gridErr }, { error: mpErr }, { error: compErr }] = await Promise.all([
         supabase.from("products").update({ deleted: true }).eq("id", productId).eq("organization_id", organizationId),
         supabase.from("category_grid_items").update({ deleted: true }).eq("product_id", productId),
         supabase
@@ -179,20 +179,44 @@ export function ProductProprieteForm({
           .update({ deleted: true })
           .eq("products_id", productId)
           .eq("organization_id", organizationId),
+        supabase
+          .from("product_compositions")
+          .update({ deleted: true })
+          .eq("component_product_id", productId)
+          .eq("organization_id", organizationId)
+          .eq("deleted", false),
       ]);
 
       if (prodErr) throw prodErr;
       if (gridErr) throw gridErr;
       if (mpErr) throw mpErr;
+      if (compErr) throw compErr;
     },
     onSuccess: () => {
       toast.success("Produit archivé.");
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
       void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["product-establishment-dashboard"] });
       router.push(backHref);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Archivage impossible."),
+  });
+
+  const { data: recipeUsageCount = 0 } = useQuery({
+    queryKey: ["product-component-usage", productId, organizationId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("product_compositions")
+        .select("main_product_id")
+        .eq("component_product_id", productId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (error) throw error;
+      return new Set(data.map((r) => r.main_product_id)).size;
+    },
+    enabled: !!productId && !!organizationId,
   });
 
   const orphanPrinter = product.printer_id && !printers.some((p) => p.id === product.printer_id);
@@ -215,9 +239,16 @@ export function ProductProprieteForm({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Archiver ce produit ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Il ne sera plus listé dans le catalogue actif. Les données liées en base (menus, commandes) restent
-                  selon vos règles métier.
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <p>Il ne sera plus listé dans le catalogue actif.</p>
+                    {recipeUsageCount > 0 && (
+                      <p className="text-destructive font-medium">
+                        ⚠ Cet ingrédient est utilisé dans {recipeUsageCount} recette
+                        {recipeUsageCount > 1 ? "s" : ""}. Ces références seront supprimées des fiches techniques.
+                      </p>
+                    )}
+                  </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

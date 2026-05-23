@@ -18,7 +18,8 @@
       "Bash(Get-ChildItem -Recurse -Filter \"*database.types*\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -First 5)",
       "Bash(grep -v \"^$\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npx prettier *)"
     ]
   }
 }
