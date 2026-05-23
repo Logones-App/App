@@ -1,0 +1,195 @@
+"use client";
+
+import { useState } from "react";
+
+import { Check, ChevronsUpDown, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { useActiveSuppliers, useProductSuppliers } from "@/lib/queries/supplier-queries";
+import { cn } from "@/lib/utils";
+
+type Ingredient = { id: string; name: string; portion_unit: string | null };
+
+// Sub-composant isolé pour charger les fournisseurs sans hook conditionnel
+function SupplierSelect({
+  ingredientId,
+  organizationId,
+  value,
+  onChange,
+}: {
+  ingredientId: string;
+  organizationId: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+  const { data: links = [] } = useProductSuppliers(ingredientId);
+  const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
+
+  if (links.length === 0) return <span className="text-muted-foreground text-xs italic">Aucun fournisseur</span>;
+
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger className="h-7 w-44 text-xs">
+        <SelectValue placeholder="Fournisseur (optionnel)" />
+      </SelectTrigger>
+      <SelectContent>
+        {links.map((link) => {
+          const sup = orgSuppliers.find((s) => s.id === link.supplier_id);
+          return (
+            <SelectItem key={link.supplier_id} value={link.supplier_id} className="text-xs">
+              {link.is_preferred ? "★ " : ""}
+              {sup?.name ?? "—"}
+              {link.unit_price != null ? ` — ${eur.format(link.unit_price)}${sup ? "" : ""}` : ""}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
+
+type Props = {
+  ingredients: Ingredient[];
+  organizationId: string;
+  isPending: boolean;
+  colSpan?: number;
+  onAdd: (payload: { componentId: string; quantity: number; quantityUnit: string }) => void;
+  onCancel: () => void;
+};
+
+export function InlineIngredientAddRow({
+  ingredients,
+  organizationId,
+  isPending,
+  colSpan = 6,
+  onAdd,
+  onCancel,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [ingredientId, setIngredientId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
+  const [qty, setQty] = useState("");
+  const [unit, setUnit] = useState("g");
+
+  const selected = ingredients.find((p) => p.id === ingredientId);
+
+  const handleAdd = () => {
+    const qtyNum = parseFloat(qty.replace(",", "."));
+    if (!ingredientId || !Number.isFinite(qtyNum) || qtyNum <= 0) return;
+    onAdd({ componentId: ingredientId, quantity: qtyNum, quantityUnit: unit });
+  };
+
+  return (
+    <TableRow className="bg-muted/20">
+      <TableCell colSpan={colSpan}>
+        <div className="flex flex-wrap items-center gap-2 py-0.5">
+          {/* Combobox ingrédient */}
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="h-7 w-52 justify-between text-xs font-normal"
+              >
+                <span className="truncate">{selected?.name ?? "Rechercher un ingrédient…"}</span>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Rechercher…" className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="text-muted-foreground py-3 text-center text-xs">
+                    Aucun ingrédient trouvé.
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {ingredients.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        value={p.name}
+                        onSelect={() => {
+                          setIngredientId(p.id);
+                          setSupplierId("");
+                          setOpen(false);
+                        }}
+                        className="text-xs"
+                      >
+                        <Check className={cn("mr-2 h-3 w-3", ingredientId === p.id ? "opacity-100" : "opacity-0")} />
+                        {p.name}
+                        {p.portion_unit && <span className="text-muted-foreground ml-1">({p.portion_unit})</span>}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Fournisseur — chargé uniquement quand un ingrédient est sélectionné */}
+          {ingredientId && (
+            <SupplierSelect
+              ingredientId={ingredientId}
+              organizationId={organizationId}
+              value={supplierId}
+              onChange={setSupplierId}
+            />
+          )}
+
+          {/* Quantité */}
+          <Input
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            inputMode="decimal"
+            placeholder="Qté"
+            className="h-7 w-20 text-xs tabular-nums"
+          />
+
+          {/* Unité */}
+          <Select value={unit} onValueChange={setUnit}>
+            <SelectTrigger className="h-7 w-24 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PORTION_UNITS.map((u) => (
+                <SelectItem key={u.key} value={u.key} className="text-xs">
+                  {u.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Actions */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-green-600 hover:text-green-700"
+            onClick={handleAdd}
+            disabled={isPending || !ingredientId || !qty}
+            aria-label="Confirmer"
+          >
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive h-7 w-7"
+            onClick={onCancel}
+            aria-label="Annuler"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}

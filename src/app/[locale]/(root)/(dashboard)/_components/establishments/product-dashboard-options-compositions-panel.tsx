@@ -68,12 +68,14 @@ function invalidateDashboard(
 export function ProductOptionsAndCompositionsPanel({
   options,
   compositionStockRows,
+  modifierCompositions = [],
   productId,
   establishmentId,
   organizationId,
 }: {
   options: Tables<"product_options">[];
   compositionStockRows: CompositionStockRow[];
+  modifierCompositions?: ProductCompositionRow[];
   productId: string;
   establishmentId: string;
   organizationId: string;

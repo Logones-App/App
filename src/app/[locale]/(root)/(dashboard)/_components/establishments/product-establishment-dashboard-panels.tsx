@@ -10,12 +10,11 @@ import type {
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { ProductFicheTechniquePanel } from "./product-dashboard-fiche-technique-panel";
+import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
 import { ProductOptionsAndCompositionsPanel } from "./product-dashboard-options-compositions-panel";
 import { PrixPanel } from "./product-dashboard-prix-panel";
 import { ProductProprieteForm } from "./product-dashboard-propriete-form";
-import { ProductPurchasePricePanel } from "./product-dashboard-purchase-price-panel";
 import { ProductStockPanel } from "./product-dashboard-stock-panel";
-import { ProductSuppliersPanel } from "./product-dashboard-suppliers-panel";
 
 type TabsProps = {
   product: ProductWithCategoryName;
@@ -40,20 +39,23 @@ export function ProductEstablishmentDashboardTabs({
   compositionStockRows,
   menuProductPricing,
 }: TabsProps) {
-  const persoCount = options.length + compositionStockRows.length;
   const types = (product.product_type as string[] | null) ?? [];
   const isIngredientOnly = types.includes("ingredient") && !types.includes("recipe");
+  const portionUnit = product.portion_unit ?? null;
+
+  // Modificateurs pour Personnalisation
+  const modifierCompositions = compositions.filter((c) => c.composition_kind === "modifier");
+  const persoCount = options.length + compositionStockRows.length + modifierCompositions.length;
 
   return (
     <Tabs defaultValue="propriete" className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
-        {!isIngredientOnly && <TabsTrigger value="prix">Prix</TabsTrigger>}
-        <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>
+        {!isIngredientOnly && <TabsTrigger value="prix">Prix de vente</TabsTrigger>}
+        {!isIngredientOnly && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
         <TabsTrigger value="stock">Stock</TabsTrigger>
-        <TabsTrigger value="fiche">Fiche technique</TabsTrigger>
-        <TabsTrigger value="achat">Prix d&apos;achat</TabsTrigger>
-        <TabsTrigger value="fournisseurs">Fournisseurs</TabsTrigger>
+        {!isIngredientOnly && <TabsTrigger value="fiche">Fiche technique</TabsTrigger>}
+        {isIngredientOnly && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="propriete">
@@ -78,15 +80,18 @@ export function ProductEstablishmentDashboardTabs({
         </TabsContent>
       )}
 
-      <TabsContent value="personnalisation">
-        <ProductOptionsAndCompositionsPanel
-          options={options}
-          compositionStockRows={compositionStockRows}
-          productId={productId}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-        />
-      </TabsContent>
+      {!isIngredientOnly && (
+        <TabsContent value="personnalisation">
+          <ProductOptionsAndCompositionsPanel
+            options={options}
+            compositionStockRows={compositionStockRows}
+            modifierCompositions={modifierCompositions}
+            productId={productId}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+          />
+        </TabsContent>
+      )}
 
       <TabsContent value="stock">
         <ProductStockPanel
@@ -97,24 +102,27 @@ export function ProductEstablishmentDashboardTabs({
         />
       </TabsContent>
 
-      <TabsContent value="fiche">
-        <ProductFicheTechniquePanel
-          product={product}
-          compositions={compositions}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-          menuProductPricing={menuProductPricing}
-          newProductHref={`${backHref.replace(/\/$/, "")}/new`}
-        />
-      </TabsContent>
+      {!isIngredientOnly && (
+        <TabsContent value="fiche">
+          <ProductFicheTechniquePanel
+            product={product}
+            compositions={compositions}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+            menuProductPricing={menuProductPricing}
+          />
+        </TabsContent>
+      )}
 
-      <TabsContent value="achat">
-        <ProductPurchasePricePanel product={product} organizationId={organizationId} />
-      </TabsContent>
-
-      <TabsContent value="fournisseurs">
-        <ProductSuppliersPanel productId={productId} organizationId={organizationId} />
-      </TabsContent>
+      {isIngredientOnly && (
+        <TabsContent value="fournisseurs">
+          <ProductFournisseursPrixPanel
+            productId={productId}
+            organizationId={organizationId}
+            portionUnit={portionUnit}
+          />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

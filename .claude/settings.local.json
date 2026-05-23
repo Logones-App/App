@@ -16,7 +16,9 @@
       "Bash(Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue)",
       "Bash(Write-Host \"Cache .next supprimé\")",
       "Bash(Get-ChildItem -Recurse -Filter \"*database.types*\" -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(grep -v \"^$\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

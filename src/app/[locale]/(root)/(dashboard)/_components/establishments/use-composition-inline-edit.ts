@@ -29,6 +29,7 @@ export type NewCompositionDraft = {
   default_quantity: number;
   max_quantity: number | null;
   show_in_customization: boolean;
+  quantity_unit?: string | null;
 };
 
 const DEFAULT_DRAFT: NewCompositionDraft = {
@@ -73,6 +74,7 @@ export function useCompositionInlineEdit({ productId, establishmentId, organizat
         component_product_id: draft.component_product_id,
         composition_kind: draft.composition_kind,
         default_quantity: draft.default_quantity,
+        quantity_unit: draft.quantity_unit ?? null,
         max_quantity: draft.max_quantity,
         show_in_customization: draft.show_in_customization,
         establishment_id: establishmentId,
@@ -110,7 +112,7 @@ export function useCompositionInlineEdit({ productId, establishmentId, organizat
   const tabToNext = (id: string, currentField: CompositionEditableField) => {
     const idx = EDITABLE_FIELDS.indexOf(currentField);
     const next = EDITABLE_FIELDS[idx + 1];
-    setActiveCell(next ? { id, field: next } : null);
+    setActiveCell(next != null ? { id, field: next } : null);
   };
 
   const startAddRow = () => {
@@ -149,6 +151,7 @@ export function useCompositionInlineEdit({ productId, establishmentId, organizat
     cancelAdd,
     confirmAdd,
     deleteRow,
+    insertMutation,
     isPending: updateMutation.isPending || insertMutation.isPending || deleteMutation.isPending,
   };
 }

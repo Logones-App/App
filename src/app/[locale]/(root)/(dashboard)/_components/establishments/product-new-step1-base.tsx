@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,76 +7,73 @@ import { ProductTypePicker } from "@/components/ui/product-attribute-pickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
+import type { ProductTypeKey } from "@/lib/constants/product-attributes";
 
-import type { WizardData } from "./product-new-wizard";
+type VatRate = { id: string; name: string | null; value: number | null };
+type Printer = { id: string; name: string | null };
 
-export function Step1BaseInfo({
-  data,
-  patch,
-  establishmentId,
-  organizationId,
-}: {
-  data: WizardData;
-  patch: (updates: Partial<WizardData>) => void;
-  establishmentId: string;
-  organizationId: string;
-}) {
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
-  const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
+type Draft = {
+  name: string;
+  description: string;
+  vat_rate_id: string;
+  printer_id: string;
+  is_available: boolean;
+};
 
-  useEffect(() => {
-    const firstVatId = vatRates[0]?.id;
-    if (firstVatId && !data.vat_rate_id) {
-      patch({ vat_rate_id: firstVatId });
-    }
-  }, [vatRates, data.vat_rate_id, patch]);
+type Props = {
+  draft: Draft;
+  patch: (k: keyof Draft, v: string | boolean) => void;
+  productTypes: ProductTypeKey[];
+  setProductTypes: (v: ProductTypeKey[]) => void;
+  vatRates: VatRate[];
+  printers: Printer[];
+};
 
+export function Step1FormFields({ draft, patch, productTypes, setProductTypes, vatRates, printers }: Props) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Infos de base</CardTitle>
-        <CardDescription>Nom, type, TVA et paramètres catalogue.</CardDescription>
+        <CardDescription>Les champs * sont obligatoires.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="wizard-name">
+            <Label htmlFor="s1-name">
               Nom <span className="text-destructive">*</span>
             </Label>
             <Input
-              id="wizard-name"
+              id="s1-name"
               autoFocus
-              value={data.name}
-              onChange={(e) => patch({ name: e.target.value })}
+              value={draft.name}
+              onChange={(e) => patch("name", e.target.value)}
               placeholder="Nom du produit"
             />
-            {!data.name.trim() && <p className="text-destructive text-xs">Requis</p>}
           </div>
 
           <div className="space-y-2 sm:col-span-2">
             <Label>
-              Type de produit <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
+              Type <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
             </Label>
-            <ProductTypePicker value={data.product_types} onChange={(v) => patch({ product_types: v })} />
+            <ProductTypePicker value={productTypes} onChange={setProductTypes} />
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="wizard-description">Description</Label>
+            <Label htmlFor="s1-desc">Description</Label>
             <Textarea
-              id="wizard-description"
-              value={data.description}
-              onChange={(e) => patch({ description: e.target.value })}
+              id="s1-desc"
+              value={draft.description}
+              onChange={(e) => patch("description", e.target.value)}
               rows={2}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wizard-vat">
+            <Label htmlFor="s1-vat">
               TVA <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.vat_rate_id} onValueChange={(v) => patch({ vat_rate_id: v })}>
-              <SelectTrigger id="wizard-vat">
+            <Select value={draft.vat_rate_id || undefined} onValueChange={(v) => patch("vat_rate_id", v)}>
+              <SelectTrigger id="s1-vat">
                 <SelectValue placeholder="Sélectionner un taux…" />
               </SelectTrigger>
               <SelectContent>
@@ -89,14 +84,16 @@ export function Step1BaseInfo({
                 ))}
               </SelectContent>
             </Select>
-            {!data.vat_rate_id && <p className="text-destructive text-xs">Requis</p>}
+            {vatRates.length === 0 && (
+              <p className="text-muted-foreground text-xs">Aucun taux configuré pour cet établissement.</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wizard-printer">Imprimante</Label>
-            <Select value={data.printer_id} onValueChange={(v) => patch({ printer_id: v })}>
-              <SelectTrigger id="wizard-printer">
-                <SelectValue placeholder="Défaut" />
+            <Label htmlFor="s1-printer">Imprimante</Label>
+            <Select value={draft.printer_id} onValueChange={(v) => patch("printer_id", v)}>
+              <SelectTrigger id="s1-printer">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Défaut</SelectItem>
@@ -110,12 +107,8 @@ export function Step1BaseInfo({
           </div>
 
           <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-            <Label htmlFor="wizard-available">Disponible</Label>
-            <Switch
-              id="wizard-available"
-              checked={data.is_available}
-              onCheckedChange={(v) => patch({ is_available: v })}
-            />
+            <Label htmlFor="s1-avail">Disponible</Label>
+            <Switch id="s1-avail" checked={draft.is_available} onCheckedChange={(v) => patch("is_available", v)} />
           </div>
         </div>
       </CardContent>

@@ -2,14 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import Link from "next/link";
-
-import { Check, ExternalLink, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
 import type {
@@ -24,8 +21,11 @@ import {
 } from "@/lib/queries/purchase-price-queries";
 import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
+import { CompositionAddModal } from "./composition-add-modal";
 import { CompositionEditModal } from "./composition-edit-modal";
+import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
+import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
 function MargeCard({
@@ -80,64 +80,6 @@ function MargeCard({
 }
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-const KIND_OPTIONS = [
-  { value: "recipe", label: "Recette (BOM)" },
-  { value: "modifier", label: "Modificateur" },
-];
-
-// ─── Cellule select Kind ─────────────────────────────────────────────────────
-
-function InlineKindCell({
-  value,
-  isActive,
-  onActivate,
-  onSave,
-  onTabNext,
-}: {
-  value: string;
-  isActive: boolean;
-  onActivate: () => void;
-  onSave: (v: string) => void;
-  onTabNext: () => void;
-}) {
-  if (isActive) {
-    return (
-      <Select
-        value={value}
-        onValueChange={(v) => {
-          onSave(v);
-          onTabNext();
-        }}
-        open
-        onOpenChange={(o) => {
-          if (!o) onTabNext();
-        }}
-      >
-        <SelectTrigger className="h-7 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {KIND_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value} className="text-xs">
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-  const label = KIND_OPTIONS.find((o) => o.value === value)?.label ?? value;
-  return (
-    <button
-      type="button"
-      onClick={onActivate}
-      className="text-muted-foreground hover:bg-muted/60 focus:ring-ring rounded px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
-    >
-      {label}
-    </button>
-  );
-}
 
 // ─── Cellule nombre éditable ─────────────────────────────────────────────────
 
@@ -226,14 +168,12 @@ export function ProductFicheTechniquePanel({
   establishmentId,
   organizationId,
   menuProductPricing = [],
-  newProductHref,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
   establishmentId: string;
   organizationId: string;
   menuProductPricing?: MenuProductPricingJoin[];
-  newProductHref?: string;
 }) {
   const edit = useCompositionInlineEdit({
     productId: product.id,
@@ -242,12 +182,19 @@ export function ProductFicheTechniquePanel({
   });
 
   const [editingComposition, setEditingComposition] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
   const compositionQueryKey = ["product-establishment-dashboard", product.id, establishmentId, organizationId];
 
-  const { data: orgProducts = [] } = useOrganizationProducts(organizationId || undefined);
-  const availableComponents = orgProducts.filter((p) => p.id !== product.id);
+  const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
+  const ingredientList = allProducts.filter(
+    (p) => p.id !== product.id && (p.product_type as string[] | null)?.includes("ingredient"),
+  );
 
-  const technicalLines = compositions.filter((c) => c.main_product_id !== c.component_product_id);
+  // Seulement les ingrédients BOM (recette)
+  const technicalLines = compositions.filter(
+    (c) => c.main_product_id !== c.component_product_id && c.composition_kind === "recipe",
+  );
   const componentIds = technicalLines.map((c) => c.component_product_id);
   const { data: componentPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
   const { data: selfHistory = [] } = useProductPurchasePriceHistory(product.id, organizationId);
@@ -263,23 +210,11 @@ export function ProductFicheTechniquePanel({
 
   const renderExistingRow = (c: ProductCompositionRow) => {
     const unitCost = componentPrices?.get(c.component_product_id) ?? null;
-    const lineCost =
-      c.composition_kind === "recipe"
-        ? compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit)
-        : null;
+    const lineCost = compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit);
     const pct = lineCost != null && totalCostHT > 0 ? lineCost / totalCostHT : null;
     return (
       <TableRow key={c.id}>
         <TableCell className="font-medium">{c.component?.name ?? "—"}</TableCell>
-        <TableCell>
-          <InlineKindCell
-            value={c.composition_kind}
-            isActive={edit.isCell(c.id, "composition_kind")}
-            onActivate={() => edit.setActiveCell({ id: c.id, field: "composition_kind" })}
-            onSave={(v) => edit.saveCell(c.id, "composition_kind", v)}
-            onTabNext={() => edit.tabToNext(c.id, "composition_kind")}
-          />
-        </TableCell>
         <TableCell className="text-right">
           <InlineNumberCell
             value={c.default_quantity}
@@ -330,93 +265,22 @@ export function ProductFicheTechniquePanel({
     );
   };
 
-  const renderNewRow = () => (
-    <TableRow className="bg-muted/20">
-      <TableCell>
-        <Select
-          value={edit.newDraft.component_product_id || undefined}
-          onValueChange={(v) => edit.patchNewDraft({ component_product_id: v })}
-        >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue placeholder="Choisir un ingrédient…" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableComponents.map((p) => (
-              <SelectItem key={p.id} value={p.id} className="text-xs">
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell>
-        <Select
-          value={edit.newDraft.composition_kind}
-          onValueChange={(v) => edit.patchNewDraft({ composition_kind: v as "recipe" | "modifier" })}
-        >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {KIND_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell>
-        <Input
-          value={String(edit.newDraft.default_quantity)}
-          onChange={(e) => {
-            const n = parseFloat(e.target.value.replace(",", "."));
-            edit.patchNewDraft({ default_quantity: Number.isFinite(n) ? n : 1 });
-          }}
-          inputMode="decimal"
-          className="h-7 w-20 px-2 text-sm tabular-nums"
-          placeholder="1"
-        />
-      </TableCell>
-      <TableCell className="text-muted-foreground text-sm">—</TableCell>
-      <TableCell className="text-muted-foreground text-sm">—</TableCell>
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-green-600 hover:text-green-700"
-            onClick={edit.confirmAdd}
-            disabled={edit.isPending || !edit.newDraft.component_product_id}
-            aria-label="Confirmer"
-          >
-            <Check className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-destructive h-7 w-7"
-            onClick={edit.cancelAdd}
-            aria-label="Annuler"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-
   return (
     <div className="space-y-6">
+      {/* Achat Direct — fournisseurs & prix du produit recette */}
+      <ProductFournisseursPrixPanel
+        productId={product.id}
+        organizationId={organizationId}
+        portionUnit={product.portion_unit ?? null}
+        title="Achat direct"
+        description="Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
+      />
+
       <Card>
         <CardHeader>
-          <CardTitle>Fiche technique — recette</CardTitle>
+          <CardTitle>Ingrédients de la recette</CardTitle>
           <CardDescription>
-            Ingrédients et quantités pour documenter la recette. Les lignes <span className="font-medium">Recette</span>{" "}
-            participent au BOM caisse ; <span className="font-medium">Modificateur</span>, ce sont des suppléments
-            client. Cliquez sur une cellule pour la modifier directement.
+            Compositions BOM. Cliquez sur ✏️ pour modifier une ligne (type, quantité, unité, prix).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -425,47 +289,71 @@ export function ProductFicheTechniquePanel({
               <TableHeader>
                 <TableRow>
                   <TableHead>Ingrédient</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead className="text-right">Qté</TableHead>
                   <TableHead className="text-right">Coût HT</TableHead>
                   <TableHead className="text-right">%</TableHead>
-                  <TableHead className="w-[50px]" />
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {technicalLines.length === 0 && !edit.isAddingRow ? (
+                {technicalLines.length === 0 && !showInlineAdd ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground h-16 text-center text-sm">
-                      Aucun ingrédient. Cliquez sur &quot;Ajouter un ingrédient&quot; pour commencer.
+                    <TableCell colSpan={5} className="text-muted-foreground h-16 text-center text-sm">
+                      Aucun ingrédient. Cliquez sur &quot;Ajouter&quot; pour commencer.
                     </TableCell>
                   </TableRow>
                 ) : (
                   technicalLines.map(renderExistingRow)
                 )}
-                {edit.isAddingRow && renderNewRow()}
+                {showInlineAdd && (
+                  <InlineIngredientAddRow
+                    ingredients={ingredientList}
+                    organizationId={organizationId}
+                    isPending={edit.isPending}
+                    colSpan={5}
+                    onAdd={({ componentId, quantity, quantityUnit }) =>
+                      edit.insertMutation.mutate(
+                        {
+                          component_product_id: componentId,
+                          composition_kind: "recipe",
+                          default_quantity: quantity,
+                          max_quantity: null,
+                          show_in_customization: false,
+                          quantity_unit: quantityUnit,
+                        },
+                        { onSuccess: () => setShowInlineAdd(false) },
+                      )
+                    }
+                    onCancel={() => setShowInlineAdd(false)}
+                  />
+                )}
               </TableBody>
             </Table>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={edit.startAddRow}
-              disabled={edit.isAddingRow || edit.isPending}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un ingrédient
-            </Button>
-            {newProductHref && (
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={newProductHref} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                  Créer un nouveau produit
-                </Link>
+          <div className="flex flex-wrap gap-2">
+            {!showInlineAdd && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowInlineAdd(true)}
+                disabled={edit.isPending}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un ingrédient
               </Button>
             )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAddModal(true)}
+              disabled={edit.isPending}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Créer un ingrédient
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -482,6 +370,16 @@ export function ProductFicheTechniquePanel({
           compositions={compositions}
           menuProductPricing={menuProductPricing}
           organizationId={organizationId}
+        />
+      )}
+
+      {showAddModal && (
+        <CompositionAddModal
+          productId={product.id}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+          queryKey={compositionQueryKey}
+          onClose={() => setShowAddModal(false)}
         />
       )}
 
