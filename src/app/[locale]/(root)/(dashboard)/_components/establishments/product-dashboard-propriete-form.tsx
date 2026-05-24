@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -82,6 +83,7 @@ export function ProductProprieteForm({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const t = useTranslations("units");
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
 
@@ -428,8 +430,8 @@ export function ProductProprieteForm({
                       <SelectContent>
                         <SelectItem value="__none__">— Aucune</SelectItem>
                         {PORTION_UNITS.map((u) => (
-                          <SelectItem key={u.key} value={u.key}>
-                            {u.label}
+                          <SelectItem key={u} value={u}>
+                            {t(u)}
                           </SelectItem>
                         ))}
                       </SelectContent>

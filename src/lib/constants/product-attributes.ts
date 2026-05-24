@@ -179,15 +179,8 @@ export function resolveProductBehaviors(types: string[]): ProductTypeBehavior {
 
 // ─── Unités de portion ────────────────────────────────────────────────────────
 
-export const PORTION_UNITS = [
-  { key: "g", label: "g (grammes)" },
-  { key: "kg", label: "kg" },
-  { key: "ml", label: "ml (millilitres)" },
-  { key: "cl", label: "cl" },
-  { key: "l", label: "L (litres)" },
-  { key: "piece", label: "pièce" },
-  { key: "portion", label: "portion" },
-];
+export const PORTION_UNITS = ["g", "kg", "ml", "cl", "l", "piece"] as const;
+export type PortionUnit = (typeof PORTION_UNITS)[number];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

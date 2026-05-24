@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,19 +18,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
 import { useActiveSuppliers, useCreateProductSupplier, useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { convertUnit } from "@/lib/utils/unit-conversion";
 
-function normalizeUnitPrice(price: number, orderUnit: string | null, portionUnit: string | null): number {
-  if (!orderUnit || !portionUnit || orderUnit === portionUnit) return price;
-  const factor = convertUnit(1, orderUnit, portionUnit);
-  return factor != null ? Math.round((price / factor) * 10000) / 10000 : price;
+function normalizeUnitPrice(
+  price: number,
+  orderUnit: string | null,
+  portionUnit: string | null,
+  qtyPerOrder = 1,
+): number {
+  let normalized = price;
+  if (orderUnit && portionUnit && orderUnit !== portionUnit) {
+    const factor = convertUnit(1, orderUnit, portionUnit);
+    if (factor != null) normalized = price / factor;
+  }
+  return Math.round((normalized / (qtyPerOrder > 0 ? qtyPerOrder : 1)) * 10000) / 10000;
 }
 
-type AddMode = "select" | "create";
+type SupplierMode = "none" | "existing" | "new";
 
 type Props = {
   productId: string;
@@ -40,15 +48,14 @@ type Props = {
 };
 
 export function AddSupplierModal({ productId, organizationId, portionUnit, usedSupplierIds, onClose }: Props) {
-  const [mode, setMode] = useState<AddMode>("select");
+  const t = useTranslations("units");
+  const [supplierMode, setSupplierMode] = useState<SupplierMode>("existing");
   const [selectedId, setSelectedId] = useState("");
+  const [newSupplierName, setNewSupplierName] = useState("");
   const [price, setPrice] = useState("");
   const [orderUnit, setOrderUnit] = useState("");
+  const [qtyPerOrder, setQtyPerOrder] = useState("1");
   const [isPreferred, setIsPreferred] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [newOrderUnit, setNewOrderUnit] = useState("");
-  const [newNotes, setNewNotes] = useState("");
 
   const { data: suppliers = [] } = useActiveSuppliers(organizationId);
   const available = suppliers.filter((s) => !usedSupplierIds.has(s.id));
@@ -56,71 +63,86 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
   const linkMutation = useCreateProductSupplier(productId);
   const createSupplierMutation = useCreateSupplier(organizationId);
   const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
-  const busy = linkMutation.isPending || createSupplierMutation.isPending;
+  const busy = linkMutation.isPending || createSupplierMutation.isPending || addHistoryMutation.isPending;
 
-  const linkWithPrice = (supplierId: string, priceStr: string, pref: boolean, unit: string) => {
-    const cost = parseFloat(priceStr.replace(",", "."));
+  const parseQty = (s: string) => {
+    const n = parseFloat(s.replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  };
+
+  const submitWithSupplier = (supplierId: string | null) => {
+    const cost = parseFloat(price.replace(",", "."));
     const unitPrice = Number.isFinite(cost) && cost > 0 ? Math.round(cost * 10000) / 10000 : null;
-    const normalizedCost = unitPrice != null ? normalizeUnitPrice(unitPrice, unit || null, portionUnit) : null;
-    linkMutation.mutate(
-      {
-        supplier_id: supplierId,
-        organization_id: organizationId,
-        unit_price: unitPrice,
-        order_unit: unit || null,
-        is_preferred: pref,
-      },
-      {
-        onSuccess: () => {
-          if (normalizedCost ?? unitPrice) {
-            addHistoryMutation.mutate({
-              unit_cost: normalizedCost ?? unitPrice!,
-              effective_from: new Date().toISOString().slice(0, 10),
-              supplier_id: supplierId,
-            });
-          }
-          onClose();
+    const qtyNum = parseQty(qtyPerOrder);
+    const normalizedCost =
+      unitPrice != null ? normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit, qtyNum) : null;
+    const effectiveCost = normalizedCost ?? unitPrice;
+
+    if (supplierId) {
+      linkMutation.mutate(
+        {
+          supplier_id: supplierId,
+          organization_id: organizationId,
+          unit_price: unitPrice,
+          order_unit: orderUnit || null,
+          qty_per_order: qtyNum > 1 ? qtyNum : null,
+          is_preferred: isPreferred,
         },
-      },
-    );
-  };
-
-  const handleSelect = () => {
-    if (!selectedId) {
-      toast.error("Sélectionnez un fournisseur.");
-      return;
+        {
+          onSuccess: () => {
+            if (effectiveCost) {
+              addHistoryMutation.mutate({
+                unit_cost: effectiveCost,
+                effective_from: new Date().toISOString().slice(0, 10),
+                supplier_id: supplierId,
+              });
+            }
+            onClose();
+          },
+        },
+      );
+    } else if (effectiveCost) {
+      addHistoryMutation.mutate(
+        { unit_cost: effectiveCost, effective_from: new Date().toISOString().slice(0, 10) },
+        { onSuccess: onClose },
+      );
+    } else {
+      onClose();
     }
-    linkWithPrice(selectedId, price, isPreferred, orderUnit);
   };
 
-  const handleCreate = () => {
-    if (!newName.trim()) {
-      toast.error("Le nom est requis.");
-      return;
+  const handleSubmit = () => {
+    if (supplierMode === "new") {
+      if (!newSupplierName.trim()) {
+        toast.error("Le nom du fournisseur est requis.");
+        return;
+      }
+      createSupplierMutation.mutate(
+        { name: newSupplierName.trim(), is_active: true },
+        { onSuccess: (sid) => submitWithSupplier(sid) },
+      );
+    } else {
+      submitWithSupplier(supplierMode === "existing" ? selectedId || null : null);
     }
-    createSupplierMutation.mutate(
-      { name: newName.trim(), notes: newNotes || undefined, is_active: true },
-      { onSuccess: (supplierId) => linkWithPrice(supplierId, newPrice, false, newOrderUnit) },
-    );
   };
 
-  const unitSelect = (val: string, setVal: (v: string) => void) => (
-    <Select value={val || "__none__"} onValueChange={(v) => setVal(v === "__none__" ? "" : v)}>
+  const unitSelect = (
+    <Select value={orderUnit || "__none__"} onValueChange={(v) => setOrderUnit(v === "__none__" ? "" : v)}>
       <SelectTrigger>
         <SelectValue placeholder="— Unité" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">— Aucune</SelectItem>
         {PORTION_UNITS.map((u) => (
-          <SelectItem key={u.key} value={u.key}>
-            {u.label}
+          <SelectItem key={u} value={u}>
+            {t(u)}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 
-  const priceLabel = (unit: string) => `Prix HT${unit ? ` / ${unit}` : portionUnit ? ` / ${portionUnit}` : ""}`;
+  const priceLabel = `Prix HT${orderUnit ? ` / ${orderUnit}` : portionUnit ? ` / ${portionUnit}` : ""}`;
 
   return (
     <Dialog
@@ -131,28 +153,32 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Associer un fournisseur</DialogTitle>
-          <DialogDescription>Sélectionnez un fournisseur existant ou créez-en un nouveau.</DialogDescription>
+          <DialogTitle>Ajouter un prix</DialogTitle>
+          <DialogDescription>
+            Enregistrez un prix d&apos;achat et associez-le optionnellement à un fournisseur.
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex gap-1 rounded-lg border p-1">
-          {(["select", "create"] as AddMode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {m === "select" ? "Fournisseur existant" : "Nouveau fournisseur"}
-            </button>
-          ))}
-        </div>
-        {mode === "select" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Fournisseur</Label>
+            <Select value={supplierMode} onValueChange={(v) => setSupplierMode(v as SupplierMode)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Sans fournisseur</SelectItem>
+                <SelectItem value="existing">Fournisseur existant</SelectItem>
+                <SelectItem value="new">Créer un nouveau fournisseur</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {supplierMode === "existing" && (
             <div className="space-y-2 sm:col-span-2">
-              <Label>Fournisseur *</Label>
               <Select value={selectedId || undefined} onValueChange={setSelectedId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choisir…" />
+                  <SelectValue placeholder="Choisir un fournisseur…" />
                 </SelectTrigger>
                 <SelectContent>
                   {available.length === 0 ? (
@@ -167,73 +193,63 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>{priceLabel(orderUnit)}</Label>
-              <div className="relative">
-                <Input
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  className="pr-6 tabular-nums"
-                />
-                <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Unité de commande</Label>
-              {unitSelect(orderUnit, setOrderUnit)}
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch id="add-pref" checked={isPreferred} onCheckedChange={setIsPreferred} />
-              <Label htmlFor="add-pref">Fournisseur préféré</Label>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          )}
+
+          {supplierMode === "new" && (
             <div className="space-y-2 sm:col-span-2">
-              <Label>Nom du fournisseur *</Label>
               <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
                 placeholder="Nom du fournisseur"
                 autoFocus
               />
             </div>
-            <div className="space-y-2">
-              <Label>{priceLabel(newOrderUnit)}</Label>
-              <div className="relative">
-                <Input
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  className="pr-6 tabular-nums"
-                />
-                <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Unité de commande</Label>
-              {unitSelect(newOrderUnit, setNewOrderUnit)}
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Notes</Label>
-              <Textarea
-                rows={2}
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Conditions, contact…"
+          )}
+
+          <div className="space-y-2">
+            <Label>{priceLabel}</Label>
+            <div className="relative">
+              <Input
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                className="pr-6 tabular-nums"
               />
+              <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
             </div>
           </div>
-        )}
+
+          <div className="space-y-2">
+            <Label>Unité de commande</Label>
+            {unitSelect}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Qté par colis</Label>
+            <Input
+              value={qtyPerOrder}
+              onChange={(e) => setQtyPerOrder(e.target.value)}
+              inputMode="decimal"
+              placeholder="1"
+              className="tabular-nums"
+            />
+          </div>
+
+          {supplierMode !== "none" && (
+            <div className="flex items-center gap-3">
+              <Switch id="add-pref" checked={isPreferred} onCheckedChange={setIsPreferred} />
+              <Label htmlFor="add-pref">Fournisseur préféré</Label>
+            </div>
+          )}
+        </div>
+
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="button" disabled={busy} onClick={mode === "select" ? handleSelect : handleCreate}>
-            {busy ? "Enregistrement…" : mode === "select" ? "Associer" : "Créer et associer"}
+          <Button type="button" disabled={busy} onClick={handleSubmit}>
+            {busy ? "Enregistrement…" : "Enregistrer"}
           </Button>
         </DialogFooter>
       </DialogContent>

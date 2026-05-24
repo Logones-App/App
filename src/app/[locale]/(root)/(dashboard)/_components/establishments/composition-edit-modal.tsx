@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function CompositionEditModal({
   onClose,
 }: Props) {
   const queryClient = useQueryClient();
+  const t = useTranslations("units");
 
   const [kind, setKind] = useState<"recipe" | "modifier">(composition.composition_kind as "recipe" | "modifier");
   const [qty, setQty] = useState(String(composition.default_quantity ?? 1));
@@ -138,8 +140,8 @@ export function CompositionEditModal({
               <SelectContent>
                 <SelectItem value="__none__">— Aucune</SelectItem>
                 {PORTION_UNITS.map((u) => (
-                  <SelectItem key={u.key} value={u.key}>
-                    {u.label}
+                  <SelectItem key={u} value={u}>
+                    {t(u)}
                   </SelectItem>
                 ))}
               </SelectContent>

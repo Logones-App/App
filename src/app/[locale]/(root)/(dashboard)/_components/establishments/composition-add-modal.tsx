@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,7 @@ type Props = {
 
 export function CompositionAddModal({ productId, establishmentId, organizationId, queryKey, onClose }: Props) {
   const queryClient = useQueryClient();
+  const t = useTranslations("units");
   const { data: allProducts = [] } = useOrganizationProducts(organizationId);
   const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
@@ -329,8 +331,8 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
                 </SelectTrigger>
                 <SelectContent>
                   {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u.key} value={u.key}>
-                      {u.label}
+                    <SelectItem key={u} value={u}>
+                      {t(u)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -414,8 +416,8 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
                     </SelectTrigger>
                     <SelectContent>
                       {PORTION_UNITS.map((u) => (
-                        <SelectItem key={u.key} value={u.key}>
-                          {u.label}
+                        <SelectItem key={u} value={u}>
+                          {t(u)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -436,8 +438,8 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
                 </SelectTrigger>
                 <SelectContent>
                   {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u.key} value={u.key}>
-                      {u.label}
+                    <SelectItem key={u} value={u}>
+                      {t(u)}
                     </SelectItem>
                   ))}
                 </SelectContent>

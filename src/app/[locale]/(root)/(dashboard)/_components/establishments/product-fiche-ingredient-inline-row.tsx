@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Check, ChevronsUpDown, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -24,6 +25,7 @@ type Props = {
 };
 
 export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, onAdd, onCancel }: Props) {
+  const t = useTranslations("units");
   const [open, setOpen] = useState(false);
   const [ingredientId, setIngredientId] = useState("");
   const [qty, setQty] = useState("");
@@ -94,13 +96,13 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
 
           {/* Unité */}
           <Select value={unit} onValueChange={setUnit}>
-            <SelectTrigger className="h-7 w-24 text-xs">
+            <SelectTrigger className="h-7 w-36 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {PORTION_UNITS.map((u) => (
-                <SelectItem key={u.key} value={u.key} className="text-xs">
-                  {u.label}
+                <SelectItem key={u} value={u} className="text-xs">
+                  {t(u)}
                 </SelectItem>
               ))}
             </SelectContent>

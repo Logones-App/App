@@ -3543,6 +3543,7 @@ export type Database = {
           order_unit: string | null
           organization_id: string
           product_id: string
+          qty_per_order: number | null
           supplier_id: string
           supplier_product_name: string | null
           supplier_product_ref: string | null
@@ -3561,6 +3562,7 @@ export type Database = {
           order_unit?: string | null
           organization_id: string
           product_id: string
+          qty_per_order?: number | null
           supplier_id: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
@@ -3579,6 +3581,7 @@ export type Database = {
           order_unit?: string | null
           organization_id?: string
           product_id?: string
+          qty_per_order?: number | null
           supplier_id?: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null

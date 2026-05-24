@@ -583,5 +583,13 @@
     "loadError": "Error al cargar los datos.",
     "loginSuccess": "¡Inicio de sesión exitoso!",
     "logoutSuccess": "¡Sesión cerrada exitosamente!"
+  },
+  "units": {
+    "g": "g (gramos)",
+    "kg": "kg",
+    "ml": "ml (mililitros)",
+    "cl": "cl",
+    "l": "L (litros)",
+    "piece": "pieza"
   }
 } 

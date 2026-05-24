@@ -2,6 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
+
 import {
   ALLERGENS,
   LABELS,
@@ -165,6 +167,7 @@ export function PortionInput({
   onWeightChange: (v: string) => void;
   onUnitChange: (v: string) => void;
 }) {
+  const t = useTranslations("units");
   return (
     <div className="flex gap-2">
       <Input
@@ -181,8 +184,8 @@ export function PortionInput({
         <SelectContent>
           <SelectItem value="__none__">— Unité</SelectItem>
           {PORTION_UNITS.map((u) => (
-            <SelectItem key={u.key} value={u.key}>
-              {u.label}
+            <SelectItem key={u} value={u}>
+              {t(u)}
             </SelectItem>
           ))}
         </SelectContent>

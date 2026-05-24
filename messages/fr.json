@@ -639,5 +639,13 @@
     "logoutSuccess": "Déconnexion réussie",
     "loginSuccess": "Connexion réussie",
     "unknownError": "Une erreur inconnue est survenue"
+  },
+  "units": {
+    "g": "g (grammes)",
+    "kg": "kg",
+    "ml": "ml (millilitres)",
+    "cl": "cl",
+    "l": "L (litres)",
+    "piece": "pièce"
   }
 } 

@@ -590,5 +590,13 @@
     "logoutSuccess": "Logged out successfully",
     "loginSuccess": "Logged in successfully",
     "unknownError": "An unknown error occurred"
+  },
+  "units": {
+    "g": "g (grams)",
+    "kg": "kg",
+    "ml": "ml (millilitres)",
+    "cl": "cl",
+    "l": "L (litres)",
+    "piece": "piece"
   }
 } 

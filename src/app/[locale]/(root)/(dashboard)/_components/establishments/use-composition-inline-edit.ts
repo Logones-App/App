@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { PRODUCT_DASHBOARD_QUERY_KEY } from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -48,7 +49,7 @@ type Props = {
 
 export function useCompositionInlineEdit({ productId, establishmentId, organizationId }: Props) {
   const queryClient = useQueryClient();
-  const queryKey = ["product-establishment-dashboard", productId, establishmentId, organizationId];
+  const queryKey = [PRODUCT_DASHBOARD_QUERY_KEY, productId, establishmentId, organizationId];
 
   const [activeCell, setActiveCell] = useState<CompositionActiveCell | null>(null);
   const [isAddingRow, setIsAddingRow] = useState(false);

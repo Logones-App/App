@@ -25,10 +25,18 @@ import { AddSupplierModal } from "./product-fournisseur-add-modal";
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** Convertit un prix par orderUnit en prix par portionUnit pour les calculs food cost. */
-function normalizeUnitPrice(price: number, orderUnit: string | null, portionUnit: string | null): number {
-  if (!orderUnit || !portionUnit || orderUnit === portionUnit) return price;
-  const factor = convertUnit(1, orderUnit, portionUnit);
-  return factor != null ? Math.round((price / factor) * 10000) / 10000 : price;
+function normalizeUnitPrice(
+  price: number,
+  orderUnit: string | null,
+  portionUnit: string | null,
+  qtyPerOrder = 1,
+): number {
+  let normalized = price;
+  if (orderUnit && portionUnit && orderUnit !== portionUnit) {
+    const factor = convertUnit(1, orderUnit, portionUnit);
+    if (factor != null) normalized = price / factor;
+  }
+  return Math.round((normalized / (qtyPerOrder > 0 ? qtyPerOrder : 1)) * 10000) / 10000;
 }
 
 type ProductSupplierWithName = ProductSupplierRow & {
@@ -78,6 +86,31 @@ function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: 
   );
 }
 
+function SupplierPriceDisplay({
+  unitPrice,
+  orderUnit,
+  portionUnit,
+  qtyPerOrder,
+}: {
+  unitPrice: number | null;
+  orderUnit: string | null;
+  portionUnit: string | null;
+  qtyPerOrder: number | null;
+}) {
+  if (unitPrice == null) {
+    return <p className="text-muted-foreground text-xs italic">Prix non renseigné</p>;
+  }
+  const unit = orderUnit ?? portionUnit;
+  const qtyLabel = qtyPerOrder != null && qtyPerOrder > 1 ? ` × ${qtyPerOrder}` : "";
+  return (
+    <p className="text-muted-foreground text-sm tabular-nums">
+      {eur.format(unitPrice)}
+      {unit ? ` / ${unit}` : ""}
+      {qtyLabel}
+    </p>
+  );
+}
+
 // ─── Carte fournisseur ─────────────────────────────────────────────────────────
 
 function SupplierPriceCard({
@@ -95,6 +128,7 @@ function SupplierPriceCard({
 }) {
   const [editPrice, setEditPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(link.unit_price != null ? String(link.unit_price) : "");
+  const [qtyInput, setQtyInput] = useState(String(link.qty_per_order ?? 1));
 
   const updateMutation = useUpdateProductSupplier(productId);
   const deleteMutation = useDeleteProductSupplier(productId);
@@ -109,9 +143,11 @@ function SupplierPriceCard({
       return;
     }
     const unitPrice = Math.round(cost * 10000) / 10000;
-    const normalizedCost = normalizeUnitPrice(unitPrice, link.order_unit ?? null, portionUnit);
+    const qty = parseFloat(qtyInput.replace(",", "."));
+    const qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const normalizedCost = normalizeUnitPrice(unitPrice, link.order_unit ?? null, portionUnit, qtyNum);
     updateMutation.mutate(
-      { id: link.id, patch: { unit_price: unitPrice } },
+      { id: link.id, patch: { unit_price: unitPrice, qty_per_order: qtyNum > 1 ? qtyNum : null } },
       {
         onSuccess: () => {
           addHistoryMutation.mutate({
@@ -153,14 +189,12 @@ function SupplierPriceCard({
               </Badge>
             )}
           </div>
-          {link.unit_price != null ? (
-            <p className="text-muted-foreground text-sm tabular-nums">
-              {eur.format(link.unit_price)}
-              {(link.order_unit ?? portionUnit) ? ` / ${link.order_unit ?? portionUnit}` : ""}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-xs italic">Prix non renseigné</p>
-          )}
+          <SupplierPriceDisplay
+            unitPrice={link.unit_price ?? null}
+            orderUnit={link.order_unit ?? null}
+            portionUnit={portionUnit}
+            qtyPerOrder={link.qty_per_order ?? null}
+          />
         </div>
 
         <div className="flex items-center gap-1">
@@ -206,6 +240,16 @@ function SupplierPriceCard({
             <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
               € {(link.order_unit ?? portionUnit) ? `/ ${link.order_unit ?? portionUnit}` : ""}
             </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground text-sm">×</span>
+            <Input
+              value={qtyInput}
+              onChange={(e) => setQtyInput(e.target.value)}
+              inputMode="decimal"
+              placeholder="1"
+              className="w-16 tabular-nums"
+            />
           </div>
           <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
             OK
@@ -257,6 +301,7 @@ export function ProductFournisseursPrixPanel({
               <p className="text-muted-foreground text-sm tabular-nums">
                 {eur.format(preferred.unit_price)}
                 {(preferred.order_unit ?? portionUnit) ? ` / ${preferred.order_unit ?? portionUnit}` : ""}
+                {preferred.qty_per_order != null && preferred.qty_per_order > 1 ? ` × ${preferred.qty_per_order}` : ""}
               </p>
             )}
           </CardContent>

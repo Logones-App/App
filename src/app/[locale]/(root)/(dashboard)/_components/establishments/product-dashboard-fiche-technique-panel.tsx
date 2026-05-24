@@ -3,22 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { type PortionUnit } from "@/lib/constants/product-attributes";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
-import type {
-  MenuProductPricingJoin,
-  ProductCompositionRow,
-  ProductWithCategoryName,
-} from "@/lib/queries/product-establishment-dashboard";
 import {
-  getCurrentPurchasePrice,
-  useComponentCurrentPurchasePrices,
-  useProductPurchasePriceHistory,
-} from "@/lib/queries/purchase-price-queries";
+  PRODUCT_DASHBOARD_QUERY_KEY,
+  type MenuProductPricingJoin,
+  type ProductCompositionRow,
+  type ProductWithCategoryName,
+} from "@/lib/queries/product-establishment-dashboard";
+import { useComponentCurrentPurchasePrices } from "@/lib/queries/purchase-price-queries";
 import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
 import { CompositionAddModal } from "./composition-add-modal";
@@ -27,57 +26,6 @@ import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-p
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
-
-function MargeCard({
-  selfPurchasePrice,
-  technicalLines,
-  componentPrices,
-}: {
-  selfPurchasePrice: number | null;
-  technicalLines: ProductCompositionRow[];
-  componentPrices: Map<string, number>;
-}) {
-  const recipeCostHT = technicalLines
-    .filter((c) => c.composition_kind === "recipe")
-    .reduce((sum, c) => {
-      const uc = componentPrices.get(c.component_product_id);
-      const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit);
-      return cost != null ? sum + cost : sum;
-    }, 0);
-
-  const hasComponentPrices = technicalLines.some((c) => componentPrices.has(c.component_product_id));
-  const costHT = hasComponentPrices ? recipeCostHT : selfPurchasePrice;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Coût matière HT</CardTitle>
-        <CardDescription>
-          {hasComponentPrices
-            ? "Somme Σ (qté recette × prix d'achat HT du composant)."
-            : "Prix d'achat HT du produit (aucun ingrédient). Consultez l'onglet Marge pour les marges par menu."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-lg border p-4">
-          <p className="text-muted-foreground text-sm">
-            {hasComponentPrices ? "Coût matière HT (recette)" : "Prix d'achat HT"}
-          </p>
-          {costHT != null ? (
-            <p className="text-2xl font-semibold tabular-nums">{eur.format(costHT)}</p>
-          ) : (
-            <>
-              <p className="text-muted-foreground text-lg">—</p>
-              <p className="text-muted-foreground text-xs">
-                Renseignez les prix d&apos;achat dans l&apos;onglet dédié.
-              </p>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -175,6 +123,7 @@ export function ProductFicheTechniquePanel({
   organizationId: string;
   menuProductPricing?: MenuProductPricingJoin[];
 }) {
+  const t = useTranslations("units");
   const edit = useCompositionInlineEdit({
     productId: product.id,
     establishmentId,
@@ -184,7 +133,7 @@ export function ProductFicheTechniquePanel({
   const [editingComposition, setEditingComposition] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
-  const compositionQueryKey = ["product-establishment-dashboard", product.id, establishmentId, organizationId];
+  const compositionQueryKey = [PRODUCT_DASHBOARD_QUERY_KEY, product.id, establishmentId, organizationId];
 
   const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
   const ingredientList = allProducts.filter(
@@ -197,8 +146,6 @@ export function ProductFicheTechniquePanel({
   );
   const componentIds = technicalLines.map((c) => c.component_product_id);
   const { data: componentPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
-  const { data: selfHistory = [] } = useProductPurchasePriceHistory(product.id, organizationId);
-  const selfPurchasePrice = getCurrentPurchasePrice(selfHistory)?.unit_cost ?? null;
 
   const totalCostHT = technicalLines
     .filter((c) => c.composition_kind === "recipe")
@@ -220,13 +167,16 @@ export function ProductFicheTechniquePanel({
           {isArchived && <span className="text-destructive ml-2 text-xs font-normal">(archivé)</span>}
         </TableCell>
         <TableCell className="text-right">
-          <InlineNumberCell
-            value={c.default_quantity}
-            isActive={edit.isCell(c.id, "default_quantity")}
-            onActivate={() => edit.setActiveCell({ id: c.id, field: "default_quantity" })}
-            onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
-            onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
-          />
+          <div className="flex items-center justify-end gap-1">
+            <InlineNumberCell
+              value={c.default_quantity}
+              isActive={edit.isCell(c.id, "default_quantity")}
+              onActivate={() => edit.setActiveCell({ id: c.id, field: "default_quantity" })}
+              onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
+              onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
+            />
+            <span className="text-muted-foreground shrink-0 text-xs">{t(c.quantity_unit as PortionUnit)}</span>
+          </div>
         </TableCell>
         <TableCell className="text-muted-foreground text-right text-sm tabular-nums">
           {lineCost != null ? eur.format(lineCost) : <span className="opacity-40">—</span>}
@@ -282,10 +232,38 @@ export function ProductFicheTechniquePanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>Ingrédients de la recette</CardTitle>
-          <CardDescription>
-            Compositions BOM. Cliquez sur ✏️ pour modifier une ligne (type, quantité, unité, prix).
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Ingrédients de la recette</CardTitle>
+              <CardDescription>
+                Cliquez sur une quantité pour l&apos;éditer en ligne, sur ✏️ pour modifier unité ou type.
+              </CardDescription>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {!showInlineAdd && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowInlineAdd(true)}
+                  disabled={edit.isPending}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddModal(true)}
+                disabled={edit.isPending}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Créer
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-md border">
@@ -334,47 +312,16 @@ export function ProductFicheTechniquePanel({
             </Table>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {!showInlineAdd && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowInlineAdd(true)}
-                disabled={edit.isPending}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Ajouter un ingrédient
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAddModal(true)}
-              disabled={edit.isPending}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Créer un ingrédient
-            </Button>
-          </div>
+          {menuProductPricing.length > 0 && (
+            <ProductMargePanel
+              product={product}
+              compositions={compositions}
+              menuProductPricing={menuProductPricing}
+              organizationId={organizationId}
+            />
+          )}
         </CardContent>
       </Card>
-
-      <MargeCard
-        selfPurchasePrice={selfPurchasePrice}
-        technicalLines={technicalLines}
-        componentPrices={componentPrices ?? new Map()}
-      />
-
-      {menuProductPricing.length > 0 && (
-        <ProductMargePanel
-          product={product}
-          compositions={compositions}
-          menuProductPricing={menuProductPricing}
-          organizationId={organizationId}
-        />
-      )}
 
       {showAddModal && (
         <CompositionAddModal
