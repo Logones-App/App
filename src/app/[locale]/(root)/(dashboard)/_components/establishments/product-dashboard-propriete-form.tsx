@@ -174,7 +174,17 @@ export function ProductProprieteForm({
     mutationFn: async () => {
       const supabase = createClient();
 
-      const [{ error: prodErr }, { error: gridErr }, { error: mpErr }, { error: compErr }] = await Promise.all([
+      // Récupère les IDs menus_products pour cascader vers public_menu_items
+      const { data: mpRows, error: mpIdErr } = await supabase
+        .from("menus_products")
+        .select("id")
+        .eq("products_id", productId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (mpIdErr) throw mpIdErr;
+      const mpIds = (mpRows ?? []).map((r) => r.id);
+
+      const tasks = [
         supabase.from("products").update({ deleted: true }).eq("id", productId).eq("organization_id", organizationId),
         supabase.from("category_grid_items").update({ deleted: true }).eq("product_id", productId),
         supabase
@@ -188,12 +198,26 @@ export function ProductProprieteForm({
           .eq("component_product_id", productId)
           .eq("organization_id", organizationId)
           .eq("deleted", false),
-      ]);
+        supabase
+          .from("product_suppliers")
+          .update({ deleted: true })
+          .eq("product_id", productId)
+          .eq("organization_id", organizationId),
+        ...(mpIds.length > 0
+          ? [
+              supabase
+                .from("public_menu_items")
+                .update({ deleted: true })
+                .in("menus_product_id", mpIds)
+                .eq("organization_id", organizationId),
+            ]
+          : []),
+      ];
 
-      if (prodErr) throw prodErr;
-      if (gridErr) throw gridErr;
-      if (mpErr) throw mpErr;
-      if (compErr) throw compErr;
+      const results = await Promise.all(tasks);
+      for (const { error } of results) {
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Produit archivé.");
@@ -201,6 +225,7 @@ export function ProductProprieteForm({
       void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
       void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
       void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ["public-menu-sections"] });
       router.push(backHref);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Archivage impossible."),
