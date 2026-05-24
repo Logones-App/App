@@ -118,20 +118,26 @@ export const LABELS: { key: LabelKey; label: string; emoji: string; color: strin
 
 // ─── Types de produit ─────────────────────────────────────────────────────────
 
-export type ProductTypeKey = "recipe" | "ingredient";
+export type ProductTypeKey = "recipe" | "ingredient" | "purchased";
 
 export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string; description: string }[] = [
   {
     key: "recipe",
     label: "Recette",
     emoji: "🍽️",
-    description: "Produit vendu au client, composé d'ingrédients (plat, boisson, dessert…)",
+    description: "Produit vendu au client, composé d'ingrédients (plat, dessert cuisiné…)",
+  },
+  {
+    key: "purchased",
+    label: "Achat direct",
+    emoji: "🛒",
+    description: "Produit acheté et revendu tel quel, sans transformation (boissons, articles packagés…)",
   },
   {
     key: "ingredient",
     label: "Ingrédient",
     emoji: "🧄",
-    description: "Matière première achetée fournisseur, jamais vendue seule, utilisée dans les recettes",
+    description: "Matière première achetée fournisseur, utilisée dans les recettes, jamais vendue seule",
   },
 ];
 
@@ -150,6 +156,7 @@ export type ProductTypeBehavior = {
 
 export const PRODUCT_TYPE_BEHAVIORS: Record<ProductTypeKey, ProductTypeBehavior> = {
   recipe: { showInPOS: true, isForSale: true, canBeRecipeComponent: false, requiresPurchasePrice: false },
+  purchased: { showInPOS: true, isForSale: true, canBeRecipeComponent: true, requiresPurchasePrice: true },
   ingredient: { showInPOS: false, isForSale: false, canBeRecipeComponent: true, requiresPurchasePrice: true },
 };
 

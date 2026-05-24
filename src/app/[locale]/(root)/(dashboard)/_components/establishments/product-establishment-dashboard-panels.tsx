@@ -38,8 +38,15 @@ export function ProductEstablishmentDashboardTabs({
   menuProductPricing,
 }: TabsProps) {
   const types = (product.product_type as string[] | null) ?? [];
-  const isIngredientOnly = types.includes("ingredient") && !types.includes("recipe");
-  const hasIngredientType = types.includes("ingredient");
+  const isRecipe = types.includes("recipe");
+  const isPurchased = types.includes("purchased");
+  const isIngredient = types.includes("ingredient");
+  // Produit vendu au client (peut avoir un prix dans les menus)
+  const isForSale = isRecipe || isPurchased;
+  // Affiche la fiche technique : recette (BOM) ou achat direct (purchased)
+  const hasFicheTechnique = isRecipe || isPurchased;
+  // Fournisseurs & Prix tab : seulement pour les ingrédients purs (jamais vendus)
+  const hasFournisseursTab = isIngredient && !isForSale;
   const portionUnit = product.portion_unit ?? null;
 
   // Compositions pertinentes pour Personnalisation : self + modifier uniquement (pas recette)
@@ -52,11 +59,11 @@ export function ProductEstablishmentDashboardTabs({
     <Tabs defaultValue="propriete" className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
-        {!isIngredientOnly && <TabsTrigger value="prix">Prix de vente</TabsTrigger>}
-        {!isIngredientOnly && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
+        {isForSale && <TabsTrigger value="prix">Prix de vente</TabsTrigger>}
+        {isForSale && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
         <TabsTrigger value="stock">Stock</TabsTrigger>
-        {!isIngredientOnly && <TabsTrigger value="fiche">Fiche technique</TabsTrigger>}
-        {hasIngredientType && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
+        {hasFicheTechnique && <TabsTrigger value="fiche">Fiche technique</TabsTrigger>}
+        {hasFournisseursTab && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="propriete">
@@ -69,7 +76,7 @@ export function ProductEstablishmentDashboardTabs({
         />
       </TabsContent>
 
-      {!isIngredientOnly && (
+      {isForSale && (
         <TabsContent value="prix">
           <PrixPanel
             product={product}
@@ -81,7 +88,7 @@ export function ProductEstablishmentDashboardTabs({
         </TabsContent>
       )}
 
-      {!isIngredientOnly && (
+      {isForSale && (
         <TabsContent value="personnalisation">
           <ProductOptionsAndCompositionsPanel
             options={options}
@@ -102,7 +109,7 @@ export function ProductEstablishmentDashboardTabs({
         />
       </TabsContent>
 
-      {!isIngredientOnly && (
+      {hasFicheTechnique && (
         <TabsContent value="fiche">
           <ProductFicheTechniquePanel
             product={product}
@@ -114,7 +121,7 @@ export function ProductEstablishmentDashboardTabs({
         </TabsContent>
       )}
 
-      {hasIngredientType && (
+      {hasFournisseursTab && (
         <TabsContent value="fournisseurs">
           <ProductFournisseursPrixPanel
             productId={product.id}

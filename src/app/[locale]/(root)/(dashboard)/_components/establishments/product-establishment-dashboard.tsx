@@ -36,20 +36,35 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
     router.replace(backHref);
   }, [productNotFound, queryClient, organizationId, router, backHref]);
 
+  const backButton = (
+    <Button variant="outline" size="sm" asChild className="mb-2 w-fit">
+      <Link href={backHref}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Retour à la liste
+      </Link>
+    </Button>
+  );
+
   if (isLoading || productNotFound) {
     return (
-      <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span>Chargement du produit…</span>
+      <div className="space-y-6">
+        {backButton}
+        <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Chargement du produit…</span>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
-      </Alert>
+      <div className="space-y-6">
+        {backButton}
+        <Alert variant="destructive">
+          <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -66,12 +81,7 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Button variant="outline" size="sm" asChild className="mb-2 w-fit">
-          <Link href={backHref}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la liste
-          </Link>
-        </Button>
+        {backButton}
         <h1 className="text-2xl font-bold">{product.name}</h1>
         <p className="text-muted-foreground text-sm">
           Tableau de bord par établissement : options, compositions et stocks correspondent à cet établissement

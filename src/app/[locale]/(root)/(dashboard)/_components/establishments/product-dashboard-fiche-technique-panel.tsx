@@ -124,6 +124,7 @@ export function ProductFicheTechniquePanel({
   menuProductPricing?: MenuProductPricingJoin[];
 }) {
   const t = useTranslations("units");
+  const isRecipe = (product.product_type as string[] | null)?.includes("recipe") ?? false;
   const edit = useCompositionInlineEdit({
     productId: product.id,
     establishmentId,
@@ -221,107 +222,112 @@ export function ProductFicheTechniquePanel({
 
   return (
     <div className="space-y-6">
-      {/* Achat Direct — fournisseurs & prix du produit recette */}
       <ProductFournisseursPrixPanel
         productId={product.id}
         organizationId={organizationId}
         portionUnit={product.portion_unit ?? null}
         title="Achat direct"
-        description="Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
+        description={
+          isRecipe
+            ? "Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
+            : "Prix d'achat de ce produit auprès des fournisseurs."
+        }
       />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle>Ingrédients de la recette</CardTitle>
-              <CardDescription>
-                Cliquez sur une quantité pour l&apos;éditer en ligne, sur ✏️ pour modifier unité ou type.
-              </CardDescription>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              {!showInlineAdd && (
+      {isRecipe && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Ingrédients de la recette</CardTitle>
+                <CardDescription>
+                  Cliquez sur une quantité pour l&apos;éditer en ligne, sur ✏️ pour modifier unité ou type.
+                </CardDescription>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {!showInlineAdd && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowInlineAdd(true)}
+                    disabled={edit.isPending}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Ajouter
+                  </Button>
+                )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setShowInlineAdd(true)}
+                  onClick={() => setShowAddModal(true)}
                   disabled={edit.isPending}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Ajouter
+                  Créer
                 </Button>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddModal(true)}
-                disabled={edit.isPending}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Créer
-              </Button>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ingrédient</TableHead>
-                  <TableHead className="text-right">Qté</TableHead>
-                  <TableHead className="text-right">Coût HT</TableHead>
-                  <TableHead className="text-right">%</TableHead>
-                  <TableHead className="w-[80px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {technicalLines.length === 0 && !showInlineAdd ? (
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-muted-foreground h-16 text-center text-sm">
-                      Aucun ingrédient. Cliquez sur &quot;Ajouter&quot; pour commencer.
-                    </TableCell>
+                    <TableHead>Ingrédient</TableHead>
+                    <TableHead className="text-right">Qté</TableHead>
+                    <TableHead className="text-right">Coût HT</TableHead>
+                    <TableHead className="text-right">%</TableHead>
+                    <TableHead className="w-[80px]" />
                   </TableRow>
-                ) : (
-                  technicalLines.map(renderExistingRow)
-                )}
-                {showInlineAdd && (
-                  <InlineIngredientAddRow
-                    ingredients={ingredientList}
-                    isPending={edit.isPending}
-                    colSpan={5}
-                    onAdd={({ componentId, quantity, quantityUnit }) =>
-                      edit.insertMutation.mutate(
-                        {
-                          component_product_id: componentId,
-                          composition_kind: "recipe",
-                          default_quantity: quantity,
-                          max_quantity: null,
-                          show_in_customization: false,
-                          quantity_unit: quantityUnit,
-                        },
-                        { onSuccess: () => setShowInlineAdd(false) },
-                      )
-                    }
-                    onCancel={() => setShowInlineAdd(false)}
-                  />
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {technicalLines.length === 0 && !showInlineAdd ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-muted-foreground h-16 text-center text-sm">
+                        Aucun ingrédient. Cliquez sur &quot;Ajouter&quot; pour commencer.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    technicalLines.map(renderExistingRow)
+                  )}
+                  {showInlineAdd && (
+                    <InlineIngredientAddRow
+                      ingredients={ingredientList}
+                      isPending={edit.isPending}
+                      colSpan={5}
+                      onAdd={({ componentId, quantity, quantityUnit }) =>
+                        edit.insertMutation.mutate(
+                          {
+                            component_product_id: componentId,
+                            composition_kind: "recipe",
+                            default_quantity: quantity,
+                            max_quantity: null,
+                            show_in_customization: false,
+                            quantity_unit: quantityUnit,
+                          },
+                          { onSuccess: () => setShowInlineAdd(false) },
+                        )
+                      }
+                      onCancel={() => setShowInlineAdd(false)}
+                    />
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-          {menuProductPricing.length > 0 && (
-            <ProductMargePanel
-              product={product}
-              compositions={compositions}
-              menuProductPricing={menuProductPricing}
-              organizationId={organizationId}
-            />
-          )}
-        </CardContent>
-      </Card>
+            {menuProductPricing.length > 0 && (
+              <ProductMargePanel
+                product={product}
+                compositions={compositions}
+                menuProductPricing={menuProductPricing}
+                organizationId={organizationId}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {showAddModal && (
         <CompositionAddModal

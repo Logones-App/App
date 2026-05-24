@@ -333,7 +333,7 @@ export function ProductFournisseursPrixPanel({
 
           <Button type="button" variant="outline" size="sm" onClick={() => setShowAdd(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Associer un fournisseur
+            Ajouter un prix d&apos;achat
           </Button>
         </CardContent>
       </Card>
