@@ -24,7 +24,8 @@
       "Bash(grep -E \"^\\\\./.*establishments.*\\\\.\\(tsx|ts\\)$\")",
       "Bash(awk '/^\\\\.\\\\/\\(src\\\\/app\\\\/\\\\[locale\\\\]\\\\/\\\\\\(root\\\\\\)\\\\/\\\\\\(dashboard\\\\\\)\\\\/_components\\\\/establishments\\\\/\\(composition-add-modal|composition-edit-modal|product-dashboard-fiche-technique|product-dashboard-fournisseurs|product-dashboard-marge|product-fiche-ingredient-inline|product-fournisseur-add-modal|use-composition-inline|product-dashboard-propriete\\)\\)/{found=1} found && /Error:/{print} /^\\\\.\\\\//{if\\(found\\) found=0}')",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(xargs grep -l \"product_type\")"
+      "Bash(xargs grep -l \"product_type\")",
+      "Bash(grep -v \"^--$\")"
     ]
   }
 }

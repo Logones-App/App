@@ -48,6 +48,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
         </div>
 
         {product.description && <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{product.description}</p>}
+        {product.note && <p className="mt-0.5 text-xs text-gray-500 italic dark:text-gray-400">{product.note}</p>}
 
         {(hasAllergens || hasLabels) && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -72,12 +73,21 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
 // ─── Section catégorie ────────────────────────────────────────────────────────
 
-export function CategorySection({ name, products }: { name: string | null; products: PublicProduct[] }) {
+export function CategorySection({
+  name,
+  description,
+  products,
+}: {
+  name: string | null;
+  description?: string | null;
+  products: PublicProduct[];
+}) {
   if (!products.length) return null;
   return (
     <section className="mb-8">
       <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{name ?? "Autres"}</h2>
-      <div className="bg-primary mb-4 h-0.5 w-12 rounded" />
+      <div className="bg-primary mb-2 h-0.5 w-12 rounded" />
+      {description && <p className="text-muted-foreground mb-3 text-sm">{description}</p>}
       <div>
         {products.map((p) => (
           <ProductCard key={p.menuProductId} product={p} />

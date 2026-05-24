@@ -172,11 +172,11 @@ export function useCreateSection(establishmentId: string, organizationId: string
 export function useUpdateSection(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { name?: string; description?: string | null } }) => {
       const supabase = createClient();
       const { error } = await supabase
         .from("public_menu_sections")
-        .update({ name })
+        .update(patch)
         .eq("id", id)
         .eq("organization_id", organizationId);
       if (error) throw error;
@@ -185,6 +185,25 @@ export function useUpdateSection(establishmentId: string, organizationId: string
       void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
     },
     onError: () => toast.error("Impossible de mettre à jour la section."),
+  });
+}
+
+export function useUpdateItemNote(establishmentId: string, organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, note }: { id: string; note: string | null }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("public_menu_items")
+        .update({ note })
+        .eq("id", id)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
+    },
+    onError: () => toast.error("Impossible de sauvegarder la note."),
   });
 }
 

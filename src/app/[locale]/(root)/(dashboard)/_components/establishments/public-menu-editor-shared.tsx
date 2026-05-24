@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   type MenuProductPickerItem,
   type PublicMenuItemWithProduct,
@@ -24,6 +25,7 @@ import {
   usePublicMenuSections,
   useRemovePublicMenuItem,
   useTogglePublicMenuItemVisibility,
+  useUpdateItemNote,
   useUpdateSection,
 } from "@/lib/queries/public-menu-queries";
 
@@ -94,6 +96,7 @@ function ItemRow({
   onToggle,
   onRemove,
   onMove,
+  onSaveNote,
 }: {
   item: PublicMenuItemWithProduct;
   isFirst: boolean;
@@ -102,14 +105,53 @@ function ItemRow({
   onToggle: (v: boolean) => void;
   onRemove: () => void;
   onMove: (dir: "up" | "down") => void;
+  onSaveNote: (note: string | null) => void;
 }) {
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(item.note ?? "");
+
   const mp = item.menus_product;
   const productName = mp?.product?.name ?? "—";
   const price = mp?.price ?? null;
 
+  const commitNote = () => {
+    const trimmed = noteDraft.trim();
+    onSaveNote(trimmed || null);
+    setEditingNote(false);
+  };
+
   return (
     <TableRow className={item.is_visible ? undefined : "opacity-50"}>
-      <TableCell className="font-medium">{productName}</TableCell>
+      <TableCell className="font-medium">
+        <div className="space-y-0.5">
+          <span>{productName}</span>
+          {editingNote ? (
+            <Input
+              autoFocus
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onBlur={commitNote}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitNote();
+                if (e.key === "Escape") setEditingNote(false);
+              }}
+              placeholder="Note pour la carte…"
+              className="h-6 text-xs"
+            />
+          ) : (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground block text-left text-xs"
+              onClick={() => {
+                setNoteDraft(item.note ?? "");
+                setEditingNote(true);
+              }}
+            >
+              {item.note ?? <span className="opacity-50">+ note</span>}
+            </button>
+          )}
+        </div>
+      </TableCell>
       <TableCell className="text-right tabular-nums">
         {price != null ? eur.format(price) : <span className="text-muted-foreground">—</span>}
       </TableCell>
@@ -181,6 +223,8 @@ function SectionCard({
 }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(section.name);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState(section.description ?? "");
 
   const updateSection = useUpdateSection(establishmentId, organizationId);
   const deleteSection = useDeleteSection(establishmentId, organizationId);
@@ -189,6 +233,7 @@ function SectionCard({
   const removeItem = useRemovePublicMenuItem(establishmentId, organizationId);
   const toggleVisibility = useTogglePublicMenuItemVisibility(establishmentId, organizationId);
   const moveItem = useMovePublicMenuItem(establishmentId, organizationId);
+  const updateItemNote = useUpdateItemNote(establishmentId, organizationId);
 
   const isPending =
     updateSection.isPending ||
@@ -197,14 +242,22 @@ function SectionCard({
     addItem.isPending ||
     removeItem.isPending ||
     toggleVisibility.isPending ||
-    moveItem.isPending;
+    moveItem.isPending ||
+    updateItemNote.isPending;
 
   const alreadyInSection = new Set(section.items.map((i) => i.menus_product_id));
 
   const commitName = () => {
     const trimmed = nameDraft.trim();
-    if (trimmed && trimmed !== section.name) updateSection.mutate({ id: section.id, name: trimmed });
+    if (trimmed && trimmed !== section.name) updateSection.mutate({ id: section.id, patch: { name: trimmed } });
     setEditingName(false);
+  };
+
+  const commitDesc = () => {
+    const trimmed = descDraft.trim();
+    const next = trimmed || null;
+    if (next !== section.description) updateSection.mutate({ id: section.id, patch: { description: next } });
+    setEditingDesc(false);
   };
 
   return (
@@ -274,6 +327,32 @@ function SectionCard({
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
+
+        {editingDesc ? (
+          <Textarea
+            autoFocus
+            value={descDraft}
+            onChange={(e) => setDescDraft(e.target.value)}
+            onBlur={commitDesc}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditingDesc(false);
+            }}
+            placeholder="Description de la section…"
+            rows={2}
+            className="mt-1 text-sm"
+          />
+        ) : (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground mt-1 block w-full text-left text-sm"
+            onClick={() => {
+              setDescDraft(section.description ?? "");
+              setEditingDesc(true);
+            }}
+          >
+            {section.description ?? <span className="italic opacity-40">+ description de section</span>}
+          </button>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-3">
@@ -298,6 +377,7 @@ function SectionCard({
                     onToggle={(v) => toggleVisibility.mutate({ id: item.id, is_visible: v })}
                     onRemove={() => removeItem.mutate(item.id)}
                     onMove={(dir) => moveItem.mutate({ id: item.id, section_id: section.id, direction: dir })}
+                    onSaveNote={(note) => updateItemNote.mutate({ id: item.id, note })}
                   />
                 ))}
               </TableBody>

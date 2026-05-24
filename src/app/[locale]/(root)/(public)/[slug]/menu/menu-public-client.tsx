@@ -116,7 +116,12 @@ export default function MenuPublicClient({ params }: Props) {
         ) : (
           <div>
             {sections.map((section) => (
-              <CategorySection key={section.id} name={section.name} products={section.items} />
+              <CategorySection
+                key={section.id}
+                name={section.name}
+                description={section.description}
+                products={section.items}
+              />
             ))}
           </div>
         )}

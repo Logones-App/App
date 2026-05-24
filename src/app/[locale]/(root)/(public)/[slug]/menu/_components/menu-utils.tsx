@@ -6,6 +6,7 @@ export type PublicProduct = {
   productId: string;
   name: string;
   description: string | null;
+  note: string | null;
   price: number | null;
   allergens: string[];
   labels: string[];
@@ -18,6 +19,7 @@ export type PublicProduct = {
 export type PublicSection = {
   id: string;
   name: string;
+  description: string | null;
   items: PublicProduct[];
 };
 
@@ -51,7 +53,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   const { data: sections, error: secError } = await supabase
     .from("public_menu_sections")
-    .select("id, name")
+    .select("id, name, description")
     .eq("establishment_id", establishmentId)
     .eq("deleted", false)
     .order("display_order", { ascending: true });
@@ -59,12 +61,11 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
   if (secError || !sections?.length) return [];
 
   const sectionIds = sections.map((s) => s.id);
-  const sectionNameById = new Map(sections.map((s) => [s.id, s.name]));
 
   const { data: items, error: itemError } = await supabase
     .from("public_menu_items")
     .select(
-      `id, section_id,
+      `id, section_id, note,
       menus_product:menus_products(
         id, price,
         product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available)
@@ -91,6 +92,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
   type RawItem = {
     id: string;
     section_id: string;
+    note: string | null;
     menus_product: { id: string; price: number | null; product: RawProduct | null } | null;
   };
 
@@ -107,6 +109,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       productId: mp.product.id,
       name: mp.product.name,
       description: mp.product.description,
+      note: raw.note,
       price: mp.price,
       allergens: (mp.product.allergens as string[] | null) ?? [],
       labels: (mp.product.labels as string[] | null) ?? [],
@@ -120,7 +123,8 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   return sections.map((s) => ({
     id: s.id,
-    name: sectionNameById.get(s.id) ?? s.name,
+    name: s.name,
+    description: s.description ?? null,
     items: itemsBySection.get(s.id) ?? [],
   }));
 }

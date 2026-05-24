@@ -3765,6 +3765,7 @@ export type Database = {
           id: string
           is_visible: boolean
           menus_product_id: string
+          note: string | null
           organization_id: string
           section_id: string
           updated_at: string | null
@@ -3776,6 +3777,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           menus_product_id: string
+          note?: string | null
           organization_id: string
           section_id: string
           updated_at?: string | null
@@ -3787,6 +3789,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           menus_product_id?: string
+          note?: string | null
           organization_id?: string
           section_id?: string
           updated_at?: string | null
@@ -3819,6 +3822,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted: boolean
+          description: string | null
           display_order: number
           establishment_id: string
           id: string
@@ -3829,6 +3833,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted?: boolean
+          description?: string | null
           display_order?: number
           establishment_id: string
           id?: string
@@ -3839,6 +3844,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted?: boolean
+          description?: string | null
           display_order?: number
           establishment_id?: string
           id?: string
