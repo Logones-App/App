@@ -6,14 +6,12 @@ import Link from "next/link";
 
 import { ArrowLeft, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 import { CategorySection } from "./_components/menu-components";
 import {
+  getPublicCarteSections,
   getPublicEstablishmentBySlug,
-  getPublicMenus,
   type PublicEstablishment,
-  type PublicMenu,
+  type PublicSection,
 } from "./_components/menu-utils";
 
 interface Props {
@@ -22,7 +20,7 @@ interface Props {
 
 export default function MenuPublicClient({ params }: Props) {
   const [establishment, setEstablishment] = useState<PublicEstablishment | null>(null);
-  const [menus, setMenus] = useState<PublicMenu[]>([]);
+  const [sections, setSections] = useState<PublicSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -35,8 +33,7 @@ export default function MenuPublicClient({ params }: Props) {
         return;
       }
       setEstablishment(estab);
-      const menuData = await getPublicMenus(estab.id);
-      setMenus(menuData);
+      setSections(await getPublicCarteSections(estab.id));
       setLoading(false);
     });
   }, [params]);
@@ -64,9 +61,10 @@ export default function MenuPublicClient({ params }: Props) {
     );
   }
 
+  const hasAllergens = sections.some((s) => s.items.some((p) => p.allergens.length > 0));
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-white/95 shadow-sm backdrop-blur dark:bg-gray-900/95">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
           <Link
@@ -83,7 +81,6 @@ export default function MenuPublicClient({ params }: Props) {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8">
-        {/* Infos établissement */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{establishment.name}</h2>
           {establishment.description && (
@@ -108,66 +105,28 @@ export default function MenuPublicClient({ params }: Props) {
           </div>
         </div>
 
-        {/* Menus */}
-        {menus.length === 0 ? (
+        {sections.length === 0 ? (
           <div className="rounded-xl border border-dashed p-12 text-center">
             <UtensilsCrossed className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-            <h3 className="font-semibold">Menu non configuré</h3>
+            <h3 className="font-semibold">Carte non configurée</h3>
             <p className="text-muted-foreground mt-1 text-sm">
-              Le menu de cet établissement n&apos;est pas encore disponible.
+              La carte de cet établissement n&apos;est pas encore disponible.
             </p>
           </div>
-        ) : menus.length === 1 ? (
-          // Un seul menu — affichage direct
-          <MenuContent menu={menus[0]} />
         ) : (
-          // Plusieurs menus — onglets
-          <Tabs defaultValue={menus[0].id}>
-            <TabsList className="mb-6 flex h-auto flex-wrap gap-1">
-              {menus.map((m) => (
-                <TabsTrigger key={m.id} value={m.id} className="text-sm">
-                  {m.name ?? "Menu"}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {menus.map((m) => (
-              <TabsContent key={m.id} value={m.id}>
-                <MenuContent menu={m} />
-              </TabsContent>
+          <div>
+            {sections.map((section) => (
+              <CategorySection key={section.id} name={section.name} products={section.items} />
             ))}
-          </Tabs>
+          </div>
         )}
 
-        {/* Légende allergènes */}
-        {menus.some((m) =>
-          Object.values(m.productsByCategory).some((ps) => ps.some((p) => p.allergens.length > 0)),
-        ) && (
+        {hasAllergens && (
           <p className="text-muted-foreground mt-8 text-center text-xs">
             Les allergènes sont indiqués en rouge sur chaque plat. En cas de doute, demandez à notre équipe.
           </p>
         )}
       </main>
-    </div>
-  );
-}
-
-function MenuContent({ menu }: { menu: PublicMenu }) {
-  const totalProducts = Object.values(menu.productsByCategory).reduce((s, ps) => s + ps.length, 0);
-
-  if (totalProducts === 0) {
-    return (
-      <div className="rounded-xl border border-dashed p-8 text-center">
-        <p className="text-muted-foreground text-sm">Aucun plat disponible pour ce menu.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {menu.description && <p className="text-muted-foreground mb-6 text-sm">{menu.description}</p>}
-      {menu.categories.map((cat) => (
-        <CategorySection key={cat.id} name={cat.name} products={menu.productsByCategory[cat.id] ?? []} />
-      ))}
     </div>
   );
 }

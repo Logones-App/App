@@ -12,17 +12,13 @@ export type PublicProduct = {
   productType: string | null;
   portionWeight: number | null;
   portionUnit: string | null;
-  categoryId: string;
-  categoryName: string;
   isAvailable: boolean;
 };
 
-export type PublicMenu = {
+export type PublicSection = {
   id: string;
-  name: string | null;
-  description: string | null;
-  categories: { id: string; name: string | null }[];
-  productsByCategory: Record<string, PublicProduct[]>;
+  name: string;
+  items: PublicProduct[];
 };
 
 export type PublicEstablishment = {
@@ -50,99 +46,83 @@ export async function getPublicEstablishmentBySlug(slug: string): Promise<Public
   return data as PublicEstablishment;
 }
 
-export async function getPublicMenus(establishmentId: string): Promise<PublicMenu[]> {
+export async function getPublicCarteSections(establishmentId: string): Promise<PublicSection[]> {
   const supabase = createClient();
 
-  // 1. Récupérer les menus actifs
-  const { data: menus, error: menusError } = await supabase
-    .from("menus")
-    .select("id, name, description")
+  const { data: sections, error: secError } = await supabase
+    .from("public_menu_sections")
+    .select("id, name")
     .eq("establishment_id", establishmentId)
     .eq("deleted", false)
-    .eq("is_active", true)
     .order("display_order", { ascending: true });
 
-  if (menusError || !menus?.length) return [];
+  if (secError || !sections?.length) return [];
 
-  // 2. Pour chaque menu, récupérer les produits avec catégories + attributs
-  const results: PublicMenu[] = [];
+  const sectionIds = sections.map((s) => s.id);
+  const sectionNameById = new Map(sections.map((s) => [s.id, s.name]));
 
-  for (const menu of menus) {
-    const { data: menuProducts, error: mpError } = await supabase
-      .from("menus_products")
-      .select(
-        `
-        id,
-        price,
-        product:products(
-          id, name, description, is_available,
-          allergens, labels, product_type,
-          portion_weight, portion_unit,
-          category:categories(id, name)
-        )
-      `,
-      )
-      .eq("menus_id", menu.id)
-      .eq("deleted", false);
+  const { data: items, error: itemError } = await supabase
+    .from("public_menu_items")
+    .select(
+      `id, section_id,
+      menus_product:menus_products(
+        id, price,
+        product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available)
+      )`,
+    )
+    .in("section_id", sectionIds)
+    .eq("deleted", false)
+    .eq("is_visible", true)
+    .order("display_order", { ascending: true });
 
-    if (mpError || !menuProducts) continue;
+  if (itemError) return [];
 
-    const categoryMap = new Map<string, { id: string; name: string }>();
-    const productsByCategory: Record<string, PublicProduct[]> = {};
+  type RawProduct = {
+    id: string;
+    name: string;
+    description: string | null;
+    allergens: unknown;
+    labels: unknown;
+    product_type: string | null;
+    portion_unit: string | null;
+    portion_weight: number | null;
+    is_available: boolean | null;
+  };
+  type RawItem = {
+    id: string;
+    section_id: string;
+    menus_product: { id: string; price: number | null; product: RawProduct | null } | null;
+  };
 
-    for (const mp of menuProducts) {
-      const product = mp.product as {
-        id: string;
-        name: string;
-        description: string | null;
-        is_available: boolean | null;
-        allergens: unknown;
-        labels: unknown;
-        product_type: string | null;
-        portion_weight: number | null;
-        portion_unit: string | null;
-        category: { id: string; name: string } | null;
-      } | null;
+  const itemsBySection = new Map<string, PublicProduct[]>();
 
-      if (!product) continue;
-      if (product.is_available === false) continue;
+  for (const raw of (items ?? []) as RawItem[]) {
+    const mp = raw.menus_product;
+    if (!mp?.product) continue;
+    if (mp.product.is_available === false) continue;
 
-      const cat = product.category;
-      const catId = cat?.id ?? "other";
-      const catName = cat?.name ?? "Autres";
-
-      if (!categoryMap.has(catId)) {
-        categoryMap.set(catId, { id: catId, name: catName });
-        productsByCategory[catId] = [];
-      }
-
-      productsByCategory[catId].push({
-        menuProductId: mp.id,
-        productId: product.id,
-        name: product.name,
-        description: product.description,
-        price: mp.price,
-        allergens: (product.allergens as string[] | null) ?? [],
-        labels: (product.labels as string[] | null) ?? [],
-        productType: product.product_type,
-        portionWeight: product.portion_weight,
-        portionUnit: product.portion_unit,
-        categoryId: catId,
-        categoryName: catName,
-        isAvailable: product.is_available ?? true,
-      });
-    }
-
-    results.push({
-      id: menu.id,
-      name: menu.name,
-      description: menu.description,
-      categories: [...categoryMap.values()],
-      productsByCategory,
+    const list = itemsBySection.get(raw.section_id) ?? [];
+    list.push({
+      menuProductId: mp.id,
+      productId: mp.product.id,
+      name: mp.product.name,
+      description: mp.product.description,
+      price: mp.price,
+      allergens: (mp.product.allergens as string[] | null) ?? [],
+      labels: (mp.product.labels as string[] | null) ?? [],
+      productType: mp.product.product_type,
+      portionWeight: mp.product.portion_weight,
+      portionUnit: mp.product.portion_unit,
+      isAvailable: mp.product.is_available ?? true,
     });
+    itemsBySection.set(raw.section_id, list);
   }
 
-  return results;
+  return sections.map((s) => ({
+    id: s.id,
+    name: sectionNameById.get(s.id) ?? s.name,
+    items: itemsBySection.get(s.id) ?? [],
+  }));
 }
 
 // ─── Helpers affichage ────────────────────────────────────────────────────────

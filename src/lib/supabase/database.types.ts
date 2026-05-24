@@ -3757,6 +3757,112 @@ export type Database = {
           },
         ]
       }
+      public_menu_items: {
+        Row: {
+          created_at: string | null
+          deleted: boolean
+          display_order: number
+          id: string
+          is_visible: boolean
+          menus_product_id: string
+          organization_id: string
+          section_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          menus_product_id: string
+          organization_id: string
+          section_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          menus_product_id?: string
+          organization_id?: string
+          section_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_menu_items_menus_product_id_fkey"
+            columns: ["menus_product_id"]
+            isOneToOne: false
+            referencedRelation: "menus_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_menu_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_menu_items_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "public_menu_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_menu_sections: {
+        Row: {
+          created_at: string | null
+          deleted: boolean
+          display_order: number
+          establishment_id: string
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean
+          display_order?: number
+          establishment_id: string
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean
+          display_order?: number
+          establishment_id?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_menu_sections_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_menu_sections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           background_color: string | null

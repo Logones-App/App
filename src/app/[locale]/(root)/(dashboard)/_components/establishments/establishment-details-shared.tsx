@@ -3,15 +3,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  ArrowLeft,
   BarChart3,
+  BookOpen,
   Calendar,
   Clock,
-  Package,
-  UtensilsCrossed,
   Image,
-  ArrowLeft,
+  Package,
   Settings,
   ShoppingBag,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,13 @@ export function EstablishmentDetailsShared({
             <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
               <UtensilsCrossed className="h-6 w-6" />
               <span>Menus</span>
+            </Button>
+          </Link>
+
+          <Link href={getLink("carte-publique")}>
+            <Button variant="outline" className="flex h-20 w-full flex-col items-center justify-center gap-2">
+              <BookOpen className="h-6 w-6" />
+              <span>Carte publique</span>
             </Button>
           </Link>
 

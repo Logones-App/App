@@ -1,0 +1,419 @@
+"use client";
+
+import { useState } from "react";
+
+import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  type MenuProductPickerItem,
+  type PublicMenuItemWithProduct,
+  type PublicMenuSectionWithItems,
+  useAddPublicMenuItem,
+  useCreateSection,
+  useDeleteSection,
+  useMenuProductsPicker,
+  useMovePublicMenuItem,
+  useMoveSection,
+  usePublicMenuSections,
+  useRemovePublicMenuItem,
+  useTogglePublicMenuItemVisibility,
+  useUpdateSection,
+} from "@/lib/queries/public-menu-queries";
+
+const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
+// ─── Combobox ajout produit ───────────────────────────────────────────────────
+
+function AddProductCombobox({
+  picker,
+  alreadyInSection,
+  isPending,
+  onAdd,
+}: {
+  picker: MenuProductPickerItem[];
+  alreadyInSection: Set<string>;
+  isPending: boolean;
+  onAdd: (menusProductId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const available = picker.filter((p) => !alreadyInSection.has(p.menusProductId));
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" disabled={isPending || available.length === 0}>
+          <Plus className="mr-2 h-4 w-4" />
+          Ajouter un produit
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Rechercher…" />
+          <CommandList>
+            <CommandEmpty>Aucun produit disponible.</CommandEmpty>
+            <CommandGroup>
+              {available.map((p) => (
+                <CommandItem
+                  key={p.menusProductId}
+                  value={`${p.productName} ${p.menuName ?? ""}`}
+                  onSelect={() => {
+                    onAdd(p.menusProductId);
+                    setOpen(false);
+                  }}
+                >
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className="truncate">{p.productName}</span>
+                    <span className="text-muted-foreground shrink-0 text-xs">
+                      {p.price != null ? eur.format(p.price) : "—"}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Ligne item ───────────────────────────────────────────────────────────────
+
+function ItemRow({
+  item,
+  isFirst,
+  isLast,
+  isPending,
+  onToggle,
+  onRemove,
+  onMove,
+}: {
+  item: PublicMenuItemWithProduct;
+  isFirst: boolean;
+  isLast: boolean;
+  isPending: boolean;
+  onToggle: (v: boolean) => void;
+  onRemove: () => void;
+  onMove: (dir: "up" | "down") => void;
+}) {
+  const mp = item.menus_product;
+  const productName = mp?.product?.name ?? "—";
+  const price = mp?.price ?? null;
+
+  return (
+    <TableRow className={item.is_visible ? undefined : "opacity-50"}>
+      <TableCell className="font-medium">{productName}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {price != null ? eur.format(price) : <span className="text-muted-foreground">—</span>}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={isFirst || isPending}
+            onClick={() => onMove("up")}
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={isLast || isPending}
+            onClick={() => onMove("down")}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={isPending}
+            onClick={() => onToggle(!item.is_visible)}
+            title={item.is_visible ? "Masquer" : "Afficher"}
+          >
+            {item.is_visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive h-7 w-7"
+            disabled={isPending}
+            onClick={onRemove}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ─── Carte section ─────────────────────────────────────────────────────────────
+
+function SectionCard({
+  section,
+  isFirst,
+  isLast,
+  picker,
+  establishmentId,
+  organizationId,
+}: {
+  section: PublicMenuSectionWithItems;
+  isFirst: boolean;
+  isLast: boolean;
+  picker: MenuProductPickerItem[];
+  establishmentId: string;
+  organizationId: string;
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(section.name);
+
+  const updateSection = useUpdateSection(establishmentId, organizationId);
+  const deleteSection = useDeleteSection(establishmentId, organizationId);
+  const moveSection = useMoveSection(establishmentId, organizationId);
+  const addItem = useAddPublicMenuItem(establishmentId, organizationId);
+  const removeItem = useRemovePublicMenuItem(establishmentId, organizationId);
+  const toggleVisibility = useTogglePublicMenuItemVisibility(establishmentId, organizationId);
+  const moveItem = useMovePublicMenuItem(establishmentId, organizationId);
+
+  const isPending =
+    updateSection.isPending ||
+    deleteSection.isPending ||
+    moveSection.isPending ||
+    addItem.isPending ||
+    removeItem.isPending ||
+    toggleVisibility.isPending ||
+    moveItem.isPending;
+
+  const alreadyInSection = new Set(section.items.map((i) => i.menus_product_id));
+
+  const commitName = () => {
+    const trimmed = nameDraft.trim();
+    if (trimmed && trimmed !== section.name) updateSection.mutate({ id: section.id, name: trimmed });
+    setEditingName(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={isFirst || isPending}
+              onClick={() => moveSection.mutate({ id: section.id, direction: "up" })}
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={isLast || isPending}
+              onClick={() => moveSection.mutate({ id: section.id, direction: "down" })}
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          {editingName ? (
+            <Input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitName();
+                if (e.key === "Escape") setEditingName(false);
+              }}
+              className="h-7 flex-1 text-base font-semibold"
+            />
+          ) : (
+            <button
+              type="button"
+              className="flex-1 text-left text-base font-semibold hover:underline"
+              onClick={() => {
+                setNameDraft(section.name);
+                setEditingName(true);
+              }}
+            >
+              {section.name}
+            </button>
+          )}
+
+          <Badge variant="secondary" className="shrink-0">
+            {section.items.length} produit{section.items.length !== 1 ? "s" : ""}
+          </Badge>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive h-7 w-7 shrink-0"
+            onClick={() => deleteSection.mutate(section.id)}
+            disabled={isPending}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3">
+        {section.items.length > 0 && (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produit</TableHead>
+                  <TableHead className="text-right">Prix</TableHead>
+                  <TableHead className="w-[140px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {section.items.map((item, idx) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    isFirst={idx === 0}
+                    isLast={idx === section.items.length - 1}
+                    isPending={isPending}
+                    onToggle={(v) => toggleVisibility.mutate({ id: item.id, is_visible: v })}
+                    onRemove={() => removeItem.mutate(item.id)}
+                    onMove={(dir) => moveItem.mutate({ id: item.id, section_id: section.id, direction: dir })}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        <AddProductCombobox
+          picker={picker}
+          alreadyInSection={alreadyInSection}
+          isPending={isPending}
+          onAdd={(menusProductId) => addItem.mutate({ section_id: section.id, menus_product_id: menusProductId })}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
+
+export function PublicMenuEditorShared({
+  establishmentId,
+  organizationId,
+}: {
+  establishmentId: string;
+  organizationId: string;
+}) {
+  const [addingSection, setAddingSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
+
+  const { data: sections = [], isLoading } = usePublicMenuSections(establishmentId, organizationId);
+  const { data: picker = [] } = useMenuProductsPicker(establishmentId, organizationId);
+  const createSection = useCreateSection(establishmentId, organizationId);
+
+  const handleCreateSection = () => {
+    const name = newSectionName.trim();
+    if (!name) return;
+    createSection.mutate(name, {
+      onSuccess: () => {
+        setNewSectionName("");
+        setAddingSection(false);
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Carte publique</h2>
+          <p className="text-muted-foreground text-sm">
+            Organisez les sections et produits affichés sur votre carte en ligne.
+          </p>
+        </div>
+        {!addingSection && (
+          <Button type="button" variant="outline" onClick={() => setAddingSection(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Ajouter une section
+          </Button>
+        )}
+      </div>
+
+      {addingSection && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                placeholder="Nom de la section…"
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateSection();
+                  if (e.key === "Escape") setAddingSection(false);
+                }}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={handleCreateSection}
+                disabled={createSection.isPending || !newSectionName.trim()}
+              >
+                Créer
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAddingSection(false)}>
+                Annuler
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading && (
+        <div className="text-muted-foreground flex items-center gap-2 p-8">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Chargement…</span>
+        </div>
+      )}
+
+      {!isLoading && sections.length === 0 && !addingSection && (
+        <p className="text-muted-foreground text-sm">
+          Aucune section. Cliquez sur &quot;Ajouter une section&quot; pour commencer.
+        </p>
+      )}
+
+      {sections.map((section, idx) => (
+        <SectionCard
+          key={section.id}
+          section={section}
+          isFirst={idx === 0}
+          isLast={idx === sections.length - 1}
+          picker={picker}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+        />
+      ))}
+    </div>
+  );
+}
