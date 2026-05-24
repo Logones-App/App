@@ -19,7 +19,8 @@
       "Bash(Select-Object -First 5)",
       "Bash(grep -v \"^$\")",
       "Bash(node -e ' *)",
-      "Bash(npx prettier *)"
+      "Bash(npx prettier *)",
+      "Bash(npx next *)"
     ]
   }
 }

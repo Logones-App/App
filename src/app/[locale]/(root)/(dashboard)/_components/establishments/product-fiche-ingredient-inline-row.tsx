@@ -11,70 +11,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
-import { useActiveSuppliers, useProductSuppliers } from "@/lib/queries/supplier-queries";
 import { cn } from "@/lib/utils";
 
 type Ingredient = { id: string; name: string; portion_unit: string | null };
 
-// Sub-composant isolé pour charger les fournisseurs sans hook conditionnel
-function SupplierSelect({
-  ingredientId,
-  organizationId,
-  value,
-  onChange,
-}: {
-  ingredientId: string;
-  organizationId: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-  const { data: links = [] } = useProductSuppliers(ingredientId);
-  const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
-
-  if (links.length === 0) return <span className="text-muted-foreground text-xs italic">Aucun fournisseur</span>;
-
-  return (
-    <Select value={value || undefined} onValueChange={onChange}>
-      <SelectTrigger className="h-7 w-44 text-xs">
-        <SelectValue placeholder="Fournisseur (optionnel)" />
-      </SelectTrigger>
-      <SelectContent>
-        {links.map((link) => {
-          const sup = orgSuppliers.find((s) => s.id === link.supplier_id);
-          return (
-            <SelectItem key={link.supplier_id} value={link.supplier_id} className="text-xs">
-              {link.is_preferred ? "★ " : ""}
-              {sup?.name ?? "—"}
-              {link.unit_price != null ? ` — ${eur.format(link.unit_price)}${sup ? "" : ""}` : ""}
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
-  );
-}
-
 type Props = {
   ingredients: Ingredient[];
-  organizationId: string;
   isPending: boolean;
   colSpan?: number;
   onAdd: (payload: { componentId: string; quantity: number; quantityUnit: string }) => void;
   onCancel: () => void;
 };
 
-export function InlineIngredientAddRow({
-  ingredients,
-  organizationId,
-  isPending,
-  colSpan = 6,
-  onAdd,
-  onCancel,
-}: Props) {
+export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, onAdd, onCancel }: Props) {
   const [open, setOpen] = useState(false);
   const [ingredientId, setIngredientId] = useState("");
-  const [supplierId, setSupplierId] = useState("");
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("g");
 
@@ -117,7 +68,6 @@ export function InlineIngredientAddRow({
                         value={p.name}
                         onSelect={() => {
                           setIngredientId(p.id);
-                          setSupplierId("");
                           setOpen(false);
                         }}
                         className="text-xs"
@@ -132,16 +82,6 @@ export function InlineIngredientAddRow({
               </Command>
             </PopoverContent>
           </Popover>
-
-          {/* Fournisseur — chargé uniquement quand un ingrédient est sélectionné */}
-          {ingredientId && (
-            <SupplierSelect
-              ingredientId={ingredientId}
-              organizationId={organizationId}
-              value={supplierId}
-              onChange={setSupplierId}
-            />
-          )}
 
           {/* Quantité */}
           <Input

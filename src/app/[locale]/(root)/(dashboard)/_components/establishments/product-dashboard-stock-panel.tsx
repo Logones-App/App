@@ -18,13 +18,12 @@ import {
   setSelfLineInventoryTracked,
   willSelfTrackingDisableAnyCurrentlyTrackedStock,
 } from "@/lib/product-composition-stock-tracking";
-import type { CompositionStockRow } from "@/lib/queries/product-establishment-dashboard";
+import { PRODUCT_DASHBOARD_QUERY_KEY, type CompositionStockRow } from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 
 import { CompositionStockCard } from "./product-composition-dashboard-blocks";
 import { StockMovementsSection } from "./product-dashboard-stock-movements";
-import { PRODUCT_DASHBOARD_QUERY_KEY } from "./product-stock-quick-adjust";
 
 const DEFAULT_STOCK_UNIT = "u";
 
@@ -215,11 +214,8 @@ function ProductStockScopeSection({
         <CardHeader>
           <CardTitle>Stock</CardTitle>
           <CardDescription>
-            Les fiches <span className="font-medium">product_stocks</span> sont liées aux lignes de{" "}
-            <span className="font-medium">product_compositions</span> (clé{" "}
-            <span className="font-medium">product_composition_id</span>). Pour suivre le stock au niveau{" "}
-            <span className="font-medium">unité de vente</span>, il faut une composition « self » (même produit en plat
-            et en composant) et une fiche stock associée.
+            Pour suivre le stock, une fiche de suivi doit être liée à chaque ligne de composition. Une ligne « self »
+            (même produit en plat et en composant) permet de suivre le stock au niveau de l&apos;unité de vente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -367,12 +363,9 @@ export function ProductStockPanel({
           <CardHeader>
             <CardTitle>Stock</CardTitle>
             <CardDescription>
-              Suivi aligné sur la caisse : <span className="font-medium">unité de vente (self)</span>,{" "}
-              <span className="font-medium">recettes</span> et/ou{" "}
-              <span className="font-medium">suppléments (modifier)</span>. Le self suivi peut coexister avec le suivi
-              des <span className="font-medium">modifier</span> (hybride) ; les lignes{" "}
-              <span className="font-medium">recette</span> du même plat ne sont pas débitées en parallèle du self. Une
-              fiche <span className="font-medium">product_stocks</span> par maillon suivi.
+              Suivi aligné sur la caisse : unité de vente (self), recettes et/ou suppléments. Le self peut coexister
+              avec le suivi des modificateurs (mode hybride) ; les lignes recette ne sont pas débitées en parallèle du
+              self.
             </CardDescription>
           </CardHeader>
         </Card>

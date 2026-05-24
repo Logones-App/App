@@ -81,7 +81,6 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
 
       <ProductEstablishmentDashboardTabs
         product={product}
-        productId={productId}
         establishmentId={establishmentId}
         organizationId={organizationId}
         backHref={backHref}

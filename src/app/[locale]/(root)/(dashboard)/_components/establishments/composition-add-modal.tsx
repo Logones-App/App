@@ -18,68 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
-import { useOrganizationProducts } from "@/lib/queries/establishments";
+import { useEstablishmentVatRates, useOrganizationProducts } from "@/lib/queries/establishments";
 import { useComponentCurrentPurchasePrices } from "@/lib/queries/purchase-price-queries";
-import { useActiveSuppliers, useCreateSupplier, useProductSuppliers } from "@/lib/queries/supplier-queries";
+import { useActiveSuppliers, useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
-
-// ─── Sélection fournisseur pour un ingrédient existant ─────────────────────────
-
-function IngredientSupplierSelect({
-  ingredientId,
-  organizationId,
-  selectedSupplierId,
-  onSelect,
-}: {
-  ingredientId: string;
-  organizationId: string;
-  selectedSupplierId: string;
-  onSelect: (supplierId: string, price: number | null) => void;
-}) {
-  const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-  const { data: links = [] } = useProductSuppliers(ingredientId);
-  const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
-
-  if (links.length === 0) {
-    return (
-      <p className="text-muted-foreground text-xs">
-        Cet ingrédient n&apos;a pas encore de fournisseur.{" "}
-        <span className="italic">Le prix sera à configurer depuis la fiche de l&apos;ingrédient.</span>
-      </p>
-    );
-  }
-
-  return (
-    <Select
-      value={selectedSupplierId || undefined}
-      onValueChange={(v) => {
-        const link = links.find((l) => l.supplier_id === v);
-        onSelect(v, link?.unit_price ?? null);
-      }}
-    >
-      <SelectTrigger>
-        <SelectValue placeholder="Choisir un fournisseur…" />
-      </SelectTrigger>
-      <SelectContent>
-        {links.map((link) => {
-          const sup = orgSuppliers.find((s) => s.id === link.supplier_id);
-          const price = link.unit_price;
-          return (
-            <SelectItem key={link.supplier_id} value={link.supplier_id}>
-              <span className="flex items-center gap-2">
-                {link.is_preferred && <span>★</span>}
-                <span>{sup?.name ?? link.supplier_id.slice(0, 8)}</span>
-                {price != null && (
-                  <span className="text-muted-foreground text-xs tabular-nums">{eur.format(price)}</span>
-                )}
-              </span>
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
-  );
-}
 
 // ─── Modal principale ──────────────────────────────────────────────────────────
 
@@ -119,7 +61,15 @@ async function createIngredientProduct(
     supplierMode,
     priceQtyNum,
     priceUnit,
-  }: { organizationId: string; name: string; supplierMode: SupplierMode; priceQtyNum: number; priceUnit: string },
+    vatRateId,
+  }: {
+    organizationId: string;
+    name: string;
+    supplierMode: SupplierMode;
+    priceQtyNum: number;
+    priceUnit: string;
+    vatRateId: string | null;
+  },
 ) {
   const { data, error } = await supabase
     .from("products")
@@ -128,6 +78,7 @@ async function createIngredientProduct(
       name: name.trim(),
       category_id: null,
       price: 0,
+      vat_rate_id: vatRateId,
       product_type: ["ingredient"],
       portion_weight: supplierMode !== "none" ? priceQtyNum : null,
       portion_unit: supplierMode !== "none" ? priceUnit : null,
@@ -165,6 +116,8 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
   const queryClient = useQueryClient();
   const { data: allProducts = [] } = useOrganizationProducts(organizationId);
   const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
+  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const defaultVatRateId = vatRates[0]?.id ?? null;
 
   const ingredients = allProducts.filter(
     (p) => p.id !== productId && (p.product_type as string[] | null)?.includes("ingredient"),
@@ -185,7 +138,6 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
 
   // Mode sélection
   const [selectedId, setSelectedId] = useState("");
-  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("g");
 
@@ -244,6 +196,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         supplierMode,
         priceQtyNum: validated.priceQtyNum,
         priceUnit: newPriceUnit,
+        vatRateId: defaultVatRateId,
       });
       const resolvedSupplierId = await resolveSupplier(
         supplierMode,
@@ -257,6 +210,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
           supplier_id: resolvedSupplierId,
           organization_id: organizationId,
           unit_price: validated.unitCost,
+          order_unit: newPriceUnit,
           is_preferred: true,
           deleted: false,
         });
@@ -338,13 +292,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label>Ingrédient</Label>
-              <Select
-                value={selectedId || undefined}
-                onValueChange={(v) => {
-                  setSelectedId(v);
-                  setSelectedSupplierId("");
-                }}
-              >
+              <Select value={selectedId || undefined} onValueChange={setSelectedId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choisir un ingrédient…" />
                 </SelectTrigger>
@@ -368,21 +316,6 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
                 </SelectContent>
               </Select>
             </div>
-
-            {selectedId && (
-              <div className="space-y-2 sm:col-span-2">
-                <Label>
-                  Fournisseur{" "}
-                  <span className="text-muted-foreground text-xs font-normal">(optionnel — pour choisir le prix)</span>
-                </Label>
-                <IngredientSupplierSelect
-                  ingredientId={selectedId}
-                  organizationId={organizationId}
-                  selectedSupplierId={selectedSupplierId}
-                  onSelect={(sid) => setSelectedSupplierId(sid)}
-                />
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label>Quantité pour cette recette</Label>

@@ -8,10 +8,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PRODUCT_DASHBOARD_QUERY_KEY } from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
-export const PRODUCT_DASHBOARD_QUERY_KEY = "product-establishment-dashboard" as const;
+export { PRODUCT_DASHBOARD_QUERY_KEY };
 
 export function parseStockAmount(raw: string): number | null {
   const t = raw

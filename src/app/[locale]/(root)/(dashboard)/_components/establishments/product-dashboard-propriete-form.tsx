@@ -39,14 +39,15 @@ import {
   type ProductTypeKey,
 } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
-import type { ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
+import {
+  PRODUCT_DASHBOARD_QUERY_KEY,
+  type ProductWithCategoryName,
+} from "@/lib/queries/product-establishment-dashboard";
 import {
   productCatalogProprieteSchema,
   type ProductCatalogProprieteParsed,
 } from "@/lib/schemas/product-catalog-propriete-schema";
 import { createClient } from "@/lib/supabase/client";
-
-const DASHBOARD_KEY = "product-establishment-dashboard" as const;
 
 type ProductProprieteDraft = {
   name: string;
@@ -109,7 +110,7 @@ export function ProductProprieteForm({
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
-      queryKey: [DASHBOARD_KEY, productId, establishmentId, organizationId],
+      queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, productId, establishmentId, organizationId],
     });
     void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
     void queryClient.invalidateQueries({
@@ -197,7 +198,7 @@ export function ProductProprieteForm({
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
       void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
-      void queryClient.invalidateQueries({ queryKey: ["product-establishment-dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
       router.push(backHref);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Archivage impossible."),

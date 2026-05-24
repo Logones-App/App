@@ -5,12 +5,26 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useOrganizationProducts } from "@/lib/queries/establishments";
-import type { CompositionStockRow, ProductCompositionRow } from "@/lib/queries/product-establishment-dashboard";
+import { useEstablishmentVatRates, useOrganizationProducts } from "@/lib/queries/establishments";
+import {
+  PRODUCT_DASHBOARD_QUERY_KEY,
+  type CompositionStockRow,
+  type ProductCompositionRow,
+} from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -19,7 +33,6 @@ import { ProductOptionDialog } from "./product-option-dialog";
 import { ProductCompositionAddDialog, ProductCompositionEditDialog } from "./product-panel-dialogs";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const DASHBOARD_KEY = "product-establishment-dashboard" as const;
 
 function mutationErrorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -61,28 +74,29 @@ function invalidateDashboard(
   organizationId: string,
 ) {
   void queryClient.invalidateQueries({
-    queryKey: [DASHBOARD_KEY, productId, establishmentId, organizationId],
+    queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, productId, establishmentId, organizationId],
   });
 }
 
 export function ProductOptionsAndCompositionsPanel({
   options,
   compositionStockRows,
-  modifierCompositions = [],
   productId,
   establishmentId,
   organizationId,
 }: {
   options: Tables<"product_options">[];
   compositionStockRows: CompositionStockRow[];
-  modifierCompositions?: ProductCompositionRow[];
   productId: string;
   establishmentId: string;
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
   const { data: orgProducts = [] } = useOrganizationProducts(organizationId);
+  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const defaultTvaRate = vatRates[0]?.value ?? 20;
 
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "option" | "composition"; id: string } | null>(null);
   const [optionDialogOpen, setOptionDialogOpen] = useState(false);
   const [editingOption, setEditingOption] = useState<Tables<"product_options"> | null>(null);
 
@@ -105,7 +119,7 @@ export function ProductOptionsAndCompositionsPanel({
           option_name: payload.row.option_name ?? "",
           option_value: payload.row.option_value ?? "",
           option_price: payload.row.option_price ?? 0,
-          tva_rate: payload.row.tva_rate ?? 20,
+          tva_rate: payload.row.tva_rate ?? defaultTvaRate,
           selection_type: payload.row.selection_type ?? "single",
           display_order: payload.row.display_order ?? 0,
           is_visible: payload.row.is_visible ?? true,
@@ -322,9 +336,7 @@ export function ProductOptionsAndCompositionsPanel({
                             variant="outline"
                             className="text-destructive"
                             disabled={optionDeleteMutation.isPending}
-                            onClick={() => {
-                              if (confirm("Désactiver cette option ?")) optionDeleteMutation.mutate(o.id);
-                            }}
+                            onClick={() => setDeleteTarget({ type: "option", id: o.id })}
                           >
                             Supprimer
                           </Button>
@@ -343,10 +355,7 @@ export function ProductOptionsAndCompositionsPanel({
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Compositions</CardTitle>
-            <CardDescription>
-              Lignes <span className="font-medium">product_compositions</span> : recette, modificateurs et affichage
-              modale.
-            </CardDescription>
+            <CardDescription>Unité de vente (self) et modificateurs visibles en personnalisation.</CardDescription>
           </div>
           <Button size="sm" onClick={() => setAddCompositionOpen(true)}>
             Ajouter une ligne
@@ -376,10 +385,7 @@ export function ProductOptionsAndCompositionsPanel({
                       variant="outline"
                       className="text-destructive"
                       disabled={compositionDeleteMutation.isPending}
-                      onClick={() => {
-                        if (confirm("Désactiver cette ligne de composition ?"))
-                          compositionDeleteMutation.mutate(row.id);
-                      }}
+                      onClick={() => setDeleteTarget({ type: "composition", id: row.id })}
                     >
                       Supprimer
                     </Button>
@@ -437,6 +443,36 @@ export function ProductOptionsAndCompositionsPanel({
         onSave={(row) => compositionMutation.mutate({ mode: "insert", row })}
         pending={compositionMutation.isPending}
       />
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.type === "option"
+                ? "Désactiver cette option ?"
+                : "Désactiver cette ligne de composition ?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget?.type === "option") optionDeleteMutation.mutate(deleteTarget.id);
+                else if (deleteTarget) compositionDeleteMutation.mutate(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -14,19 +14,90 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-// product.price n'est plus affiché dans ce panel — le prix de référence est supprimé du SaaS
 import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import {
   MENU_PRICING_STRATEGY_LABELS,
   menuPricingStrategyLabel,
   resolveEffectiveProductPrice,
 } from "@/lib/product-pricing-utils";
-import type { MenuProductPricingJoin, ProductWithCategoryName } from "@/lib/queries/product-establishment-dashboard";
+import {
+  PRODUCT_DASHBOARD_QUERY_KEY,
+  type MenuProductPricingJoin,
+  type ProductWithCategoryName,
+} from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const DASHBOARD_KEY = "product-establishment-dashboard" as const;
+
+function CatalogPriceCard({
+  product,
+  productId,
+  organizationId,
+  establishmentId,
+  menuIds,
+}: {
+  product: ProductWithCategoryName;
+  productId: string;
+  organizationId: string;
+  establishmentId: string;
+  menuIds: string[];
+}) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState(String(product.price));
+  useEffect(() => {
+    setDraft(String(product.price));
+  }, [product.price]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const price = parseFloat(draft.replace(",", "."));
+      if (!Number.isFinite(price) || price < 0) throw new Error("Prix invalide.");
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("products")
+        .update({ price })
+        .eq("id", productId)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Prix catalogue mis à jour.");
+      invalidateProductPricingQueries(queryClient, { productId, establishmentId, organizationId, menuIds });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Échec."),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Prix catalogue</CardTitle>
+        <CardDescription>
+          Prix de référence du produit. Utilisé par les menus en stratégie <strong>catalog_only</strong> ou comme
+          fallback.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-2">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") mutation.mutate();
+            }}
+            inputMode="decimal"
+            placeholder="0,00"
+            className="max-w-[8rem] tabular-nums"
+          />
+          <span className="text-muted-foreground text-sm">€ TTC</span>
+          <Button type="button" size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending ? "…" : "Enregistrer"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function invalidateProductPricingQueries(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -38,7 +109,7 @@ function invalidateProductPricingQueries(
   },
 ) {
   void queryClient.invalidateQueries({
-    queryKey: [DASHBOARD_KEY, p.productId, p.establishmentId, p.organizationId],
+    queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, p.productId, p.establishmentId, p.organizationId],
   });
   void queryClient.invalidateQueries({ queryKey: ["organization-products", p.organizationId] });
   void queryClient.invalidateQueries({
@@ -66,11 +137,17 @@ export function PrixPanel({
   organizationId: string;
   menuProductPricing: MenuProductPricingJoin[];
 }) {
-  const queryClient = useQueryClient();
   const menuIds = [...new Set(menuProductPricing.map((x) => x.menu?.id).filter(Boolean) as string[])];
 
   return (
     <div className="space-y-4">
+      <CatalogPriceCard
+        product={product}
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+        menuIds={menuIds}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Prix par menu</CardTitle>

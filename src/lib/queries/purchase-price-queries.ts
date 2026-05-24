@@ -24,7 +24,7 @@ export function useProductPurchasePriceHistory(productId: string, organizationId
         .select("*")
         .eq("product_id", productId)
         .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false });
+        .order("effective_from", { ascending: false });
       if (error) throw error;
       return (data ?? []) as PurchasePriceRow[];
     },
@@ -32,7 +32,7 @@ export function useProductPurchasePriceHistory(productId: string, organizationId
   });
 }
 
-/** Prix courant = entrée la plus récemment saisie (premier élément, déjà trié par created_at desc). */
+/** Prix courant = entrée la plus récente par effective_from (premier élément, trié desc). */
 export function getCurrentPurchasePrice(history: PurchasePriceRow[]): PurchasePriceRow | null {
   return history[0] ?? null;
 }
@@ -46,10 +46,10 @@ export function useComponentCurrentPurchasePrices(componentProductIds: string[],
       const supabase = createClient();
       const { data, error } = await supabase
         .from("product_purchase_price_history")
-        .select("product_id, unit_cost, created_at")
+        .select("product_id, unit_cost, effective_from")
         .in("product_id", componentProductIds)
         .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false });
+        .order("effective_from", { ascending: false });
       if (error) throw error;
       // Prendre le premier par product_id = le plus récemment saisi
       const map = new Map<string, number>();

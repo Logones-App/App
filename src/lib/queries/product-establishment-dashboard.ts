@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+export const PRODUCT_DASHBOARD_QUERY_KEY = "product-establishment-dashboard" as const;
+
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 

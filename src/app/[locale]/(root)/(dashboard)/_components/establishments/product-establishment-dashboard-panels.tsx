@@ -18,7 +18,6 @@ import { ProductStockPanel } from "./product-dashboard-stock-panel";
 
 type TabsProps = {
   product: ProductWithCategoryName;
-  productId: string;
   establishmentId: string;
   organizationId: string;
   backHref: string;
@@ -30,7 +29,6 @@ type TabsProps = {
 
 export function ProductEstablishmentDashboardTabs({
   product,
-  productId,
   establishmentId,
   organizationId,
   backHref,
@@ -41,11 +39,14 @@ export function ProductEstablishmentDashboardTabs({
 }: TabsProps) {
   const types = (product.product_type as string[] | null) ?? [];
   const isIngredientOnly = types.includes("ingredient") && !types.includes("recipe");
+  const hasIngredientType = types.includes("ingredient");
   const portionUnit = product.portion_unit ?? null;
 
-  // Modificateurs pour Personnalisation
-  const modifierCompositions = compositions.filter((c) => c.composition_kind === "modifier");
-  const persoCount = options.length + compositionStockRows.length + modifierCompositions.length;
+  // Compositions pertinentes pour Personnalisation : self + modifier uniquement (pas recette)
+  const persoStockRows = compositionStockRows.filter(
+    (r) => r.isSelfComposition || r.composition.composition_kind === "modifier",
+  );
+  const persoCount = options.length + persoStockRows.length;
 
   return (
     <Tabs defaultValue="propriete" className="w-full gap-4">
@@ -55,13 +56,13 @@ export function ProductEstablishmentDashboardTabs({
         {!isIngredientOnly && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
         <TabsTrigger value="stock">Stock</TabsTrigger>
         {!isIngredientOnly && <TabsTrigger value="fiche">Fiche technique</TabsTrigger>}
-        {isIngredientOnly && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
+        {hasIngredientType && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="propriete">
         <ProductProprieteForm
           product={product}
-          productId={productId}
+          productId={product.id}
           organizationId={organizationId}
           establishmentId={establishmentId}
           backHref={backHref}
@@ -72,7 +73,7 @@ export function ProductEstablishmentDashboardTabs({
         <TabsContent value="prix">
           <PrixPanel
             product={product}
-            productId={productId}
+            productId={product.id}
             establishmentId={establishmentId}
             organizationId={organizationId}
             menuProductPricing={menuProductPricing}
@@ -84,9 +85,8 @@ export function ProductEstablishmentDashboardTabs({
         <TabsContent value="personnalisation">
           <ProductOptionsAndCompositionsPanel
             options={options}
-            compositionStockRows={compositionStockRows}
-            modifierCompositions={modifierCompositions}
-            productId={productId}
+            compositionStockRows={persoStockRows}
+            productId={product.id}
             establishmentId={establishmentId}
             organizationId={organizationId}
           />
@@ -96,7 +96,7 @@ export function ProductEstablishmentDashboardTabs({
       <TabsContent value="stock">
         <ProductStockPanel
           compositionStockRows={compositionStockRows}
-          productId={productId}
+          productId={product.id}
           establishmentId={establishmentId}
           organizationId={organizationId}
         />
@@ -114,10 +114,10 @@ export function ProductEstablishmentDashboardTabs({
         </TabsContent>
       )}
 
-      {isIngredientOnly && (
+      {hasIngredientType && (
         <TabsContent value="fournisseurs">
           <ProductFournisseursPrixPanel
-            productId={productId}
+            productId={product.id}
             organizationId={organizationId}
             portionUnit={portionUnit}
           />

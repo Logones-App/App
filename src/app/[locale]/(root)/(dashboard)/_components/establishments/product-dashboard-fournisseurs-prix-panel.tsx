@@ -37,8 +37,11 @@ type ProductSupplierWithName = ProductSupplierRow & {
 
 type HistoryRow = { id: string; unit_cost: number; effective_from: string; supplier_id: string | null };
 
+const HISTORY_PAGE = 5;
+
 function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: string | null }) {
   const [show, setShow] = useState(false);
+  const [limit, setLimit] = useState(HISTORY_PAGE);
   if (rows.length === 0) return null;
   return (
     <div className="mt-2">
@@ -52,7 +55,7 @@ function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: 
       </button>
       {show && (
         <div className="mt-1.5 space-y-0.5">
-          {rows.slice(0, 5).map((h) => (
+          {rows.slice(0, limit).map((h) => (
             <p key={h.id} className="text-muted-foreground text-xs tabular-nums">
               {eur.format(h.unit_cost)}
               {portionUnit ? ` / ${portionUnit}` : ""}
@@ -60,6 +63,15 @@ function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: 
               {format(parseISO(h.effective_from), "d MMM yyyy", { locale: fr })}
             </p>
           ))}
+          {rows.length > limit && (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+              onClick={() => setLimit((v) => v + HISTORY_PAGE)}
+            >
+              Voir plus ({rows.length - limit} restantes)
+            </button>
+          )}
         </div>
       )}
     </div>

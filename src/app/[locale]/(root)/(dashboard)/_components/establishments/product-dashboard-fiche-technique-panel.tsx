@@ -312,7 +312,6 @@ export function ProductFicheTechniquePanel({
                 {showInlineAdd && (
                   <InlineIngredientAddRow
                     ingredients={ingredientList}
-                    organizationId={organizationId}
                     isPending={edit.isPending}
                     colSpan={5}
                     onAdd={({ componentId, quantity, quantityUnit }) =>
