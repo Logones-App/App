@@ -7,7 +7,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useOrganizationProducts } from "@/lib/queries/establishments";
+import { useOrganizationArchivedProducts, useOrganizationProducts } from "@/lib/queries/establishments";
 import { exportProductsToCSV } from "@/lib/utils/csv-export";
 
 import { StocksTab } from "./_components/stocks-tab";
@@ -23,6 +23,7 @@ export function ProductsShared({
 }) {
   const pathname = usePathname();
   const { data: products, isLoading, error } = useOrganizationProducts(organizationId);
+  const { data: archivedProducts = [] } = useOrganizationArchivedProducts(organizationId);
 
   if (isLoading) {
     return (
@@ -77,6 +78,7 @@ export function ProductsShared({
         <TabsContent value="catalogue" className="mt-4">
           <ProductsListTable
             products={products ?? []}
+            archivedProducts={archivedProducts}
             organizationId={organizationId}
             basePath={pathname.replace(/\/$/, "")}
           />

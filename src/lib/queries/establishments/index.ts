@@ -10,6 +10,7 @@ export {
   useEstablishmentBookingSlots,
   useEstablishmentPrinters,
   useEstablishmentVatRates,
+  useOrganizationArchivedProducts,
   useOrganizationProducts,
   useEstablishmentStocks,
   useEstablishmentProductsWithStocks,

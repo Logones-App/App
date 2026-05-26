@@ -243,6 +243,25 @@ export const useOrganizationProducts = (organizationId?: string) => {
   });
 };
 
+export const useOrganizationArchivedProducts = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["organization-products-archived", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("deleted", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!organizationId,
+  });
+};
+
 // Query pour récupérer les stocks d'un établissement
 export const useEstablishmentStocks = (establishmentId?: string, organizationId?: string) => {
   return useQuery({

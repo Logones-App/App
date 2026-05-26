@@ -261,7 +261,6 @@ export function useProductEstablishmentDashboard(
           )
           .eq("id", pid)
           .eq("organization_id", oid)
-          .eq("deleted", false)
           .maybeSingle(),
         supabase
           .from("product_options")

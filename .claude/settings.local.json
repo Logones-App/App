@@ -29,7 +29,10 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\" -Directory)",
       "Bash(wait)",
       "Read(//c/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrateur-Documents-www-APP-13-07-25-next-shadcn-admin-dashboard-main-next-shadcn-admin-dashboard-main/fc748b97-1525-43cb-b356-6e75ac31b371/tasks/**)",
-      "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\" ; npx next lint 2>&1 | Out-String | ForEach-Object { $lines = $_ -split \"`n\"; $capture = $false; $result = @\\(\\); foreach \\($line in $lines\\) { if \\($line -match \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $true }; if \\($capture\\) { $result += $line }; if \\($capture -and $line -match \"^\\\\./src\" -and $line -notmatch \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $false } }; $result -join \"`n\" })"
+      "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\" ; npx next lint 2>&1 | Out-String | ForEach-Object { $lines = $_ -split \"`n\"; $capture = $false; $result = @\\(\\); foreach \\($line in $lines\\) { if \\($line -match \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $true }; if \\($capture\\) { $result += $line }; if \\($capture -and $line -match \"^\\\\./src\" -and $line -notmatch \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $false } }; $result -join \"`n\" })",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(read line *)",
+      "Bash(grep -E \"^\\\\./src.*\\\\.\\(ts|tsx\\)$|  Error:\")"
     ]
   }
 }

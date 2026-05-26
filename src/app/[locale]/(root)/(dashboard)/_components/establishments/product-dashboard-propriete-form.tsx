@@ -4,21 +4,12 @@ import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -40,6 +31,7 @@ import {
   type ProductTypeKey,
 } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useRestoreProduct } from "@/lib/queries/product-archive";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type ProductWithCategoryName,
@@ -49,6 +41,8 @@ import {
   type ProductCatalogProprieteParsed,
 } from "@/lib/schemas/product-catalog-propriete-schema";
 import { createClient } from "@/lib/supabase/client";
+
+import { ArchiveProductDialog } from "./archive-product-dialog";
 
 type ProductProprieteDraft = {
   name: string;
@@ -170,81 +164,10 @@ export function ProductProprieteForm({
     onError: () => toast.error("Échec de l'enregistrement."),
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: async () => {
-      const supabase = createClient();
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
-      // Récupère les IDs menus_products pour cascader vers public_menu_items
-      const { data: mpRows, error: mpIdErr } = await supabase
-        .from("menus_products")
-        .select("id")
-        .eq("products_id", productId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false);
-      if (mpIdErr) throw mpIdErr;
-      const mpIds = (mpRows ?? []).map((r) => r.id);
-
-      const tasks = [
-        supabase.from("products").update({ deleted: true }).eq("id", productId).eq("organization_id", organizationId),
-        supabase.from("category_grid_items").update({ deleted: true }).eq("product_id", productId),
-        supabase
-          .from("menus_products")
-          .update({ deleted: true })
-          .eq("products_id", productId)
-          .eq("organization_id", organizationId),
-        supabase
-          .from("product_compositions")
-          .update({ deleted: true })
-          .eq("component_product_id", productId)
-          .eq("organization_id", organizationId)
-          .eq("deleted", false),
-        supabase
-          .from("product_suppliers")
-          .update({ deleted: true })
-          .eq("product_id", productId)
-          .eq("organization_id", organizationId),
-        ...(mpIds.length > 0
-          ? [
-              supabase
-                .from("public_menu_items")
-                .update({ deleted: true })
-                .in("menus_product_id", mpIds)
-                .eq("organization_id", organizationId),
-            ]
-          : []),
-      ];
-
-      const results = await Promise.all(tasks);
-      for (const { error } of results) {
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success("Produit archivé.");
-      invalidate();
-      void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
-      void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
-      void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
-      void queryClient.invalidateQueries({ queryKey: ["public-menu-sections"] });
-      router.push(backHref);
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Archivage impossible."),
-  });
-
-  const { data: recipeUsageCount = 0 } = useQuery({
-    queryKey: ["product-component-usage", productId, organizationId],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("product_compositions")
-        .select("main_product_id")
-        .eq("component_product_id", productId)
-        .eq("organization_id", organizationId)
-        .eq("deleted", false);
-      if (error) throw error;
-      return new Set(data.map((r) => r.main_product_id)).size;
-    },
-    enabled: !!productId && !!organizationId,
+  const restoreMutation = useRestoreProduct(organizationId, () => {
+    invalidate();
   });
 
   const orphanPrinter = product.printer_id && !printers.some((p) => p.id === product.printer_id);
@@ -252,46 +175,54 @@ export function ProductProprieteForm({
 
   return (
     <div className="space-y-6">
+      {product.deleted && (
+        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-amber-800 dark:text-amber-200">
+              Ce produit est archivé et n&apos;est plus listé dans le catalogue actif.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={restoreMutation.isPending}
+              onClick={() => restoreMutation.mutate(productId)}
+            >
+              {restoreMutation.isPending ? "Restauration…" : "Restaurer le produit"}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle>Propriété</CardTitle>
             <CardDescription>Données catalogue du produit (niveau organisation)</CardDescription>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="text-destructive border-destructive/40">
+          {!product.deleted && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/40"
+                onClick={() => setArchiveOpen(true)}
+              >
                 Archiver le produit
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Archiver ce produit ?</AlertDialogTitle>
-                <AlertDialogDescription asChild>
-                  <div className="space-y-2">
-                    <p>Il ne sera plus listé dans le catalogue actif.</p>
-                    {recipeUsageCount > 0 && (
-                      <p className="text-destructive font-medium">
-                        ⚠ Cet ingrédient est utilisé dans {recipeUsageCount} recette
-                        {recipeUsageCount > 1 ? "s" : ""}. Ces références seront supprimées des fiches techniques.
-                      </p>
-                    )}
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={archiveMutation.isPending}
-                  onClick={() => archiveMutation.mutate()}
-                >
-                  {archiveMutation.isPending ? "Archivage…" : "Archiver"}
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              <ArchiveProductDialog
+                productId={productId}
+                productName={product.name}
+                organizationId={organizationId}
+                open={archiveOpen}
+                onOpenChange={setArchiveOpen}
+                onArchived={() => {
+                  invalidate();
+                  router.push(backHref);
+                }}
+              />
+            </>
+          )}
         </CardHeader>
         <CardContent>
           <Form {...form}>
