@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { cn } from "@/lib/utils";
+import { areUnitsCompatible, compatibleUnits } from "@/lib/utils/unit-conversion";
 
 type Ingredient = { id: string; name: string; portion_unit: string | null };
 
@@ -32,6 +33,16 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
   const [unit, setUnit] = useState("g");
 
   const selected = ingredients.find((p) => p.id === ingredientId);
+  const allowedUnits = compatibleUnits(selected?.portion_unit, PORTION_UNITS);
+
+  const handleSelectIngredient = (id: string) => {
+    const ing = ingredients.find((p) => p.id === id);
+    setIngredientId(id);
+    setOpen(false);
+    if (ing?.portion_unit && !areUnitsCompatible(unit, ing.portion_unit)) {
+      setUnit(ing.portion_unit);
+    }
+  };
 
   const handleAdd = () => {
     const qtyNum = parseFloat(qty.replace(",", "."));
@@ -68,10 +79,7 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
                       <CommandItem
                         key={p.id}
                         value={p.name}
-                        onSelect={() => {
-                          setIngredientId(p.id);
-                          setOpen(false);
-                        }}
+                        onSelect={() => handleSelectIngredient(p.id)}
                         className="text-xs"
                       >
                         <Check className={cn("mr-2 h-3 w-3", ingredientId === p.id ? "opacity-100" : "opacity-0")} />
@@ -100,9 +108,9 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PORTION_UNITS.map((u) => (
+              {allowedUnits.map((u) => (
                 <SelectItem key={u} value={u} className="text-xs">
-                  {t(u)}
+                  {t(u as PortionUnit)}
                 </SelectItem>
               ))}
             </SelectContent>

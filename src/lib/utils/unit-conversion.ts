@@ -9,6 +9,56 @@ const UNIT_FACTORS: Partial<Record<string, number>> = {
   l_cl: 100,
 };
 
+export type UnitCategory = "mass" | "volume" | "unit";
+
+export function unitCategory(unit: string | null | undefined): UnitCategory | null {
+  if (!unit) return null;
+  if (unit === "g" || unit === "kg") return "mass";
+  if (unit === "ml" || unit === "cl" || unit === "l") return "volume";
+  if (unit === "piece") return "unit";
+  return null;
+}
+
+export function areUnitsCompatible(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return true;
+  if (a === b) return true;
+  const ca = unitCategory(a);
+  const cb = unitCategory(b);
+  return ca !== null && cb !== null && ca === cb;
+}
+
+export function compatibleUnits(
+  referenceUnit: string | null | undefined,
+  allUnits: readonly string[],
+): readonly string[] {
+  if (!referenceUnit) return allUnits;
+  const cat = unitCategory(referenceUnit);
+  if (!cat) return allUnits;
+  return allUnits.filter((u) => unitCategory(u) === cat);
+}
+
+/**
+ * Normalise un prix par orderUnit vers portionUnit (pour stocker unit_cost).
+ * qtyPerOrder n'est PAS un facteur de prix — c'est une taille de colis, purement informatif.
+ */
+export function normalizeUnitPrice(price: number, orderUnit: string | null, portionUnit: string | null): number {
+  if (!orderUnit || !portionUnit || orderUnit === portionUnit) return price;
+  const factor = convertUnit(1, orderUnit, portionUnit);
+  if (factor == null) return price;
+  return Math.round((price / factor) * 10000) / 10000;
+}
+
+/**
+ * Convertit un coût normalisé (par portionUnit) vers une unité lisible pour l'affichage.
+ * g → kg, ml → l, cl → l, tout le reste inchangé.
+ */
+export function toFriendlyUnitCost(cost: number, unit: string | null): { value: number; displayUnit: string } {
+  if (unit === "g") return { value: Math.round(cost * 1000 * 10000) / 10000, displayUnit: "kg" };
+  if (unit === "ml") return { value: Math.round(cost * 1000 * 10000) / 10000, displayUnit: "l" };
+  if (unit === "cl") return { value: Math.round(cost * 100 * 10000) / 10000, displayUnit: "l" };
+  return { value: cost, displayUnit: unit ?? "" };
+}
+
 /**
  * Convertit `value` de l'unité `from` vers l'unité `to`.
  * Retourne `null` si la conversion est impossible (unités incompatibles ou inconnues).

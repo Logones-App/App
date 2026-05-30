@@ -32,7 +32,19 @@
       "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\" ; npx next lint 2>&1 | Out-String | ForEach-Object { $lines = $_ -split \"`n\"; $capture = $false; $result = @\\(\\); foreach \\($line in $lines\\) { if \\($line -match \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $true }; if \\($capture\\) { $result += $line }; if \\($capture -and $line -match \"^\\\\./src\" -and $line -notmatch \"\\(public-menu|product-dashboard-propriete|carte-publique|menu-utils|menu-components|establishment-details-shared\\)\"\\) { $capture = $false } }; $result -join \"`n\" })",
       "Bash(awk -F: '{print $1}')",
       "Bash(read line *)",
-      "Bash(grep -E \"^\\\\./src.*\\\\.\\(ts|tsx\\)$|  Error:\")"
+      "Bash(grep -E \"^\\\\./src.*\\\\.\\(ts|tsx\\)$|  Error:\")",
+      "Bash(xargs grep -l \"formula\")",
+      "Bash(xargs grep -l \"formulas\\\\|formula_slots\\\\|formula_products\")",
+      "Bash(awk '/product-dashboard-stock-panel/{found=1} found{print; if\\(/^$/\\)found=0}')",
+      "Bash(awk '/product-dashboard-options-compositions-panel/{found=1} found{print; if\\(/^$/\\)found=0}')",
+      "Bash(awk '/product-composition-dashboard-blocks/{found=1} found{print; if\\(/^$/\\)found=0}')",
+      "Bash(awk '/product-dashboard-\\(stock|prix|options|option-dialog\\)|product-composition-dashboard/{found=1} found{print; if\\(/^$/\\)found=0}')",
+      "Bash(mkdir \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\organizations\\\\[id]\\\\establishments\\\\[establishmentId]\\\\options\" 2>nul; echo done)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(xargs grep -l \"check\\\\|constraint\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]"
     ]
   }
 }

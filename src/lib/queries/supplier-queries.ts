@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
 export type SupplierRow = Tables<"suppliers">;
+export type SupplierWithCount = SupplierRow & { productCount: number };
 export type ProductSupplierRow = Tables<"product_suppliers">;
 export type SupplierInsert = TablesInsert<"suppliers">;
 export type ProductSupplierInsert = TablesInsert<"product_suppliers">;
@@ -36,12 +37,16 @@ export function useSuppliers(organizationId: string) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("suppliers")
-        .select("*")
+        .select("*, product_suppliers(count)")
         .eq("organization_id", organizationId)
         .eq("deleted", false)
+        .eq("product_suppliers.deleted", false)
         .order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as SupplierRow[];
+      return (data ?? []).map((s) => ({
+        ...s,
+        productCount: (s.product_suppliers as unknown as { count: number }[])[0]?.count ?? 0,
+      })) as SupplierWithCount[];
     },
     enabled: !!organizationId,
   });
@@ -94,6 +99,12 @@ export function useDeleteSupplier(organizationId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
+      const { error: psErr } = await supabase
+        .from("product_suppliers")
+        .update({ deleted: true })
+        .eq("supplier_id", id)
+        .eq("deleted", false);
+      if (psErr) throw psErr;
       const { error } = await supabase.from("suppliers").update({ deleted: true }).eq("id", id);
       if (error) throw error;
     },

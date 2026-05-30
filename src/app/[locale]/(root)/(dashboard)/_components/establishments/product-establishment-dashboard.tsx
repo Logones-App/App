@@ -68,9 +68,8 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
     );
   }
 
-  const { product, options, compositions, compositionStockRows, menuProductPricing } = data ?? {
+  const { product, compositions, compositionStockRows, menuProductPricing } = data ?? {
     product: null,
-    options: [],
     compositions: [],
     compositionStockRows: [],
     menuProductPricing: [],
@@ -94,7 +93,6 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
         establishmentId={establishmentId}
         organizationId={organizationId}
         backHref={backHref}
-        options={options}
         compositions={compositions}
         compositionStockRows={compositionStockRows}
         menuProductPricing={menuProductPricing}

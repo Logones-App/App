@@ -268,6 +268,7 @@ export function useArchiveProduct(organizationId: string, onSuccess?: () => void
     onSuccess: () => {
       toast.success("Produit archivé.");
       void queryClient.invalidateQueries({ queryKey: ["organization-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["organization-products-archived"] });
       void queryClient.invalidateQueries({ queryKey: ["menu-category-grid-items"] });
       void queryClient.invalidateQueries({ queryKey: ["menu-products"] });
       void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
@@ -285,29 +286,74 @@ export function useRestoreProduct(organizationId: string, onSuccess?: () => void
   return useMutation({
     mutationFn: async (productId: string) => {
       const supabase = createClient();
-      const results = await Promise.all([
+
+      // Produit + fournisseurs : restore simple
+      const [productRes, suppliersRes] = await Promise.all([
         supabase.from("products").update({ deleted: false }).eq("id", productId).eq("organization_id", organizationId),
-        // La recette et les liens fournisseurs sont intrinsèques au produit → restaurés avec lui
-        supabase
-          .from("product_compositions")
-          .update({ deleted: false })
-          .eq("main_product_id", productId)
-          .eq("organization_id", organizationId),
         supabase
           .from("product_suppliers")
           .update({ deleted: false })
           .eq("product_id", productId)
           .eq("organization_id", organizationId),
       ]);
-      for (const r of results) {
-        if (r.error) throw r.error;
+      if (productRes.error) throw productRes.error;
+      if (suppliersRes.error) throw suppliersRes.error;
+
+      // Compositions : la contrainte unique (main+component+establishment) n'inclut pas `deleted`.
+      // Si une ligne active existe déjà pour la même clé, le UPDATE 409-erait → on purge le doublon archivé.
+      const { data: archived, error: fetchErr } = await supabase
+        .from("product_compositions")
+        .select("id, component_product_id, establishment_id, composition_kind")
+        .eq("main_product_id", productId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", true);
+      if (fetchErr) throw fetchErr;
+      if (!archived?.length) return;
+
+      const { data: active, error: activeErr } = await supabase
+        .from("product_compositions")
+        .select("component_product_id, establishment_id, composition_kind")
+        .eq("main_product_id", productId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (activeErr) throw activeErr;
+
+      // Clé unique réelle : component + composition_kind + establishment
+      const activeKeys = new Set(
+        (active ?? []).map((c) => `${c.component_product_id}:${c.composition_kind}:${c.establishment_id}`),
+      );
+
+      // Parmi les archivées, dédupliquer aussi entre elles (doublons deleted=true avec même clé)
+      const seenKeys = new Set<string>();
+      const toRestore: string[] = [];
+      const toPurge: string[] = [];
+      for (const c of archived) {
+        const key = `${c.component_product_id}:${c.composition_kind}:${c.establishment_id}`;
+        if (activeKeys.has(key) || seenKeys.has(key)) {
+          toPurge.push(c.id);
+        } else {
+          seenKeys.add(key);
+          toRestore.push(c.id);
+        }
+      }
+
+      if (toRestore.length > 0) {
+        const { error } = await supabase.from("product_compositions").update({ deleted: false }).in("id", toRestore);
+        if (error) throw error;
+      }
+      if (toPurge.length > 0) {
+        const { error } = await supabase.from("product_compositions").delete().in("id", toPurge);
+        if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success("Produit restauré. Pensez à le remettre dans vos menus si nécessaire.");
       void queryClient.invalidateQueries({ queryKey: ["organization-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["organization-products-archived"] });
       void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Restauration impossible."),
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Restauration impossible.");
+    },
   });
 }

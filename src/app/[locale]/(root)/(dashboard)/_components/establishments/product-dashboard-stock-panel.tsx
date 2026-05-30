@@ -11,8 +11,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import {
   hasModifierLineForComponent,
+  isModifierCompositionKind,
   isRecipeCompositionKind,
   setIngredientStockInventoryTracked,
   setSelfLineInventoryTracked,
@@ -25,7 +30,7 @@ import type { TablesInsert } from "@/lib/supabase/database.types";
 import { CompositionStockCard } from "./product-composition-dashboard-blocks";
 import { StockMovementsSection } from "./product-dashboard-stock-movements";
 
-const DEFAULT_STOCK_UNIT = "u";
+const DEFAULT_STOCK_UNIT = "piece";
 
 function defaultProductStockInsert(
   productCompositionId: string,
@@ -89,6 +94,9 @@ function ProductStockScopeSection({
   const queryClient = useQueryClient();
   const productHref = useProductDashboardHref(establishmentId);
 
+  const [initQty, setInitQty] = useState("0");
+  const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
+
   const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
   const selfStock = selfRow?.lineStock ?? null;
   const selfTracked = Boolean(selfStock?.inventory_tracked);
@@ -113,19 +121,47 @@ function ProductStockScopeSection({
   };
 
   const createSelfLineStockMutation = useMutation({
-    mutationFn: async ({ compositionId }: { compositionId: string }) => {
+    mutationFn: async ({
+      compositionId,
+      initialQuantity,
+      unit,
+    }: {
+      compositionId: string;
+      initialQuantity: number;
+      unit: string;
+    }) => {
       const supabase = createClient();
       const { data: st, error } = await supabase
         .from("product_stocks")
-        .insert(defaultProductStockInsert(compositionId, establishmentId, organizationId))
+        .insert({
+          ...defaultProductStockInsert(compositionId, establishmentId, organizationId),
+          current_stock: initialQuantity,
+          unit,
+        })
         .select("id")
         .single();
       if (error) throw error;
       if (!st?.id) throw new Error("Fiche stock non créée.");
       await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
+      if (initialQuantity > 0) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user) {
+          await supabase.from("stock_movements").insert({
+            product_id: scopeProductId,
+            organization_id: organizationId,
+            movement_type: "adjustment",
+            quantity: initialQuantity,
+            quantity_before: 0,
+            quantity_after: initialQuantity,
+            notes: "Stock initial",
+            created_by: authData.user.id,
+            deleted: false,
+          });
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Fiche stock créée — suivi activé sur l’unité de vente.");
+      toast.success("Stock initialisé.");
       invalidate();
     },
     onError: (e) => {
@@ -134,7 +170,7 @@ function ProductStockScopeSection({
   });
 
   const createSelfCompositionAndStockMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ initialQuantity, unit }: { initialQuantity: number; unit: string }) => {
       const supabase = createClient();
       const { data: comp, error: compErr } = await supabase
         .from("product_compositions")
@@ -159,15 +195,35 @@ function ProductStockScopeSection({
       if (!comp?.id) throw new Error("Composition self non créée.");
       const { data: st, error: stockErr } = await supabase
         .from("product_stocks")
-        .insert(defaultProductStockInsert(comp.id, establishmentId, organizationId))
+        .insert({
+          ...defaultProductStockInsert(comp.id, establishmentId, organizationId),
+          current_stock: initialQuantity,
+          unit,
+        })
         .select("id")
         .single();
       if (stockErr) throw stockErr;
       if (!st?.id) throw new Error("Fiche stock non créée.");
       await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
+      if (initialQuantity > 0) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user) {
+          await supabase.from("stock_movements").insert({
+            product_id: scopeProductId,
+            organization_id: organizationId,
+            movement_type: "adjustment",
+            quantity: initialQuantity,
+            quantity_before: 0,
+            quantity_after: initialQuantity,
+            notes: "Stock initial",
+            created_by: authData.user.id,
+            deleted: false,
+          });
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Composition self et fiche stock créées — suivi sur l’unité de vente activé.");
+      toast.success("Stock initialisé.");
       invalidate();
     },
     onError: (e) => {
@@ -208,30 +264,59 @@ function ProductStockScopeSection({
 
   const pending = selfMutation.isPending || ingredientMutation.isPending || stockSetupPending;
 
+  const handleInit = (mutate: (args: { initialQuantity: number; unit: string }) => void) => {
+    const qty = parseFloat(initQty.replace(",", "."));
+    if (!Number.isFinite(qty) || qty < 0) {
+      toast.error("Quantité invalide.");
+      return;
+    }
+    mutate({ initialQuantity: qty, unit: initUnit || DEFAULT_STOCK_UNIT });
+  };
+
   if (compositionStockRows.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Stock</CardTitle>
+          <CardTitle>Initialiser le stock</CardTitle>
           <CardDescription>
-            Pour suivre le stock, une fiche de suivi doit être liée à chaque ligne de composition. Une ligne « self »
-            (même produit en plat et en composant) permet de suivre le stock au niveau de l&apos;unité de vente.
+            Définissez le stock initial de ce produit pour activer le suivi des quantités.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground text-sm">
-            Aucune composition pour ce produit à cet établissement. Vous pouvez créer d’un coup la ligne self et la
-            fiche stock (quantité 0, unité « {DEFAULT_STOCK_UNIT} ») puis activer le suivi sur cette unité.
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            disabled={stockSetupPending}
-            onClick={() => createSelfCompositionAndStockMutation.mutate()}
-          >
-            {stockSetupPending ? "Création…" : "Créer ligne unité + fiche stock"}
-          </Button>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="init-qty">Quantité initiale</Label>
+              <Input
+                id="init-qty"
+                value={initQty}
+                onChange={(e) => setInitQty(e.target.value)}
+                inputMode="decimal"
+                className="w-24 tabular-nums"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Unité</Label>
+              <Select value={initUnit} onValueChange={setInitUnit}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PORTION_UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {u === "piece" ? "pièce" : u}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              disabled={stockSetupPending}
+              onClick={() => handleInit(createSelfCompositionAndStockMutation.mutate)}
+            >
+              {stockSetupPending ? "Initialisation…" : "Initialiser le stock"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -242,28 +327,61 @@ function ProductStockScopeSection({
       {!selfRow ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Ligne « unité de vente » (self)</CardTitle>
+            <CardTitle className="text-base">Stock du produit fini</CardTitle>
             <CardDescription>
-              Ce produit a des compositions ingrédients, mais pas encore la ligne self (plat = composant). Sans elle,
-              pas de stock « produit fini » sur cet établissement.
+              Ce produit a des ingrédients mais pas encore de suivi du produit fini. Initialisez le stock pour commencer
+              le suivi.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={stockSetupPending}
-              onClick={() => createSelfCompositionAndStockMutation.mutate()}
-            >
-              {stockSetupPending ? "Création…" : "Créer composition self + fiche stock"}
-            </Button>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="self-init-qty">Quantité initiale</Label>
+                <Input
+                  id="self-init-qty"
+                  value={initQty}
+                  onChange={(e) => setInitQty(e.target.value)}
+                  inputMode="decimal"
+                  className="w-24 tabular-nums"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Unité</Label>
+                <Select value={initUnit} onValueChange={setInitUnit}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PORTION_UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {u === "piece" ? "pièce" : u}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                disabled={stockSetupPending}
+                onClick={() => handleInit(createSelfCompositionAndStockMutation.mutate)}
+              >
+                {stockSetupPending ? "Initialisation…" : "Initialiser le stock"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
 
-      <div className="space-y-4">
-        {compositionStockRows.map((csr) => {
+      {(() => {
+        const selfRows = compositionStockRows.filter((r) => r.isSelfComposition);
+        const recipeRows = compositionStockRows.filter(
+          (r) => !r.isSelfComposition && isRecipeCompositionKind(r.composition.composition_kind),
+        );
+        const modifierRows = compositionStockRows.filter(
+          (r) => !r.isSelfComposition && isModifierCompositionKind(r.composition.composition_kind),
+        );
+
+        const renderRow = (csr: (typeof compositionStockRows)[number]) => {
           const {
             composition: row,
             isSelfComposition,
@@ -293,7 +411,8 @@ function ProductStockScopeSection({
                 organizationId={organizationId}
                 onCreateSelfLineStock={
                   isSelfComposition && !lineStock
-                    ? (compositionId) => createSelfLineStockMutation.mutate({ compositionId })
+                    ? (compositionId, qty, unit) =>
+                        createSelfLineStockMutation.mutate({ compositionId, initialQuantity: qty, unit })
                     : undefined
                 }
                 createSelfLineStockPending={stockSetupPending}
@@ -313,8 +432,37 @@ function ProductStockScopeSection({
               ) : null}
             </div>
           );
-        })}
-      </div>
+        };
+
+        return (
+          <div className="space-y-6">
+            {selfRows.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  Stock du produit fini
+                </p>
+                {selfRows.map(renderRow)}
+              </div>
+            )}
+            {recipeRows.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  Stock par ingrédient
+                </p>
+                {recipeRows.map(renderRow)}
+              </div>
+            )}
+            {modifierRows.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  Stock des suppléments
+                </p>
+                {modifierRows.map(renderRow)}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
 
@@ -358,19 +506,6 @@ export function ProductStockPanel({
 
   return (
     <div className="space-y-4">
-      {compositionStockRows.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Stock</CardTitle>
-            <CardDescription>
-              Suivi aligné sur la caisse : unité de vente (self), recettes et/ou suppléments. Le self peut coexister
-              avec le suivi des modificateurs (mode hybride) ; les lignes recette ne sont pas débitées en parallèle du
-              self.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
       <ProductStockScopeSection
         compositionStockRows={compositionStockRows}
         scopeProductId={productId}

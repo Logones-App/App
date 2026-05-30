@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
+import { useParams } from "next/navigation";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -18,21 +21,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useEstablishmentVatRates, useOrganizationProducts } from "@/lib/queries/establishments";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useOrganizationProducts } from "@/lib/queries/establishments";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type CompositionStockRow,
   type ProductCompositionRow,
 } from "@/lib/queries/product-establishment-dashboard";
+import {
+  OPTION_GROUPS_QUERY_KEY,
+  PRODUCT_OPTION_ASSIGNMENTS_QUERY_KEY,
+  useEstablishmentOptionGroups,
+  useProductOptionAssignments,
+} from "@/lib/queries/product-option-groups-queries";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { CompositionLineCatalogCard } from "./product-composition-dashboard-blocks";
-import { ProductOptionDialog } from "./product-option-dialog";
 import { ProductCompositionAddDialog, ProductCompositionEditDialog } from "./product-panel-dialogs";
-
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 function mutationErrorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -54,16 +60,13 @@ function throwPostgrestError(
   throw new Error(parts.length ? `${context} : ${parts.join(" — ")}` : context);
 }
 
-/** Aligné sur product_compositions_supplement_price_xor_check : un seul mode de prix (supplément ou multiplicateur). */
 function normalizeCompositionSupplementXor(
   unit_supplement_price: number | null | undefined,
   price_multiplier: number | null | undefined,
 ): { unit_supplement_price: number | null; price_multiplier: number | null } {
   const usp = unit_supplement_price ?? null;
   const pm = price_multiplier ?? null;
-  if (usp !== null && pm !== null) {
-    return { unit_supplement_price: usp, price_multiplier: null };
-  }
+  if (usp !== null && pm !== null) return { unit_supplement_price: usp, price_multiplier: null };
   return { unit_supplement_price: usp, price_multiplier: pm };
 }
 
@@ -78,106 +81,70 @@ function invalidateDashboard(
   });
 }
 
+const SELECTION_LABELS: Record<string, string> = {
+  unique: "Choix unique",
+  unlimited: "Qté libre",
+  limited: "Multiple limité",
+};
+
 export function ProductOptionsAndCompositionsPanel({
-  options,
   compositionStockRows,
   productId,
   establishmentId,
   organizationId,
 }: {
-  options: Tables<"product_options">[];
   compositionStockRows: CompositionStockRow[];
   productId: string;
   establishmentId: string;
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
+  const params = useParams<{ locale?: string; id?: string }>();
+  const locale = params.locale ?? "";
+  const optionsHref = `/${locale}/dashboard/establishments/${establishmentId}/options`;
+
   const { data: orgProducts = [] } = useOrganizationProducts(organizationId);
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
-  const defaultTvaRate = vatRates[0]?.value ?? 20;
+  const { data: allGroups = [] } = useEstablishmentOptionGroups(establishmentId, organizationId);
+  const { data: assignments = [] } = useProductOptionAssignments(productId);
 
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "option" | "composition"; id: string } | null>(null);
-  const [optionDialogOpen, setOptionDialogOpen] = useState(false);
-  const [editingOption, setEditingOption] = useState<Tables<"product_options"> | null>(null);
+  const assignedGroupIds = new Set(assignments.map((a) => a.option_group_id));
+  const availableGroups = allGroups.filter((g) => !assignedGroupIds.has(g.id));
 
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [compositionDeleteTarget, setCompositionDeleteTarget] = useState<string | null>(null);
   const [compositionDialogOpen, setCompositionDialogOpen] = useState(false);
   const [editingComposition, setEditingComposition] = useState<ProductCompositionRow | null>(null);
   const [addCompositionOpen, setAddCompositionOpen] = useState(false);
 
-  const optionMutation = useMutation({
-    mutationFn: async (payload: {
-      mode: "insert" | "update";
-      row: Partial<Tables<"product_options">> & { id?: string };
-    }) => {
-      const supabase = createClient();
-      if (payload.mode === "insert") {
-        const { error } = await supabase.from("product_options").insert({
-          product_id: productId,
-          establishment_id: establishmentId,
-          organization_id: organizationId,
-          option_group: payload.row.option_group ?? null,
-          option_name: payload.row.option_name ?? "",
-          option_value: payload.row.option_value ?? "",
-          option_price: payload.row.option_price ?? 0,
-          tva_rate: payload.row.tva_rate ?? defaultTvaRate,
-          selection_type: payload.row.selection_type ?? "single",
-          display_order: payload.row.display_order ?? 0,
-          is_visible: payload.row.is_visible ?? true,
-          is_required: payload.row.is_required ?? false,
-          is_default: payload.row.is_default ?? false,
-          deleted: false,
-        });
-        if (error) throwPostgrestError("Insertion option", error);
-      } else if (payload.row.id) {
-        const {
-          id,
-          option_group,
-          option_name,
-          option_value,
-          option_price,
-          tva_rate,
-          selection_type,
-          display_order,
-          is_visible,
-          is_required,
-          is_default,
-        } = payload.row;
-        const { error } = await supabase
-          .from("product_options")
-          .update({
-            option_group: option_group ?? null,
-            option_name,
-            option_value,
-            option_price,
-            tva_rate,
-            selection_type,
-            display_order,
-            is_visible,
-            is_required,
-            is_default,
-          })
-          .eq("id", id);
-        if (error) throwPostgrestError("Mise à jour option", error);
-      }
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: [PRODUCT_OPTION_ASSIGNMENTS_QUERY_KEY, productId] });
+    void queryClient.invalidateQueries({ queryKey: [OPTION_GROUPS_QUERY_KEY, establishmentId] });
+    invalidateDashboard(queryClient, productId, establishmentId, organizationId);
+  };
+
+  const assignMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const { error } = await createClient()
+        .from("product_option_group_products")
+        .insert({ product_id: productId, option_group_id: groupId, display_order: assignments.length });
+      if (error) throwPostgrestError("Assignation du groupe", error);
     },
     onSuccess: () => {
-      toast.success("Option enregistrée.");
-      invalidateDashboard(queryClient, productId, establishmentId, organizationId);
-      setOptionDialogOpen(false);
-      setEditingOption(null);
+      toast.success("Groupe assigné.");
+      setSelectedGroupId("");
+      invalidateAll();
     },
     onError: (e) => toast.error(mutationErrorMessage(e)),
   });
 
-  const optionDeleteMutation = useMutation({
+  const removeMutation = useMutation({
     mutationFn: async (id: string) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("product_options").update({ deleted: true }).eq("id", id);
-      if (error) throwPostgrestError("Suppression option", error);
+      const { error } = await createClient().from("product_option_group_products").delete().eq("id", id);
+      if (error) throwPostgrestError("Retrait du groupe", error);
     },
     onSuccess: () => {
-      toast.success("Option désactivée.");
-      invalidateDashboard(queryClient, productId, establishmentId, organizationId);
+      toast.success("Groupe retiré.");
+      invalidateAll();
     },
     onError: (e) => toast.error(mutationErrorMessage(e)),
   });
@@ -207,28 +174,19 @@ export function ProductOptionsAndCompositionsPanel({
         });
         if (error) throwPostgrestError("Insertion composition", error);
       } else if (payload.row.id) {
-        const {
-          id,
-          composition_kind,
-          default_quantity,
-          max_quantity,
-          display_order,
-          show_in_customization,
-          is_required,
-        } = payload.row;
         const { error } = await supabase
           .from("product_compositions")
           .update({
-            composition_kind,
-            default_quantity,
-            max_quantity,
-            display_order,
+            composition_kind: payload.row.composition_kind,
+            default_quantity: payload.row.default_quantity,
+            max_quantity: payload.row.max_quantity,
+            display_order: payload.row.display_order,
             unit_supplement_price: pricing.unit_supplement_price,
             price_multiplier: pricing.price_multiplier,
-            show_in_customization,
-            is_required,
+            show_in_customization: payload.row.show_in_customization,
+            is_required: payload.row.is_required,
           })
-          .eq("id", id);
+          .eq("id", payload.row.id);
         if (error) throwPostgrestError("Mise à jour composition", error);
       }
     },
@@ -244,8 +202,7 @@ export function ProductOptionsAndCompositionsPanel({
 
   const compositionDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("product_compositions").update({ deleted: true }).eq("id", id);
+      const { error } = await createClient().from("product_compositions").update({ deleted: true }).eq("id", id);
       if (error) throwPostgrestError("Suppression composition", error);
     },
     onSuccess: () => {
@@ -255,117 +212,124 @@ export function ProductOptionsAndCompositionsPanel({
     onError: (e) => toast.error(mutationErrorMessage(e)),
   });
 
-  const nextOptionOrder = options.length ? Math.max(...options.map((o) => o.display_order)) + 1 : 0;
-  const nextCompositionOrder = compositionStockRows.length
-    ? Math.max(...compositionStockRows.map((r) => r.composition.display_order ?? 0)) + 1
+  const modifierRows = compositionStockRows.filter((r) => r.composition.composition_kind === "modifier");
+  const nextCompositionOrder = modifierRows.length
+    ? Math.max(...modifierRows.map((r) => r.composition.display_order ?? 0)) + 1
     : 0;
-
   const candidateComponents = orgProducts.filter((p) => p.id !== productId);
 
   return (
     <div className="space-y-6">
+      {/* Options — groupes assignés */}
       <Card>
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Options</CardTitle>
             <CardDescription>
-              Paramètres d&apos;options pour ce produit dans cet établissement (perso caisse).
+              Groupes d&apos;options assignés à ce produit (cuisson, taille, suppléments…).
             </CardDescription>
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingOption(null);
-              setOptionDialogOpen(true);
-            }}
-          >
-            Ajouter une option
+          <Button size="sm" variant="outline" asChild>
+            <a href={optionsHref}>
+              <ExternalLink className="mr-2 h-3.5 w-3.5" />
+              Gérer les groupes
+            </a>
           </Button>
         </CardHeader>
-        <CardContent>
-          {options.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucune option configurée pour cet établissement.</p>
+        <CardContent className="space-y-4">
+          {assignments.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Aucun groupe assigné. Assignez-en un ci-dessous ou{" "}
+              <a href={optionsHref} className="underline underline-offset-2">
+                créez des groupes
+              </a>{" "}
+              dans la configuration.
+            </p>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Groupe</TableHead>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Valeur</TableHead>
-                    <TableHead>Prix</TableHead>
-                    <TableHead>TVA</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Visibilité</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {options.map((o) => (
-                    <TableRow key={o.id}>
-                      <TableCell>{o.option_group ?? "—"}</TableCell>
-                      <TableCell className="font-medium">{o.option_name}</TableCell>
-                      <TableCell>{o.option_value}</TableCell>
-                      <TableCell className="tabular-nums">{eur.format(o.option_price)}</TableCell>
-                      <TableCell>{o.tva_rate}%</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{o.selection_type}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {o.is_visible === false && <Badge variant="secondary">Masqué</Badge>}
-                          {o.is_required && <Badge variant="outline">Obligatoire</Badge>}
-                          {o.is_default && <Badge variant="outline">Défaut</Badge>}
-                          {o.is_visible !== false && !o.is_required && !o.is_default && (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setEditingOption(o);
-                              setOptionDialogOpen(true);
-                            }}
-                          >
-                            Modifier
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            disabled={optionDeleteMutation.isPending}
-                            onClick={() => setDeleteTarget({ type: "option", id: o.id })}
-                          >
-                            Supprimer
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+            <div className="space-y-2">
+              {assignments.map((a) => {
+                const g = a.group;
+                if (!g) return null;
+                return (
+                  <div key={a.id} className="flex items-center gap-3 rounded-md border px-3 py-2">
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <span className="font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {SELECTION_LABELS[g.selection_type] ?? g.selection_type}
+                      </Badge>
+                      {g.is_required && (
+                        <Badge variant="destructive" className="text-xs">
+                          Obligatoire
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground text-xs">
+                        {g.values.length} valeur{g.values.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive h-7 px-2"
+                      disabled={removeMutation.isPending}
+                      onClick={() => {
+                        if (!confirm(`Retirer "${g.name}" de ce produit ?`)) return;
+                        removeMutation.mutate(a.id);
+                      }}
+                    >
+                      Retirer
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {availableGroups.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <SelectTrigger className="max-w-[18rem]">
+                  <SelectValue placeholder="Choisir un groupe à assigner…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableGroups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                disabled={!selectedGroupId || assignMutation.isPending}
+                onClick={() => {
+                  if (selectedGroupId) assignMutation.mutate(selectedGroupId);
+                }}
+              >
+                {assignMutation.isPending ? "…" : "Assigner"}
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Suppléments — compositions modifier */}
       <Card>
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Compositions</CardTitle>
-            <CardDescription>Unité de vente (self) et modificateurs visibles en personnalisation.</CardDescription>
+            <CardTitle>Suppléments</CardTitle>
+            <CardDescription>
+              Extras ajoutés à la commande (steak supplémentaire, ingrédient additionnel…).
+            </CardDescription>
           </div>
           <Button size="sm" onClick={() => setAddCompositionOpen(true)}>
-            Ajouter une ligne
+            Ajouter un supplément
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {compositionStockRows.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucune composition pour ce produit à cet établissement.</p>
+          {modifierRows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Aucun supplément configuré pour cet établissement.</p>
           ) : (
-            compositionStockRows.map(({ composition: row, isSelfComposition }) => (
+            modifierRows.map(({ composition: row, isSelfComposition }) => (
               <div key={row.id} className="space-y-2">
                 <CompositionLineCatalogCard row={row} isSelfComposition={isSelfComposition} />
                 <div className="flex flex-wrap justify-end gap-2">
@@ -379,45 +343,21 @@ export function ProductOptionsAndCompositionsPanel({
                   >
                     Modifier
                   </Button>
-                  {!isSelfComposition ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive"
-                      disabled={compositionDeleteMutation.isPending}
-                      onClick={() => setDeleteTarget({ type: "composition", id: row.id })}
-                    >
-                      Supprimer
-                    </Button>
-                  ) : (
-                    <p className="text-muted-foreground max-w-md text-right text-xs">
-                      La ligne « article / unité » n&apos;est pas supprimable ici.
-                    </p>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive"
+                    disabled={compositionDeleteMutation.isPending}
+                    onClick={() => setCompositionDeleteTarget(row.id)}
+                  >
+                    Supprimer
+                  </Button>
                 </div>
               </div>
             ))
           )}
         </CardContent>
       </Card>
-
-      <ProductOptionDialog
-        key={editingOption?.id ?? "new-option"}
-        open={optionDialogOpen}
-        onOpenChange={(o) => {
-          setOptionDialogOpen(o);
-          if (!o) setEditingOption(null);
-        }}
-        initial={editingOption}
-        defaultDisplayOrder={editingOption ? editingOption.display_order : nextOptionOrder}
-        onSave={(row) =>
-          optionMutation.mutate({
-            mode: editingOption ? "update" : "insert",
-            row: editingOption ? { ...row, id: editingOption.id } : row,
-          })
-        }
-        pending={optionMutation.isPending}
-      />
 
       <ProductCompositionEditDialog
         key={editingComposition?.id ?? "no-composition"}
@@ -428,9 +368,8 @@ export function ProductOptionsAndCompositionsPanel({
         }}
         row={editingComposition}
         onSave={(patch) => {
-          if (editingComposition) {
+          if (editingComposition)
             compositionMutation.mutate({ mode: "update", row: { ...patch, id: editingComposition.id } });
-          }
         }}
         pending={compositionMutation.isPending}
       />
@@ -440,32 +379,28 @@ export function ProductOptionsAndCompositionsPanel({
         onOpenChange={setAddCompositionOpen}
         candidateComponents={candidateComponents}
         defaultDisplayOrder={nextCompositionOrder}
+        defaultKind="modifier"
         onSave={(row) => compositionMutation.mutate({ mode: "insert", row })}
         pending={compositionMutation.isPending}
       />
 
       <AlertDialog
-        open={deleteTarget !== null}
+        open={compositionDeleteTarget !== null}
         onOpenChange={(o) => {
-          if (!o) setDeleteTarget(null);
+          if (!o) setCompositionDeleteTarget(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget?.type === "option"
-                ? "Désactiver cette option ?"
-                : "Désactiver cette ligne de composition ?"}
-            </AlertDialogDescription>
+            <AlertDialogDescription>Désactiver cette ligne de composition ?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (deleteTarget?.type === "option") optionDeleteMutation.mutate(deleteTarget.id);
-                else if (deleteTarget) compositionDeleteMutation.mutate(deleteTarget.id);
-                setDeleteTarget(null);
+                if (compositionDeleteTarget) compositionDeleteMutation.mutate(compositionDeleteTarget);
+                setCompositionDeleteTarget(null);
               }}
             >
               Confirmer

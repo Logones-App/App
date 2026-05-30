@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useCurrentEstablishmentStore } from "@/lib/stores/current-establishment-store";
 import { getSidebarItemsByRole } from "@/navigation/sidebar/sidebar-items";
@@ -35,6 +36,7 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   const { user } = useAuthStore();
   const params = useParams();
   const { establishmentId, setEstablishment } = useCurrentEstablishmentStore();
+  const organizationId = useOrgaUserOrganizationId();
 
   // Hydrate le store depuis localStorage au premier rendu client
   useEffect(() => {
@@ -55,7 +57,7 @@ export function AppSidebar({ userRole, locale, ...props }: AppSidebarProps) {
   const finalLocale = locale ?? (params?.locale as string);
   const isOrgAdmin = finalUserRole === "org_admin";
 
-  const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale, establishmentId);
+  const sidebarItems = getSidebarItemsByRole(finalUserRole, finalLocale, establishmentId, organizationId);
   const beforeSwitcher = isOrgAdmin ? sidebarItems.slice(0, 1) : sidebarItems;
   const afterSwitcher = isOrgAdmin ? sidebarItems.slice(1) : [];
 

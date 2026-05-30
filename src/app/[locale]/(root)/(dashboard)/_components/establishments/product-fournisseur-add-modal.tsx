@@ -21,21 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
 import { useActiveSuppliers, useCreateProductSupplier, useCreateSupplier } from "@/lib/queries/supplier-queries";
-import { convertUnit } from "@/lib/utils/unit-conversion";
-
-function normalizeUnitPrice(
-  price: number,
-  orderUnit: string | null,
-  portionUnit: string | null,
-  qtyPerOrder = 1,
-): number {
-  let normalized = price;
-  if (orderUnit && portionUnit && orderUnit !== portionUnit) {
-    const factor = convertUnit(1, orderUnit, portionUnit);
-    if (factor != null) normalized = price / factor;
-  }
-  return Math.round((normalized / (qtyPerOrder > 0 ? qtyPerOrder : 1)) * 10000) / 10000;
-}
+import { normalizeUnitPrice } from "@/lib/utils/unit-conversion";
 
 type SupplierMode = "none" | "existing" | "new";
 
@@ -74,8 +60,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
     const cost = parseFloat(price.replace(",", "."));
     const unitPrice = Number.isFinite(cost) && cost > 0 ? Math.round(cost * 10000) / 10000 : null;
     const qtyNum = parseQty(qtyPerOrder);
-    const normalizedCost =
-      unitPrice != null ? normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit, qtyNum) : null;
+    const normalizedCost = unitPrice != null ? normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit) : null;
     const effectiveCost = normalizedCost ?? unitPrice;
 
     if (supplierId) {

@@ -7,7 +7,6 @@ import type {
   ProductCompositionRow,
   ProductWithCategoryName,
 } from "@/lib/queries/product-establishment-dashboard";
-import type { Tables } from "@/lib/supabase/database.types";
 
 import { ProductFicheTechniquePanel } from "./product-dashboard-fiche-technique-panel";
 import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
@@ -21,7 +20,6 @@ type TabsProps = {
   establishmentId: string;
   organizationId: string;
   backHref: string;
-  options: Tables<"product_options">[];
   compositions: ProductCompositionRow[];
   compositionStockRows: CompositionStockRow[];
   menuProductPricing: MenuProductPricingJoin[];
@@ -32,7 +30,6 @@ export function ProductEstablishmentDashboardTabs({
   establishmentId,
   organizationId,
   backHref,
-  options,
   compositions,
   compositionStockRows,
   menuProductPricing,
@@ -53,17 +50,17 @@ export function ProductEstablishmentDashboardTabs({
   const persoStockRows = compositionStockRows.filter(
     (r) => r.isSelfComposition || r.composition.composition_kind === "modifier",
   );
-  const persoCount = options.length + persoStockRows.length;
+  const persoCount = persoStockRows.length;
 
   return (
     <Tabs defaultValue="propriete" className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
-        {isForSale && <TabsTrigger value="prix">Prix de vente</TabsTrigger>}
+        {isForSale && <TabsTrigger value="prix-menus">Prix &amp; Menus</TabsTrigger>}
         {isForSale && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
         <TabsTrigger value="stock">Stock</TabsTrigger>
-        {hasFicheTechnique && <TabsTrigger value="fiche">Fiche technique</TabsTrigger>}
-        {hasFournisseursTab && <TabsTrigger value="fournisseurs">Fournisseurs &amp; Prix</TabsTrigger>}
+        {hasFicheTechnique && <TabsTrigger value="recette">Recette</TabsTrigger>}
+        {hasFournisseursTab && <TabsTrigger value="achats">Achats</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="propriete">
@@ -77,21 +74,14 @@ export function ProductEstablishmentDashboardTabs({
       </TabsContent>
 
       {isForSale && (
-        <TabsContent value="prix">
-          <PrixPanel
-            product={product}
-            productId={product.id}
-            establishmentId={establishmentId}
-            organizationId={organizationId}
-            menuProductPricing={menuProductPricing}
-          />
+        <TabsContent value="prix-menus">
+          <PrixPanel menuProductPricing={menuProductPricing} />
         </TabsContent>
       )}
 
       {isForSale && (
         <TabsContent value="personnalisation">
           <ProductOptionsAndCompositionsPanel
-            options={options}
             compositionStockRows={persoStockRows}
             productId={product.id}
             establishmentId={establishmentId}
@@ -110,7 +100,7 @@ export function ProductEstablishmentDashboardTabs({
       </TabsContent>
 
       {hasFicheTechnique && (
-        <TabsContent value="fiche">
+        <TabsContent value="recette">
           <ProductFicheTechniquePanel
             product={product}
             compositions={compositions}
@@ -122,7 +112,7 @@ export function ProductEstablishmentDashboardTabs({
       )}
 
       {hasFournisseursTab && (
-        <TabsContent value="fournisseurs">
+        <TabsContent value="achats">
           <ProductFournisseursPrixPanel
             productId={product.id}
             organizationId={organizationId}

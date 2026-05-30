@@ -29,12 +29,17 @@ export interface NavGroup {
 }
 
 // Fonction pour obtenir les items selon le rôle avec locale
-export const getSidebarItemsByRole = (role?: string, locale?: string, establishmentId?: string | null): NavGroup[] => {
+export const getSidebarItemsByRole = (
+  role?: string,
+  locale?: string,
+  establishmentId?: string | null,
+  organizationId?: string | null,
+): NavGroup[] => {
   switch (role) {
     case "system_admin":
       return getSystemAdminSidebarItems(locale);
     case "org_admin":
-      return getOrgAdminSidebarItems(locale, establishmentId);
+      return getOrgAdminSidebarItems(locale, establishmentId, organizationId);
     default:
       return getDefaultSidebarItems(locale);
   }

@@ -17,12 +17,18 @@ import {
   MapPin,
   Wrench,
   GraduationCap,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
 
-export const getOrgAdminSidebarItems = (locale?: string, establishmentId?: string | null): NavGroup[] => {
+export const getOrgAdminSidebarItems = (
+  locale?: string,
+  establishmentId?: string | null,
+  organizationId?: string | null,
+): NavGroup[] => {
   const baseUrl = locale ? `/${locale}` : "";
+  void organizationId; // réservé pour usage futur (multi-orga)
   // Base de l'établissement actif — null si aucun sélectionné
   const est = establishmentId ? `${baseUrl}/dashboard/establishments/${establishmentId}` : null;
 
@@ -58,6 +64,7 @@ export const getOrgAdminSidebarItems = (locale?: string, establishmentId?: strin
               subItems: [
                 { title: "Catalogue", url: `${est}/products` },
                 { title: "Nouveau produit", url: `${est}/products/new` },
+                { title: "Options produits", url: `${est}/options`, icon: SlidersHorizontal },
               ],
             },
             {

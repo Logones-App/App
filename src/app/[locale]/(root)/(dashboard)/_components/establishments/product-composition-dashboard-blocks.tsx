@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { isModifierCompositionKind, isRecipeCompositionKind } from "@/lib/product-composition-stock-tracking";
 import type { CompositionStockRow, ProductCompositionRow } from "@/lib/queries/product-establishment-dashboard";
 import type { Tables } from "@/lib/supabase/database.types";
@@ -84,9 +89,12 @@ export function CompositionLineHeader({
   return (
     <CardHeader className="pb-2">
       <div className="flex flex-wrap items-center gap-2">
-        {isSelfComposition ? <Badge>Article / unité de vente</Badge> : <Badge variant="secondary">Ingrédient</Badge>}
+        {isSelfComposition ? (
+          <Badge>Article vendu à l&apos;unité</Badge>
+        ) : (
+          <Badge variant="secondary">{row.composition_kind === "modifier" ? "Supplément" : "Ingrédient"}</Badge>
+        )}
         <span className="font-medium">{row.component?.name ?? "Produit inconnu"}</span>
-        <Badge variant="outline">{row.composition_kind}</Badge>
         {row.is_required && <Badge variant="destructive">Requis</Badge>}
       </div>
     </CardHeader>
@@ -126,8 +134,8 @@ type StockCardProps = {
   productId: string;
   establishmentId: string;
   organizationId: string;
-  /** Self sans fiche stock : création de `product_stocks` sur cette composition. */
-  onCreateSelfLineStock?: (compositionId: string) => void;
+  /** Self sans fiche stock : création de `product_stocks` avec quantité et unité initiales. */
+  onCreateSelfLineStock?: (compositionId: string, initialQuantity: number, unit: string) => void;
   createSelfLineStockPending?: boolean;
   onSelfTrackedChange: (v: boolean) => void;
   onIngredientTrackedChange: (stockId: string, tracked: boolean) => void;
@@ -151,6 +159,8 @@ export function CompositionStockCard({
   onSelfTrackedChange,
   onIngredientTrackedChange,
 }: StockCardProps) {
+  const [initQty, setInitQty] = useState("0");
+  const [initUnit, setInitUnit] = useState("piece");
   const lineIngredientHelper = lineSwitchLockedBySelf
     ? "Désactivé : l’unité de vente est suivie ; la caisse ne débite pas les lignes recette en parallèle du self."
     : selfTracked && isModifierCompositionKind(row.composition_kind)
@@ -196,19 +206,46 @@ export function CompositionStockCard({
             ) : (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-sm">
-                  Aucune fiche <span className="font-medium">product_stocks</span> sur cette composition self — créez-en
-                  une pour pouvoir suivre le stock au niveau produit fini.
+                  Aucun stock défini pour ce produit. Saisissez le stock initial pour activer le suivi.
                 </p>
                 {onCreateSelfLineStock ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={createSelfLineStockPending}
-                    onClick={() => onCreateSelfLineStock(row.id)}
-                  >
-                    {createSelfLineStockPending ? "Création…" : "Créer la fiche stock (unité de vente)"}
-                  </Button>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor={`csc-qty-${row.id}`}>Quantité initiale</Label>
+                      <Input
+                        id={`csc-qty-${row.id}`}
+                        value={initQty}
+                        onChange={(e) => setInitQty(e.target.value)}
+                        inputMode="decimal"
+                        className="w-24 tabular-nums"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Unité</Label>
+                      <Select value={initUnit} onValueChange={setInitUnit}>
+                        <SelectTrigger className="w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PORTION_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>
+                              {u === "piece" ? "pièce" : u}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={createSelfLineStockPending}
+                      onClick={() => {
+                        const qty = parseFloat(initQty.replace(",", ".")) || 0;
+                        onCreateSelfLineStock(row.id, qty, initUnit || "u");
+                      }}
+                    >
+                      {createSelfLineStockPending ? "Initialisation…" : "Initialiser le stock"}
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             )}
@@ -217,7 +254,7 @@ export function CompositionStockCard({
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                Ligne de composition ({isRecipeCompositionKind(row.composition_kind) ? "recette" : "modifier"})
+                {isRecipeCompositionKind(row.composition_kind) ? "Ingrédient de recette" : "Supplément"}
               </p>
               {lineStock ? (
                 <>
@@ -226,8 +263,8 @@ export function CompositionStockCard({
                     id={`stock-line-${lineStock.id}`}
                     label={
                       isRecipeCompositionKind(row.composition_kind)
-                        ? "Suivre sur cette ligne (recette)"
-                        : "Suivre sur cette ligne (modifier)"
+                        ? "Suivre le stock de cet ingrédient"
+                        : "Suivre le stock de ce supplément"
                     }
                     checked={Boolean(lineStock.inventory_tracked)}
                     disabled={lineSwitchLockedBySelf}

@@ -248,17 +248,14 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
     if (isRowEdit) {
       return (
         <TableRow key={p.id} className="border-l-primary bg-muted/20 border-l-2 md:border-l-[3px]">
-          <TableCell className="pl-4 md:pl-6">
-            <Input
-              autoFocus
-              value={edit.rowDraft.name ?? ""}
-              onChange={(e) => edit.patchRowDraft({ name: e.target.value })}
-              className="h-7 px-2 text-sm"
-              placeholder="Nom"
-            />
+          <TableCell className="pl-4 font-medium md:pl-6">
+            <Link href={`${normalizedBase}/${p.id}`} className="hover:underline">
+              {p.name}
+            </Link>
           </TableCell>
           <TableCell className="hidden max-w-[280px] md:table-cell">
             <Input
+              autoFocus
               value={edit.rowDraft.description ?? ""}
               onChange={(e) => edit.patchRowDraft({ description: e.target.value || null })}
               className="h-7 px-2 text-sm"
@@ -309,14 +306,9 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
     return (
       <TableRow key={p.id} className="border-l-primary/25 border-l-2 md:border-l-[3px]">
         <TableCell className="pl-4 font-medium md:pl-6">
-          <InlineTextCell
-            value={p.name}
-            isActive={isCell(p.id, "name")}
-            onActivate={() => edit.activateCell(p.id, "name")}
-            onSave={(v) => edit.saveCell(p.id, "name", v)}
-            onCancel={edit.deactivateCell}
-            onTabNext={() => edit.tabToNext(p.id, "name")}
-          />
+          <Link href={`${normalizedBase}/${p.id}`} className="hover:underline">
+            {p.name}
+          </Link>
         </TableCell>
         <TableCell className="text-muted-foreground hidden max-w-[280px] md:table-cell">
           <InlineTextCell

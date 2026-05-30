@@ -5,12 +5,15 @@ import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronDown, ChevronRight, Plus, Star, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice, useProductPurchasePriceHistory } from "@/lib/queries/purchase-price-queries";
 import {
   useDeleteProductSupplier,
@@ -18,26 +21,11 @@ import {
   useUpdateProductSupplier,
   type ProductSupplierRow,
 } from "@/lib/queries/supplier-queries";
-import { convertUnit } from "@/lib/utils/unit-conversion";
+import { compatibleUnits, normalizeUnitPrice, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 import { AddSupplierModal } from "./product-fournisseur-add-modal";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-/** Convertit un prix par orderUnit en prix par portionUnit pour les calculs food cost. */
-function normalizeUnitPrice(
-  price: number,
-  orderUnit: string | null,
-  portionUnit: string | null,
-  qtyPerOrder = 1,
-): number {
-  let normalized = price;
-  if (orderUnit && portionUnit && orderUnit !== portionUnit) {
-    const factor = convertUnit(1, orderUnit, portionUnit);
-    if (factor != null) normalized = price / factor;
-  }
-  return Math.round((normalized / (qtyPerOrder > 0 ? qtyPerOrder : 1)) * 10000) / 10000;
-}
 
 type ProductSupplierWithName = ProductSupplierRow & {
   supplier: { id: string; name: string; is_active: boolean } | null;
@@ -63,14 +51,17 @@ function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: 
       </button>
       {show && (
         <div className="mt-1.5 space-y-0.5">
-          {rows.slice(0, limit).map((h) => (
-            <p key={h.id} className="text-muted-foreground text-xs tabular-nums">
-              {eur.format(h.unit_cost)}
-              {portionUnit ? ` / ${portionUnit}` : ""}
-              {" · "}
-              {format(parseISO(h.effective_from), "d MMM yyyy", { locale: fr })}
-            </p>
-          ))}
+          {rows.slice(0, limit).map((h) => {
+            const { value, displayUnit } = toFriendlyUnitCost(h.unit_cost, portionUnit);
+            return (
+              <p key={h.id} className="text-muted-foreground text-xs tabular-nums">
+                {eur.format(value)}
+                {displayUnit ? ` / ${displayUnit}` : ""}
+                {" · "}
+                {format(parseISO(h.effective_from), "d MMM yyyy", { locale: fr })}
+              </p>
+            );
+          })}
           {rows.length > limit && (
             <button
               type="button"
@@ -100,12 +91,13 @@ function SupplierPriceDisplay({
   if (unitPrice == null) {
     return <p className="text-muted-foreground text-xs italic">Prix non renseigné</p>;
   }
-  const unit = orderUnit ?? portionUnit;
+  const rawUnit = orderUnit ?? portionUnit;
+  const { value: displayValue, displayUnit } = toFriendlyUnitCost(unitPrice, rawUnit);
   const qtyLabel = qtyPerOrder != null && qtyPerOrder > 1 ? ` × ${qtyPerOrder}` : "";
   return (
     <p className="text-muted-foreground text-sm tabular-nums">
-      {eur.format(unitPrice)}
-      {unit ? ` / ${unit}` : ""}
+      {eur.format(displayValue)}
+      {displayUnit ? ` / ${displayUnit}` : ""}
       {qtyLabel}
     </p>
   );
@@ -126,8 +118,10 @@ function SupplierPriceCard({
   portionUnit: string | null;
   history: { id: string; unit_cost: number; effective_from: string; supplier_id: string | null }[];
 }) {
+  const t = useTranslations("units");
   const [editPrice, setEditPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(link.unit_price != null ? String(link.unit_price) : "");
+  const [unitInput, setUnitInput] = useState(link.order_unit ?? portionUnit ?? "");
   const [qtyInput, setQtyInput] = useState(String(link.qty_per_order ?? 1));
 
   const updateMutation = useUpdateProductSupplier(productId);
@@ -135,6 +129,7 @@ function SupplierPriceCard({
   const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
 
   const supplierHistory = history.filter((h) => h.supplier_id === link.supplier_id);
+  const unitOptions = compatibleUnits(portionUnit, PORTION_UNITS);
 
   const handleSavePrice = () => {
     const cost = parseFloat(priceInput.replace(",", "."));
@@ -145,9 +140,12 @@ function SupplierPriceCard({
     const unitPrice = Math.round(cost * 10000) / 10000;
     const qty = parseFloat(qtyInput.replace(",", "."));
     const qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    const normalizedCost = normalizeUnitPrice(unitPrice, link.order_unit ?? null, portionUnit, qtyNum);
+    const normalizedCost = normalizeUnitPrice(unitPrice, unitInput || null, portionUnit);
     updateMutation.mutate(
-      { id: link.id, patch: { unit_price: unitPrice, qty_per_order: qtyNum > 1 ? qtyNum : null } },
+      {
+        id: link.id,
+        patch: { unit_price: unitPrice, order_unit: unitInput || null, qty_per_order: qtyNum > 1 ? qtyNum : null },
+      },
       {
         onSuccess: () => {
           addHistoryMutation.mutate({
@@ -205,6 +203,7 @@ function SupplierPriceCard({
             onClick={() => {
               setEditPrice(true);
               setPriceInput(link.unit_price != null ? String(link.unit_price) : "");
+              setUnitInput(link.order_unit ?? portionUnit ?? "");
             }}
           >
             Modifier le prix
@@ -223,24 +222,35 @@ function SupplierPriceCard({
       </div>
 
       {editPrice && (
-        <div className="mt-3 flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="relative w-28">
             <Input
               value={priceInput}
               onChange={(e) => setPriceInput(e.target.value)}
               inputMode="decimal"
               placeholder="0,00"
-              className="pr-12 tabular-nums"
+              className="pr-6 tabular-nums"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSavePrice();
                 if (e.key === "Escape") setEditPrice(false);
               }}
             />
-            <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-              € {(link.order_unit ?? portionUnit) ? `/ ${link.order_unit ?? portionUnit}` : ""}
-            </span>
+            <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
           </div>
+          <Select value={unitInput || "__none__"} onValueChange={(v) => setUnitInput(v === "__none__" ? "" : v)}>
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Unité</SelectItem>
+              {unitOptions.map((u) => (
+                <SelectItem key={u} value={u}>
+                  {t(u as PortionUnit)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-sm">×</span>
             <Input
@@ -297,13 +307,22 @@ export function ProductFournisseursPrixPanel({
           </CardHeader>
           <CardContent>
             <p className="font-medium">{preferred.supplier?.name}</p>
-            {preferred.unit_price != null && (
-              <p className="text-muted-foreground text-sm tabular-nums">
-                {eur.format(preferred.unit_price)}
-                {(preferred.order_unit ?? portionUnit) ? ` / ${preferred.order_unit ?? portionUnit}` : ""}
-                {preferred.qty_per_order != null && preferred.qty_per_order > 1 ? ` × ${preferred.qty_per_order}` : ""}
-              </p>
-            )}
+            {preferred.unit_price != null &&
+              (() => {
+                const { value: pv, displayUnit: pu } = toFriendlyUnitCost(
+                  preferred.unit_price,
+                  preferred.order_unit ?? portionUnit,
+                );
+                return (
+                  <p className="text-muted-foreground text-sm tabular-nums">
+                    {eur.format(pv)}
+                    {pu ? ` / ${pu}` : ""}
+                    {preferred.qty_per_order != null && preferred.qty_per_order > 1
+                      ? ` × ${preferred.qty_per_order}`
+                      : ""}
+                  </p>
+                );
+              })()}
           </CardContent>
         </Card>
       )}

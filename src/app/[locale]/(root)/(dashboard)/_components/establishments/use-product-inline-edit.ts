@@ -9,10 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
 type ProductRow = Tables<"products">;
-export type EditableField = "name" | "description" | "is_available";
+export type EditableField = "description" | "is_available";
 export type ActiveCell = { productId: string; field: EditableField };
 
-const EDITABLE_FIELDS: EditableField[] = ["name", "description", "is_available"];
+const EDITABLE_FIELDS: EditableField[] = ["description", "is_available"];
 
 export function useProductInlineEdit(organizationId: string) {
   const queryClient = useQueryClient();
@@ -70,7 +70,6 @@ export function useProductInlineEdit(organizationId: string) {
     setActiveCell(null);
     setEditingRowId(product.id);
     setRowDraft({
-      name: product.name,
       description: product.description,
       is_available: product.is_available ?? true,
     });

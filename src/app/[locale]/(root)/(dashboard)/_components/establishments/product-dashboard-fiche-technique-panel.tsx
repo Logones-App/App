@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type PortionUnit } from "@/lib/constants/product-attributes";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
 import {
@@ -180,7 +181,23 @@ export function ProductFicheTechniquePanel({
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground text-right text-sm tabular-nums">
-          {lineCost != null ? eur.format(lineCost) : <span className="opacity-40">—</span>}
+          {lineCost != null ? (
+            eur.format(lineCost)
+          ) : unitCost != null ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 text-amber-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="opacity-60">—</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Unités incompatibles ({c.quantity_unit} ≠ {c.component?.portion_unit ?? "?"}) — coût non calculable.
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="opacity-40">—</span>
+          )}
         </TableCell>
         <TableCell className="text-right text-sm tabular-nums">
           {pct != null ? (
@@ -244,30 +261,16 @@ export function ProductFicheTechniquePanel({
                   Cliquez sur une quantité pour l&apos;éditer en ligne, sur ✏️ pour modifier unité ou type.
                 </CardDescription>
               </div>
-              <div className="flex shrink-0 gap-2">
-                {!showInlineAdd && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInlineAdd(true)}
-                    disabled={edit.isPending}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddModal(true)}
-                  disabled={edit.isPending}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Créer
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddModal(true)}
+                disabled={edit.isPending}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Créer un ingrédient
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -283,16 +286,8 @@ export function ProductFicheTechniquePanel({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {technicalLines.length === 0 && !showInlineAdd ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-muted-foreground h-16 text-center text-sm">
-                        Aucun ingrédient. Cliquez sur &quot;Ajouter&quot; pour commencer.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    technicalLines.map(renderExistingRow)
-                  )}
-                  {showInlineAdd && (
+                  {technicalLines.map(renderExistingRow)}
+                  {showInlineAdd ? (
                     <InlineIngredientAddRow
                       ingredients={ingredientList}
                       isPending={edit.isPending}
@@ -312,6 +307,20 @@ export function ProductFicheTechniquePanel({
                       }
                       onCancel={() => setShowInlineAdd(false)}
                     />
+                  ) : (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={5} className="p-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowInlineAdd(true)}
+                          disabled={edit.isPending}
+                          className="text-muted-foreground hover:text-foreground hover:bg-muted/40 flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Ajouter un ingrédient
+                        </button>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>

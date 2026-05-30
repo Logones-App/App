@@ -870,6 +870,200 @@ export type Database = {
           },
         ]
       }
+      doc_import_corrections: {
+        Row: {
+          corrected_at: string
+          corrected_by: string | null
+          corrected_value: string | null
+          field_name: string | null
+          id: string
+          import_id: string
+          original_value: string | null
+        }
+        Insert: {
+          corrected_at?: string
+          corrected_by?: string | null
+          corrected_value?: string | null
+          field_name?: string | null
+          id?: string
+          import_id: string
+          original_value?: string | null
+        }
+        Update: {
+          corrected_at?: string
+          corrected_by?: string | null
+          corrected_value?: string | null
+          field_name?: string | null
+          id?: string
+          import_id?: string
+          original_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_import_corrections_corrected_by_fkey"
+            columns: ["corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_import_corrections_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doc_import_lines: {
+        Row: {
+          designation: string | null
+          id: string
+          import_id: string
+          prix_unitaire: number | null
+          quantite: number | null
+          reference: string | null
+          total_ht: number | null
+          unite: string | null
+        }
+        Insert: {
+          designation?: string | null
+          id?: string
+          import_id: string
+          prix_unitaire?: number | null
+          quantite?: number | null
+          reference?: string | null
+          total_ht?: number | null
+          unite?: string | null
+        }
+        Update: {
+          designation?: string | null
+          id?: string
+          import_id?: string
+          prix_unitaire?: number | null
+          quantite?: number | null
+          reference?: string | null
+          total_ht?: number | null
+          unite?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_import_lines_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doc_import_usage: {
+        Row: {
+          doc_count: number
+          month: string
+          organization_id: string
+        }
+        Insert: {
+          doc_count?: number
+          month: string
+          organization_id: string
+        }
+        Update: {
+          doc_count?: number
+          month?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_import_usage_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doc_imports: {
+        Row: {
+          consensus_json: Json | null
+          created_at: string
+          doc_type: string | null
+          establishment_id: string
+          extracted_azure: Json | null
+          extracted_llm: Json | null
+          id: string
+          image_hash: string | null
+          organization_id: string
+          pennylane_id: string | null
+          source_type: string | null
+          source_url: string | null
+          status: string
+          validated_at: string | null
+          validated_by: string | null
+          validated_json: Json | null
+          validation_error: string | null
+        }
+        Insert: {
+          consensus_json?: Json | null
+          created_at?: string
+          doc_type?: string | null
+          establishment_id: string
+          extracted_azure?: Json | null
+          extracted_llm?: Json | null
+          id?: string
+          image_hash?: string | null
+          organization_id: string
+          pennylane_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validated_json?: Json | null
+          validation_error?: string | null
+        }
+        Update: {
+          consensus_json?: Json | null
+          created_at?: string
+          doc_type?: string | null
+          establishment_id?: string
+          extracted_azure?: Json | null
+          extracted_llm?: Json | null
+          id?: string
+          image_hash?: string | null
+          organization_id?: string
+          pennylane_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validated_json?: Json | null
+          validation_error?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_imports_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_imports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_imports_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           booking_id: string | null
@@ -3274,6 +3468,167 @@ export type Database = {
           },
         ]
       }
+      product_option_group_products: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          option_group_id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          option_group_id: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          option_group_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_option_group_products_group_fkey"
+            columns: ["option_group_id"]
+            isOneToOne: false
+            referencedRelation: "product_option_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_option_group_products_product_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_option_group_values: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          display_order: number
+          id: string
+          is_default: boolean
+          is_visible: boolean
+          max_quantity: number | null
+          min_quantity: number | null
+          option_group_id: string
+          option_name: string
+          option_price: number
+          option_value: string
+          tva_rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          display_order?: number
+          id?: string
+          is_default?: boolean
+          is_visible?: boolean
+          max_quantity?: number | null
+          min_quantity?: number | null
+          option_group_id: string
+          option_name: string
+          option_price?: number
+          option_value: string
+          tva_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          display_order?: number
+          id?: string
+          is_default?: boolean
+          is_visible?: boolean
+          max_quantity?: number | null
+          min_quantity?: number | null
+          option_group_id?: string
+          option_name?: string
+          option_price?: number
+          option_value?: string
+          tva_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_option_group_values_group_fkey"
+            columns: ["option_group_id"]
+            isOneToOne: false
+            referencedRelation: "product_option_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_option_groups: {
+        Row: {
+          allow_quantity: boolean
+          auto_open_modal: boolean
+          created_at: string
+          deleted: boolean
+          display_order: number
+          establishment_id: string
+          id: string
+          is_required: boolean
+          max_selections: number | null
+          name: string
+          organization_id: string
+          selection_type: string
+          updated_at: string
+        }
+        Insert: {
+          allow_quantity?: boolean
+          auto_open_modal?: boolean
+          created_at?: string
+          deleted?: boolean
+          display_order?: number
+          establishment_id: string
+          id?: string
+          is_required?: boolean
+          max_selections?: number | null
+          name: string
+          organization_id: string
+          selection_type?: string
+          updated_at?: string
+        }
+        Update: {
+          allow_quantity?: boolean
+          auto_open_modal?: boolean
+          created_at?: string
+          deleted?: boolean
+          display_order?: number
+          establishment_id?: string
+          id?: string
+          is_required?: boolean
+          max_selections?: number | null
+          name?: string
+          organization_id?: string
+          selection_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_option_groups_establishment_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_option_groups_organization_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_options: {
         Row: {
           allow_quantity: boolean | null
@@ -4434,6 +4789,10 @@ export type Database = {
           p_piece_type: string
         }
         Returns: number
+      }
+      increment_doc_usage: {
+        Args: { p_limit?: number; p_month: string; p_organization_id: string }
+        Returns: boolean
       }
       is_slot_closed_by_exception: {
         Args: {

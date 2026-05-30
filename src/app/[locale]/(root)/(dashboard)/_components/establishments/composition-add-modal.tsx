@@ -18,15 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PORTION_UNITS } from "@/lib/constants/product-attributes";
-import { useEstablishmentVatRates, useOrganizationProducts } from "@/lib/queries/establishments";
-import { useComponentCurrentPurchasePrices } from "@/lib/queries/purchase-price-queries";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
+import { useEstablishmentVatRates } from "@/lib/queries/establishments";
 import { useActiveSuppliers, useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
+import { areUnitsCompatible, compatibleUnits } from "@/lib/utils/unit-conversion";
 
-// ─── Modal principale ──────────────────────────────────────────────────────────
-
-type Mode = "select" | "create";
 type SupplierMode = "none" | "existing" | "new";
 
 function validateCreateForm({
@@ -116,34 +113,10 @@ type Props = {
 export function CompositionAddModal({ productId, establishmentId, organizationId, queryKey, onClose }: Props) {
   const queryClient = useQueryClient();
   const t = useTranslations("units");
-  const { data: allProducts = [] } = useOrganizationProducts(organizationId);
   const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const defaultVatRateId = vatRates[0]?.id ?? null;
 
-  const ingredients = allProducts.filter(
-    (p) => p.id !== productId && (p.product_type as string[] | null)?.includes("ingredient"),
-  );
-  const ingredientIds = ingredients.map((p) => p.id);
-  const { data: ingredientPrices } = useComponentCurrentPurchasePrices(ingredientIds, organizationId);
-
-  const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-  const priceLabel = (p: (typeof ingredients)[0]) => {
-    const cost = ingredientPrices?.get(p.id);
-    const unit = p.portion_unit;
-    if (cost == null) return "prix non configuré";
-    return `${eur.format(cost)}${unit ? ` / ${unit}` : ""}`;
-  };
-
-  const [mode, setMode] = useState<Mode>("select");
-
-  // Mode sélection
-  const [selectedId, setSelectedId] = useState("");
-  const [qty, setQty] = useState("");
-  const [unit, setUnit] = useState("g");
-
-  // Mode création
   const [newName, setNewName] = useState("");
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("none");
   const [existingSupplierId, setExistingSupplierId] = useState("");
@@ -154,37 +127,12 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
   const [newQty, setNewQty] = useState("");
   const [newUnit, setNewUnit] = useState("g");
 
-  const addMutation = useMutation({
-    mutationFn: async ({
-      componentId,
-      quantity,
-      quantityUnit,
-    }: {
-      componentId: string;
-      quantity: number;
-      quantityUnit: string;
-    }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("product_compositions").insert({
-        main_product_id: productId,
-        component_product_id: componentId,
-        composition_kind: "recipe",
-        default_quantity: quantity,
-        quantity_unit: quantityUnit,
-        establishment_id: establishmentId,
-        organization_id: organizationId,
-        is_required: false,
-        deleted: false,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Ingrédient ajouté.");
-      void queryClient.invalidateQueries({ queryKey });
-      onClose();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'ajout."),
-  });
+  const handlePriceUnitChange = (u: string) => {
+    setNewPriceUnit(u);
+    if (!areUnitsCompatible(newUnit, u)) setNewUnit(u);
+  };
+
+  const recipeUnitOptions = supplierMode !== "none" ? compatibleUnits(newPriceUnit, PORTION_UNITS) : PORTION_UNITS;
 
   const createSupplierMutation = useCreateSupplier(organizationId);
 
@@ -226,7 +174,6 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
           currency: "EUR",
         });
       }
-
       const { error: compErr } = await supabase.from("product_compositions").insert({
         main_product_id: productId,
         component_product_id: productId2,
@@ -249,20 +196,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la création."),
   });
 
-  const handleAdd = () => {
-    const qtyNum = parseFloat(qty.replace(",", "."));
-    if (!selectedId) {
-      toast.error("Sélectionnez un ingrédient.");
-      return;
-    }
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
-      toast.error("Quantité invalide.");
-      return;
-    }
-    addMutation.mutate({ componentId: selectedId, quantity: qtyNum, quantityUnit: unit });
-  };
-
-  const busy = addMutation.isPending || createAndAddMutation.isPending || createSupplierMutation.isPending;
+  const busy = createAndAddMutation.isPending || createSupplierMutation.isPending;
 
   return (
     <Dialog
@@ -273,194 +207,124 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
     >
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Ajouter un ingrédient</DialogTitle>
-          <DialogDescription>Sélectionnez un ingrédient existant ou créez-en un nouveau.</DialogDescription>
+          <DialogTitle>Nouvel ingrédient</DialogTitle>
+          <DialogDescription>Créez un nouvel ingrédient et ajoutez-le directement à la recette.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-1 rounded-lg border p-1">
-          {(["select", "create"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {m === "select" ? "Ingrédient existant" : "Créer un ingrédient"}
-            </button>
-          ))}
-        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Nom de l&apos;ingrédient *</Label>
+            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Beurre" autoFocus />
+          </div>
 
-        {mode === "select" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>
+              Fournisseur <span className="text-muted-foreground text-xs font-normal">(optionnel)</span>
+            </Label>
+            <Select value={supplierMode} onValueChange={(v) => setSupplierMode(v as SupplierMode)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Sans fournisseur</SelectItem>
+                <SelectItem value="existing">Fournisseur existant</SelectItem>
+                <SelectItem value="new">Créer un nouveau fournisseur</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {supplierMode === "existing" && (
             <div className="space-y-2 sm:col-span-2">
-              <Label>Ingrédient</Label>
-              <Select value={selectedId || undefined} onValueChange={setSelectedId}>
+              <Select value={existingSupplierId || undefined} onValueChange={setExistingSupplierId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choisir un ingrédient…" />
+                  <SelectValue placeholder="Choisir un fournisseur…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ingredients.length === 0 ? (
-                    <div className="text-muted-foreground p-2 text-sm">Aucun ingrédient disponible.</div>
-                  ) : (
-                    ingredients.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        <span className="flex w-full items-center justify-between gap-4">
-                          <span>{p.name}</span>
-                          <span
-                            className={`text-xs tabular-nums ${ingredientPrices?.get(p.id) != null ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}
-                          >
-                            {priceLabel(p)}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Quantité pour cette recette</Label>
-              <Input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" placeholder="50" />
-            </div>
-            <div className="space-y-2">
-              <Label>Unité</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {t(u)}
+                  {orgSuppliers.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Nom de l&apos;ingrédient *</Label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Beurre" autoFocus />
-            </div>
+          )}
 
+          {supplierMode === "new" && (
             <div className="space-y-2 sm:col-span-2">
-              <Label>
-                Fournisseur <span className="text-muted-foreground text-xs font-normal">(optionnel)</span>
-              </Label>
-              <Select value={supplierMode} onValueChange={(v) => setSupplierMode(v as SupplierMode)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Sans fournisseur</SelectItem>
-                  <SelectItem value="existing">Fournisseur existant</SelectItem>
-                  <SelectItem value="new">Créer un nouveau fournisseur</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
+                placeholder="Nom du fournisseur"
+              />
             </div>
+          )}
 
-            {supplierMode === "existing" && (
-              <div className="space-y-2 sm:col-span-2">
-                <Select value={existingSupplierId || undefined} onValueChange={setExistingSupplierId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir un fournisseur…" />
+          {supplierMode !== "none" && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Prix d&apos;achat HT</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="10,00"
+                    className="pr-6 tabular-nums"
+                  />
+                  <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+                </div>
+                <span className="flex items-center text-sm">pour</span>
+                <Input
+                  value={newPriceQty}
+                  onChange={(e) => setNewPriceQty(e.target.value)}
+                  inputMode="decimal"
+                  className="w-16 tabular-nums"
+                />
+                <Select value={newPriceUnit} onValueChange={handlePriceUnitChange}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {orgSuppliers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
+                    {PORTION_UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {t(u)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-
-            {supplierMode === "new" && (
-              <div className="space-y-2 sm:col-span-2">
-                <Input
-                  value={newSupplierName}
-                  onChange={(e) => setNewSupplierName(e.target.value)}
-                  placeholder="Nom du fournisseur"
-                />
-              </div>
-            )}
-
-            {supplierMode !== "none" && (
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Prix d&apos;achat HT</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      inputMode="decimal"
-                      placeholder="10,00"
-                      className="pr-6 tabular-nums"
-                    />
-                    <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
-                  </div>
-                  <span className="flex items-center text-sm">pour</span>
-                  <Input
-                    value={newPriceQty}
-                    onChange={(e) => setNewPriceQty(e.target.value)}
-                    inputMode="decimal"
-                    className="w-16 tabular-nums"
-                  />
-                  <Select value={newPriceUnit} onValueChange={setNewPriceUnit}>
-                    <SelectTrigger className="w-28">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PORTION_UNITS.map((u) => (
-                        <SelectItem key={u} value={u}>
-                          {t(u)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Quantité pour cette recette</Label>
-              <Input value={newQty} onChange={(e) => setNewQty(e.target.value)} inputMode="decimal" placeholder="50" />
             </div>
-            <div className="space-y-2">
-              <Label>Unité</Label>
-              <Select value={newUnit} onValueChange={setNewUnit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {t(u)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Quantité pour cette recette</Label>
+            <Input value={newQty} onChange={(e) => setNewQty(e.target.value)} inputMode="decimal" placeholder="50" />
           </div>
-        )}
+          <div className="space-y-2">
+            <Label>Unité</Label>
+            <Select value={newUnit} onValueChange={setNewUnit}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {recipeUnitOptions.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {t(u as PortionUnit)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          {mode === "select" ? (
-            <Button type="button" disabled={busy} onClick={handleAdd}>
-              {busy ? "Ajout…" : "Ajouter"}
-            </Button>
-          ) : (
-            <Button type="button" disabled={busy || !newName.trim()} onClick={() => createAndAddMutation.mutate()}>
-              {busy ? "Création…" : "Créer et ajouter"}
-            </Button>
-          )}
+          <Button type="button" disabled={busy || !newName.trim()} onClick={() => createAndAddMutation.mutate()}>
+            {busy ? "Création…" : "Créer et ajouter"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

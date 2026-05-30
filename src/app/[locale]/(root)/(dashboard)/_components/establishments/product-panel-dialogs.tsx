@@ -74,9 +74,9 @@ export function ProductCompositionEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier la composition</DialogTitle>
+          <DialogTitle>Modifier le supplément</DialogTitle>
           <DialogDescription>
-            {row.component?.name ?? "Composant"} — type et quantités (pas de changement de composant ici).
+            {row.component?.name ?? "Composant"} — quantités et paramètres (pas de changement de composant ici).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
@@ -87,8 +87,8 @@ export function ProductCompositionEditDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="recipe">recipe</SelectItem>
-                <SelectItem value="modifier">modifier</SelectItem>
+                <SelectItem value="recipe">Ingrédient (recette)</SelectItem>
+                <SelectItem value="modifier">Supplément</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -140,7 +140,7 @@ export function ProductCompositionEditDialog({
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <Switch checked={show_in_customization} onCheckedChange={setShowInCustomization} id="cmp-mod" />
-              <Label htmlFor="cmp-mod">Modale perso</Label>
+              <Label htmlFor="cmp-mod">Visible en personnalisation</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={is_required} onCheckedChange={setIsRequired} id="cmp-req" />
@@ -215,6 +215,7 @@ export function ProductCompositionAddDialog({
   onOpenChange,
   candidateComponents,
   defaultDisplayOrder,
+  defaultKind = "recipe",
   onSave,
   pending,
 }: {
@@ -222,11 +223,12 @@ export function ProductCompositionAddDialog({
   onOpenChange: (o: boolean) => void;
   candidateComponents: Tables<"products">[];
   defaultDisplayOrder: number;
+  defaultKind?: string;
   onSave: (row: Partial<Tables<"product_compositions">>) => void;
   pending: boolean;
 }) {
   const [component_product_id, setComponentProductId] = useState("");
-  const [composition_kind, setCompositionKind] = useState("recipe");
+  const [composition_kind, setCompositionKind] = useState(defaultKind);
   const [default_quantity, setDefaultQuantity] = useState("1");
   const [max_quantity, setMaxQuantity] = useState("");
   const [display_order, setDisplayOrder] = useState(String(defaultDisplayOrder));
@@ -238,7 +240,7 @@ export function ProductCompositionAddDialog({
   useEffect(() => {
     if (!open) return;
     setComponentProductId("");
-    setCompositionKind("recipe");
+    setCompositionKind(defaultKind);
     setDefaultQuantity("1");
     setMaxQuantity("");
     setDisplayOrder(String(defaultDisplayOrder));
@@ -246,18 +248,18 @@ export function ProductCompositionAddDialog({
     setPriceMultiplier("");
     setShowInCustomization(false);
     setIsRequired(false);
-  }, [open, defaultDisplayOrder]);
+  }, [open, defaultDisplayOrder, defaultKind]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouvelle ligne de composition</DialogTitle>
-          <DialogDescription>Choisissez le produit composant et le type de ligne.</DialogDescription>
+          <DialogTitle>Nouveau supplément</DialogTitle>
+          <DialogDescription>Choisissez le produit à ajouter en supplément à la commande.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="space-y-1">
-            <Label>Produit composant</Label>
+            <Label>Produit</Label>
             <Select value={component_product_id || undefined} onValueChange={setComponentProductId}>
               <SelectTrigger>
                 <SelectValue placeholder="Choisir un produit…" />
@@ -278,8 +280,8 @@ export function ProductCompositionAddDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="recipe">recipe</SelectItem>
-                <SelectItem value="modifier">modifier</SelectItem>
+                <SelectItem value="recipe">Ingrédient (recette)</SelectItem>
+                <SelectItem value="modifier">Supplément</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -342,7 +344,7 @@ export function ProductCompositionAddDialog({
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <Switch checked={show_in_customization} onCheckedChange={setShowInCustomization} id="add-mod" />
-              <Label htmlFor="add-mod">Modale perso</Label>
+              <Label htmlFor="add-mod">Visible en personnalisation</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={is_required} onCheckedChange={setIsRequired} id="add-req" />
