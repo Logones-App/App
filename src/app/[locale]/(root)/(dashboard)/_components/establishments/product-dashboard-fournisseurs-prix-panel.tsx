@@ -103,6 +103,83 @@ function SupplierPriceDisplay({
   );
 }
 
+function numToStr(n: number | null | undefined): string {
+  return n != null ? String(n) : "";
+}
+
+function posNum(s: string): number | null {
+  const n = parseFloat(s.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function posInt(s: string): number | null {
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function SupplierRefChips({
+  supplierRef,
+  name,
+  orderQuantity,
+  leadTimeDays,
+}: {
+  supplierRef: string | null;
+  name: string | null;
+  orderQuantity: number | null;
+  leadTimeDays: number | null;
+}) {
+  if (!supplierRef && !name && orderQuantity == null && leadTimeDays == null) return null;
+  return (
+    <>
+      {(supplierRef ?? name) && (
+        <p className="text-muted-foreground text-xs tabular-nums">
+          {supplierRef && <span className="font-mono">{supplierRef}</span>}
+          {supplierRef && name && " · "}
+          {name}
+        </p>
+      )}
+      {(orderQuantity ?? leadTimeDays) && (
+        <p className="text-muted-foreground text-xs">
+          {orderQuantity != null && `Min ${orderQuantity}`}
+          {orderQuantity != null && leadTimeDays != null && " · "}
+          {leadTimeDays != null && `Délai ${leadTimeDays} j`}
+        </p>
+      )}
+    </>
+  );
+}
+
+function SupplierCardHeader({
+  supplierName,
+  isActive,
+  isPreferred,
+  onTogglePreferred,
+}: {
+  supplierName: string | null;
+  isActive: boolean | null;
+  isPreferred: boolean;
+  onTogglePreferred: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" title={isPreferred ? "Retirer préféré" : "Marquer préféré"} onClick={onTogglePreferred}>
+        <Star className={`h-4 w-4 ${isPreferred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
+      </button>
+      <span className="font-medium">{supplierName ?? "—"}</span>
+      {isActive === false && (
+        <Badge variant="secondary" className="text-xs">
+          Inactif
+        </Badge>
+      )}
+      {isPreferred && (
+        <Badge variant="outline" className="border-yellow-400 text-xs text-yellow-700">
+          Préféré
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 // ─── Carte fournisseur ─────────────────────────────────────────────────────────
 
 function SupplierPriceCard({
@@ -120,9 +197,13 @@ function SupplierPriceCard({
 }) {
   const t = useTranslations("units");
   const [editPrice, setEditPrice] = useState(false);
-  const [priceInput, setPriceInput] = useState(link.unit_price != null ? String(link.unit_price) : "");
+  const [priceInput, setPriceInput] = useState(numToStr(link.unit_price));
   const [unitInput, setUnitInput] = useState(link.order_unit ?? portionUnit ?? "");
   const [qtyInput, setQtyInput] = useState(String(link.units_per_package ?? 1));
+  const [refInput, setRefInput] = useState(link.supplier_product_ref ?? "");
+  const [nameInput, setNameInput] = useState(link.supplier_product_name ?? "");
+  const [oqInput, setOqInput] = useState(numToStr(link.order_quantity));
+  const [ltdInput, setLtdInput] = useState(numToStr(link.lead_time_days));
 
   const updateMutation = useUpdateProductSupplier(productId);
   const deleteMutation = useDeleteProductSupplier(productId);
@@ -144,7 +225,15 @@ function SupplierPriceCard({
     updateMutation.mutate(
       {
         id: link.id,
-        patch: { unit_price: unitPrice, order_unit: unitInput || null, units_per_package: qtyNum > 1 ? qtyNum : null },
+        patch: {
+          unit_price: unitPrice,
+          order_unit: unitInput || null,
+          units_per_package: qtyNum > 1 ? qtyNum : null,
+          supplier_product_ref: refInput.trim() || null,
+          supplier_product_name: nameInput.trim() || null,
+          order_quantity: posNum(oqInput),
+          lead_time_days: posInt(ltdInput),
+        },
       },
       {
         onSuccess: () => {
@@ -165,33 +254,25 @@ function SupplierPriceCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              title={link.is_preferred ? "Retirer préféré" : "Marquer préféré"}
-              onClick={() => updateMutation.mutate({ id: link.id, patch: { is_preferred: !link.is_preferred } })}
-            >
-              <Star
-                className={`h-4 w-4 ${link.is_preferred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
-              />
-            </button>
-            <span className="font-medium">{link.supplier?.name ?? "—"}</span>
-            {link.supplier && !link.supplier.is_active && (
-              <Badge variant="secondary" className="text-xs">
-                Inactif
-              </Badge>
-            )}
-            {link.is_preferred && (
-              <Badge variant="outline" className="border-yellow-400 text-xs text-yellow-700">
-                Préféré
-              </Badge>
-            )}
-          </div>
+          <SupplierCardHeader
+            supplierName={link.supplier?.name ?? null}
+            isActive={link.supplier?.is_active ?? null}
+            isPreferred={link.is_preferred}
+            onTogglePreferred={() =>
+              updateMutation.mutate({ id: link.id, patch: { is_preferred: !link.is_preferred } })
+            }
+          />
           <SupplierPriceDisplay
             unitPrice={link.unit_price ?? null}
             orderUnit={link.order_unit ?? null}
             portionUnit={portionUnit}
             qtyPerOrder={link.units_per_package ?? null}
+          />
+          <SupplierRefChips
+            supplierRef={link.supplier_product_ref ?? null}
+            name={link.supplier_product_name ?? null}
+            orderQuantity={link.order_quantity ?? null}
+            leadTimeDays={link.lead_time_days ?? null}
           />
         </div>
 
@@ -202,8 +283,12 @@ function SupplierPriceCard({
             size="sm"
             onClick={() => {
               setEditPrice(true);
-              setPriceInput(link.unit_price != null ? String(link.unit_price) : "");
+              setPriceInput(numToStr(link.unit_price));
               setUnitInput(link.order_unit ?? portionUnit ?? "");
+              setRefInput(link.supplier_product_ref ?? "");
+              setNameInput(link.supplier_product_name ?? "");
+              setOqInput(numToStr(link.order_quantity));
+              setLtdInput(numToStr(link.lead_time_days));
             }}
           >
             Modifier le prix
@@ -222,51 +307,81 @@ function SupplierPriceCard({
       </div>
 
       {editPrice && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="relative w-28">
-            <Input
-              value={priceInput}
-              onChange={(e) => setPriceInput(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              className="pr-6 tabular-nums"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSavePrice();
-                if (e.key === "Escape") setEditPrice(false);
-              }}
-            />
-            <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-28">
+              <Input
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                className="pr-6 tabular-nums"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSavePrice();
+                  if (e.key === "Escape") setEditPrice(false);
+                }}
+              />
+              <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+            </div>
+            <Select value={unitInput || "__none__"} onValueChange={(v) => setUnitInput(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Unité</SelectItem>
+                {unitOptions.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {t(u as PortionUnit)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-sm">×</span>
+              <Input
+                value={qtyInput}
+                onChange={(e) => setQtyInput(e.target.value)}
+                inputMode="decimal"
+                placeholder="1"
+                className="w-16 tabular-nums"
+              />
+            </div>
+            <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
+              OK
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setEditPrice(false)}>
+              ✕
+            </Button>
           </div>
-          <Select value={unitInput || "__none__"} onValueChange={(v) => setUnitInput(v === "__none__" ? "" : v)}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">— Unité</SelectItem>
-              {unitOptions.map((u) => (
-                <SelectItem key={u} value={u}>
-                  {t(u as PortionUnit)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-sm">×</span>
+          <div className="flex flex-wrap gap-2">
             <Input
-              value={qtyInput}
-              onChange={(e) => setQtyInput(e.target.value)}
+              value={refInput}
+              onChange={(e) => setRefInput(e.target.value)}
+              placeholder="Réf. article (ex: TG-12345)"
+              className="w-44 font-mono text-xs"
+            />
+            <Input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Désignation fournisseur"
+              className="min-w-[12rem] flex-1 text-xs"
+            />
+            <Input
+              value={oqInput}
+              onChange={(e) => setOqInput(e.target.value)}
               inputMode="decimal"
-              placeholder="1"
-              className="w-16 tabular-nums"
+              placeholder="Qté min"
+              className="w-20 text-xs tabular-nums"
+            />
+            <Input
+              value={ltdInput}
+              onChange={(e) => setLtdInput(e.target.value)}
+              inputMode="numeric"
+              placeholder="Délai (j)"
+              className="w-20 text-xs tabular-nums"
             />
           </div>
-          <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
-            OK
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setEditPrice(false)}>
-            ✕
-          </Button>
         </div>
       )}
 

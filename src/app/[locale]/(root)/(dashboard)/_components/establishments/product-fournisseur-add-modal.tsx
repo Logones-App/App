@@ -42,6 +42,10 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
   const [orderUnit, setOrderUnit] = useState("");
   const [qtyPerOrder, setQtyPerOrder] = useState("1");
   const [isPreferred, setIsPreferred] = useState(false);
+  const [supplierRef, setSupplierRef] = useState("");
+  const [supplierProductName, setSupplierProductName] = useState("");
+  const [orderQuantity, setOrderQuantity] = useState("");
+  const [leadTimeDays, setLeadTimeDays] = useState("");
 
   const { data: suppliers = [] } = useActiveSuppliers(organizationId);
   const available = suppliers.filter((s) => !usedSupplierIds.has(s.id));
@@ -63,6 +67,9 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
     const normalizedCost = unitPrice != null ? normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit) : null;
     const effectiveCost = normalizedCost ?? unitPrice;
 
+    const oq = parseFloat(orderQuantity.replace(",", "."));
+    const ltd = parseInt(leadTimeDays, 10);
+
     if (supplierId) {
       linkMutation.mutate(
         {
@@ -72,6 +79,10 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
           order_unit: orderUnit || null,
           units_per_package: qtyNum > 1 ? qtyNum : null,
           is_preferred: isPreferred,
+          supplier_product_ref: supplierRef.trim() || null,
+          supplier_product_name: supplierProductName.trim() || null,
+          order_quantity: Number.isFinite(oq) && oq > 0 ? oq : null,
+          lead_time_days: Number.isFinite(ltd) && ltd > 0 ? ltd : null,
         },
         {
           onSuccess: () => {
@@ -222,10 +233,49 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
           </div>
 
           {supplierMode !== "none" && (
-            <div className="flex items-center gap-3">
-              <Switch id="add-pref" checked={isPreferred} onCheckedChange={setIsPreferred} />
-              <Label htmlFor="add-pref">Fournisseur préféré</Label>
-            </div>
+            <>
+              <div className="space-y-2 sm:col-span-2">
+                <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  Référence fournisseur
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Réf. article</Label>
+                <Input value={supplierRef} onChange={(e) => setSupplierRef(e.target.value)} placeholder="TG-12345" />
+              </div>
+              <div className="space-y-2">
+                <Label>Désignation fournisseur</Label>
+                <Input
+                  value={supplierProductName}
+                  onChange={(e) => setSupplierProductName(e.target.value)}
+                  placeholder="Gruyère râpé 1kg AOP"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Qté min commande</Label>
+                <Input
+                  value={orderQuantity}
+                  onChange={(e) => setOrderQuantity(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="—"
+                  className="tabular-nums"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Délai livraison (j)</Label>
+                <Input
+                  value={leadTimeDays}
+                  onChange={(e) => setLeadTimeDays(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="—"
+                  className="tabular-nums"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch id="add-pref" checked={isPreferred} onCheckedChange={setIsPreferred} />
+                <Label htmlFor="add-pref">Fournisseur préféré</Label>
+              </div>
+            </>
           )}
         </div>
 
