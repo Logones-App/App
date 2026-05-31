@@ -24,34 +24,13 @@ import {
   willSelfTrackingDisableAnyCurrentlyTrackedStock,
 } from "@/lib/product-composition-stock-tracking";
 import { PRODUCT_DASHBOARD_QUERY_KEY, type CompositionStockRow } from "@/lib/queries/product-establishment-dashboard";
+import { defaultProductStockInsert, insertInitialMovement } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
-import type { TablesInsert } from "@/lib/supabase/database.types";
 
 import { CompositionStockCard } from "./product-composition-dashboard-blocks";
 import { StockMovementsSection } from "./product-dashboard-stock-movements";
 
 const DEFAULT_STOCK_UNIT = "piece";
-
-function defaultProductStockInsert(
-  productCompositionId: string,
-  establishmentId: string,
-  organizationId: string,
-): TablesInsert<"product_stocks"> {
-  return {
-    product_composition_id: productCompositionId,
-    establishment_id: establishmentId,
-    organization_id: organizationId,
-    current_stock: 0,
-    min_stock: 0,
-    max_stock: null,
-    reserved_stock: 0,
-    unit: DEFAULT_STOCK_UNIT,
-    inventory_tracked: false,
-    deleted: false,
-    low_stock_threshold: null,
-    critical_stock_threshold: null,
-  };
-}
 
 function useProductDashboardHref(establishmentId: string): (productId: string) => string {
   const pathname = usePathname() ?? "";
@@ -143,22 +122,7 @@ function ProductStockScopeSection({
       if (error) throw error;
       if (!st?.id) throw new Error("Fiche stock non créée.");
       await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
-      if (initialQuantity > 0) {
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData.user) {
-          await supabase.from("stock_movements").insert({
-            product_id: scopeProductId,
-            organization_id: organizationId,
-            movement_type: "adjustment",
-            quantity: initialQuantity,
-            quantity_before: 0,
-            quantity_after: initialQuantity,
-            notes: "Stock initial",
-            created_by: authData.user.id,
-            deleted: false,
-          });
-        }
-      }
+      await insertInitialMovement(scopeProductId, organizationId, establishmentId, st.id, initialQuantity, unit);
     },
     onSuccess: () => {
       toast.success("Stock initialisé.");
@@ -205,22 +169,7 @@ function ProductStockScopeSection({
       if (stockErr) throw stockErr;
       if (!st?.id) throw new Error("Fiche stock non créée.");
       await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
-      if (initialQuantity > 0) {
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData.user) {
-          await supabase.from("stock_movements").insert({
-            product_id: scopeProductId,
-            organization_id: organizationId,
-            movement_type: "adjustment",
-            quantity: initialQuantity,
-            quantity_before: 0,
-            quantity_after: initialQuantity,
-            notes: "Stock initial",
-            created_by: authData.user.id,
-            deleted: false,
-          });
-        }
-      }
+      await insertInitialMovement(scopeProductId, organizationId, establishmentId, st.id, initialQuantity, unit);
     },
     onSuccess: () => {
       toast.success("Stock initialisé.");
@@ -503,6 +452,8 @@ export function ProductStockPanel({
   // Stock courant depuis la self-composition
   const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
   const currentStock = selfRow?.lineStock?.current_stock ?? 0;
+  const selfStockId = selfRow?.lineStock?.id ?? null;
+  const selfStockUnit = selfRow?.lineStock?.unit ?? null;
 
   return (
     <div className="space-y-4">
@@ -515,7 +466,14 @@ export function ProductStockPanel({
         nestingLevel={0}
       />
 
-      <StockMovementsSection productId={productId} organizationId={organizationId} currentStock={currentStock} />
+      <StockMovementsSection
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+        productStockId={selfStockId}
+        currentStock={currentStock}
+        unit={selfStockUnit}
+      />
     </div>
   );
 }

@@ -22,33 +22,39 @@ import {
   useProductStockMovements,
 } from "@/lib/queries/stock-movement-queries";
 
+function applySign(qty: number, sign: "positive" | "negative" | "both"): number {
+  if (sign === "negative") return -Math.abs(qty);
+  if (sign === "positive") return Math.abs(qty);
+  return qty;
+}
+
 export function StockMovementsSection({
   productId,
   organizationId,
+  establishmentId,
+  productStockId,
   currentStock,
+  unit,
 }: {
   productId: string;
   organizationId: string;
+  establishmentId: string;
+  productStockId: string | null;
   currentStock: number;
+  unit: string | null;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [movementType, setMovementType] = useState<MovementType>("purchase");
   const [quantityStr, setQuantityStr] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { data: movements = [], isLoading } = useProductStockMovements(productId, organizationId);
-  const addMutation = useAddStockMovement(productId, organizationId);
+  const { data: movements = [], isLoading } = useProductStockMovements(productId, organizationId, establishmentId);
+  const addMutation = useAddStockMovement(productId, organizationId, establishmentId, productStockId, unit);
 
   const typeConfig = MOVEMENT_TYPES.find((t) => t.key === movementType)!;
   const rawQty = parseFloat(quantityStr.replace(",", "."));
 
-  const effectiveQty = Number.isFinite(rawQty)
-    ? typeConfig.sign === "negative"
-      ? -Math.abs(rawQty)
-      : typeConfig.sign === "positive"
-        ? Math.abs(rawQty)
-        : rawQty
-    : null;
+  const effectiveQty = Number.isFinite(rawQty) ? applySign(rawQty, typeConfig.sign) : null;
   const quantityAfterPreview = effectiveQty != null ? currentStock + effectiveQty : null;
 
   const handleSubmit = () => {
@@ -75,9 +81,10 @@ export function StockMovementsSection({
           <CardTitle className="text-base">Mouvements de stock</CardTitle>
           <CardDescription>
             Réceptions fournisseur, ajustements inventaire, pertes. Stock actuel : <strong>{currentStock}</strong>
+            {unit ? ` ${unit}` : ""}
           </CardDescription>
         </div>
-        {!showForm && (
+        {!showForm && productStockId && (
           <Button type="button" size="sm" onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Saisir un mouvement
@@ -105,7 +112,7 @@ export function StockMovementsSection({
               </div>
               <div className="space-y-2">
                 <Label>
-                  Quantité{" "}
+                  Quantité{unit ? ` (${unit})` : ""}{" "}
                   <span className="text-muted-foreground text-xs font-normal">
                     {typeConfig.sign === "negative"
                       ? "(sortie — toujours négatif)"

@@ -18,6 +18,7 @@ import {
   Wrench,
   GraduationCap,
   SlidersHorizontal,
+  FileText,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -111,6 +112,11 @@ export const getOrgAdminSidebarItems = (
               title: "Stocks",
               url: `${est}/products`,
               icon: Wrench,
+            },
+            {
+              title: "Documents",
+              url: `${est}/documents`,
+              icon: FileText,
             },
           ]
         : [

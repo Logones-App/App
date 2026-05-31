@@ -70,7 +70,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
           organization_id: organizationId,
           unit_price: unitPrice,
           order_unit: orderUnit || null,
-          qty_per_order: qtyNum > 1 ? qtyNum : null,
+          units_per_package: qtyNum > 1 ? qtyNum : null,
           is_preferred: isPreferred,
         },
         {

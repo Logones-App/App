@@ -32,13 +32,13 @@ export const MOVEMENT_TYPES: {
   { key: "transfer", label: "Transfert / retour", sign: "both", emoji: "🔄" },
 ];
 
-export function stockMovementsQueryKey(productId: string, organizationId: string) {
-  return ["stock-movements", productId, organizationId] as const;
+export function stockMovementsQueryKey(productId: string, organizationId: string, establishmentId: string) {
+  return ["stock-movements", productId, organizationId, establishmentId] as const;
 }
 
-export function useProductStockMovements(productId: string, organizationId: string) {
+export function useProductStockMovements(productId: string, organizationId: string, establishmentId: string) {
   return useQuery({
-    queryKey: stockMovementsQueryKey(productId, organizationId),
+    queryKey: stockMovementsQueryKey(productId, organizationId, establishmentId),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -46,19 +46,26 @@ export function useProductStockMovements(productId: string, organizationId: stri
         .select("*")
         .eq("product_id", productId)
         .eq("organization_id", organizationId)
+        .eq("establishment_id", establishmentId)
         .eq("deleted", false)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data ?? []) as StockMovementRow[];
+      return data as StockMovementRow[];
     },
-    enabled: !!productId && !!organizationId,
+    enabled: !!productId && !!organizationId && !!establishmentId,
   });
 }
 
-export function useAddStockMovement(productId: string, organizationId: string) {
+export function useAddStockMovement(
+  productId: string,
+  organizationId: string,
+  establishmentId: string,
+  productStockId: string | null,
+  unit: string | null,
+) {
   const queryClient = useQueryClient();
-  const qk = stockMovementsQueryKey(productId, organizationId);
+  const qk = stockMovementsQueryKey(productId, organizationId, establishmentId);
 
   return useMutation({
     mutationFn: async ({
@@ -72,15 +79,16 @@ export function useAddStockMovement(productId: string, organizationId: string) {
       notes: string;
       currentStock: number;
     }) => {
+      if (!productStockId) throw new Error("Pas de fiche stock — impossible de créer un mouvement.");
+
       const supabase = createClient();
 
-      // getSession() est en cache côté browser, plus fiable que getUser()
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
       if (sessionError) throw new Error(`Session: ${sessionError.message}`);
-      const userId = session?.user?.id;
+      const userId = session?.user.id;
       if (!userId) throw new Error("Non authentifié — rechargez la page.");
 
       const quantityAfter = currentStock + quantity;
@@ -88,10 +96,13 @@ export function useAddStockMovement(productId: string, organizationId: string) {
       const { error } = await supabase.from("stock_movements").insert({
         product_id: productId,
         organization_id: organizationId,
+        establishment_id: establishmentId,
+        product_stock_id: productStockId,
         movement_type: movementType,
         quantity,
         quantity_before: currentStock,
         quantity_after: quantityAfter,
+        unit: unit ?? null,
         notes: notes.trim() || null,
         created_by: userId,
         deleted: false,
@@ -102,9 +113,57 @@ export function useAddStockMovement(productId: string, organizationId: string) {
     onSuccess: () => {
       toast.success("Mouvement enregistré");
       void queryClient.invalidateQueries({ queryKey: qk });
-      // Invalider aussi le stock pour que les chiffres se mettent à jour
       void queryClient.invalidateQueries({ queryKey: ["product-establishment-dashboard"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement"),
+  });
+}
+
+export function defaultProductStockInsert(
+  productCompositionId: string,
+  establishmentId: string,
+  organizationId: string,
+) {
+  return {
+    product_composition_id: productCompositionId,
+    establishment_id: establishmentId,
+    organization_id: organizationId,
+    current_stock: 0,
+    min_stock: 0,
+    max_stock: null,
+    reserved_stock: 0,
+    unit: "piece",
+    inventory_tracked: false,
+    deleted: false,
+    low_stock_threshold: null,
+    critical_stock_threshold: null,
+  };
+}
+
+export async function insertInitialMovement(
+  productId: string,
+  organizationId: string,
+  establishmentId: string,
+  productStockId: string,
+  quantity: number,
+  unit: string,
+) {
+  if (quantity <= 0) return;
+  const supabase = createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return;
+  await supabase.from("stock_movements").insert({
+    product_id: productId,
+    organization_id: organizationId,
+    establishment_id: establishmentId,
+    product_stock_id: productStockId,
+    movement_type: "adjustment",
+    quantity,
+    quantity_before: 0,
+    quantity_after: quantity,
+    unit,
+    notes: "Stock initial",
+    created_by: authData.user.id,
+    deleted: false,
   });
 }

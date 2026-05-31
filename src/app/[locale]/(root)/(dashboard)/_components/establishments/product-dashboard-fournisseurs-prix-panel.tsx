@@ -122,7 +122,7 @@ function SupplierPriceCard({
   const [editPrice, setEditPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(link.unit_price != null ? String(link.unit_price) : "");
   const [unitInput, setUnitInput] = useState(link.order_unit ?? portionUnit ?? "");
-  const [qtyInput, setQtyInput] = useState(String(link.qty_per_order ?? 1));
+  const [qtyInput, setQtyInput] = useState(String(link.units_per_package ?? 1));
 
   const updateMutation = useUpdateProductSupplier(productId);
   const deleteMutation = useDeleteProductSupplier(productId);
@@ -144,7 +144,7 @@ function SupplierPriceCard({
     updateMutation.mutate(
       {
         id: link.id,
-        patch: { unit_price: unitPrice, order_unit: unitInput || null, qty_per_order: qtyNum > 1 ? qtyNum : null },
+        patch: { unit_price: unitPrice, order_unit: unitInput || null, units_per_package: qtyNum > 1 ? qtyNum : null },
       },
       {
         onSuccess: () => {
@@ -191,7 +191,7 @@ function SupplierPriceCard({
             unitPrice={link.unit_price ?? null}
             orderUnit={link.order_unit ?? null}
             portionUnit={portionUnit}
-            qtyPerOrder={link.qty_per_order ?? null}
+            qtyPerOrder={link.units_per_package ?? null}
           />
         </div>
 
@@ -317,8 +317,8 @@ export function ProductFournisseursPrixPanel({
                   <p className="text-muted-foreground text-sm tabular-nums">
                     {eur.format(pv)}
                     {pu ? ` / ${pu}` : ""}
-                    {preferred.qty_per_order != null && preferred.qty_per_order > 1
-                      ? ` × ${preferred.qty_per_order}`
+                    {preferred.units_per_package != null && preferred.units_per_package > 1
+                      ? ` × ${preferred.units_per_package}`
                       : ""}
                   </p>
                 );

@@ -917,30 +917,39 @@ export type Database = {
       }
       doc_import_lines: {
         Row: {
+          automation_note: string | null
+          automation_status: string | null
           designation: string | null
           id: string
           import_id: string
           prix_unitaire: number | null
+          product_supplier_id: string | null
           quantite: number | null
           reference: string | null
           total_ht: number | null
           unite: string | null
         }
         Insert: {
+          automation_note?: string | null
+          automation_status?: string | null
           designation?: string | null
           id?: string
           import_id: string
           prix_unitaire?: number | null
+          product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
           total_ht?: number | null
           unite?: string | null
         }
         Update: {
+          automation_note?: string | null
+          automation_status?: string | null
           designation?: string | null
           id?: string
           import_id?: string
           prix_unitaire?: number | null
+          product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
           total_ht?: number | null
@@ -952,6 +961,13 @@ export type Database = {
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_import_lines_product_supplier_id_fkey"
+            columns: ["product_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "product_suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -984,6 +1000,8 @@ export type Database = {
       }
       doc_imports: {
         Row: {
+          automation_applied_at: string | null
+          automation_error: string | null
           consensus_json: Json | null
           created_at: string
           doc_type: string | null
@@ -997,12 +1015,15 @@ export type Database = {
           source_type: string | null
           source_url: string | null
           status: string
+          supplier_id: string | null
           validated_at: string | null
           validated_by: string | null
           validated_json: Json | null
           validation_error: string | null
         }
         Insert: {
+          automation_applied_at?: string | null
+          automation_error?: string | null
           consensus_json?: Json | null
           created_at?: string
           doc_type?: string | null
@@ -1016,12 +1037,15 @@ export type Database = {
           source_type?: string | null
           source_url?: string | null
           status?: string
+          supplier_id?: string | null
           validated_at?: string | null
           validated_by?: string | null
           validated_json?: Json | null
           validation_error?: string | null
         }
         Update: {
+          automation_applied_at?: string | null
+          automation_error?: string | null
           consensus_json?: Json | null
           created_at?: string
           doc_type?: string | null
@@ -1035,6 +1059,7 @@ export type Database = {
           source_type?: string | null
           source_url?: string | null
           status?: string
+          supplier_id?: string | null
           validated_at?: string | null
           validated_by?: string | null
           validated_json?: Json | null
@@ -1053,6 +1078,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_imports_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -3738,11 +3770,15 @@ export type Database = {
           establishment_id: string | null
           id: string
           notes: string | null
+          order_unit: string | null
           organization_id: string
           product_id: string
+          product_supplier_id: string | null
+          source_doc_import_id: string | null
           supplier_id: string | null
           supplier_ref: string | null
           unit_cost: number
+          unit_price: number | null
         }
         Insert: {
           created_at?: string
@@ -3752,11 +3788,15 @@ export type Database = {
           establishment_id?: string | null
           id?: string
           notes?: string | null
+          order_unit?: string | null
           organization_id: string
           product_id: string
+          product_supplier_id?: string | null
+          source_doc_import_id?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
           unit_cost: number
+          unit_price?: number | null
         }
         Update: {
           created_at?: string
@@ -3766,11 +3806,15 @@ export type Database = {
           establishment_id?: string | null
           id?: string
           notes?: string | null
+          order_unit?: string | null
           organization_id?: string
           product_id?: string
+          product_supplier_id?: string | null
+          source_doc_import_id?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
           unit_cost?: number
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -3792,6 +3836,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_purchase_price_history_product_supplier_id_fkey"
+            columns: ["product_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "product_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_purchase_price_history_source_doc_import_id_fkey"
+            columns: ["source_doc_import_id"]
+            isOneToOne: false
+            referencedRelation: "doc_imports"
             referencedColumns: ["id"]
           },
           {
@@ -3898,11 +3956,11 @@ export type Database = {
           order_unit: string | null
           organization_id: string
           product_id: string
-          qty_per_order: number | null
           supplier_id: string
           supplier_product_name: string | null
           supplier_product_ref: string | null
           unit_price: number | null
+          units_per_package: number | null
           updated_at: string | null
         }
         Insert: {
@@ -3917,11 +3975,11 @@ export type Database = {
           order_unit?: string | null
           organization_id: string
           product_id: string
-          qty_per_order?: number | null
           supplier_id: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
           unit_price?: number | null
+          units_per_package?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -3936,11 +3994,11 @@ export type Database = {
           order_unit?: string | null
           organization_id?: string
           product_id?: string
-          qty_per_order?: number | null
           supplier_id?: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
           unit_price?: number | null
+          units_per_package?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4273,51 +4331,67 @@ export type Database = {
           created_at: string | null
           created_by: string
           deleted: boolean | null
+          establishment_id: string | null
           id: string
           movement_type: string
           notes: string | null
           organization_id: string
           product_id: string
+          product_stock_id: string
           quantity: number
           quantity_after: number
           quantity_before: number
           reference_id: string | null
           reference_type: string | null
+          unit: string | null
           work_session_id: string | null
         }
         Insert: {
           created_at?: string | null
           created_by: string
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
           movement_type: string
           notes?: string | null
           organization_id: string
           product_id: string
+          product_stock_id: string
           quantity: number
           quantity_after: number
           quantity_before: number
           reference_id?: string | null
           reference_type?: string | null
+          unit?: string | null
           work_session_id?: string | null
         }
         Update: {
           created_at?: string | null
           created_by?: string
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
           movement_type?: string
           notes?: string | null
           organization_id?: string
           product_id?: string
+          product_stock_id?: string
           quantity?: number
           quantity_after?: number
           quantity_before?: number
           reference_id?: string | null
           reference_type?: string | null
+          unit?: string | null
           work_session_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_movements_organization_id_fkey"
             columns: ["organization_id"]
@@ -4330,6 +4404,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_stock_id_fkey"
+            columns: ["product_stock_id"]
+            isOneToOne: false
+            referencedRelation: "product_stocks"
             referencedColumns: ["id"]
           },
         ]
