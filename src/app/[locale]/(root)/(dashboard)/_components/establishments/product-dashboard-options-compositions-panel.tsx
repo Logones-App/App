@@ -224,10 +224,8 @@ export function ProductOptionsAndCompositionsPanel({
       <Card>
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Options</CardTitle>
-            <CardDescription>
-              Groupes d&apos;options assignés à ce produit (cuisson, taille, suppléments…).
-            </CardDescription>
+            <CardTitle>Attributs produit</CardTitle>
+            <CardDescription>Caractéristiques choisies à la commande (cuisson, taille, température…).</CardDescription>
           </div>
           <Button size="sm" variant="outline" asChild>
             <a href={optionsHref}>
