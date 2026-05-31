@@ -85,12 +85,14 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
           lead_time_days: Number.isFinite(ltd) && ltd > 0 ? ltd : null,
         },
         {
-          onSuccess: () => {
+          onSuccess: (newProductSupplierId) => {
             if (effectiveCost) {
               addHistoryMutation.mutate({
                 unit_cost: effectiveCost,
                 effective_from: new Date().toISOString().slice(0, 10),
+                product_supplier_id: newProductSupplierId,
                 supplier_id: supplierId,
+                supplier_ref: supplierRef.trim() || undefined,
               });
             }
             onClose();
@@ -149,9 +151,9 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Ajouter un prix</DialogTitle>
+          <DialogTitle>Associer un fournisseur</DialogTitle>
           <DialogDescription>
-            Enregistrez un prix d&apos;achat et associez-le optionnellement à un fournisseur.
+            Associez un fournisseur, renseignez son prix d&apos;achat et ses références catalogue.
           </DialogDescription>
         </DialogHeader>
 
@@ -221,23 +223,36 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
             {unitSelect}
           </div>
 
-          <div className="space-y-2">
-            <Label>Qté par colis</Label>
-            <Input
-              value={qtyPerOrder}
-              onChange={(e) => setQtyPerOrder(e.target.value)}
-              inputMode="decimal"
-              placeholder="1"
-              className="tabular-nums"
-            />
-          </div>
-
           {supplierMode !== "none" && (
             <>
               <div className="space-y-2 sm:col-span-2">
                 <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                  Référence fournisseur
+                  Références & conditions
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Qté par colis</Label>
+                <p className="text-muted-foreground text-xs">
+                  Unités dans l&apos;emballage (ex : 12 bouteilles/carton)
+                </p>
+                <Input
+                  value={qtyPerOrder}
+                  onChange={(e) => setQtyPerOrder(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="1"
+                  className="tabular-nums"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Qté min commande</Label>
+                <p className="text-muted-foreground text-xs">Minimum imposé par le fournisseur (ex : 5 cartons)</p>
+                <Input
+                  value={orderQuantity}
+                  onChange={(e) => setOrderQuantity(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="—"
+                  className="tabular-nums"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Réf. article</Label>
@@ -249,16 +264,6 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
                   value={supplierProductName}
                   onChange={(e) => setSupplierProductName(e.target.value)}
                   placeholder="Gruyère râpé 1kg AOP"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Qté min commande</Label>
-                <Input
-                  value={orderQuantity}
-                  onChange={(e) => setOrderQuantity(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="—"
-                  className="tabular-nums"
                 />
               </div>
               <div className="space-y-2">

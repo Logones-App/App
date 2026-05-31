@@ -19,6 +19,7 @@ import {
   GraduationCap,
   SlidersHorizontal,
   FileText,
+  BookOpen,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -143,6 +144,11 @@ export const getOrgAdminSidebarItems = (
           title: "Fournisseurs",
           url: `${baseUrl}/dashboard/suppliers`,
           icon: Truck,
+        },
+        {
+          title: "Catalogue achats",
+          url: `${baseUrl}/dashboard/catalog-achats`,
+          icon: BookOpen,
         },
       ],
     },

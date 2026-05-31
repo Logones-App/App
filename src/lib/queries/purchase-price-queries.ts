@@ -70,6 +70,7 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
     mutationFn: async (values: {
       unit_cost: number;
       effective_from: string;
+      product_supplier_id?: string;
       supplier_id?: string;
       supplier_ref?: string;
       notes?: string;
@@ -81,6 +82,7 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
         organization_id: organizationId,
         unit_cost: values.unit_cost,
         effective_from: values.effective_from,
+        product_supplier_id: values.product_supplier_id ?? null,
         supplier_id: values.supplier_id ?? null,
         supplier_ref: values.supplier_ref?.trim() ?? null,
         notes: values.notes?.trim() ?? null,

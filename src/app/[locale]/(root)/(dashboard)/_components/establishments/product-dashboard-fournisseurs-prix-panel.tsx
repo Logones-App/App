@@ -237,11 +237,17 @@ function SupplierPriceCard({
       },
       {
         onSuccess: () => {
-          addHistoryMutation.mutate({
-            unit_cost: normalizedCost,
-            effective_from: new Date().toISOString().slice(0, 10),
-            supplier_id: link.supplier_id,
-          });
+          toast.success("Prix mis à jour.");
+          addHistoryMutation.mutate(
+            {
+              unit_cost: normalizedCost,
+              effective_from: new Date().toISOString().slice(0, 10),
+              product_supplier_id: link.id,
+              supplier_id: link.supplier_id,
+              supplier_ref: link.supplier_product_ref ?? undefined,
+            },
+            { onError: () => toast.error("Prix enregistré mais l'historique n'a pas pu être journalisé.") },
+          );
           setEditPrice(false);
         },
       },
@@ -291,14 +297,16 @@ function SupplierPriceCard({
               setLtdInput(numToStr(link.lead_time_days));
             }}
           >
-            Modifier le prix
+            Modifier
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="text-destructive hover:text-destructive h-8 w-8"
-            onClick={() => deleteMutation.mutate(link.id)}
+            onClick={() => {
+              if (confirm("Supprimer ce fournisseur du produit ?")) deleteMutation.mutate(link.id);
+            }}
             disabled={deleteMutation.isPending}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -354,33 +362,36 @@ function SupplierPriceCard({
               ✕
             </Button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              value={refInput}
-              onChange={(e) => setRefInput(e.target.value)}
-              placeholder="Réf. article (ex: TG-12345)"
-              className="w-44 font-mono text-xs"
-            />
-            <Input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Désignation fournisseur"
-              className="min-w-[12rem] flex-1 text-xs"
-            />
-            <Input
-              value={oqInput}
-              onChange={(e) => setOqInput(e.target.value)}
-              inputMode="decimal"
-              placeholder="Qté min"
-              className="w-20 text-xs tabular-nums"
-            />
-            <Input
-              value={ltdInput}
-              onChange={(e) => setLtdInput(e.target.value)}
-              inputMode="numeric"
-              placeholder="Délai (j)"
-              className="w-20 text-xs tabular-nums"
-            />
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">Réf. article · Désignation · Qté min · Délai (j)</p>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                value={refInput}
+                onChange={(e) => setRefInput(e.target.value)}
+                placeholder="TG-12345"
+                className="w-36 font-mono text-xs"
+              />
+              <Input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Désignation fournisseur"
+                className="min-w-[12rem] flex-1 text-xs"
+              />
+              <Input
+                value={oqInput}
+                onChange={(e) => setOqInput(e.target.value)}
+                inputMode="decimal"
+                placeholder="Qté min"
+                className="w-20 text-xs tabular-nums"
+              />
+              <Input
+                value={ltdInput}
+                onChange={(e) => setLtdInput(e.target.value)}
+                inputMode="numeric"
+                placeholder="Délai (j)"
+                className="w-20 text-xs tabular-nums"
+              />
+            </div>
           </div>
         </div>
       )}

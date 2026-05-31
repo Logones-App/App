@@ -144,8 +144,13 @@ export function useCreateProductSupplier(productId: string) {
   return useMutation({
     mutationFn: async (values: Omit<ProductSupplierInsert, "product_id">) => {
       const supabase = createClient();
-      const { error } = await supabase.from("product_suppliers").insert({ ...values, product_id: productId });
+      const { data, error } = await supabase
+        .from("product_suppliers")
+        .insert({ ...values, product_id: productId })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data.id;
     },
     onSuccess: () => {
       toast.success("Fournisseur associé");
@@ -183,6 +188,35 @@ export function useDeleteProductSupplier(productId: string) {
       void queryClient.invalidateQueries({ queryKey: productSupplierQueryKey(productId) });
     },
     onError: () => toast.error("Erreur lors de la suppression"),
+  });
+}
+
+// ─── Catalogue achats (tous les liens produit × fournisseur d'une org) ────────
+
+export type CatalogSupplierRow = ProductSupplierRow & {
+  product: { id: string; name: string } | null;
+  supplier: { id: string; name: string; is_active: boolean } | null;
+};
+
+export function allProductSuppliersQueryKey(organizationId: string) {
+  return ["all-product-suppliers", organizationId] as const;
+}
+
+export function useAllProductSuppliers(organizationId: string) {
+  return useQuery({
+    queryKey: allProductSuppliersQueryKey(organizationId),
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("product_suppliers")
+        .select("*, product:products(id, name), supplier:suppliers(id, name, is_active)")
+        .eq("organization_id", organizationId)
+        .eq("deleted", false)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as CatalogSupplierRow[];
+    },
+    enabled: !!organizationId,
   });
 }
 
