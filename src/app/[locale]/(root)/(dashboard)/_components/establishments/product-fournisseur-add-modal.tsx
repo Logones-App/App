@@ -17,11 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
 import { useActiveSuppliers, useCreateProductSupplier, useCreateSupplier } from "@/lib/queries/supplier-queries";
-import { normalizeUnitPrice } from "@/lib/utils/unit-conversion";
+import { areUnitsCompatible, normalizeUnitPrice } from "@/lib/utils/unit-conversion";
 
 type SupplierMode = "none" | "existing" | "new";
 
@@ -41,11 +40,11 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
   const [price, setPrice] = useState("");
   const [orderUnit, setOrderUnit] = useState("");
   const [qtyPerOrder, setQtyPerOrder] = useState("1");
-  const [isPreferred, setIsPreferred] = useState(false);
   const [supplierRef, setSupplierRef] = useState("");
   const [supplierProductName, setSupplierProductName] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
   const [leadTimeDays, setLeadTimeDays] = useState("");
+  const [notes, setNotes] = useState("");
 
   const { data: suppliers = [] } = useActiveSuppliers(organizationId);
   const available = suppliers.filter((s) => !usedSupplierIds.has(s.id));
@@ -64,7 +63,13 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
     const cost = parseFloat(price.replace(",", "."));
     const unitPrice = Number.isFinite(cost) && cost > 0 ? Math.round(cost * 10000) / 10000 : null;
     const qtyNum = parseQty(qtyPerOrder);
-    const normalizedCost = unitPrice != null ? normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit) : null;
+    const incompatible = !areUnitsCompatible(orderUnit || null, portionUnit);
+    const normalizedCost =
+      unitPrice != null
+        ? incompatible && qtyNum > 1
+          ? Math.round((unitPrice / qtyNum) * 10000) / 10000
+          : normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit)
+        : null;
     const effectiveCost = normalizedCost ?? unitPrice;
 
     const oq = parseFloat(orderQuantity.replace(",", "."));
@@ -78,11 +83,11 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
           unit_price: unitPrice,
           order_unit: orderUnit || null,
           units_per_package: qtyNum > 1 ? qtyNum : null,
-          is_preferred: isPreferred,
           supplier_product_ref: supplierRef.trim() || null,
           supplier_product_name: supplierProductName.trim() || null,
           order_quantity: Number.isFinite(oq) && oq > 0 ? oq : null,
           lead_time_days: Number.isFinite(ltd) && ltd > 0 ? ltd : null,
+          notes: notes.trim() || null,
         },
         {
           onSuccess: (newProductSupplierId) => {
@@ -231,21 +236,38 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Qté par colis</Label>
+                <Label>
+                  Contenance
+                  {portionUnit ? (
+                    <span className="text-muted-foreground ml-1 text-xs font-normal">
+                      ({t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)} par unité
+                      d&apos;achat)
+                    </span>
+                  ) : null}
+                </Label>
                 <p className="text-muted-foreground text-xs">
-                  Unités dans l&apos;emballage (ex : 12 bouteilles/carton)
+                  {portionUnit
+                    ? `Ex : 250 si une pièce contient 250 ${t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)}`
+                    : "Quantité de stock reçue par unité d'achat"}
                 </p>
-                <Input
-                  value={qtyPerOrder}
-                  onChange={(e) => setQtyPerOrder(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="1"
-                  className="tabular-nums"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={qtyPerOrder}
+                    onChange={(e) => setQtyPerOrder(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="1"
+                    className="tabular-nums"
+                  />
+                  {portionUnit && (
+                    <span className="text-muted-foreground shrink-0 text-sm">
+                      {t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Qté min commande</Label>
-                <p className="text-muted-foreground text-xs">Minimum imposé par le fournisseur (ex : 5 cartons)</p>
+                <p className="text-muted-foreground text-xs">Minimum imposé par le fournisseur</p>
                 <Input
                   value={orderQuantity}
                   onChange={(e) => setOrderQuantity(e.target.value)}
@@ -276,9 +298,13 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
                   className="tabular-nums"
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <Switch id="add-pref" checked={isPreferred} onCheckedChange={setIsPreferred} />
-                <Label htmlFor="add-pref">Fournisseur préféré</Label>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Notes</Label>
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Conditions particulières, remarques…"
+                />
               </div>
             </>
           )}

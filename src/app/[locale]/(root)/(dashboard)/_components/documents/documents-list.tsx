@@ -52,7 +52,9 @@ function TypeBadge({ type }: { type: string | null }) {
 function jsonField(json: unknown, key: keyof DocJson): string {
   if (!json || typeof json !== "object") return "—";
   const val = (json as DocJson)[key];
-  return val != null ? String(val) : "—";
+  if (val == null) return "—";
+  if (Array.isArray(val)) return (val as unknown[]).join(" / ");
+  return String(val);
 }
 
 type Props = { organizationId: string; establishmentId: string; detailBaseUrl: string };
@@ -115,6 +117,7 @@ export function DocumentsList({ organizationId, establishmentId, detailBaseUrl }
             <SelectItem value="__all__">Tous les types</SelectItem>
             <SelectItem value="facture">Facture</SelectItem>
             <SelectItem value="bl">Bon de livraison</SelectItem>
+            <SelectItem value="facture_bl">Facture / BL</SelectItem>
             <SelectItem value="ticket">Ticket</SelectItem>
           </SelectContent>
         </Select>

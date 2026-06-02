@@ -17,37 +17,105 @@ import { areUnitsCompatible, compatibleUnits } from "@/lib/utils/unit-conversion
 
 type Ingredient = { id: string; name: string; portion_unit: string | null };
 
+function IngredientUnitHints({
+  needsConversion,
+  unitIncompatibleWithStock,
+  stockUnit,
+  ingredientId,
+  selectedPortionUnit,
+  unit,
+  conversionFactor,
+  onConversionChange,
+  t,
+}: {
+  needsConversion: boolean;
+  unitIncompatibleWithStock: boolean;
+  stockUnit: string | null;
+  ingredientId: string;
+  selectedPortionUnit: string | null | undefined;
+  unit: string;
+  conversionFactor: string;
+  onConversionChange: (v: string) => void;
+  t: (key: PortionUnit) => string;
+}) {
+  return (
+    <>
+      {needsConversion && (
+        <>
+          <span className="text-muted-foreground text-xs">
+            1 {selectedPortionUnit === "piece" ? "pièce" : selectedPortionUnit} =
+          </span>
+          <Input
+            value={conversionFactor}
+            onChange={(e) => onConversionChange(e.target.value)}
+            inputMode="decimal"
+            placeholder="ex : 450"
+            className="h-7 w-20 text-xs tabular-nums"
+          />
+          <span className="text-muted-foreground text-xs">{unit}</span>
+        </>
+      )}
+      {unitIncompatibleWithStock && stockUnit && (
+        <span className="w-full text-xs text-amber-600">
+          ⚠ Stock géré en <strong>{t(stockUnit as PortionUnit)}</strong> — la quantité doit être dans cette unité.
+        </span>
+      )}
+      {stockUnit && !unitIncompatibleWithStock && ingredientId && (
+        <span className="text-muted-foreground text-xs">Stock : {t(stockUnit as PortionUnit)}</span>
+      )}
+    </>
+  );
+}
+
 type Props = {
   ingredients: Ingredient[];
+  stockUnits: Map<string, string>;
   isPending: boolean;
   colSpan?: number;
-  onAdd: (payload: { componentId: string; quantity: number; quantityUnit: string }) => void;
+  onAdd: (payload: { componentId: string; quantity: number; quantityUnit: string; conversionFactor?: number }) => void;
   onCancel: () => void;
 };
 
-export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, onAdd, onCancel }: Props) {
+export function InlineIngredientAddRow({ ingredients, stockUnits, isPending, colSpan = 6, onAdd, onCancel }: Props) {
   const t = useTranslations("units");
   const [open, setOpen] = useState(false);
   const [ingredientId, setIngredientId] = useState("");
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("g");
+  const [conversionFactor, setConversionFactor] = useState("");
 
   const selected = ingredients.find((p) => p.id === ingredientId);
-  const allowedUnits = compatibleUnits(selected?.portion_unit, PORTION_UNITS);
+  const stockUnit = ingredientId ? (stockUnits.get(ingredientId) ?? null) : null;
+  // Les unités proposées doivent être compatibles avec l'unité de stock (référence POS)
+  const allowedUnits = compatibleUnits(stockUnit ?? selected?.portion_unit, PORTION_UNITS);
+  const unitIncompatibleWithStock = !!stockUnit && !areUnitsCompatible(unit, stockUnit);
+  const needsConversion =
+    !!selected &&
+    !!selected.portion_unit &&
+    !areUnitsCompatible(unit, selected.portion_unit) &&
+    !unitIncompatibleWithStock;
 
   const handleSelectIngredient = (id: string) => {
     const ing = ingredients.find((p) => p.id === id);
     setIngredientId(id);
     setOpen(false);
-    if (ing?.portion_unit && !areUnitsCompatible(unit, ing.portion_unit)) {
-      setUnit(ing.portion_unit);
+    const sUnit = stockUnits.get(id) ?? null;
+    const refUnit = sUnit ?? ing?.portion_unit ?? null;
+    if (refUnit && !areUnitsCompatible(unit, refUnit)) {
+      setUnit(refUnit);
     }
   };
 
   const handleAdd = () => {
     const qtyNum = parseFloat(qty.replace(",", "."));
     if (!ingredientId || !Number.isFinite(qtyNum) || qtyNum <= 0) return;
-    onAdd({ componentId: ingredientId, quantity: qtyNum, quantityUnit: unit });
+    const factorNum = parseFloat(conversionFactor.replace(",", "."));
+    onAdd({
+      componentId: ingredientId,
+      quantity: qtyNum,
+      quantityUnit: unit,
+      conversionFactor: needsConversion && Number.isFinite(factorNum) && factorNum > 0 ? factorNum : undefined,
+    });
   };
 
   return (
@@ -116,6 +184,18 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
             </SelectContent>
           </Select>
 
+          <IngredientUnitHints
+            needsConversion={needsConversion}
+            unitIncompatibleWithStock={unitIncompatibleWithStock}
+            stockUnit={stockUnit}
+            ingredientId={ingredientId}
+            selectedPortionUnit={selected?.portion_unit}
+            unit={unit}
+            conversionFactor={conversionFactor}
+            onConversionChange={setConversionFactor}
+            t={t}
+          />
+
           {/* Actions */}
           <Button
             type="button"
@@ -123,7 +203,7 @@ export function InlineIngredientAddRow({ ingredients, isPending, colSpan = 6, on
             size="icon"
             className="h-7 w-7 text-green-600 hover:text-green-700"
             onClick={handleAdd}
-            disabled={isPending || !ingredientId || !qty}
+            disabled={isPending || !ingredientId || !qty || unitIncompatibleWithStock}
             aria-label="Confirmer"
           >
             <Check className="h-4 w-4" />

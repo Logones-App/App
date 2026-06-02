@@ -32,6 +32,51 @@ export const MOVEMENT_TYPES: {
   { key: "transfer", label: "Transfert / retour", sign: "both", emoji: "🔄" },
 ];
 
+/**
+ * Retourne l'unité de stock (product_stocks.unit) pour une liste d'ingrédients.
+ * Utilisé pour valider la cohérence entre l'unité de composition et l'unité de stock.
+ */
+export function useIngredientStockUnits(productIds: string[], establishmentId: string) {
+  return useQuery({
+    queryKey: ["ingredient-stock-units", productIds.sort().join(","), establishmentId],
+    queryFn: async () => {
+      if (productIds.length === 0) return new Map<string, string>();
+      const supabase = createClient();
+
+      const { data: comps, error: cErr } = await supabase
+        .from("product_compositions")
+        .select("id, main_product_id, component_product_id")
+        .in("main_product_id", productIds)
+        .eq("establishment_id", establishmentId)
+        .eq("deleted", false);
+      if (cErr) throw cErr;
+
+      const selfComps = (comps ?? []).filter((c) => c.main_product_id === c.component_product_id);
+      if (selfComps.length === 0) return new Map<string, string>();
+
+      const { data: stocks, error: sErr } = await supabase
+        .from("product_stocks")
+        .select("product_composition_id, unit")
+        .in(
+          "product_composition_id",
+          selfComps.map((c) => c.id),
+        )
+        .eq("establishment_id", establishmentId)
+        .eq("deleted", false);
+      if (sErr) throw sErr;
+
+      const compIdToProductId = new Map(selfComps.map((c) => [c.id, c.main_product_id]));
+      const map = new Map<string, string>();
+      for (const s of stocks ?? []) {
+        const productId = compIdToProductId.get(s.product_composition_id);
+        if (productId) map.set(productId, s.unit);
+      }
+      return map;
+    },
+    enabled: productIds.length > 0 && !!establishmentId,
+  });
+}
+
 export function stockMovementsQueryKey(productId: string, organizationId: string, establishmentId: string) {
   return ["stock-movements", productId, organizationId, establishmentId] as const;
 }
@@ -73,11 +118,17 @@ export function useAddStockMovement(
       quantity,
       notes,
       currentStock,
+      productSupplierId,
+      referenceType,
+      referenceId,
     }: {
       movementType: MovementType;
       quantity: number;
       notes: string;
       currentStock: number;
+      productSupplierId?: string;
+      referenceType?: string;
+      referenceId?: string;
     }) => {
       if (!productStockId) throw new Error("Pas de fiche stock — impossible de créer un mouvement.");
 
@@ -98,12 +149,15 @@ export function useAddStockMovement(
         organization_id: organizationId,
         establishment_id: establishmentId,
         product_stock_id: productStockId,
+        product_supplier_id: productSupplierId ?? null,
         movement_type: movementType,
         quantity,
         quantity_before: currentStock,
         quantity_after: quantityAfter,
         unit: unit ?? null,
         notes: notes.trim() || null,
+        reference_type: referenceType ?? null,
+        reference_id: referenceId ?? null,
         created_by: userId,
         deleted: false,
       });
@@ -138,6 +192,94 @@ export function defaultProductStockInsert(
     low_stock_threshold: null,
     critical_stock_threshold: null,
   };
+}
+
+export function useChangeProductStockUnit(productId: string, organizationId: string, establishmentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      productStockId,
+      fromUnit,
+      toUnit,
+      currentQty,
+      conversionFactor,
+    }: {
+      productStockId: string;
+      fromUnit: string;
+      toUnit: string;
+      currentQty: number;
+      conversionFactor: number;
+    }) => {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Non authentifié");
+      const newQty = currentQty * conversionFactor;
+      const { error: stockErr } = await supabase
+        .from("product_stocks")
+        .update({ unit: toUnit, current_stock: newQty })
+        .eq("id", productStockId);
+      if (stockErr) throw stockErr;
+      const { error: prodErr } = await supabase.from("products").update({ portion_unit: toUnit }).eq("id", productId);
+      if (prodErr) throw prodErr;
+      await supabase.from("stock_movements").insert({
+        product_id: productId,
+        organization_id: organizationId,
+        establishment_id: establishmentId,
+        product_stock_id: productStockId,
+        movement_type: "adjustment",
+        quantity: newQty - currentQty,
+        quantity_before: currentQty,
+        quantity_after: newQty,
+        unit: toUnit,
+        notes: `Conversion d'unité : ${currentQty} ${fromUnit} → ${newQty} ${toUnit}`,
+        created_by: authData.user.id,
+        deleted: false,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Unité de stock mise à jour.");
+      void queryClient.invalidateQueries({
+        queryKey: stockMovementsQueryKey(productId, organizationId, establishmentId),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["product-establishment-dashboard"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la conversion"),
+  });
+}
+
+/**
+ * Retourne toutes les lignes de composition (recettes) qui utilisent ce produit comme ingrédient.
+ * Utilisé pour avertir l'utilisateur avant un changement d'unité de stock.
+ */
+export function useRecipesUsingIngredient(componentProductId: string) {
+  return useQuery({
+    queryKey: ["recipes-using-ingredient", componentProductId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data: comps, error: compErr } = await supabase
+        .from("product_compositions")
+        .select("id, default_quantity, quantity_unit, main_product_id")
+        .eq("component_product_id", componentProductId)
+        .neq("main_product_id", componentProductId)
+        .eq("deleted", false);
+      if (compErr) throw compErr;
+      if (!comps || comps.length === 0) return [];
+      const recipeIds = [...new Set(comps.map((c) => c.main_product_id))];
+      const { data: products, error: prodErr } = await supabase.from("products").select("id, name").in("id", recipeIds);
+      if (prodErr) throw prodErr;
+      const productMap = new Map((products ?? []).map((p) => [p.id, p.name]));
+      return comps.map((c) => ({
+        id: c.id,
+        quantity: c.default_quantity,
+        quantityUnit: c.quantity_unit,
+        recipeName: productMap.get(c.main_product_id) ?? "—",
+      }));
+    },
+    enabled: !!componentProductId,
+  });
 }
 
 export async function insertInitialMovement(

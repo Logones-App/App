@@ -28,6 +28,7 @@ import { defaultProductStockInsert, insertInitialMovement } from "@/lib/queries/
 import { createClient } from "@/lib/supabase/client";
 
 import { CompositionStockCard } from "./product-composition-dashboard-blocks";
+import { ChangeStockUnitSection } from "./product-dashboard-change-unit";
 import { StockMovementsSection } from "./product-dashboard-stock-movements";
 
 const DEFAULT_STOCK_UNIT = "piece";
@@ -474,6 +475,17 @@ export function ProductStockPanel({
         currentStock={currentStock}
         unit={selfStockUnit}
       />
+
+      {selfStockId && selfStockUnit && (
+        <ChangeStockUnitSection
+          productId={productId}
+          organizationId={organizationId}
+          establishmentId={establishmentId}
+          stockId={selfStockId}
+          currentUnit={selfStockUnit}
+          currentQty={currentStock}
+        />
+      )}
     </div>
   );
 }

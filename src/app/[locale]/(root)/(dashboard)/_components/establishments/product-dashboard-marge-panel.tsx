@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useComponentFifoCosts } from "@/lib/queries/fifo-cost-queries";
 import {
   ttcToHt,
   type MenuProductPricingJoin,
@@ -35,16 +36,20 @@ export function ProductMargePanel({
   compositions,
   menuProductPricing,
   organizationId,
+  establishmentId,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
   menuProductPricing: MenuProductPricingJoin[];
   organizationId: string;
+  establishmentId: string;
 }) {
   const technicalLines = compositions.filter((c) => c.main_product_id !== c.component_product_id);
   const componentIds = technicalLines.map((c) => c.component_product_id);
 
-  const { data: componentPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
+  const { data: fifoCosts } = useComponentFifoCosts(componentIds, organizationId, establishmentId);
+  const { data: lastPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
+  const componentPrices = new Map<string, number>([...(lastPrices ?? new Map()), ...(fifoCosts ?? new Map())]);
   const { data: selfHistory = [] } = useProductPurchasePriceHistory(product.id, organizationId);
 
   const selfPurchasePriceHT = getCurrentPurchasePrice(selfHistory)?.unit_cost ?? null;
@@ -56,7 +61,8 @@ export function ProductMargePanel({
         .filter((c) => c.composition_kind === "recipe")
         .reduce((sum, c) => {
           const uc = componentPrices?.get(c.component_product_id);
-          const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit);
+          const cf = (c as unknown as { conversion_factor: number | null }).conversion_factor ?? null;
+          const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit, cf);
           return cost != null ? sum + cost : sum;
         }, 0)
     : null;

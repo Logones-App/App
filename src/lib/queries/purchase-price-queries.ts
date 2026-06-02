@@ -24,7 +24,8 @@ export function useProductPurchasePriceHistory(productId: string, organizationId
         .select("*")
         .eq("product_id", productId)
         .eq("organization_id", organizationId)
-        .order("effective_from", { ascending: false });
+        .order("effective_from", { ascending: false })
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as PurchasePriceRow[];
     },
@@ -37,7 +38,7 @@ export function getCurrentPurchasePrice(history: PurchasePriceRow[]): PurchasePr
   return history[0] ?? null;
 }
 
-/** Dernier prix saisi par product_id pour une liste de composants (le plus récent par created_at). */
+/** Prix courant par product_id : dernière entrée de l'historique (effective_from puis created_at desc). */
 export function useComponentCurrentPurchasePrices(componentProductIds: string[], organizationId: string) {
   return useQuery({
     queryKey: ["component-purchase-prices", componentProductIds.sort().join(","), organizationId],
@@ -46,12 +47,12 @@ export function useComponentCurrentPurchasePrices(componentProductIds: string[],
       const supabase = createClient();
       const { data, error } = await supabase
         .from("product_purchase_price_history")
-        .select("product_id, unit_cost, effective_from")
+        .select("product_id, unit_cost, effective_from, created_at")
         .in("product_id", componentProductIds)
         .eq("organization_id", organizationId)
-        .order("effective_from", { ascending: false });
+        .order("effective_from", { ascending: false })
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      // Prendre le premier par product_id = le plus récemment saisi
       const map = new Map<string, number>();
       for (const row of data ?? []) {
         if (!map.has(row.product_id)) map.set(row.product_id, row.unit_cost);

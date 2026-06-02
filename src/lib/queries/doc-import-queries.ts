@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { type Json } from "@/lib/supabase/database.types";
 
 export type DocStatus = "processing" | "auto_valide" | "a_valider" | "valide" | "erreur";
-export type DocType = "facture" | "bl" | "ticket";
+export type DocType = "facture" | "bl" | "facture_bl" | "ticket";
 
 export type DocLigne = {
   reference?: string;
@@ -15,8 +15,16 @@ export type DocLigne = {
   unite?: string;
   prix_unitaire?: number;
   total_ht?: number;
+  contenance_unitaire?: number;
+  unite_contenance?: string;
   _confidence?: "low";
   [key: string]: unknown;
+};
+
+export type TvaDetail = {
+  base_ht: number;
+  taux_tva: number;
+  montant_tva: number;
 };
 
 export type DocJson = {
@@ -26,17 +34,18 @@ export type DocJson = {
   siret?: string;
   tva_intracommunautaire?: string;
   numero_facture?: string;
-  numero_bl?: string;
-  reference_commande?: string;
+  numero_bl?: string | string[];
+  reference_commande?: string | string[];
   compte_client?: string;
   representant?: string;
   date?: string;
-  date_echeance?: string;
+  date_echeance?: string | null;
   date_livraison?: string;
   lignes?: DocLigne[];
   total_ht?: number;
   tva_rate?: number;
   tva_montant?: number;
+  tva_details?: TvaDetail[] | null;
   total_ttc?: number;
   _confidence_total_ht?: "low";
   _date_confidence?: "low";
@@ -107,15 +116,48 @@ export function useValidateDoc(docId: string) {
   return useMutation({
     mutationFn: async (validatedJson: Json) => {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("doc_imports")
-        .update({ status: "valide", validated_json: validatedJson })
-        .eq("id", docId);
-      if (error) throw error;
+      const json = validatedJson as DocJson;
+
+      const docPatch = {
+        status: "valide",
+        validated_json: validatedJson,
+        document_date: json.date ?? json.date_livraison ?? null,
+        numero_document: (() => {
+          const v = json.numero_facture ?? json.numero_bl ?? null;
+          return Array.isArray(v) ? (v[0] ?? null) : typeof v === "string" ? v : null;
+        })(),
+        date_echeance: typeof json.date_echeance === "string" ? json.date_echeance : null,
+        date_livraison: json.date_livraison ?? null,
+        total_ht: typeof json.total_ht === "number" ? json.total_ht : null,
+        total_ttc: typeof json.total_ttc === "number" ? json.total_ttc : null,
+        tva_details: Array.isArray(json.tva_details) ? (json.tva_details as Json) : null,
+      };
+
+      const { error: docError } = await supabase.from("doc_imports").update(docPatch).eq("id", docId);
+      if (docError) throw docError;
+
+      const lignes = Array.isArray(json.lignes) ? json.lignes : [];
+      if (lignes.length > 0) {
+        const rows = lignes.map((l: DocLigne) => ({
+          import_id: docId,
+          reference: l.reference ?? null,
+          designation: l.designation ?? null,
+          quantite: l.quantite ?? null,
+          unite: l.unite ?? null,
+          prix_unitaire: l.prix_unitaire ?? null,
+          total_ht: l.total_ht ?? null,
+          contenance_unitaire: typeof l.contenance_unitaire === "number" ? l.contenance_unitaire : null,
+          unite_contenance: l.unite_contenance ?? null,
+          automation_status: "pending",
+        }));
+        const { error: linesError } = await supabase.from("doc_import_lines").insert(rows);
+        if (linesError) throw linesError;
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["doc-import", docId] });
       void queryClient.invalidateQueries({ queryKey: ["doc-imports"] });
+      void queryClient.invalidateQueries({ queryKey: ["doc-import-lines", docId] });
     },
   });
 }

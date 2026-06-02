@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronDown, ChevronRight, Plus, Star, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ import {
   useUpdateProductSupplier,
   type ProductSupplierRow,
 } from "@/lib/queries/supplier-queries";
-import { compatibleUnits, normalizeUnitPrice, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
+import { areUnitsCompatible, normalizeUnitPrice, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 import { AddSupplierModal } from "./product-fournisseur-add-modal";
 
@@ -149,35 +149,45 @@ function SupplierRefChips({
   );
 }
 
-function SupplierCardHeader({
-  supplierName,
-  isActive,
-  isPreferred,
-  onTogglePreferred,
-}: {
-  supplierName: string | null;
-  isActive: boolean | null;
-  isPreferred: boolean;
-  onTogglePreferred: () => void;
-}) {
+function SupplierCardHeader({ supplierName, isActive }: { supplierName: string | null; isActive: boolean | null }) {
   return (
     <div className="flex items-center gap-2">
-      <button type="button" title={isPreferred ? "Retirer préféré" : "Marquer préféré"} onClick={onTogglePreferred}>
-        <Star className={`h-4 w-4 ${isPreferred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
-      </button>
       <span className="font-medium">{supplierName ?? "—"}</span>
       {isActive === false && (
         <Badge variant="secondary" className="text-xs">
           Inactif
         </Badge>
       )}
-      {isPreferred && (
-        <Badge variant="outline" className="border-yellow-400 text-xs text-yellow-700">
-          Préféré
-        </Badge>
-      )}
     </div>
   );
+}
+
+function computeNormalizedCost(
+  unitPrice: number,
+  orderUnit: string | null,
+  portionUnit: string | null,
+  qtyNum: number,
+): number {
+  if (!areUnitsCompatible(orderUnit, portionUnit) && qtyNum > 1) {
+    return Math.round((unitPrice / qtyNum) * 10000) / 10000;
+  }
+  return normalizeUnitPrice(unitPrice, orderUnit, portionUnit);
+}
+
+function ContenanceLabel({ portionUnit, t }: { portionUnit: string | null; t: (u: PortionUnit) => string }) {
+  if (portionUnit) {
+    return (
+      <p className="text-muted-foreground text-xs font-medium">
+        Contenance (en {t(portionUnit as PortionUnit)} par unité d&apos;achat)
+      </p>
+    );
+  }
+  return <p className="text-muted-foreground text-xs font-medium">Contenance</p>;
+}
+
+function PortionUnitSpan({ portionUnit, t }: { portionUnit: string | null; t: (u: PortionUnit) => string }) {
+  if (!portionUnit) return null;
+  return <span className="text-muted-foreground text-sm">{t(portionUnit as PortionUnit)}</span>;
 }
 
 // ─── Carte fournisseur ─────────────────────────────────────────────────────────
@@ -210,7 +220,7 @@ function SupplierPriceCard({
   const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
 
   const supplierHistory = history.filter((h) => h.supplier_id === link.supplier_id);
-  const unitOptions = compatibleUnits(portionUnit, PORTION_UNITS);
+  const unitOptions = PORTION_UNITS;
 
   const handleSavePrice = () => {
     const cost = parseFloat(priceInput.replace(",", "."));
@@ -221,7 +231,7 @@ function SupplierPriceCard({
     const unitPrice = Math.round(cost * 10000) / 10000;
     const qty = parseFloat(qtyInput.replace(",", "."));
     const qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    const normalizedCost = normalizeUnitPrice(unitPrice, unitInput || null, portionUnit);
+    const normalizedCost = computeNormalizedCost(unitPrice, unitInput || null, portionUnit, qtyNum);
     updateMutation.mutate(
       {
         id: link.id,
@@ -255,19 +265,10 @@ function SupplierPriceCard({
   };
 
   return (
-    <div
-      className={`rounded-lg border p-4 ${link.is_preferred ? "border-yellow-300 bg-yellow-50/30 dark:border-yellow-800 dark:bg-yellow-950/20" : ""}`}
-    >
+    <div className="rounded-lg border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-0.5">
-          <SupplierCardHeader
-            supplierName={link.supplier?.name ?? null}
-            isActive={link.supplier?.is_active ?? null}
-            isPreferred={link.is_preferred}
-            onTogglePreferred={() =>
-              updateMutation.mutate({ id: link.id, patch: { is_preferred: !link.is_preferred } })
-            }
-          />
+          <SupplierCardHeader supplierName={link.supplier?.name ?? null} isActive={link.supplier?.is_active ?? null} />
           <SupplierPriceDisplay
             unitPrice={link.unit_price ?? null}
             orderUnit={link.order_unit ?? null}
@@ -316,51 +317,106 @@ function SupplierPriceCard({
 
       {editPrice && (
         <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-28">
-              <Input
-                value={priceInput}
-                onChange={(e) => setPriceInput(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                className="pr-6 tabular-nums"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSavePrice();
-                  if (e.key === "Escape") setEditPrice(false);
-                }}
-              />
-              <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs font-medium">Prix HT</p>
+              <div className="relative w-28">
+                <Input
+                  value={priceInput}
+                  onChange={(e) => setPriceInput(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="pr-6 tabular-nums"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSavePrice();
+                    if (e.key === "Escape") setEditPrice(false);
+                  }}
+                />
+                <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+              </div>
             </div>
-            <Select value={unitInput || "__none__"} onValueChange={(v) => setUnitInput(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— Unité</SelectItem>
-                {unitOptions.map((u) => (
-                  <SelectItem key={u} value={u}>
-                    {t(u as PortionUnit)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground text-sm">×</span>
-              <Input
-                value={qtyInput}
-                onChange={(e) => setQtyInput(e.target.value)}
-                inputMode="decimal"
-                placeholder="1"
-                className="w-16 tabular-nums"
-              />
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs font-medium">Unité d&apos;achat</p>
+              <Select value={unitInput || "__none__"} onValueChange={(v) => setUnitInput(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— sans unité</SelectItem>
+                  {unitOptions.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {t(u)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
-              OK
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setEditPrice(false)}>
-              ✕
-            </Button>
+            <div className="space-y-1">
+              <ContenanceLabel portionUnit={portionUnit} t={t} />
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground text-sm">×</span>
+                <Input
+                  value={qtyInput}
+                  onChange={(e) => setQtyInput(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="1"
+                  className="w-16 tabular-nums"
+                />
+                <PortionUnitSpan portionUnit={portionUnit} t={t} />
+              </div>
+            </div>
+            <div className="flex gap-1 pb-0.5">
+              <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
+                OK
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setEditPrice(false)}>
+                ✕
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            <strong>Comment remplir ces champs ?</strong>
+            <ul className="mt-1 list-none space-y-1">
+              <li>
+                <strong>pièce × contenance</strong> — le fournisseur vend à l&apos;unité (barquette, bouteille, sachet…)
+                et votre stock est en g/kg/ml. Indiquez combien de grammes contient 1 pièce dans le champ ×.
+                <br />
+                <span className="font-medium">Ex : barquette de magret à 8,20 € contenant 250 g</span>
+                {" → "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">8,20</code> /{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">pièce</code> ×{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">250</code> g → coût = 8,20 ÷ 250 ={" "}
+                <strong>0,033 €/g</strong>
+              </li>
+              <li>
+                <strong>kg / g / l…</strong> — le fournisseur facture <em>directement</em> au poids ou au volume (vente
+                en vrac, au litre…). Le prix indiqué est déjà un prix par kg/g/l, pas par barquette.
+                <br />
+                <span className="font-medium">Ex : viande en vrac à 28 €/kg livrée en colis de 5 kg</span>
+                {" → "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">28</code> /{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">kg</code> ×{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">5</code> → stock reçu = 5 kg, coût = 28 €/kg
+                <br />
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  ⚠ Ne pas confondre avec &ldquo;pièce × 250 g&rdquo; : si le prix est par barquette, choisir
+                  &ldquo;pièce&rdquo;.
+                </span>
+              </li>
+              <li>
+                <strong>— Unité</strong> — cas rare : prix d&apos;un colis livré et stocké en entier, sans sous-unité.
+                Le stock reçu est toujours &ldquo;1&rdquo; par livraison.
+                <br />
+                <span className="font-medium">
+                  Ex : assortiment de condiments à 12 € la boîte, stockée telle quelle
+                </span>
+                {" → "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">12</code> /{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">— Unité</code> ×{" "}
+                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">1</code>
+              </li>
+            </ul>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Réf. article · Désignation · Qté min · Délai (j)</p>
@@ -419,40 +475,9 @@ export function ProductFournisseursPrixPanel({
   const { data: history = [] } = useProductPurchasePriceHistory(productId, organizationId);
 
   const usedIds = new Set(links.map((l) => l.supplier_id));
-  const preferred = links.find((l) => l.is_preferred) as ProductSupplierWithName | undefined;
 
   return (
     <div className="space-y-6">
-      {preferred && (
-        <Card className="border-yellow-200 bg-yellow-50/40 dark:border-yellow-900 dark:bg-yellow-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              Fournisseur préféré — utilisé pour le calcul du food cost
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-medium">{preferred.supplier?.name}</p>
-            {preferred.unit_price != null &&
-              (() => {
-                const { value: pv, displayUnit: pu } = toFriendlyUnitCost(
-                  preferred.unit_price,
-                  preferred.order_unit ?? portionUnit,
-                );
-                return (
-                  <p className="text-muted-foreground text-sm tabular-nums">
-                    {eur.format(pv)}
-                    {pu ? ` / ${pu}` : ""}
-                    {preferred.units_per_package != null && preferred.units_per_package > 1
-                      ? ` × ${preferred.units_per_package}`
-                      : ""}
-                  </p>
-                );
-              })()}
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>

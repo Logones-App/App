@@ -83,14 +83,22 @@ export function convertUnit(
  * - `unitCost` : coût par `ingredientUnit` de l'ingrédient
  * Retourne `null` si le coût ou la conversion sont impossibles.
  */
+/**
+ * conversionFactor = "1 [ingredientUnit] = X [qtyUnit]"
+ * Ex : 1 pièce = 450 g → conversionFactor = 450, qty = 112 g → 112/450 × unitCost
+ */
 export function compositionLineCost(
   qty: number | null,
   qtyUnit: string | null | undefined,
   unitCost: number | null | undefined,
   ingredientUnit: string | null | undefined,
+  conversionFactor?: number | null,
 ): number | null {
   if (qty == null || !unitCost) return null;
   const converted = convertUnit(qty, qtyUnit, ingredientUnit);
-  if (converted == null) return null;
-  return Math.round(converted * unitCost * 10000) / 10000;
+  if (converted != null) return Math.round(converted * unitCost * 10000) / 10000;
+  if (conversionFactor != null && conversionFactor > 0) {
+    return Math.round((qty / conversionFactor) * unitCost * 10000) / 10000;
+  }
+  return null;
 }

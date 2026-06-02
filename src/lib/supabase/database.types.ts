@@ -917,43 +917,61 @@ export type Database = {
       }
       doc_import_lines: {
         Row: {
+          applied_at: string | null
+          apply_price: boolean
+          apply_stock: boolean
           automation_note: string | null
           automation_status: string | null
+          contenance_unitaire: number | null
           designation: string | null
           id: string
           import_id: string
           prix_unitaire: number | null
+          product_id: string | null
           product_supplier_id: string | null
           quantite: number | null
           reference: string | null
           total_ht: number | null
           unite: string | null
+          unite_contenance: string | null
         }
         Insert: {
+          applied_at?: string | null
+          apply_price?: boolean
+          apply_stock?: boolean
           automation_note?: string | null
           automation_status?: string | null
+          contenance_unitaire?: number | null
           designation?: string | null
           id?: string
           import_id: string
           prix_unitaire?: number | null
+          product_id?: string | null
           product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
           total_ht?: number | null
           unite?: string | null
+          unite_contenance?: string | null
         }
         Update: {
+          applied_at?: string | null
+          apply_price?: boolean
+          apply_stock?: boolean
           automation_note?: string | null
           automation_status?: string | null
+          contenance_unitaire?: number | null
           designation?: string | null
           id?: string
           import_id?: string
           prix_unitaire?: number | null
+          product_id?: string | null
           product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
           total_ht?: number | null
           unite?: string | null
+          unite_contenance?: string | null
         }
         Relationships: [
           {
@@ -961,6 +979,13 @@ export type Database = {
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_import_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -1004,18 +1029,25 @@ export type Database = {
           automation_error: string | null
           consensus_json: Json | null
           created_at: string
+          date_echeance: string | null
+          date_livraison: string | null
           doc_type: string | null
+          document_date: string | null
           establishment_id: string
           extracted_azure: Json | null
           extracted_llm: Json | null
           id: string
           image_hash: string | null
+          numero_document: string | null
           organization_id: string
           pennylane_id: string | null
           source_type: string | null
           source_url: string | null
           status: string
           supplier_id: string | null
+          total_ht: number | null
+          total_ttc: number | null
+          tva_details: Json | null
           validated_at: string | null
           validated_by: string | null
           validated_json: Json | null
@@ -1026,18 +1058,25 @@ export type Database = {
           automation_error?: string | null
           consensus_json?: Json | null
           created_at?: string
+          date_echeance?: string | null
+          date_livraison?: string | null
           doc_type?: string | null
+          document_date?: string | null
           establishment_id: string
           extracted_azure?: Json | null
           extracted_llm?: Json | null
           id?: string
           image_hash?: string | null
+          numero_document?: string | null
           organization_id: string
           pennylane_id?: string | null
           source_type?: string | null
           source_url?: string | null
           status?: string
           supplier_id?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          tva_details?: Json | null
           validated_at?: string | null
           validated_by?: string | null
           validated_json?: Json | null
@@ -1048,18 +1087,25 @@ export type Database = {
           automation_error?: string | null
           consensus_json?: Json | null
           created_at?: string
+          date_echeance?: string | null
+          date_livraison?: string | null
           doc_type?: string | null
+          document_date?: string | null
           establishment_id?: string
           extracted_azure?: Json | null
           extracted_llm?: Json | null
           id?: string
           image_hash?: string | null
+          numero_document?: string | null
           organization_id?: string
           pennylane_id?: string | null
           source_type?: string | null
           source_url?: string | null
           status?: string
           supplier_id?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          tva_details?: Json | null
           validated_at?: string | null
           validated_by?: string | null
           validated_json?: Json | null
@@ -3413,6 +3459,7 @@ export type Database = {
           auto_open_modal: boolean | null
           component_product_id: string
           composition_kind: string
+          conversion_factor: number | null
           created_at: string | null
           default_quantity: number | null
           deleted: boolean | null
@@ -3433,6 +3480,7 @@ export type Database = {
           auto_open_modal?: boolean | null
           component_product_id: string
           composition_kind?: string
+          conversion_factor?: number | null
           created_at?: string | null
           default_quantity?: number | null
           deleted?: boolean | null
@@ -3453,6 +3501,7 @@ export type Database = {
           auto_open_modal?: boolean | null
           component_product_id?: string
           composition_kind?: string
+          conversion_factor?: number | null
           created_at?: string | null
           default_quantity?: number | null
           deleted?: boolean | null
@@ -4338,12 +4387,14 @@ export type Database = {
           organization_id: string
           product_id: string
           product_stock_id: string
+          product_supplier_id: string | null
           quantity: number
           quantity_after: number
           quantity_before: number
           reference_id: string | null
           reference_type: string | null
           unit: string | null
+          unit_cost: number | null
           work_session_id: string | null
         }
         Insert: {
@@ -4357,12 +4408,14 @@ export type Database = {
           organization_id: string
           product_id: string
           product_stock_id: string
+          product_supplier_id?: string | null
           quantity: number
           quantity_after: number
           quantity_before: number
           reference_id?: string | null
           reference_type?: string | null
           unit?: string | null
+          unit_cost?: number | null
           work_session_id?: string | null
         }
         Update: {
@@ -4376,12 +4429,14 @@ export type Database = {
           organization_id?: string
           product_id?: string
           product_stock_id?: string
+          product_supplier_id?: string | null
           quantity?: number
           quantity_after?: number
           quantity_before?: number
           reference_id?: string | null
           reference_type?: string | null
           unit?: string | null
+          unit_cost?: number | null
           work_session_id?: string | null
         }
         Relationships: [
@@ -4413,6 +4468,13 @@ export type Database = {
             referencedRelation: "product_stocks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movements_product_supplier_id_fkey"
+            columns: ["product_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "product_suppliers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       suppliers: {
@@ -4429,6 +4491,8 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          siret: string | null
+          tva_intracommunautaire: string | null
           updated_at: string | null
           website: string | null
         }
@@ -4445,6 +4509,8 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          siret?: string | null
+          tva_intracommunautaire?: string | null
           updated_at?: string | null
           website?: string | null
         }
@@ -4461,6 +4527,8 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          siret?: string | null
+          tva_intracommunautaire?: string | null
           updated_at?: string | null
           website?: string | null
         }

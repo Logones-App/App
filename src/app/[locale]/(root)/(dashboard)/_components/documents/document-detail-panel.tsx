@@ -4,7 +4,17 @@ import { useState } from "react";
 
 import Link from "next/link";
 
-import { AlertTriangle, ArrowLeft, CheckCircle, Download, ExternalLink, XCircle, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  XCircle,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +81,7 @@ function getUncertainFields(json: DocJson): string[] {
 function docTypeLabel(docType: string | null): string {
   if (docType === "facture") return "Facture";
   if (docType === "bl") return "Bon de livraison";
+  if (docType === "facture_bl") return "Facture / BL";
   return "Ticket";
 }
 
@@ -101,7 +112,8 @@ function DocumentHeader({
       <h1 className="text-lg font-semibold">
         {docTypeLabel(doc.doc_type)}
         {consensusJson.numero_facture && ` — ${consensusJson.numero_facture}`}
-        {consensusJson.numero_bl && ` — ${consensusJson.numero_bl}`}
+        {consensusJson.numero_bl &&
+          ` — ${Array.isArray(consensusJson.numero_bl) ? consensusJson.numero_bl.join(" / ") : consensusJson.numero_bl}`}
       </h1>
       <Badge variant="secondary" className={statusCfg.className}>
         {statusCfg.label}
@@ -309,7 +321,17 @@ export function DocumentDetailPanel({ docId, backUrl }: Props) {
           </Button>
           <Button disabled={busy} onClick={handleValidate}>
             <CheckCircle className="mr-1 h-4 w-4" />
-            {validateMutation.isPending ? "Validation…" : "Valider"}
+            {validateMutation.isPending ? "Validation…" : "Valider l'extraction"}
+          </Button>
+        </div>
+      )}
+
+      {doc.status === "valide" && (
+        <div className="flex justify-end border-t pt-4">
+          <Button asChild>
+            <Link href={`${backUrl}/${docId}/matching`}>
+              Traiter les lignes <ChevronRight className="ml-1 h-4 w-4" />
+            </Link>
           </Button>
         </div>
       )}
