@@ -50,7 +50,8 @@
       "Bash(Measure-Object -Line)",
       "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\_components\\\\documents\\\\doc-line-create-modal.tsx\" | Measure-Object -Line\\).Lines; \\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\_components\\\\documents\\\\doc-line-match-row.tsx\" | Measure-Object -Line\\).Lines)",
       "Bash(rm \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/admin/organizations/[id]/establishments/[establishmentId]/documents/[docId]/matching/document-matching-client.tsx\")",
-      "Bash(rm \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/documents/[docId]/matching/document-matching-client.tsx\")"
+      "Bash(rm \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/documents/[docId]/matching/document-matching-client.tsx\")",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\_components\\\\establishments\\\\product-dashboard-stock-panel.tsx\" | Measure-Object -Line\\).Lines)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,29 +9,21 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, PackageCheck, Soup, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { isRecipeCompositionKind } from "@/lib/product-composition-stock-tracking";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type CompositionStockRow,
   type ProductWithCategoryName,
 } from "@/lib/queries/product-establishment-dashboard";
-import { defaultProductStockInsert, insertInitialMovement } from "@/lib/queries/stock-movement-queries";
+import { defaultProductStockInsert } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
 
-import { ChangeStockUnitSection } from "./product-dashboard-change-unit";
-import { StockMovementsSection } from "./product-dashboard-stock-movements";
+import { ProductSection } from "./product-dashboard-stock-product-section";
 
 type StockMode = "none" | "product" | "ingredients";
-
-const DEFAULT_STOCK_UNIT = "piece";
 
 const MODES: { value: StockMode; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -55,7 +47,7 @@ const MODES: { value: StockMode; label: string; description: string; icon: React
 ];
 
 function useProductHref(establishmentId: string): (productId: string) => string {
-  const pathname = usePathname() ?? "";
+  const pathname = usePathname();
   return useCallback(
     (productId: string) => {
       const parts = pathname.split("/").filter(Boolean);
@@ -236,12 +228,10 @@ function StockModeSelector({
 function IngredientsSection({
   compositionStockRows,
   establishmentId,
-  organizationId,
   toggleMutation,
 }: {
   compositionStockRows: CompositionStockRow[];
   establishmentId: string;
-  organizationId: string;
   toggleMutation: ReturnType<typeof useToggleAffectsStock>;
 }) {
   const productHref = useProductHref(establishmentId);
@@ -317,149 +307,42 @@ function IngredientsSection({
   );
 }
 
-function ProductSection({
-  selfRow,
-  productId,
-  establishmentId,
-  organizationId,
-  invalidate,
-}: {
-  selfRow: CompositionStockRow | undefined;
-  productId: string;
-  establishmentId: string;
-  organizationId: string;
-  invalidate: () => void;
-}) {
-  const [initQty, setInitQty] = useState("0");
-  const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
-
-  const initMutation = useMutation({
-    mutationFn: async ({ qty, unit }: { qty: number; unit: string }) => {
-      const supabase = createClient();
-      if (!selfRow) throw new Error("Self-composition introuvable.");
-      const compId = selfRow.composition.id;
-
-      if (!selfRow.lineStock) {
-        const { data: st, error } = await supabase
-          .from("product_stocks")
-          .insert({
-            ...defaultProductStockInsert(compId, establishmentId, organizationId),
-            current_stock: qty,
-            unit,
-            inventory_tracked: true,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        await insertInitialMovement(productId, organizationId, establishmentId, st.id, qty, unit);
-      } else {
-        await insertInitialMovement(productId, organizationId, establishmentId, selfRow.lineStock.id, qty, unit);
-      }
-    },
-    onSuccess: () => {
-      toast.success("Stock initialisé.");
-      invalidate();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'initialisation."),
-  });
-
-  const lineStock = selfRow?.lineStock ?? null;
-  const currentStock = lineStock?.current_stock ?? 0;
-  const stockUnit = lineStock?.unit ?? null;
-
-  if (!lineStock) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Initialiser le stock</CardTitle>
-          <CardDescription>Définissez la quantité initiale de produits finis en stock.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label>Quantité initiale</Label>
-              <Input
-                value={initQty}
-                onChange={(e) => setInitQty(e.target.value)}
-                inputMode="decimal"
-                className="w-24 tabular-nums"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Unité</Label>
-              <Select value={initUnit} onValueChange={setInitUnit}>
-                <SelectTrigger className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u === "piece" ? "pièce" : u}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              disabled={initMutation.isPending}
-              onClick={() => {
-                const qty = parseFloat(initQty.replace(",", "."));
-                if (!Number.isFinite(qty) || qty < 0) {
-                  toast.error("Quantité invalide.");
-                  return;
-                }
-                initMutation.mutate({ qty, unit: initUnit });
-              }}
-            >
-              {initMutation.isPending ? "Initialisation…" : "Initialiser le stock"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <>
-      <StockMovementsSection
-        productId={productId}
-        organizationId={organizationId}
-        establishmentId={establishmentId}
-        productStockId={lineStock.id}
-        currentStock={currentStock}
-        unit={stockUnit}
-      />
-      <ChangeStockUnitSection
-        productId={productId}
-        organizationId={organizationId}
-        establishmentId={establishmentId}
-        stockId={lineStock.id}
-        currentUnit={stockUnit ?? DEFAULT_STOCK_UNIT}
-        currentQty={currentStock}
-      />
-    </>
-  );
-}
-
 export function ProductStockPanel({
   product,
   compositionStockRows,
   productId,
   establishmentId,
   organizationId,
+  isIngredient = false,
 }: {
   product: ProductWithCategoryName;
   compositionStockRows: CompositionStockRow[];
   productId: string;
   establishmentId: string;
   organizationId: string;
+  isIngredient?: boolean;
 }) {
   const invalidate = useInvalidate(productId, establishmentId, organizationId);
   const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
-  const currentMode = (product.stock_mode as StockMode | null) ?? "none";
 
   const setModeMutation = useSetStockMode(productId, selfRow, invalidate);
   const toggleMutation = useToggleAffectsStock(establishmentId, organizationId, invalidate);
+
+  if (isIngredient) {
+    return (
+      <div className="space-y-4">
+        <ProductSection
+          selfRow={selfRow}
+          productId={productId}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+          invalidate={invalidate}
+        />
+      </div>
+    );
+  }
+
+  const currentMode = (product.stock_mode as StockMode | null) ?? "none";
 
   return (
     <div className="space-y-4">
@@ -483,7 +366,6 @@ export function ProductStockPanel({
         <IngredientsSection
           compositionStockRows={compositionStockRows}
           establishmentId={establishmentId}
-          organizationId={organizationId}
           toggleMutation={toggleMutation}
         />
       )}

@@ -127,7 +127,10 @@ export function ProductFicheTechniquePanel({
   menuProductPricing?: MenuProductPricingJoin[];
 }) {
   const t = useTranslations("units");
-  const isRecipe = (product.product_type as string[] | null)?.includes("recipe") ?? false;
+  const types = (product.product_type as string[] | null) ?? [];
+  const isRecipe = types.includes("recipe");
+  const isIngredient = types.includes("ingredient");
+  const showBom = isRecipe || isIngredient;
   const edit = useCompositionInlineEdit({
     productId: product.id,
     establishmentId,
@@ -159,7 +162,7 @@ export function ProductFicheTechniquePanel({
   const totalCostHT = technicalLines
     .filter((c) => c.composition_kind === "recipe")
     .reduce((sum, c) => {
-      const uc = componentPrices?.get(c.component_product_id);
+      const uc = componentPrices.get(c.component_product_id);
       const cf = (c as unknown as { conversion_factor: number | null }).conversion_factor ?? null;
       const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit, cf);
       return cost != null ? sum + cost : sum;
@@ -167,7 +170,7 @@ export function ProductFicheTechniquePanel({
 
   const renderExistingRow = (c: ProductCompositionRow) => {
     const isArchived = c.component?.deleted === true;
-    const unitCost = componentPrices?.get(c.component_product_id) ?? null;
+    const unitCost = componentPrices.get(c.component_product_id) ?? null;
     const cf = (c as unknown as { conversion_factor: number | null }).conversion_factor ?? null;
     const lineCost = compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit, cf);
     const pct = lineCost != null && totalCostHT > 0 ? lineCost / totalCostHT : null;
@@ -258,11 +261,13 @@ export function ProductFicheTechniquePanel({
         description={
           isRecipe
             ? "Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
-            : "Prix d'achat de ce produit auprès des fournisseurs."
+            : isIngredient
+              ? "Prix d'achat de cet ingrédient auprès des fournisseurs."
+              : "Prix d'achat de ce produit auprès des fournisseurs."
         }
       />
 
-      {isRecipe && (
+      {showBom && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -372,7 +377,7 @@ export function ProductFicheTechniquePanel({
               componentName={comp.component?.name ?? "—"}
               componentPortionUnit={comp.component?.portion_unit ?? null}
               componentStockUnit={stockUnits?.get(comp.component_product_id) ?? null}
-              currentUnitCost={componentPrices?.get(comp.component_product_id) ?? null}
+              currentUnitCost={componentPrices.get(comp.component_product_id) ?? null}
               organizationId={organizationId}
               queryKey={compositionQueryKey}
               onClose={() => setEditingComposition(null)}

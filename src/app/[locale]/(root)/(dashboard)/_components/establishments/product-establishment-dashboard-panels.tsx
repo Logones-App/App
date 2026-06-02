@@ -40,8 +40,8 @@ export function ProductEstablishmentDashboardTabs({
   const isIngredient = types.includes("ingredient");
   // Produit vendu au client (peut avoir un prix dans les menus)
   const isForSale = isRecipe || isPurchased;
-  // Affiche la fiche technique : recette (BOM) ou achat direct (purchased)
-  const hasFicheTechnique = isRecipe || isPurchased;
+  // Affiche la fiche technique : recette, achat direct, ou ingrédient avec sous-recette
+  const hasFicheTechnique = isRecipe || isPurchased || isIngredient;
   // Fournisseurs & Prix tab : seulement pour les ingrédients purs (jamais vendus)
   const hasFournisseursTab = isIngredient && !isForSale;
   const portionUnit = product.portion_unit ?? null;
@@ -97,6 +97,7 @@ export function ProductEstablishmentDashboardTabs({
           productId={product.id}
           establishmentId={establishmentId}
           organizationId={organizationId}
+          isIngredient={isIngredient}
         />
       </TabsContent>
 
