@@ -3456,6 +3456,7 @@ export type Database = {
       }
       product_compositions: {
         Row: {
+          affects_stock: boolean
           auto_open_modal: boolean | null
           component_product_id: string
           composition_kind: string
@@ -3477,6 +3478,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          affects_stock?: boolean
           auto_open_modal?: boolean | null
           component_product_id: string
           composition_kind?: string
@@ -3498,6 +3500,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          affects_stock?: boolean
           auto_open_modal?: boolean | null
           component_product_id?: string
           composition_kind?: string
@@ -4095,6 +4098,7 @@ export type Database = {
           printer_id: string | null
           product_type: Json
           sku: string | null
+          stock_mode: string
           updated_at: string | null
           vat_rate_id: string | null
         }
@@ -4118,6 +4122,7 @@ export type Database = {
           printer_id?: string | null
           product_type?: Json
           sku?: string | null
+          stock_mode?: string
           updated_at?: string | null
           vat_rate_id?: string | null
         }
@@ -4141,6 +4146,7 @@ export type Database = {
           printer_id?: string | null
           product_type?: Json
           sku?: string | null
+          stock_mode?: string
           updated_at?: string | null
           vat_rate_id?: string | null
         }

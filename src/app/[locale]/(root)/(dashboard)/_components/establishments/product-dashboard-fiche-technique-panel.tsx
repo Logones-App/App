@@ -186,7 +186,9 @@ export function ProductFicheTechniquePanel({
               onSave={(v) => edit.saveCell(c.id, "default_quantity", v)}
               onTabNext={() => edit.tabToNext(c.id, "default_quantity")}
             />
-            <span className="text-muted-foreground shrink-0 text-xs">{t(c.quantity_unit as PortionUnit)}</span>
+            {c.quantity_unit && (
+              <span className="text-muted-foreground shrink-0 text-xs">{t(c.quantity_unit as PortionUnit)}</span>
+            )}
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground text-right text-sm tabular-nums">

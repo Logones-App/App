@@ -6,34 +6,55 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PackageCheck, Soup, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { isRecipeCompositionKind } from "@/lib/product-composition-stock-tracking";
 import {
-  hasModifierLineForComponent,
-  isModifierCompositionKind,
-  isRecipeCompositionKind,
-  setIngredientStockInventoryTracked,
-  setSelfLineInventoryTracked,
-  willSelfTrackingDisableAnyCurrentlyTrackedStock,
-} from "@/lib/product-composition-stock-tracking";
-import { PRODUCT_DASHBOARD_QUERY_KEY, type CompositionStockRow } from "@/lib/queries/product-establishment-dashboard";
+  PRODUCT_DASHBOARD_QUERY_KEY,
+  type CompositionStockRow,
+  type ProductWithCategoryName,
+} from "@/lib/queries/product-establishment-dashboard";
 import { defaultProductStockInsert, insertInitialMovement } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
 
-import { CompositionStockCard } from "./product-composition-dashboard-blocks";
 import { ChangeStockUnitSection } from "./product-dashboard-change-unit";
 import { StockMovementsSection } from "./product-dashboard-stock-movements";
 
+type StockMode = "none" | "product" | "ingredients";
+
 const DEFAULT_STOCK_UNIT = "piece";
 
-function useProductDashboardHref(establishmentId: string): (productId: string) => string {
+const MODES: { value: StockMode; label: string; description: string; icon: React.ReactNode }[] = [
+  {
+    value: "none",
+    label: "Pas de gestion stock",
+    description: "La vente est enregistrée dans les rapports. Aucun stock décrémenté.",
+    icon: <X className="h-4 w-4" />,
+  },
+  {
+    value: "product",
+    label: "Stock produit fini",
+    description: "Chaque vente décrémente le compteur du produit assemblé de 1 unité.",
+    icon: <PackageCheck className="h-4 w-4" />,
+  },
+  {
+    value: "ingredients",
+    label: "Stock ingrédients",
+    description: "Chaque vente décrémente les ingrédients cochés selon la fiche technique.",
+    icon: <Soup className="h-4 w-4" />,
+  },
+];
+
+function useProductHref(establishmentId: string): (productId: string) => string {
   const pathname = usePathname() ?? "";
   return useCallback(
     (productId: string) => {
@@ -44,9 +65,8 @@ function useProductDashboardHref(establishmentId: string): (productId: string) =
       if (after[0] === "admin" && after[1] === "organizations" && after[3] === "establishments") {
         const orgId = after[2];
         const estId = after[4];
-        if (orgId && estId) {
+        if (orgId && estId)
           return `/${locale}/dashboard/admin/organizations/${orgId}/establishments/${estId}/products/${productId}`;
-        }
       }
       return `/${locale}/dashboard/establishments/${establishmentId}/products/${productId}`;
     },
@@ -54,190 +74,311 @@ function useProductDashboardHref(establishmentId: string): (productId: string) =
   );
 }
 
-function ProductStockScopeSection({
-  compositionStockRows,
-  scopeProductId,
-  rootProductId,
-  establishmentId,
-  organizationId,
-  nestingLevel,
-  scopeDisplayName,
-}: {
-  compositionStockRows: CompositionStockRow[];
-  scopeProductId: string;
-  rootProductId: string;
-  establishmentId: string;
-  organizationId: string;
-  nestingLevel: number;
-  scopeDisplayName?: string;
-}) {
+function useInvalidate(productId: string, establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
-  const productHref = useProductDashboardHref(establishmentId);
-
-  const [initQty, setInitQty] = useState("0");
-  const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
-
-  const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
-  const selfStock = selfRow?.lineStock ?? null;
-  const selfTracked = Boolean(selfStock?.inventory_tracked);
-  const selfActivationHelper = willSelfTrackingDisableAnyCurrentlyTrackedStock(compositionStockRows)
-    ? "En activant le suivi sur l’unité de vente, les fiches liées aux lignes recette (et les pools sans ligne modifier sur le même composant) passent en non suivi. Les lignes modifier suivies restent actives (mode hybride caisse)."
-    : undefined;
-
-  const invalidate = () => {
-    const ids = [rootProductId, scopeProductId];
-    const unique = [...new Set(ids)];
-    for (const id of unique) {
-      void queryClient.invalidateQueries({
-        queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, id, establishmentId, organizationId],
-      });
-    }
+  return useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, productId, establishmentId, organizationId],
+    });
     void queryClient.invalidateQueries({
       queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
     });
-    void queryClient.invalidateQueries({
-      queryKey: ["establishment-stocks", establishmentId, organizationId],
-    });
-  };
+    void queryClient.invalidateQueries({ queryKey: ["establishment-stocks", establishmentId, organizationId] });
+  }, [queryClient, productId, establishmentId, organizationId]);
+}
 
-  const createSelfLineStockMutation = useMutation({
+function useSetStockMode(productId: string, selfRow: CompositionStockRow | undefined, invalidate: () => void) {
+  return useMutation({
+    mutationFn: async (mode: StockMode) => {
+      const supabase = createClient();
+      const { error } = await supabase.from("products").update({ stock_mode: mode }).eq("id", productId);
+      if (error) throw error;
+      if (selfRow?.lineStock?.id) {
+        const shouldTrack = mode === "product";
+        if (selfRow.lineStock.inventory_tracked !== shouldTrack) {
+          const { error: sErr } = await supabase
+            .from("product_stocks")
+            .update({ inventory_tracked: shouldTrack })
+            .eq("id", selfRow.lineStock.id);
+          if (sErr) throw sErr;
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Mode de stock mis à jour.");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la mise à jour."),
+  });
+}
+
+function useToggleAffectsStock(establishmentId: string, organizationId: string, invalidate: () => void) {
+  return useMutation({
     mutationFn: async ({
       compositionId,
-      initialQuantity,
-      unit,
+      componentProductId,
+      enabled,
     }: {
       compositionId: string;
-      initialQuantity: number;
-      unit: string;
+      componentProductId: string;
+      enabled: boolean;
     }) => {
       const supabase = createClient();
-      const { data: st, error } = await supabase
-        .from("product_stocks")
-        .insert({
-          ...defaultProductStockInsert(compositionId, establishmentId, organizationId),
-          current_stock: initialQuantity,
-          unit,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      if (!st?.id) throw new Error("Fiche stock non créée.");
-      await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
-      await insertInitialMovement(scopeProductId, organizationId, establishmentId, st.id, initialQuantity, unit);
-    },
-    onSuccess: () => {
-      toast.success("Stock initialisé.");
-      invalidate();
-    },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Création impossible.");
-    },
-  });
-
-  const createSelfCompositionAndStockMutation = useMutation({
-    mutationFn: async ({ initialQuantity, unit }: { initialQuantity: number; unit: string }) => {
-      const supabase = createClient();
-      const { data: comp, error: compErr } = await supabase
+      const { error } = await supabase
         .from("product_compositions")
-        .insert({
-          main_product_id: scopeProductId,
-          component_product_id: scopeProductId,
-          establishment_id: establishmentId,
-          organization_id: organizationId,
-          composition_kind: "recipe",
-          default_quantity: 1,
-          max_quantity: null,
-          display_order: 0,
-          unit_supplement_price: null,
-          price_multiplier: null,
-          show_in_customization: false,
-          is_required: false,
-          deleted: false,
-        })
+        .update({ affects_stock: enabled })
+        .eq("id", compositionId);
+      if (error) throw error;
+      if (!enabled) return;
+
+      const { data: selfComp } = await supabase
+        .from("product_compositions")
         .select("id")
-        .single();
-      if (compErr) throw compErr;
-      if (!comp?.id) throw new Error("Composition self non créée.");
-      const { data: st, error: stockErr } = await supabase
+        .eq("main_product_id", componentProductId)
+        .eq("component_product_id", componentProductId)
+        .eq("deleted", false)
+        .maybeSingle();
+
+      let selfCompId = selfComp?.id;
+      if (!selfCompId) {
+        const { data: newComp, error: cErr } = await supabase
+          .from("product_compositions")
+          .insert({
+            main_product_id: componentProductId,
+            component_product_id: componentProductId,
+            establishment_id: establishmentId,
+            organization_id: organizationId,
+            composition_kind: "recipe",
+            default_quantity: 1,
+            show_in_customization: false,
+            is_required: false,
+            deleted: false,
+          })
+          .select("id")
+          .single();
+        if (cErr) throw cErr;
+        selfCompId = newComp.id;
+      }
+
+      const { data: existingStock } = await supabase
         .from("product_stocks")
-        .insert({
-          ...defaultProductStockInsert(comp.id, establishmentId, organizationId),
-          current_stock: initialQuantity,
-          unit,
-        })
-        .select("id")
-        .single();
-      if (stockErr) throw stockErr;
-      if (!st?.id) throw new Error("Fiche stock non créée.");
-      await setSelfLineInventoryTracked(supabase, st.id, true, compositionStockRows);
-      await insertInitialMovement(scopeProductId, organizationId, establishmentId, st.id, initialQuantity, unit);
+        .select("id, inventory_tracked")
+        .eq("product_composition_id", selfCompId)
+        .eq("establishment_id", establishmentId)
+        .maybeSingle();
+
+      if (!existingStock) {
+        const { error: sErr } = await supabase.from("product_stocks").insert({
+          ...defaultProductStockInsert(selfCompId, establishmentId, organizationId),
+          inventory_tracked: true,
+        });
+        if (sErr) throw sErr;
+      } else if (!existingStock.inventory_tracked) {
+        const { error: sErr } = await supabase
+          .from("product_stocks")
+          .update({ inventory_tracked: true })
+          .eq("id", existingStock.id);
+        if (sErr) throw sErr;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Ingrédient mis à jour.");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la mise à jour."),
+  });
+}
+
+function StockModeSelector({
+  mode,
+  onChange,
+  pending,
+}: {
+  mode: StockMode;
+  onChange: (m: StockMode) => void;
+  pending: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Mode de gestion du stock</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <RadioGroup
+          value={mode}
+          onValueChange={(v) => onChange(v as StockMode)}
+          disabled={pending}
+          className="space-y-2"
+        >
+          {MODES.map((m) => (
+            <label
+              key={m.value}
+              htmlFor={`mode-${m.value}`}
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                mode === m.value ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+              }`}
+            >
+              <RadioGroupItem id={`mode-${m.value}`} value={m.value} className="mt-0.5" />
+              <div className="flex-1 space-y-0.5">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  {m.icon} {m.label}
+                </p>
+                <p className="text-muted-foreground text-xs">{m.description}</p>
+              </div>
+            </label>
+          ))}
+        </RadioGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IngredientsSection({
+  compositionStockRows,
+  establishmentId,
+  organizationId,
+  toggleMutation,
+}: {
+  compositionStockRows: CompositionStockRow[];
+  establishmentId: string;
+  organizationId: string;
+  toggleMutation: ReturnType<typeof useToggleAffectsStock>;
+}) {
+  const productHref = useProductHref(establishmentId);
+  const recipeRows = compositionStockRows.filter(
+    (r) => !r.isSelfComposition && isRecipeCompositionKind(r.composition.composition_kind),
+  );
+
+  if (recipeRows.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground text-sm">
+            Aucun ingrédient dans la fiche technique. Ajoutez des ingrédients depuis l&apos;onglet Recette.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Ingrédients à décrémenter à la vente</CardTitle>
+        <CardDescription>
+          Cochez les ingrédients dont le stock doit baisser à chaque vente de ce produit.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        {recipeRows.map((csr) => {
+          const c = csr.composition;
+          const qtyPerSale = (c.default_quantity ?? 1) * (c.conversion_factor ?? 1);
+          const unit = c.quantity_unit ?? c.component?.portion_unit ?? "";
+          const stock = csr.componentIdentityStock;
+          const pending = toggleMutation.isPending;
+
+          return (
+            <div key={c.id} className="flex items-center justify-between gap-3 rounded-md py-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium">{c.component?.name ?? "—"}</span>
+                  <Link
+                    href={productHref(c.component_product_id)}
+                    className="text-muted-foreground hover:text-primary shrink-0"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  −{qtyPerSale} {unit} par vente
+                  {c.affects_stock && stock != null && (
+                    <span className="ml-2">
+                      · stock actuel : {stock.current_stock} {stock.unit}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <Switch
+                checked={c.affects_stock}
+                disabled={pending}
+                onCheckedChange={(v) =>
+                  toggleMutation.mutate({
+                    compositionId: c.id,
+                    componentProductId: c.component_product_id,
+                    enabled: v,
+                  })
+                }
+              />
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductSection({
+  selfRow,
+  productId,
+  establishmentId,
+  organizationId,
+  invalidate,
+}: {
+  selfRow: CompositionStockRow | undefined;
+  productId: string;
+  establishmentId: string;
+  organizationId: string;
+  invalidate: () => void;
+}) {
+  const [initQty, setInitQty] = useState("0");
+  const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
+
+  const initMutation = useMutation({
+    mutationFn: async ({ qty, unit }: { qty: number; unit: string }) => {
+      const supabase = createClient();
+      if (!selfRow) throw new Error("Self-composition introuvable.");
+      const compId = selfRow.composition.id;
+
+      if (!selfRow.lineStock) {
+        const { data: st, error } = await supabase
+          .from("product_stocks")
+          .insert({
+            ...defaultProductStockInsert(compId, establishmentId, organizationId),
+            current_stock: qty,
+            unit,
+            inventory_tracked: true,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        await insertInitialMovement(productId, organizationId, establishmentId, st.id, qty, unit);
+      } else {
+        await insertInitialMovement(productId, organizationId, establishmentId, selfRow.lineStock.id, qty, unit);
+      }
     },
     onSuccess: () => {
       toast.success("Stock initialisé.");
       invalidate();
     },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Création impossible.");
-    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'initialisation."),
   });
 
-  const stockSetupPending = createSelfLineStockMutation.isPending || createSelfCompositionAndStockMutation.isPending;
+  const lineStock = selfRow?.lineStock ?? null;
+  const currentStock = lineStock?.current_stock ?? 0;
+  const stockUnit = lineStock?.unit ?? null;
 
-  const selfMutation = useMutation({
-    mutationFn: async (tracked: boolean) => {
-      if (!selfStock?.id) throw new Error("Pas de fiche stock sur la ligne self.");
-      const supabase = createClient();
-      await setSelfLineInventoryTracked(supabase, selfStock.id, tracked, compositionStockRows);
-    },
-    onSuccess: () => {
-      toast.success("Suivi inventaire mis à jour.");
-      invalidate();
-    },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Mise à jour impossible.");
-    },
-  });
-
-  const ingredientMutation = useMutation({
-    mutationFn: async ({ stockId, tracked }: { stockId: string; tracked: boolean }) => {
-      const supabase = createClient();
-      await setIngredientStockInventoryTracked(supabase, stockId, tracked, selfStock?.id, compositionStockRows);
-    },
-    onSuccess: () => {
-      toast.success("Suivi inventaire mis à jour.");
-      invalidate();
-    },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Mise à jour impossible.");
-    },
-  });
-
-  const pending = selfMutation.isPending || ingredientMutation.isPending || stockSetupPending;
-
-  const handleInit = (mutate: (args: { initialQuantity: number; unit: string }) => void) => {
-    const qty = parseFloat(initQty.replace(",", "."));
-    if (!Number.isFinite(qty) || qty < 0) {
-      toast.error("Quantité invalide.");
-      return;
-    }
-    mutate({ initialQuantity: qty, unit: initUnit || DEFAULT_STOCK_UNIT });
-  };
-
-  if (compositionStockRows.length === 0) {
+  if (!lineStock) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Initialiser le stock</CardTitle>
-          <CardDescription>
-            Définissez le stock initial de ce produit pour activer le suivi des quantités.
-          </CardDescription>
+          <CardTitle className="text-base">Initialiser le stock</CardTitle>
+          <CardDescription>Définissez la quantité initiale de produits finis en stock.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <Label htmlFor="init-qty">Quantité initiale</Label>
+              <Label>Quantité initiale</Label>
               <Input
-                id="init-qty"
                 value={initQty}
                 onChange={(e) => setInitQty(e.target.value)}
                 inputMode="decimal"
@@ -260,11 +401,17 @@ function ProductStockScopeSection({
               </Select>
             </div>
             <Button
-              type="button"
-              disabled={stockSetupPending}
-              onClick={() => handleInit(createSelfCompositionAndStockMutation.mutate)}
+              disabled={initMutation.isPending}
+              onClick={() => {
+                const qty = parseFloat(initQty.replace(",", "."));
+                if (!Number.isFinite(qty) || qty < 0) {
+                  toast.error("Quantité invalide.");
+                  return;
+                }
+                initMutation.mutate({ qty, unit: initUnit });
+              }}
             >
-              {stockSetupPending ? "Initialisation…" : "Initialiser le stock"}
+              {initMutation.isPending ? "Initialisation…" : "Initialiser le stock"}
             </Button>
           </div>
         </CardContent>
@@ -272,218 +419,72 @@ function ProductStockScopeSection({
     );
   }
 
-  const inner = (
+  return (
     <>
-      {!selfRow ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Stock du produit fini</CardTitle>
-            <CardDescription>
-              Ce produit a des ingrédients mais pas encore de suivi du produit fini. Initialisez le stock pour commencer
-              le suivi.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="self-init-qty">Quantité initiale</Label>
-                <Input
-                  id="self-init-qty"
-                  value={initQty}
-                  onChange={(e) => setInitQty(e.target.value)}
-                  inputMode="decimal"
-                  className="w-24 tabular-nums"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Unité</Label>
-                <Select value={initUnit} onValueChange={setInitUnit}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PORTION_UNITS.map((u) => (
-                      <SelectItem key={u} value={u}>
-                        {u === "piece" ? "pièce" : u}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="button"
-                disabled={stockSetupPending}
-                onClick={() => handleInit(createSelfCompositionAndStockMutation.mutate)}
-              >
-                {stockSetupPending ? "Initialisation…" : "Initialiser le stock"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {(() => {
-        const selfRows = compositionStockRows.filter((r) => r.isSelfComposition);
-        const recipeRows = compositionStockRows.filter(
-          (r) => !r.isSelfComposition && isRecipeCompositionKind(r.composition.composition_kind),
-        );
-        const modifierRows = compositionStockRows.filter(
-          (r) => !r.isSelfComposition && isModifierCompositionKind(r.composition.composition_kind),
-        );
-
-        const renderRow = (csr: (typeof compositionStockRows)[number]) => {
-          const {
-            composition: row,
-            isSelfComposition,
-            lineStock,
-            componentIdentityStock,
-            nestedCompositionStockRows,
-          } = csr;
-          const lineLockedBySelf = selfTracked && !isSelfComposition && isRecipeCompositionKind(row.composition_kind);
-          const poolLockedBySelf =
-            selfTracked &&
-            !isSelfComposition &&
-            !hasModifierLineForComponent(compositionStockRows, row.component_product_id);
-          return (
-            <div key={row.id} className="space-y-3">
-              <CompositionStockCard
-                row={row}
-                isSelfComposition={isSelfComposition}
-                lineStock={lineStock}
-                componentIdentityStock={componentIdentityStock}
-                selfActivationHelper={isSelfComposition ? selfActivationHelper : undefined}
-                lineSwitchLockedBySelf={lineLockedBySelf}
-                poolSwitchLockedBySelf={poolLockedBySelf}
-                selfTracked={selfTracked}
-                pending={pending}
-                productId={scopeProductId}
-                establishmentId={establishmentId}
-                organizationId={organizationId}
-                onCreateSelfLineStock={
-                  isSelfComposition && !lineStock
-                    ? (compositionId, qty, unit) =>
-                        createSelfLineStockMutation.mutate({ compositionId, initialQuantity: qty, unit })
-                    : undefined
-                }
-                createSelfLineStockPending={stockSetupPending}
-                onSelfTrackedChange={(v) => selfMutation.mutate(v)}
-                onIngredientTrackedChange={(stockId, tracked) => ingredientMutation.mutate({ stockId, tracked })}
-              />
-              {nestedCompositionStockRows?.length ? (
-                <ProductStockScopeSection
-                  compositionStockRows={nestedCompositionStockRows}
-                  scopeProductId={row.component_product_id}
-                  rootProductId={rootProductId}
-                  establishmentId={establishmentId}
-                  organizationId={organizationId}
-                  nestingLevel={nestingLevel + 1}
-                  scopeDisplayName={row.component?.name ?? undefined}
-                />
-              ) : null}
-            </div>
-          );
-        };
-
-        return (
-          <div className="space-y-6">
-            {selfRows.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                  Stock du produit fini
-                </p>
-                {selfRows.map(renderRow)}
-              </div>
-            )}
-            {recipeRows.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                  Stock par ingrédient
-                </p>
-                {recipeRows.map(renderRow)}
-              </div>
-            )}
-            {modifierRows.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                  Stock des suppléments
-                </p>
-                {modifierRows.map(renderRow)}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      <StockMovementsSection
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+        productStockId={lineStock.id}
+        currentStock={currentStock}
+        unit={stockUnit}
+      />
+      <ChangeStockUnitSection
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+        stockId={lineStock.id}
+        currentUnit={stockUnit ?? DEFAULT_STOCK_UNIT}
+        currentQty={currentStock}
+      />
     </>
   );
-
-  if (nestingLevel > 0) {
-    return (
-      <div className="border-muted mt-3 space-y-4 border-l-2 pl-4">
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-          <span className="font-medium tracking-wide uppercase">
-            Sous-compositions (même règles que la fiche produit)
-          </span>
-          <Link
-            href={productHref(scopeProductId)}
-            className="text-primary inline-flex items-center gap-1 font-normal normal-case underline-offset-4 hover:underline"
-          >
-            <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            Fiche {scopeDisplayName ?? "sous-produit"}
-          </Link>
-        </div>
-        {inner}
-      </div>
-    );
-  }
-
-  return inner;
 }
 
 export function ProductStockPanel({
+  product,
   compositionStockRows,
   productId,
   establishmentId,
   organizationId,
 }: {
+  product: ProductWithCategoryName;
   compositionStockRows: CompositionStockRow[];
   productId: string;
   establishmentId: string;
   organizationId: string;
 }) {
-  // Stock courant depuis la self-composition
+  const invalidate = useInvalidate(productId, establishmentId, organizationId);
   const selfRow = compositionStockRows.find((r) => r.isSelfComposition);
-  const currentStock = selfRow?.lineStock?.current_stock ?? 0;
-  const selfStockId = selfRow?.lineStock?.id ?? null;
-  const selfStockUnit = selfRow?.lineStock?.unit ?? null;
+  const currentMode = (product.stock_mode as StockMode | null) ?? "none";
+
+  const setModeMutation = useSetStockMode(productId, selfRow, invalidate);
+  const toggleMutation = useToggleAffectsStock(establishmentId, organizationId, invalidate);
 
   return (
     <div className="space-y-4">
-      <ProductStockScopeSection
-        compositionStockRows={compositionStockRows}
-        scopeProductId={productId}
-        rootProductId={productId}
-        establishmentId={establishmentId}
-        organizationId={organizationId}
-        nestingLevel={0}
+      <StockModeSelector
+        mode={currentMode}
+        onChange={(m) => setModeMutation.mutate(m)}
+        pending={setModeMutation.isPending}
       />
 
-      <StockMovementsSection
-        productId={productId}
-        organizationId={organizationId}
-        establishmentId={establishmentId}
-        productStockId={selfStockId}
-        currentStock={currentStock}
-        unit={selfStockUnit}
-      />
-
-      {selfStockId && selfStockUnit && (
-        <ChangeStockUnitSection
+      {currentMode === "product" && (
+        <ProductSection
+          selfRow={selfRow}
           productId={productId}
-          organizationId={organizationId}
           establishmentId={establishmentId}
-          stockId={selfStockId}
-          currentUnit={selfStockUnit}
-          currentQty={currentStock}
+          organizationId={organizationId}
+          invalidate={invalidate}
+        />
+      )}
+
+      {currentMode === "ingredients" && (
+        <IngredientsSection
+          compositionStockRows={compositionStockRows}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+          toggleMutation={toggleMutation}
         />
       )}
     </div>

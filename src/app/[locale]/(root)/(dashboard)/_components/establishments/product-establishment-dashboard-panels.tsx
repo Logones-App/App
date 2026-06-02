@@ -92,6 +92,7 @@ export function ProductEstablishmentDashboardTabs({
 
       <TabsContent value="stock">
         <ProductStockPanel
+          product={product}
           compositionStockRows={compositionStockRows}
           productId={product.id}
           establishmentId={establishmentId}
