@@ -57,7 +57,6 @@ type MenuEmbedForFilter = Pick<Tables<"menus">, "id" | "name" | "pricing_strateg
 
 export type ProductEstablishmentDashboardData = {
   product: ProductWithCategoryName | null;
-  options: Tables<"product_options">[];
   compositions: ProductCompositionRow[];
   compositionStockRows: CompositionStockRow[];
   menuProductPricing: MenuProductPricingJoin[];
@@ -115,7 +114,7 @@ async function fetchProductCompositions(
     .eq("deleted", false)
     .order("display_order", { ascending: true });
   if (error) throw error;
-  return (data as ProductCompositionRow[]) ?? [];
+  return data as ProductCompositionRow[];
 }
 
 async function buildCompositionStockRows(
@@ -249,7 +248,7 @@ export function useProductEstablishmentDashboard(
       const eid = establishmentId as string;
       const oid = organizationId as string;
 
-      const [productRes, optionsRes, menuProductsRes] = await Promise.all([
+      const [productRes, menuProductsRes] = await Promise.all([
         supabase
           .from("products")
           .select(
@@ -262,14 +261,6 @@ export function useProductEstablishmentDashboard(
           .eq("id", pid)
           .eq("organization_id", oid)
           .maybeSingle(),
-        supabase
-          .from("product_options")
-          .select("*")
-          .eq("product_id", pid)
-          .eq("establishment_id", eid)
-          .eq("organization_id", oid)
-          .eq("deleted", false)
-          .order("display_order", { ascending: true }),
         supabase
           .from("menus_products")
           .select(
@@ -285,11 +276,9 @@ export function useProductEstablishmentDashboard(
       ]);
 
       if (productRes.error) throw productRes.error;
-      if (optionsRes.error) throw optionsRes.error;
       if (menuProductsRes.error) throw menuProductsRes.error;
 
       const product = productRes.data as ProductWithCategoryName | null;
-      const options = optionsRes.data as Tables<"product_options">[];
       const compositions = await fetchProductCompositions(supabase, pid, eid, oid);
 
       const rawMenuRows = menuProductsRes.data as
@@ -308,7 +297,6 @@ export function useProductEstablishmentDashboard(
 
       return {
         product,
-        options,
         compositions,
         compositionStockRows,
         menuProductPricing,

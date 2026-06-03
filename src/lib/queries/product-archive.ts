@@ -223,7 +223,7 @@ export function useArchiveProduct(organizationId: string, onSuccess?: () => void
       await Promise.all([
         supabase.from("category_grid_items").delete().eq("product_id", productId),
         supabase.from("formula_products").delete().eq("product_id", productId).eq("organization_id", organizationId),
-        supabase.from("product_options").delete().eq("product_id", productId).eq("organization_id", organizationId),
+        supabase.from("product_option_group_products").update({ deleted: true }).eq("product_id", productId),
         ...(mpIds.length > 0
           ? [
               supabase
@@ -351,6 +351,7 @@ export function useRestoreProduct(organizationId: string, onSuccess?: () => void
       void queryClient.invalidateQueries({ queryKey: ["organization-products"] });
       void queryClient.invalidateQueries({ queryKey: ["organization-products-archived"] });
       void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY] });
+      onSuccess?.();
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Restauration impossible.");

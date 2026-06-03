@@ -15,12 +15,12 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 2 * 60 * 1000, // 2 minutes (plus long pour éviter les refetch inutiles)
-            gcTime: 10 * 60 * 1000, // 10 minutes (garbage collection)
-            retry: 1, // Moins de retry pour éviter les boucles
-            refetchOnWindowFocus: false, // Désactiver pour éviter les conflits avec realtime
-            refetchOnReconnect: true, // Garder pour la reconnexion
-            refetchOnMount: false, // Désactiver pour éviter les refetch inutiles
+            staleTime: 0,
+            gcTime: 5 * 60 * 1000,
+            retry: 1,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: true,
+            refetchOnMount: true,
           },
           mutations: {
             retry: 1,

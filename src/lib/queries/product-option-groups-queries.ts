@@ -26,7 +26,7 @@ export function useEstablishmentOptionGroups(establishmentId: string, organizati
         .eq("deleted", false)
         .order("display_order", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((g) => ({
+      return data.map((g) => ({
         ...g,
         values: (g.values as Tables<"product_option_group_values">[]).filter((v) => !v.deleted),
       })) as OptionGroupWithValues[];
@@ -44,19 +44,19 @@ export function useProductOptionAssignments(productId: string) {
         .from("product_option_group_products")
         .select("*, group:product_option_groups(*, values:product_option_group_values(*))")
         .eq("product_id", productId)
+        .eq("deleted", false)
         .order("display_order", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((a) => ({
-        ...a,
-        group: a.group
-          ? {
-              ...(a.group as Tables<"product_option_groups">),
-              values: ((a.group as unknown as { values: Tables<"product_option_group_values">[] }).values ?? []).filter(
-                (v) => !v.deleted,
-              ),
-            }
-          : null,
-      })) as ProductOptionAssignment[];
+      return data.map((a) => {
+        type RawGroup = Tables<"product_option_groups"> & {
+          values: Tables<"product_option_group_values">[];
+        };
+        const grp = a.group as RawGroup | null;
+        return {
+          ...a,
+          group: grp ? { ...grp, values: grp.values.filter((v) => !v.deleted) } : null,
+        };
+      }) as ProductOptionAssignment[];
     },
     enabled: !!productId,
   });

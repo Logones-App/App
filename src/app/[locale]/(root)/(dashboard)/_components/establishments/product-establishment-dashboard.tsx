@@ -58,11 +58,18 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
   }
 
   if (error) {
+    const raw: unknown = error;
+    const msg =
+      raw instanceof Error
+        ? raw.message
+        : typeof raw === "object" && raw !== null && "message" in raw
+          ? String((raw as { message: unknown }).message)
+          : JSON.stringify(raw);
     return (
       <div className="space-y-6">
         {backButton}
         <Alert variant="destructive">
-          <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
+          <AlertDescription>{msg}</AlertDescription>
         </Alert>
       </div>
     );

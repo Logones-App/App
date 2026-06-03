@@ -124,10 +124,26 @@ export function ProductOptionsAndCompositionsPanel({
 
   const assignMutation = useMutation({
     mutationFn: async (groupId: string) => {
-      const { error } = await createClient()
+      const supabase = createClient();
+      const { data: existing } = await supabase
         .from("product_option_group_products")
-        .insert({ product_id: productId, option_group_id: groupId, display_order: assignments.length });
-      if (error) throwPostgrestError("Assignation du groupe", error);
+        .select("id")
+        .eq("product_id", productId)
+        .eq("option_group_id", groupId)
+        .eq("deleted", true)
+        .maybeSingle();
+      if (existing) {
+        const { error } = await supabase
+          .from("product_option_group_products")
+          .update({ deleted: false, display_order: assignments.length })
+          .eq("id", existing.id);
+        if (error) throwPostgrestError("Réactivation du groupe", error);
+      } else {
+        const { error } = await supabase
+          .from("product_option_group_products")
+          .insert({ product_id: productId, option_group_id: groupId, display_order: assignments.length });
+        if (error) throwPostgrestError("Assignation du groupe", error);
+      }
     },
     onSuccess: () => {
       toast.success("Groupe assigné.");
@@ -139,7 +155,10 @@ export function ProductOptionsAndCompositionsPanel({
 
   const removeMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await createClient().from("product_option_group_products").delete().eq("id", id);
+      const { error } = await createClient()
+        .from("product_option_group_products")
+        .update({ deleted: true })
+        .eq("id", id);
       if (error) throwPostgrestError("Retrait du groupe", error);
     },
     onSuccess: () => {

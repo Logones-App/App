@@ -83,8 +83,10 @@ export function useBookingExceptionsRealtime({
   const { data: initialExceptions, error: fetchError } = useQuery({
     queryKey: ["booking-exceptions", establishmentId, organizationId],
     queryFn: fetchExceptions,
-    enabled: !!establishmentId, // organizationId n'est pas nécessaire pour récupérer les exceptions
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!establishmentId,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    gcTime: 5 * 60 * 1000,
   });
 
   console.log("🔍 DEBUG useBookingExceptionsRealtime:");

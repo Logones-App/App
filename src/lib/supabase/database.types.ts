@@ -3555,24 +3555,30 @@ export type Database = {
       product_option_group_products: {
         Row: {
           created_at: string
+          deleted: boolean
           display_order: number
           id: string
           option_group_id: string
           product_id: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
+          deleted?: boolean
           display_order?: number
           id?: string
           option_group_id: string
           product_id: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
+          deleted?: boolean
           display_order?: number
           id?: string
           option_group_id?: string
           product_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -3709,106 +3715,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      product_options: {
-        Row: {
-          allow_quantity: boolean | null
-          auto_open_modal: boolean | null
-          created_at: string | null
-          deleted: boolean | null
-          display_order: number
-          establishment_id: string
-          id: string
-          is_default: boolean | null
-          is_required: boolean | null
-          is_visible: boolean | null
-          max_quantity: number | null
-          max_selections: number | null
-          min_quantity: number | null
-          option_group: string | null
-          option_name: string
-          option_price: number
-          option_value: string
-          organization_id: string
-          price_adjustment: number | null
-          product_id: string
-          selection_type: string
-          tva_rate: number
-          updated_at: string | null
-        }
-        Insert: {
-          allow_quantity?: boolean | null
-          auto_open_modal?: boolean | null
-          created_at?: string | null
-          deleted?: boolean | null
-          display_order?: number
-          establishment_id: string
-          id?: string
-          is_default?: boolean | null
-          is_required?: boolean | null
-          is_visible?: boolean | null
-          max_quantity?: number | null
-          max_selections?: number | null
-          min_quantity?: number | null
-          option_group?: string | null
-          option_name: string
-          option_price?: number
-          option_value: string
-          organization_id: string
-          price_adjustment?: number | null
-          product_id: string
-          selection_type?: string
-          tva_rate?: number
-          updated_at?: string | null
-        }
-        Update: {
-          allow_quantity?: boolean | null
-          auto_open_modal?: boolean | null
-          created_at?: string | null
-          deleted?: boolean | null
-          display_order?: number
-          establishment_id?: string
-          id?: string
-          is_default?: boolean | null
-          is_required?: boolean | null
-          is_visible?: boolean | null
-          max_quantity?: number | null
-          max_selections?: number | null
-          min_quantity?: number | null
-          option_group?: string | null
-          option_name?: string
-          option_price?: number
-          option_value?: string
-          organization_id?: string
-          price_adjustment?: number | null
-          product_id?: string
-          selection_type?: string
-          tva_rate?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_options_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_options_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_options_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -4384,7 +4290,7 @@ export type Database = {
       stock_movements: {
         Row: {
           created_at: string | null
-          created_by: string
+          created_by: string | null
           deleted: boolean | null
           establishment_id: string | null
           id: string
@@ -4405,7 +4311,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           deleted?: boolean | null
           establishment_id?: string | null
           id?: string
@@ -4426,7 +4332,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           deleted?: boolean | null
           establishment_id?: string | null
           id?: string
