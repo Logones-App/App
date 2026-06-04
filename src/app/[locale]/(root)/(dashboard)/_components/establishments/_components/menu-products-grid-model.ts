@@ -5,6 +5,7 @@ import { GRID_SIZE, PANEL_COUNT } from "./menu-products-grid-constants";
 
 export type GridItem = Tables<"category_grid_items"> & {
   product?: { is_available: boolean | null } | null;
+  menuProductPrice?: number | null;
 };
 export type NavCrumb = { id: string; label: string | null };
 

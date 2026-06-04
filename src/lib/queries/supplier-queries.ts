@@ -240,7 +240,6 @@ export type SupplierProductRow = ProductSupplierRow & {
     id: string;
     name: string;
     description: string | null;
-    price: number;
     category_id: string;
   } | null;
 };
@@ -252,7 +251,7 @@ export function useSupplierProducts(supplierId: string) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("product_suppliers")
-        .select("*, product:products(id, name, description, price, category_id)")
+        .select("*, product:products(id, name, description, category_id)")
         .eq("supplier_id", supplierId)
         .eq("deleted", false)
         .order("is_preferred", { ascending: false })

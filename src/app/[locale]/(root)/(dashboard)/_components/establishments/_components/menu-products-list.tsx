@@ -4,6 +4,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMenuProducts } from "@/lib/queries/establishments";
 import type { Tables } from "@/lib/supabase/database.types";
 
+type MenuProductRow = Tables<"products"> & { menu_price?: number | null };
+
 interface MenuProductsListProps {
   menuId: string;
 }
@@ -17,14 +19,18 @@ export function MenuProductsList({ menuId }: MenuProductsListProps) {
 
   return (
     <div className="mt-2 space-y-2">
-      {products.map((product: Tables<"products">) => (
+      {products.map((product: MenuProductRow) => (
         <div key={product.id} className="bg-muted/50 flex items-center gap-4 rounded border p-2">
           <div className="flex-1">
             <div className="font-medium">{product.name}</div>
             {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
           </div>
           <div className="text-sm font-semibold">
-            {product.price ? product.price + " €" : <span className="text-muted-foreground italic">(prix ?)</span>}
+            {product.menu_price != null ? (
+              product.menu_price + " €"
+            ) : (
+              <span className="text-muted-foreground italic">(prix ?)</span>
+            )}
           </div>
         </div>
       ))}

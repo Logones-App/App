@@ -141,7 +141,7 @@ export const useMenuProducts = (menuId?: string) => {
         menu_price: row.price,
         menus_products_id: row.id,
       }));
-      const byProductId = new Map<string,(typeof rows)[number]>();
+      const byProductId: Map<string, (typeof rows)[number]> = new Map();
       for (const r of rows) {
         if (r?.id && !byProductId.has(r.id)) byProductId.set(r.id, r);
       }
@@ -269,9 +269,19 @@ export const useMenuCategoryGridItems = (
         q = q.eq("parent_item_id", parentItemId);
       }
 
-      const { data, error } = await q;
+      const [{ data, error }, { data: mpData, error: mpError }] = await Promise.all([
+        q,
+        supabase.from("menus_products").select("products_id, price").eq("menus_id", menuId).eq("deleted", false),
+      ]);
       if (error) throw error;
-      return data ?? [];
+      if (mpError) throw mpError;
+
+      const menuPriceByProductId = new Map((mpData ?? []).map((mp) => [mp.products_id, mp.price]));
+
+      return (data ?? []).map((item) => ({
+        ...item,
+        menuProductPrice: item.product_id ? (menuPriceByProductId.get(item.product_id) ?? null) : null,
+      }));
     },
     enabled: !!menuId && !!establishmentId && !!organizationId,
   });

@@ -1,24 +1,18 @@
 "use client";
 
-import Image from "next/image";
+import { useEffect, useState } from "react";
 
 import { useMutation } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Plus, Settings, Trash2 } from "lucide-react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { MenuFormModal } from "./menu-form-modal";
@@ -26,75 +20,131 @@ import { MenuFormulasPanel } from "./menu-formulas-panel";
 import { MenuProductsGridPanel } from "./menu-products-grid-panel";
 import { MenuSchedulesList } from "./menu-schedules-list";
 
-interface MenuCardProps {
+type PatchPayload = Partial<Tables<"menus">> & { id: string };
+
+function MenuSettingsDialog({
+  menu,
+  open,
+  onOpenChange,
+  onPatch,
+  onDelete,
+  patchPending,
+  deletePending,
+}: {
   menu: Tables<"menus">;
-  organizationId: string;
-  deleteMenuId: string | null;
-  setEditMenu: (menu: Tables<"menus"> | null) => void;
-  setDeleteMenuId: (id: string | null) => void;
-  deleteMenuMutation: ReturnType<typeof useMutation>;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onPatch: (patch: PatchPayload) => void;
+  onDelete: () => void;
+  patchPending: boolean;
+  deletePending: boolean;
+}) {
+  const [name, setName] = useState(menu.name ?? "");
+  const [description, setDescription] = useState(menu.description ?? "");
+  const [isActive, setIsActive] = useState(menu.is_active ?? false);
+  const [isPublic, setIsPublic] = useState(menu.is_public ?? false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName(menu.name ?? "");
+      setDescription(menu.description ?? "");
+      setIsActive(menu.is_active ?? false);
+      setIsPublic(menu.is_public ?? false);
+      setConfirmDelete(false);
+    }
+  }, [open, menu]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Paramètres du menu</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nom</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+          </div>
+          <div className="flex gap-6">
+            <label className="flex cursor-pointer items-center gap-2">
+              <Switch checked={isActive} onCheckedChange={setIsActive} />
+              <span className="text-sm">Actif</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+              <span className="text-sm">Public</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              disabled={patchPending}
+              onClick={() =>
+                onPatch({
+                  id: menu.id,
+                  name: name.trim(),
+                  description: description.trim(),
+                  is_active: isActive,
+                  is_public: isPublic,
+                })
+              }
+            >
+              Enregistrer
+            </Button>
+          </div>
+
+          <div className="border-t pt-3">
+            {confirmDelete ? (
+              <div className="border-destructive/50 bg-destructive/5 space-y-2 rounded-lg border p-3">
+                <p className="text-destructive text-sm font-medium">Confirmer la suppression ?</p>
+                <p className="text-muted-foreground text-xs">
+                  Cette action est irréversible. Tous les liens avec les produits seront supprimés.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>
+                    Annuler
+                  </Button>
+                  <Button size="sm" variant="destructive" disabled={deletePending} onClick={onDelete}>
+                    Supprimer définitivement
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive w-full justify-start"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                Supprimer ce menu
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function MenuCard({
-  menu,
-  organizationId,
-  deleteMenuId,
-  setEditMenu,
-  setDeleteMenuId,
-  deleteMenuMutation,
-}: MenuCardProps) {
+function MenuEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <Card className="mb-4">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            {menu.image_url && (
-              <Image
-                src={menu.image_url}
-                alt={menu.name ?? "Menu"}
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded object-cover"
-              />
-            )}
-            <span>{menu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}</span>
-          </CardTitle>
-          <div className="text-muted-foreground mt-1 text-sm">{menu.description}</div>
-          <div className="mt-2 flex gap-2 text-xs">
-            {menu.type && <span className="bg-muted rounded px-2 py-0.5">Type : {menu.type}</span>}
-            {menu.is_active && <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Actif</span>}
-            {menu.is_public && <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">Public</span>}
-            {typeof menu.display_order === "number" && (
-              <span className="bg-muted rounded px-2 py-0.5">Ordre : {menu.display_order}</span>
-            )}
-            <span className="bg-muted rounded px-2 py-0.5">Carte permanente</span>
-          </div>
-          <MenuSchedulesList menuId={menu.id} organizationId={organizationId} />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" title="Éditer le menu" onClick={() => setEditMenu(menu)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <AlertDialog open={deleteMenuId === menu.id} onOpenChange={(open) => !open && setDeleteMenuId(null)}>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="icon" title="Supprimer" onClick={() => setDeleteMenuId(menu.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Supprimer ce menu ?</AlertDialogTitle>
-              </AlertDialogHeader>
-              <div>Cette action est irréversible. Tous les liens avec les produits seront supprimés.</div>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteMenuMutation.mutate(menu.id)}>Supprimer</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardHeader>
-    </Card>
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <p className="text-muted-foreground text-sm">Aucun menu configuré pour cet établissement.</p>
+      <Button onClick={onAdd}>
+        <Plus className="mr-2 h-4 w-4" />
+        Créer votre premier menu
+      </Button>
+    </div>
   );
 }
 
@@ -106,13 +156,9 @@ interface MenusDisplayProps {
   setActiveMenuId: (id: string) => void;
   showMenuForm: boolean;
   setShowMenuForm: (show: boolean) => void;
-  editMenu: Tables<"menus"> | undefined;
-  setEditMenu: (menu: Tables<"menus"> | null) => void;
-  deleteMenuId: string | null;
-  setDeleteMenuId: (id: string | null) => void;
   addMenuMutation: ReturnType<typeof useMutation>;
-  editMenuMutation: ReturnType<typeof useMutation>;
   deleteMenuMutation: ReturnType<typeof useMutation>;
+  patchMenuMutation: { mutate: (patch: PatchPayload) => void; isPending: boolean };
 }
 
 export function MenusDisplay({
@@ -123,76 +169,97 @@ export function MenusDisplay({
   setActiveMenuId,
   showMenuForm,
   setShowMenuForm,
-  editMenu,
-  setEditMenu,
-  deleteMenuId,
-  setDeleteMenuId,
   addMenuMutation,
-  editMenuMutation,
   deleteMenuMutation,
+  patchMenuMutation,
 }: MenusDisplayProps) {
-  const t = useTranslations("establishments.menus_page");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const activeMenu = menus?.find((m) => m.id === activeMenuId);
+
+  const handleDelete = () => {
+    if (!activeMenu) return;
+    (deleteMenuMutation.mutate as (id: string) => void)(activeMenu.id);
+    setSettingsOpen(false);
+  };
 
   return (
     <div className="space-y-4">
-      <MenuFormModal open={showMenuForm} onOpenChange={setShowMenuForm} onSubmit={addMenuMutation.mutate} />
       <MenuFormModal
-        open={!!editMenu}
-        onOpenChange={(v) => {
-          if (!v) setEditMenu(null);
-        }}
-        onSubmit={(data) => editMenuMutation.mutate({ ...data, id: editMenu?.id ?? "" })}
-        initialValues={editMenu}
+        open={showMenuForm}
+        onOpenChange={setShowMenuForm}
+        onSubmit={addMenuMutation.mutate as (values: Tables<"menus">) => void}
       />
 
       {!menus?.length ? (
-        <p className="text-muted-foreground text-sm">{t("no_menus")}</p>
+        <MenuEmptyState onAdd={() => setShowMenuForm(true)} />
       ) : (
-        <Tabs value={activeMenuId ?? menus[0]?.id} onValueChange={(v) => setActiveMenuId(v)} className="w-full">
-          <TabsList className="bg-muted/40 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
-            {menus.map((menu) => (
-              <TabsTrigger key={menu.id} value={menu.id} className="max-w-[220px] truncate">
-                {menu.name ?? <span className="text-muted-foreground italic">(Sans nom)</span>}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <>
+          {/* Barre de sélection */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Select value={activeMenuId ?? ""} onValueChange={setActiveMenuId}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Choisir un menu…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {menus.map((menu) => (
+                    <SelectItem key={menu.id} value={menu.id}>
+                      {menu.name ?? "(Sans nom)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeMenu && (
+                <Button size="icon" variant="ghost" title="Paramètres du menu" onClick={() => setSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Button size="sm" onClick={() => setShowMenuForm(true)}>
+              <Plus className="mr-2 h-3.5 w-3.5" />
+              Ajouter un menu
+            </Button>
+          </div>
 
-          {menus.map((menu) => (
-            <TabsContent key={menu.id} value={menu.id} className="mt-6 space-y-4 focus-visible:outline-none">
-              <Tabs defaultValue="properties" className="w-full">
-                <TabsList className="grid w-full max-w-2xl grid-cols-3">
-                  <TabsTrigger value="properties">{t("tab_properties")}</TabsTrigger>
-                  <TabsTrigger value="products">{t("tab_products")}</TabsTrigger>
-                  <TabsTrigger value="formulas">{t("tab_formulas")}</TabsTrigger>
+          {/* Contenu */}
+          {activeMenu && (
+            <>
+              <MenuSettingsDialog
+                menu={activeMenu}
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                onPatch={patchMenuMutation.mutate}
+                onDelete={handleDelete}
+                patchPending={patchMenuMutation.isPending}
+                deletePending={!!deleteMenuMutation.isPending}
+              />
+              <Tabs key={activeMenu.id} defaultValue="products" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="products">Produits</TabsTrigger>
+                  <TabsTrigger value="formulas">Formules</TabsTrigger>
+                  <TabsTrigger value="schedules">Horaires</TabsTrigger>
                 </TabsList>
-                <TabsContent value="properties" className="mt-4 space-y-4">
-                  <MenuCard
-                    menu={menu}
-                    organizationId={organizationId}
-                    deleteMenuId={deleteMenuId}
-                    setEditMenu={setEditMenu}
-                    setDeleteMenuId={setDeleteMenuId}
-                    deleteMenuMutation={deleteMenuMutation}
-                  />
-                </TabsContent>
                 <TabsContent value="products" className="mt-4">
                   <MenuProductsGridPanel
-                    menuId={menu.id}
+                    menuId={activeMenu.id}
                     establishmentId={establishmentId}
                     organizationId={organizationId}
                   />
                 </TabsContent>
                 <TabsContent value="formulas" className="mt-4">
                   <MenuFormulasPanel
-                    menuId={menu.id}
+                    menuId={activeMenu.id}
                     establishmentId={establishmentId}
                     organizationId={organizationId}
                   />
                 </TabsContent>
+                <TabsContent value="schedules" className="mt-4">
+                  <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
+                </TabsContent>
               </Tabs>
-            </TabsContent>
-          ))}
-        </Tabs>
+            </>
+          )}
+        </>
       )}
     </div>
   );

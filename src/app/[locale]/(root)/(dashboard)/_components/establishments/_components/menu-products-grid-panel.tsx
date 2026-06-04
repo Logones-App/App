@@ -76,14 +76,8 @@ export function MenuProductsGridPanel({
 
   const handleRemoveTile = useCallback(
     (item: GridItem) => {
-      if (!window.confirm(t("products_grid_remove_confirm"))) return;
       deleteMutation.mutate(
-        {
-          gridItemId: item.id,
-          menuId,
-          establishmentId,
-          organizationId,
-        },
+        { gridItemId: item.id, menuId, establishmentId, organizationId },
         {
           onSuccess: () => {
             setSelectedItemId((cur) => (cur === item.id ? null : cur));
@@ -137,9 +131,6 @@ export function MenuProductsGridPanel({
     onProductDrop: handleProductDrop,
     t,
   });
-
-  const colStart = (p: number) => p * GRID_SIZE;
-  const colEnd = (p: number) => p * GRID_SIZE + (GRID_SIZE - 1);
 
   const parentNavKey = parentItemId ?? "root";
 
@@ -232,48 +223,34 @@ export function MenuProductsGridPanel({
               )}
             </div>
 
-            <p className="text-muted-foreground mb-2 text-xs">{t("products_grid_caption")}</p>
-            <p className="text-muted-foreground mb-2 text-xs">{t("products_grid_swipe_hint")}</p>
-            <p className="text-muted-foreground mb-2 text-xs">{t("products_grid_sublevel_hint")}</p>
-            <p className="text-muted-foreground mb-3 text-xs">{t("products_grid_inspector_button_hint")}</p>
-
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">
-                {t("products_grid_panel_label", { n: activePanel + 1 })}
-                {" · "}
-                {t("products_grid_columns_hint", {
-                  start: colStart(activePanel),
-                  end: colEnd(activePanel),
-                })}
-              </span>
-              <span className="text-muted-foreground text-[11px]">
-                ({t("products_grid_tile_count", { count: items.length })})
-              </span>
-              <div className="ml-auto flex flex-wrap gap-1">
-                {Array.from({ length: PANEL_COUNT }, (_, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    size="sm"
-                    variant={activePanel === i ? "default" : "outline"}
-                    className="h-8 min-w-8 px-2"
-                    onClick={() => swiperRef.current?.slideTo(i)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
+            <div className="mb-3 flex flex-wrap justify-end gap-1">
+              {Array.from({ length: PANEL_COUNT }, (_, i) => (
+                <Button
+                  key={i}
+                  type="button"
+                  size="sm"
+                  variant={activePanel === i ? "default" : "outline"}
+                  className="h-8 min-w-8 px-2"
+                  onClick={() => swiperRef.current?.slideTo(i)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
             </div>
 
-            {selectedItem && (
-              <MenuProductsGridInspector
-                selectedItem={selectedItem}
-                gridBusy={gridBusy}
-                onEnterCategory={enterCategory}
-                onRemoveTile={handleRemoveTile}
-                onClearSelection={() => setSelectedItemId(null)}
-              />
-            )}
+            <MenuProductsGridInspector
+              selectedItem={selectedItem}
+              open={selectedItemId !== null}
+              onOpenChange={(o) => {
+                if (!o) setSelectedItemId(null);
+              }}
+              menuId={menuId}
+              establishmentId={establishmentId}
+              organizationId={organizationId}
+              gridBusy={gridBusy}
+              onEnterCategory={enterCategory}
+              onRemoveTile={handleRemoveTile}
+            />
 
             <Swiper
               key={parentNavKey}
@@ -291,15 +268,6 @@ export function MenuProductsGridPanel({
               {Array.from({ length: PANEL_COUNT }, (_, panelIndex) => (
                 <SwiperSlide key={panelIndex}>
                   <div className="px-0.5">
-                    <div className="text-muted-foreground mb-2 flex items-center justify-between text-[11px]">
-                      <span>{t("products_grid_panel_label", { n: panelIndex + 1 })}</span>
-                      <span>
-                        {t("products_grid_columns_hint", {
-                          start: colStart(panelIndex),
-                          end: colEnd(panelIndex),
-                        })}
-                      </span>
-                    </div>
                     <MenuGrid6x6
                       panelMaps={panelMaps}
                       panelIndex={panelIndex}

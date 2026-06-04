@@ -9,8 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Tables } from "@/lib/supabase/database.types";
 
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
 export function AddFormulaProductCard({
   slots,
   pickableForTargetSlot,
@@ -78,9 +76,6 @@ export function AddFormulaProductCard({
                   pickableForTargetSlot.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
-                      {p.price != null ? (
-                        <span className="text-muted-foreground ml-1 text-xs">({eur.format(p.price)})</span>
-                      ) : null}
                     </SelectItem>
                   ))
                 )}

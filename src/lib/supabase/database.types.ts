@@ -4000,7 +4000,6 @@ export type Database = {
           organization_id: string | null
           portion_unit: string | null
           portion_weight: number | null
-          price: number
           printer_id: string | null
           product_type: Json
           sku: string | null
@@ -4024,7 +4023,6 @@ export type Database = {
           organization_id?: string | null
           portion_unit?: string | null
           portion_weight?: number | null
-          price: number
           printer_id?: string | null
           product_type?: Json
           sku?: string | null
@@ -4048,7 +4046,6 @@ export type Database = {
           organization_id?: string | null
           portion_unit?: string | null
           portion_weight?: number | null
-          price?: number
           printer_id?: string | null
           product_type?: Json
           sku?: string | null

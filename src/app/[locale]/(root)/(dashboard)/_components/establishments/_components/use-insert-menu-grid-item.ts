@@ -46,10 +46,7 @@ export function useInsertMenuGridItemMutation() {
           .maybeSingle();
         if (mpSelErr) throw mpSelErr;
 
-        const price =
-          p.priceOverride ??
-          (await supabase.from("products").select("price").eq("id", p.productId).maybeSingle()).data?.price ??
-          0;
+        const price = p.priceOverride ?? 0;
 
         if (mp) {
           if (mp.deleted) {
@@ -127,6 +124,34 @@ export type SoftDeleteMenuGridItemPayload = {
   establishmentId: string;
   organizationId: string;
 };
+
+export type PatchMenuGridItemColorsPayload = {
+  gridItemId: string;
+  menuId: string;
+  establishmentId: string;
+  organizationId: string;
+  background_color: string | null;
+  text_color: string | null;
+};
+
+export function usePatchMenuGridItemColorsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: PatchMenuGridItemColorsPayload) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("category_grid_items")
+        .update({ background_color: p.background_color, text_color: p.text_color })
+        .eq("id", p.gridItemId);
+      if (error) throw error;
+    },
+    onSuccess: (_data, p) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["menu-category-grid-items", p.menuId, p.establishmentId, p.organizationId],
+      });
+    },
+  });
+}
 
 /** Soft delete : `deleted = true` (aligné sur `useMenuCategoryGridItems` qui filtre `deleted = false`). */
 export function useSoftDeleteMenuGridItemMutation() {

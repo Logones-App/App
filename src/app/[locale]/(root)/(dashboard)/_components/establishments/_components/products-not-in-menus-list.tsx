@@ -25,7 +25,6 @@ export function ProductsNotInMenusList({ establishmentId, organizationId }: Prod
             <div className="font-medium">{product.name}</div>
             {product.description && <div className="text-muted-foreground text-xs">{product.description}</div>}
           </div>
-          <div className="text-xs">Prix : {product.price}€</div>
         </div>
       ))}
     </div>

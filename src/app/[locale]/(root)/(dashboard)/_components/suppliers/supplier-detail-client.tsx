@@ -12,8 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSupplier, useSupplierProducts } from "@/lib/queries/supplier-queries";
 
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
 export function SupplierDetailClient() {
   const params = useParams();
   const pathname = usePathname();
@@ -146,14 +144,13 @@ export function SupplierDetailClient() {
                     <TableHead>Nom fournisseur</TableHead>
                     <TableHead>Unité / Qté min</TableHead>
                     <TableHead className="text-right">Délai</TableHead>
-                    <TableHead className="text-right">Prix vente</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {preferred.length > 0 && others.length > 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={5}
                         className="text-muted-foreground bg-yellow-50/50 py-1.5 text-xs font-medium dark:bg-yellow-950/20"
                       >
                         <Star className="mr-1 inline h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -167,7 +164,7 @@ export function SupplierDetailClient() {
                         return (
                           <TableRow key="separator">
                             <TableCell
-                              colSpan={6}
+                              colSpan={5}
                               className="text-muted-foreground bg-muted/30 py-1.5 text-xs font-medium"
                             >
                               Autres produits
@@ -203,9 +200,6 @@ export function SupplierDetailClient() {
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             {row.lead_time_days != null ? `${row.lead_time_days} j` : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {row.product?.price != null ? eur.format(row.product.price) : "—"}
                           </TableCell>
                         </TableRow>
                       );

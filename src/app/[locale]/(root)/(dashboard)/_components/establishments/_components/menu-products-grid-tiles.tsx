@@ -1,9 +1,9 @@
 "use client";
 
-import { type CSSProperties } from "react";
+import { type CSSProperties, type ElementType } from "react";
 
 import { useDroppable } from "@dnd-kit/core";
-import { Settings2 } from "lucide-react";
+import { FolderOpen, Settings2, Tag, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,19 @@ import { cn } from "@/lib/utils";
 
 import { GRID_SIZE } from "./menu-products-grid-constants";
 import { getPanelMapAt, isCategoryNavigable, type GridItem } from "./menu-products-grid-model";
+
+const priceFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
+function tileTypeIcon(itemType: string): ElementType {
+  if (itemType === "category") return FolderOpen;
+  if (itemType === "action") return Zap;
+  return Tag;
+}
+
+function tilePriceLabel(item: GridItem): string | null {
+  if (item.item_type !== "product" || item.menuProductPrice == null) return null;
+  return priceFormatter.format(item.menuProductPrice);
+}
 
 function gridItemSurfaceStyle(item: GridItem): CSSProperties {
   const s: CSSProperties = {};
@@ -75,9 +88,17 @@ export function GridTile({
 
   const navigable = isCategoryNavigable(item) && Boolean(onCategoryEnter);
   const isUnavailable = item.item_type === "product" && item.product?.is_available === false;
+  const TypeIcon = tileTypeIcon(item.item_type);
+  const price = tilePriceLabel(item);
 
   return (
     <div className="relative h-full min-h-0 w-full min-w-0">
+      {/* Badge type — haut gauche */}
+      <span className="border-border/80 bg-background/95 absolute top-0 left-0 z-10 flex size-5 items-center justify-center rounded-full border shadow-sm">
+        <TypeIcon className="size-2.5" aria-hidden />
+      </span>
+
+      {/* Bouton paramètres — haut droite */}
       <Button
         type="button"
         variant="secondary"
@@ -94,6 +115,7 @@ export function GridTile({
       >
         <Settings2 className="size-2.5" aria-hidden />
       </Button>
+
       <div
         className={cn(
           "flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 pt-5 pb-1 text-center shadow-sm transition-transform",
@@ -117,8 +139,8 @@ export function GridTile({
           }
         }}
       >
-        <span className="line-clamp-3 w-full text-[10px] leading-tight font-medium">{item.label ?? "—"}</span>
-        <span className="text-[8px] uppercase opacity-80">{item.item_type}</span>
+        <span className="line-clamp-2 w-full text-[10px] leading-tight font-medium">{item.label ?? "—"}</span>
+        {price && <span className="mt-0.5 text-[9px] font-semibold tabular-nums opacity-90">{price}</span>}
         {isUnavailable && (
           <span className="bg-muted-foreground/20 rounded px-1 text-[7px] tracking-wide uppercase">indispo</span>
         )}

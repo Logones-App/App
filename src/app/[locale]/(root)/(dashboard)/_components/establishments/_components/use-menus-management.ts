@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
@@ -49,6 +50,18 @@ export function useMenusManagement({ establishmentId, organizationId, menus }: U
     },
   });
 
+  const patchMenuMutation = useMutation({
+    mutationFn: async ({ id, ...values }: Partial<Tables<"menus">> & { id: string }) => {
+      const supabase = createClient();
+      const { error } = await supabase.from("menus").update(values).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["establishment-menus"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la mise à jour."),
+  });
+
   const deleteMenuMutation = useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
@@ -83,5 +96,6 @@ export function useMenusManagement({ establishmentId, organizationId, menus }: U
     addMenuMutation,
     editMenuMutation,
     deleteMenuMutation,
+    patchMenuMutation,
   };
 }
