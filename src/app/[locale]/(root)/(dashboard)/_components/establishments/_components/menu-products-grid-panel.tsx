@@ -7,7 +7,6 @@ import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { Swiper as SwiperType } from "swiper";
-import { Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
 
 import { Button } from "@/components/ui/button";
@@ -223,21 +222,6 @@ export function MenuProductsGridPanel({
               )}
             </div>
 
-            <div className="mb-3 flex flex-wrap justify-end gap-1">
-              {Array.from({ length: PANEL_COUNT }, (_, i) => (
-                <Button
-                  key={i}
-                  type="button"
-                  size="sm"
-                  variant={activePanel === i ? "default" : "outline"}
-                  className="h-8 min-w-8 px-2"
-                  onClick={() => swiperRef.current?.slideTo(i)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-            </div>
-
             <MenuProductsGridInspector
               selectedItem={selectedItem}
               open={selectedItemId !== null}
@@ -254,16 +238,15 @@ export function MenuProductsGridPanel({
 
             <Swiper
               key={parentNavKey}
-              modules={[Pagination]}
+              modules={[]}
               slidesPerView={1}
               spaceBetween={16}
-              pagination={{ clickable: true, dynamicBullets: true }}
               resistanceRatio={0.85}
               onSlideChange={(s) => setActivePanel(s.activeIndex)}
               onSwiper={(instance) => {
                 swiperRef.current = instance;
               }}
-              className="menu-products-grid-swiper pb-10"
+              className="menu-products-grid-swiper"
             >
               {Array.from({ length: PANEL_COUNT }, (_, panelIndex) => (
                 <SwiperSlide key={panelIndex}>
@@ -280,6 +263,21 @@ export function MenuProductsGridPanel({
                 </SwiperSlide>
               ))}
             </Swiper>
+
+            <div className="mt-3 flex justify-center gap-1">
+              {Array.from({ length: PANEL_COUNT }, (_, i) => (
+                <Button
+                  key={i}
+                  type="button"
+                  size="sm"
+                  variant={activePanel === i ? "default" : "outline"}
+                  className="h-8 min-w-8 px-2"
+                  onClick={() => swiperRef.current?.slideTo(i)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 

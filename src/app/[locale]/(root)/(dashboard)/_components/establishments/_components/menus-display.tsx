@@ -193,12 +193,11 @@ export function MenusDisplay({
       {!menus?.length ? (
         <MenuEmptyState onAdd={() => setShowMenuForm(true)} />
       ) : (
-        <>
-          {/* Barre de sélection */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+        <Tabs key={activeMenuId ?? "no-menu"} defaultValue="products" className="w-full">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-4">
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={activeMenuId ?? ""} onValueChange={setActiveMenuId}>
-                <SelectTrigger className="w-[220px]">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Choisir un menu…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -214,6 +213,11 @@ export function MenusDisplay({
                   <Settings className="h-4 w-4" />
                 </Button>
               )}
+              <TabsList>
+                <TabsTrigger value="products">Produits</TabsTrigger>
+                <TabsTrigger value="formulas">Formules</TabsTrigger>
+                <TabsTrigger value="schedules">Horaires</TabsTrigger>
+              </TabsList>
             </div>
             <Button size="sm" onClick={() => setShowMenuForm(true)}>
               <Plus className="mr-2 h-3.5 w-3.5" />
@@ -221,7 +225,6 @@ export function MenusDisplay({
             </Button>
           </div>
 
-          {/* Contenu */}
           {activeMenu && (
             <>
               <MenuSettingsDialog
@@ -233,33 +236,26 @@ export function MenusDisplay({
                 patchPending={patchMenuMutation.isPending}
                 deletePending={!!deleteMenuMutation.isPending}
               />
-              <Tabs key={activeMenu.id} defaultValue="products" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="products">Produits</TabsTrigger>
-                  <TabsTrigger value="formulas">Formules</TabsTrigger>
-                  <TabsTrigger value="schedules">Horaires</TabsTrigger>
-                </TabsList>
-                <TabsContent value="products" className="mt-4">
-                  <MenuProductsGridPanel
-                    menuId={activeMenu.id}
-                    establishmentId={establishmentId}
-                    organizationId={organizationId}
-                  />
-                </TabsContent>
-                <TabsContent value="formulas" className="mt-4">
-                  <MenuFormulasPanel
-                    menuId={activeMenu.id}
-                    establishmentId={establishmentId}
-                    organizationId={organizationId}
-                  />
-                </TabsContent>
-                <TabsContent value="schedules" className="mt-4">
-                  <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
-                </TabsContent>
-              </Tabs>
+              <TabsContent value="products" className="mt-4">
+                <MenuProductsGridPanel
+                  menuId={activeMenu.id}
+                  establishmentId={establishmentId}
+                  organizationId={organizationId}
+                />
+              </TabsContent>
+              <TabsContent value="formulas" className="mt-4">
+                <MenuFormulasPanel
+                  menuId={activeMenu.id}
+                  establishmentId={establishmentId}
+                  organizationId={organizationId}
+                />
+              </TabsContent>
+              <TabsContent value="schedules" className="mt-4">
+                <MenuSchedulesList menuId={activeMenu.id} organizationId={organizationId} />
+              </TabsContent>
             </>
           )}
-        </>
+        </Tabs>
       )}
     </div>
   );

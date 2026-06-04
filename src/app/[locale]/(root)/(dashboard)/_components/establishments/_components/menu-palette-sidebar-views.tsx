@@ -2,47 +2,16 @@
 
 import { useMemo, useState } from "react";
 
-import { ChevronDown, ChevronRight, Loader2, Search } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MenuPaletteCategory } from "@/lib/queries/establishments";
 import type { Tables } from "@/lib/supabase/database.types";
 
 import { DraggableCategoryStrip, PaletteSystemActionsSection, ProductList } from "./menu-palette-sidebar-widgets";
-
-function CollapsibleSection({
-  title,
-  badge,
-  defaultOpen = true,
-  children,
-}: {
-  title: string;
-  badge?: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="bg-muted/30 rounded-xl border">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="hover:bg-muted/50 flex w-full items-center gap-2 rounded-t-xl px-3 py-2.5 text-left transition-colors"
-      >
-        {open ? (
-          <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
-        ) : (
-          <ChevronRight className="text-muted-foreground size-3.5 shrink-0" />
-        )}
-        <span className="flex-1 text-xs font-medium">{title}</span>
-        {badge && <span className="text-muted-foreground text-[10px]">{badge}</span>}
-      </button>
-      {open && <div className="border-t">{children}</div>}
-    </div>
-  );
-}
 
 export function MenuPaletteSidebarLoading() {
   const t = useTranslations("establishments.menus_page");
@@ -67,10 +36,10 @@ export function MenuPaletteSidebarError({ message }: { message?: string }) {
 export function MenuPaletteSidebarEmptyCatalog() {
   const t = useTranslations("establishments.menus_page");
   return (
-    <CollapsibleSection title={t("products_palette_actions_title")}>
-      <PaletteSystemActionsSection className="border-b-0" />
-      <p className="text-muted-foreground border-t p-4 text-xs">{t("products_palette_empty")}</p>
-    </CollapsibleSection>
+    <div className="bg-muted/30 rounded-xl border">
+      <PaletteSystemActionsSection />
+      <p className="text-muted-foreground p-4 text-xs">{t("products_palette_empty")}</p>
+    </div>
   );
 }
 
@@ -85,7 +54,6 @@ export function MenuPaletteSidebarCatalog({
   priceByProductId: Record<string, number>;
   locale: string;
 }) {
-  const t = useTranslations("establishments.menus_page");
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -95,60 +63,73 @@ export function MenuPaletteSidebarCatalog({
   }, [products, search]);
 
   return (
-    <div className="space-y-2">
-      {/* Recherche */}
-      <div className="relative">
-        <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un produit…"
-          className="h-8 pl-8 text-xs"
-        />
-      </div>
+    <Tabs defaultValue="catalogue" className="w-full">
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="actions" className="text-xs">
+          Actions
+        </TabsTrigger>
+        <TabsTrigger value="dossiers" className="text-xs">
+          Dossiers
+          {categories.length > 0 && <span className="ml-1 opacity-60">{categories.length}</span>}
+        </TabsTrigger>
+        <TabsTrigger value="catalogue" className="text-xs">
+          Catalogue
+          <span className="ml-1 opacity-60">{products.length}</span>
+        </TabsTrigger>
+      </TabsList>
 
-      {/* Actions système — masquées si recherche active */}
-      {!search && (
-        <CollapsibleSection title={t("products_palette_actions_title")} defaultOpen={false}>
+      {/* Actions système */}
+      <TabsContent value="actions" className="mt-2">
+        <div className="bg-muted/30 rounded-xl border">
           <PaletteSystemActionsSection className="border-b-0" />
-        </CollapsibleSection>
-      )}
+        </div>
+      </TabsContent>
 
-      {/* Catégories (dossiers POS) — masquées si recherche active */}
-      {!search && categories.length > 0 && (
-        <CollapsibleSection
-          title={t("products_palette_categories_title")}
-          badge={`${categories.length}`}
-          defaultOpen={true}
-        >
-          <ScrollArea className="max-h-44">
-            <div className="space-y-1.5 p-2">
+      {/* Dossiers POS */}
+      <TabsContent value="dossiers" className="mt-2">
+        {categories.length === 0 ? (
+          <p className="text-muted-foreground p-3 text-xs">Aucun dossier disponible.</p>
+        ) : (
+          <ScrollArea className="h-[552px]">
+            <div className="space-y-1.5 p-1">
               {categories.map((cat) => (
                 <DraggableCategoryStrip key={cat.id} categoryId={cat.id} label={cat.name} />
               ))}
             </div>
           </ScrollArea>
-        </CollapsibleSection>
-      )}
+        )}
+      </TabsContent>
 
-      {/* Produits */}
-      <CollapsibleSection
-        title={t("products_sidebar_title")}
-        badge={filtered.length !== products.length ? `${filtered.length}/${products.length}` : `${products.length}`}
-        defaultOpen={true}
-      >
+      {/* Catalogue produits */}
+      <TabsContent value="catalogue" className="mt-2 space-y-2">
+        <div className="relative">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un produit…"
+            className="h-8 pr-7 text-xs"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+
         {filtered.length === 0 ? (
-          <p className="text-muted-foreground p-4 text-xs">
-            {search ? "Aucun résultat." : t("products_palette_empty")}
-          </p>
+          <p className="text-muted-foreground p-3 text-xs">{search ? "Aucun résultat." : "Aucun produit."}</p>
         ) : (
-          <ScrollArea className="max-h-[min(50vh,440px)]">
-            <div className="p-2">
+          <ScrollArea className="h-[512px]">
+            <div className="p-1">
               <ProductList products={filtered} priceByProductId={priceByProductId} locale={locale} />
             </div>
           </ScrollArea>
         )}
-      </CollapsibleSection>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
