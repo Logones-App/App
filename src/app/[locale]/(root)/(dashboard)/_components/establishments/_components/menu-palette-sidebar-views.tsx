@@ -90,7 +90,7 @@ export function MenuPaletteSidebarCatalog({
         {categories.length === 0 ? (
           <p className="text-muted-foreground p-3 text-xs">Aucun dossier disponible.</p>
         ) : (
-          <ScrollArea className="h-[552px]">
+          <ScrollArea className="h-[538px] rounded-lg border">
             <div className="space-y-1.5 p-1">
               {categories.map((cat) => (
                 <DraggableCategoryStrip key={cat.id} categoryId={cat.id} label={cat.name} />
@@ -123,8 +123,8 @@ export function MenuPaletteSidebarCatalog({
         {filtered.length === 0 ? (
           <p className="text-muted-foreground p-3 text-xs">{search ? "Aucun résultat." : "Aucun produit."}</p>
         ) : (
-          <ScrollArea className="h-[512px]">
-            <div className="p-1">
+          <ScrollArea className="h-[498px] rounded-lg border">
+            <div className="py-1 pr-3 pl-1">
               <ProductList products={filtered} priceByProductId={priceByProductId} locale={locale} />
             </div>
           </ScrollArea>

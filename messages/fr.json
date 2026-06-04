@@ -81,6 +81,10 @@
       "create_first": "Créer votre premier établissement"
     },
     "error_loading": "Erreur lors du chargement des établissements",
+    "openingHours": {
+      "title": "Horaires d'ouverture",
+      "description": "Configurez les horaires d'ouverture de votre établissement."
+    },
     "menus_page": {
       "tab_properties": "Propriétés",
       "tab_products": "Produits",

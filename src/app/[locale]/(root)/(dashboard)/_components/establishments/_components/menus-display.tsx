@@ -208,16 +208,16 @@ export function MenusDisplay({
                   ))}
                 </SelectContent>
               </Select>
-              {activeMenu && (
-                <Button size="icon" variant="ghost" title="Paramètres du menu" onClick={() => setSettingsOpen(true)}>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              )}
               <TabsList>
                 <TabsTrigger value="products">Produits</TabsTrigger>
                 <TabsTrigger value="formulas">Formules</TabsTrigger>
                 <TabsTrigger value="schedules">Horaires</TabsTrigger>
               </TabsList>
+              {activeMenu && (
+                <Button size="icon" variant="ghost" title="Paramètres du menu" onClick={() => setSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <Button size="sm" onClick={() => setShowMenuForm(true)}>
               <Plus className="mr-2 h-3.5 w-3.5" />
