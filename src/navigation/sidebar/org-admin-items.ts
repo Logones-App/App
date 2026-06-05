@@ -17,6 +17,7 @@ import {
   MapPin,
   Wrench,
   GraduationCap,
+  CalendarDays,
   SlidersHorizontal,
   FileText,
   BookOpen,
@@ -93,6 +94,11 @@ export const getOrgAdminSidebarItems = (
               title: "Horaires",
               url: `${est}/opening-hours`,
               icon: Clock,
+            },
+            {
+              title: "Planning",
+              url: `${est}/planning`,
+              icon: CalendarDays,
             },
             {
               title: "Galerie",
