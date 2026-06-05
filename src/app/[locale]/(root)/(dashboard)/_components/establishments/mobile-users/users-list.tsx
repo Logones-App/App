@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 interface UsersListProps {
   mobileUsers: MobileUser[];

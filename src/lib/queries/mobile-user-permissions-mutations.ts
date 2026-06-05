@@ -3,9 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
-type CreateMobileUserPermissionPayload = Database["public"]["Tables"]["mobile_user_permissions"]["Insert"];
-type UpdateMobileUserPermissionPayload = Database["public"]["Tables"]["mobile_user_permissions"]["Update"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
+type CreateMobileUserPermissionPayload = Database["public"]["Tables"]["employee_permissions"]["Insert"];
+type UpdateMobileUserPermissionPayload = Database["public"]["Tables"]["employee_permissions"]["Update"];
 
 // Hook pour créer une permission
 export function useCreateMobileUserPermission() {
@@ -14,7 +14,7 @@ export function useCreateMobileUserPermission() {
 
   return useMutation({
     mutationFn: async (payload: CreateMobileUserPermissionPayload): Promise<MobileUserPermission> => {
-      const { data, error } = await supabase.from("mobile_user_permissions").insert(payload).select().single();
+      const { data, error } = await supabase.from("employee_permissions").insert(payload).select().single();
 
       if (error) {
         throw new Error(`Erreur lors de la création de la permission: ${error.message}`);
@@ -25,7 +25,7 @@ export function useCreateMobileUserPermission() {
     onSuccess: (data) => {
       // Invalider le cache pour forcer le rechargement
       queryClient.invalidateQueries({
-        queryKey: ["mobile-user-permissions", data.mobile_user_id],
+        queryKey: ["mobile-user-permissions", data.employee_id],
       });
       queryClient.invalidateQueries({
         queryKey: ["mobile-user-permissions", "establishment", data.establishment_id],
@@ -48,7 +48,7 @@ export function useUpdateMobileUserPermission() {
       updates: UpdateMobileUserPermissionPayload;
     }): Promise<MobileUserPermission> => {
       const { data, error } = await supabase
-        .from("mobile_user_permissions")
+        .from("employee_permissions")
         .update(updates)
         .eq("id", id)
         .select()
@@ -63,7 +63,7 @@ export function useUpdateMobileUserPermission() {
     onSuccess: (data) => {
       // Invalider le cache pour forcer le rechargement
       queryClient.invalidateQueries({
-        queryKey: ["mobile-user-permissions", data.mobile_user_id],
+        queryKey: ["mobile-user-permissions", data.employee_id],
       });
       queryClient.invalidateQueries({
         queryKey: ["mobile-user-permissions", "establishment", data.establishment_id],
@@ -79,7 +79,7 @@ export function useDeleteMobileUserPermission() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { error } = await supabase.from("mobile_user_permissions").update({ deleted: true }).eq("id", id);
+      const { error } = await supabase.from("employee_permissions").update({ deleted: true }).eq("id", id);
 
       if (error) {
         throw new Error(`Erreur lors de la suppression de la permission: ${error.message}`);
@@ -101,7 +101,7 @@ export function useCreateMobileUserPermissionsBatch() {
 
   return useMutation({
     mutationFn: async (payloads: CreateMobileUserPermissionPayload[]): Promise<MobileUserPermission[]> => {
-      const { data, error } = await supabase.from("mobile_user_permissions").insert(payloads).select();
+      const { data, error } = await supabase.from("employee_permissions").insert(payloads).select();
 
       if (error) {
         throw new Error(`Erreur lors de la création des permissions: ${error.message}`);
@@ -112,7 +112,7 @@ export function useCreateMobileUserPermissionsBatch() {
     onSuccess: (data) => {
       // Invalider le cache pour forcer le rechargement
       if (data.length > 0) {
-        const mobileUserId = data[0].mobile_user_id;
+        const mobileUserId = data[0].employee_id;
         const establishmentId = data[0].establishment_id;
 
         queryClient.invalidateQueries({

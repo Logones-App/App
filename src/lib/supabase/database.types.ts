@@ -777,7 +777,7 @@ export type Database = {
             foreignKeyName: "device_sessions_mobile_user_id_fkey"
             columns: ["mobile_user_id"]
             isOneToOne: false
-            referencedRelation: "mobile_users"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -1194,6 +1194,569 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_absences: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          employee_id: string
+          end_date: string
+          establishment_id: string | null
+          has_document: boolean
+          id: string
+          notes: string | null
+          organization_id: string
+          start_date: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          employee_id: string
+          end_date: string
+          establishment_id?: string | null
+          has_document?: boolean
+          id?: string
+          notes?: string | null
+          organization_id: string
+          start_date: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          employee_id?: string
+          end_date?: string
+          establishment_id?: string | null
+          has_document?: boolean
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          start_date?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_absences_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_absences_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_absences_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_absences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          document_type: string
+          employee_id: string
+          expires_at: string | null
+          file_path: string
+          id: string
+          issued_at: string | null
+          notes: string | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          document_type: string
+          employee_id: string
+          expires_at?: string | null
+          file_path: string
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          document_type?: string
+          employee_id?: string
+          expires_at?: string | null
+          file_path?: string
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_module_access: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          employee_id: string
+          establishment_id: string | null
+          id: string
+          module: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          employee_id: string
+          establishment_id?: string | null
+          id?: string
+          module: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          employee_id?: string
+          establishment_id?: string | null
+          id?: string
+          module?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_module_access_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_module_access_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_module_access_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_monthly_reports: {
+        Row: {
+          advance_payment: number | null
+          bonus_gross: number | null
+          bonus_net: number | null
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          employee_id: string
+          establishment_id: string | null
+          exit_mid_month_date: string | null
+          expense_claims: number | null
+          hire_mid_month_date: string | null
+          id: string
+          meal_vouchers_count: number | null
+          month: number
+          organization_id: string
+          other_notes: string | null
+          overtime_week_1: number | null
+          overtime_week_2: number | null
+          overtime_week_3: number | null
+          overtime_week_4: number | null
+          overtime_week_5: number | null
+          transport_subsidy: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          advance_payment?: number | null
+          bonus_gross?: number | null
+          bonus_net?: number | null
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          employee_id: string
+          establishment_id?: string | null
+          exit_mid_month_date?: string | null
+          expense_claims?: number | null
+          hire_mid_month_date?: string | null
+          id?: string
+          meal_vouchers_count?: number | null
+          month: number
+          organization_id: string
+          other_notes?: string | null
+          overtime_week_1?: number | null
+          overtime_week_2?: number | null
+          overtime_week_3?: number | null
+          overtime_week_4?: number | null
+          overtime_week_5?: number | null
+          transport_subsidy?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          advance_payment?: number | null
+          bonus_gross?: number | null
+          bonus_net?: number | null
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          employee_id?: string
+          establishment_id?: string | null
+          exit_mid_month_date?: string | null
+          expense_claims?: number | null
+          hire_mid_month_date?: string | null
+          id?: string
+          meal_vouchers_count?: number | null
+          month?: number
+          organization_id?: string
+          other_notes?: string | null
+          overtime_week_1?: number | null
+          overtime_week_2?: number | null
+          overtime_week_3?: number | null
+          overtime_week_4?: number | null
+          overtime_week_5?: number | null
+          transport_subsidy?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_monthly_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_monthly_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_monthly_reports_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_monthly_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_permissions: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          employee_id: string | null
+          establishment_id: string | null
+          granted_at: string | null
+          granted_by: string | null
+          granted_by_employee_id: string | null
+          id: string
+          organization_id: string | null
+          permission: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          employee_id?: string | null
+          establishment_id?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          granted_by_employee_id?: string | null
+          id?: string
+          organization_id?: string | null
+          permission: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          employee_id?: string | null
+          establishment_id?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          granted_by_employee_id?: string | null
+          id?: string
+          organization_id?: string | null
+          permission?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_permissions_granted_by_employee_id_fkey"
+            columns: ["granted_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_user_permissions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_user_permissions_mobile_user_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_user_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          birth_city: string | null
+          birth_date: string | null
+          birth_department: string | null
+          contract_type: string | null
+          created_at: string | null
+          deleted: boolean | null
+          email: string | null
+          establishment_id: string | null
+          exit_date: string | null
+          firstname: string
+          gender: string | null
+          gross_salary: number | null
+          has_mobile_access: boolean
+          hire_datetime: string | null
+          id: string
+          is_active: boolean | null
+          job_title: string | null
+          lastname: string
+          nationality: string | null
+          net_salary: number | null
+          nia_number: string | null
+          organization_id: string
+          phone: string | null
+          pin_code: string | null
+          qualification: string | null
+          role: string | null
+          social_security_number: string | null
+          temp_agency_address: string | null
+          temp_agency_name: string | null
+          updated_at: string | null
+          work_permit_date: string | null
+          work_permit_number: string | null
+          work_permit_type: string | null
+        }
+        Insert: {
+          birth_city?: string | null
+          birth_date?: string | null
+          birth_department?: string | null
+          contract_type?: string | null
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          establishment_id?: string | null
+          exit_date?: string | null
+          firstname: string
+          gender?: string | null
+          gross_salary?: number | null
+          has_mobile_access?: boolean
+          hire_datetime?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_title?: string | null
+          lastname: string
+          nationality?: string | null
+          net_salary?: number | null
+          nia_number?: string | null
+          organization_id: string
+          phone?: string | null
+          pin_code?: string | null
+          qualification?: string | null
+          role?: string | null
+          social_security_number?: string | null
+          temp_agency_address?: string | null
+          temp_agency_name?: string | null
+          updated_at?: string | null
+          work_permit_date?: string | null
+          work_permit_number?: string | null
+          work_permit_type?: string | null
+        }
+        Update: {
+          birth_city?: string | null
+          birth_date?: string | null
+          birth_department?: string | null
+          contract_type?: string | null
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          establishment_id?: string | null
+          exit_date?: string | null
+          firstname?: string
+          gender?: string | null
+          gross_salary?: number | null
+          has_mobile_access?: boolean
+          hire_datetime?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_title?: string | null
+          lastname?: string
+          nationality?: string | null
+          net_salary?: number | null
+          nia_number?: string | null
+          organization_id?: string
+          phone?: string | null
+          pin_code?: string | null
+          qualification?: string | null
+          role?: string | null
+          social_security_number?: string | null
+          temp_agency_address?: string | null
+          temp_agency_name?: string | null
+          updated_at?: string | null
+          work_permit_date?: string | null
+          work_permit_number?: string | null
+          work_permit_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishment_documents: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          document_type: string
+          establishment_id: string
+          file_path: string
+          id: string
+          issued_at: string | null
+          notes: string | null
+          organization_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          document_type: string
+          establishment_id: string
+          file_path: string
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          organization_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          document_type?: string
+          establishment_id?: string
+          file_path?: string
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          organization_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_documents_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1909,130 +2472,6 @@ export type Database = {
           },
         ]
       }
-      mobile_user_permissions: {
-        Row: {
-          created_at: string | null
-          deleted: boolean | null
-          establishment_id: string | null
-          granted_at: string | null
-          granted_by: string | null
-          id: string
-          mobile_user_id: string | null
-          organization_id: string | null
-          permission: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          deleted?: boolean | null
-          establishment_id?: string | null
-          granted_at?: string | null
-          granted_by?: string | null
-          id?: string
-          mobile_user_id?: string | null
-          organization_id?: string | null
-          permission: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          deleted?: boolean | null
-          establishment_id?: string | null
-          granted_at?: string | null
-          granted_by?: string | null
-          id?: string
-          mobile_user_id?: string | null
-          organization_id?: string | null
-          permission?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mobile_user_permissions_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mobile_user_permissions_mobile_user_id_fkey"
-            columns: ["mobile_user_id"]
-            isOneToOne: false
-            referencedRelation: "mobile_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mobile_user_permissions_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mobile_users: {
-        Row: {
-          created_at: string | null
-          deleted: boolean | null
-          email: string | null
-          establishment_id: string
-          firstname: string
-          id: string
-          is_active: boolean | null
-          lastname: string
-          organization_id: string | null
-          phone: string | null
-          pin_code: string | null
-          role: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          deleted?: boolean | null
-          email?: string | null
-          establishment_id: string
-          firstname: string
-          id?: string
-          is_active?: boolean | null
-          lastname: string
-          organization_id?: string | null
-          phone?: string | null
-          pin_code?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          deleted?: boolean | null
-          email?: string | null
-          establishment_id?: string
-          firstname?: string
-          id?: string
-          is_active?: boolean | null
-          lastname?: string
-          organization_id?: string | null
-          phone?: string | null
-          pin_code?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "users_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "users_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       nf525_config: {
         Row: {
           created_at: string | null
@@ -2248,7 +2687,7 @@ export type Database = {
             foreignKeyName: "nf525_pieces_mobile_user_id_fkey"
             columns: ["mobile_user_id"]
             isOneToOne: false
-            referencedRelation: "mobile_users"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -3286,7 +3725,7 @@ export type Database = {
             foreignKeyName: "orders_server_id_fkey"
             columns: ["server_id"]
             isOneToOne: false
-            referencedRelation: "mobile_users"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {

@@ -15,7 +15,7 @@ import { ModalHeader, FormButtons } from "./_components";
 import { useMobileUserPermissionForm } from "./_components/use-mobile-user-permission-form";
 import { FormFields } from "./mobile-user-permission-form";
 
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
 
 interface MobileUserPermissionModalProps {
   isOpen: boolean;

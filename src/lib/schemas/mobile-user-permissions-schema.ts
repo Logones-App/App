@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const mobileUserPermissionSchema = z.object({
-  mobile_user_id: z.string().uuid("ID utilisateur mobile invalide"),
+  employee_id: z.string().uuid("ID utilisateur mobile invalide"),
   permission: z.string().min(1, "La permission est requise"),
   granted_by: z.string().uuid("ID utilisateur accordant invalide").optional(),
   organization_id: z.string().uuid("ID organisation invalide"),

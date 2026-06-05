@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import type { MobileUserPermissionFormData } from "@/lib/schemas/mobile-user-permissions-schema";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
-type CreateMobileUserPermissionPayload = Database["public"]["Tables"]["mobile_user_permissions"]["Insert"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
+type CreateMobileUserPermissionPayload = Database["public"]["Tables"]["employee_permissions"]["Insert"];
 
 interface UseMobileUserPermissionHandlersProps {
   user: { id: string; email?: string } | null;
@@ -33,7 +33,7 @@ export function useMobileUserPermissionHandlers({
   const handleCreatePermission = (formData: MobileUserPermissionFormData) => {
     // ✅ Utiliser directement les données du formulaire (granted_by déjà inclus)
     const permissionData = {
-      mobile_user_id: formData.mobile_user_id,
+      employee_id: formData.employee_id,
       permission: formData.permission,
       granted_by: formData.granted_by, // ✅ Utiliser la valeur du formulaire
       organization_id: formData.organization_id,
@@ -55,7 +55,7 @@ export function useMobileUserPermissionHandlers({
     // Note: Pour les permissions, on utilise généralement la suppression/recréation
     // plutôt que la mise à jour pour éviter les conflits
     const permissionData = {
-      mobile_user_id: formData.mobile_user_id,
+      employee_id: formData.employee_id,
       permission: formData.permission,
       granted_by: formData.granted_by, // ✅ Utiliser la valeur du formulaire
       organization_id: formData.organization_id,

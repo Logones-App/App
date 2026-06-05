@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUserInsert = Database["public"]["Tables"]["mobile_users"]["Insert"];
-type MobileUserUpdate = Database["public"]["Tables"]["mobile_users"]["Update"];
+type MobileUserInsert = Database["public"]["Tables"]["employees"]["Insert"];
+type MobileUserUpdate = Database["public"]["Tables"]["employees"]["Update"];
 
 // Mutation pour créer un utilisateur mobile
 export function useCreateMobileUser() {
@@ -14,7 +14,7 @@ export function useCreateMobileUser() {
   return useMutation({
     mutationFn: async (userData: MobileUserInsert) => {
       const supabase = createClient();
-      const { data, error } = await supabase.from("mobile_users").insert(userData).select().single();
+      const { data, error } = await supabase.from("employees").insert(userData).select().single();
 
       if (error) throw error;
       return data;
@@ -38,7 +38,7 @@ export function useUpdateMobileUser() {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: MobileUserUpdate }) => {
       const supabase = createClient();
-      const { data, error } = await supabase.from("mobile_users").update(updates).eq("id", id).select().single();
+      const { data, error } = await supabase.from("employees").update(updates).eq("id", id).select().single();
 
       if (error) throw error;
       return data;
@@ -63,7 +63,7 @@ export function useDeleteMobileUser() {
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error } = await supabase.from("mobile_users").delete().eq("id", id);
+      const { error } = await supabase.from("employees").delete().eq("id", id);
 
       if (error) throw error;
     },

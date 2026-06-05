@@ -68,10 +68,10 @@ export function FormFields({
     <>
       {/* Select pour choisir l'utilisateur mobile */}
       <div className="space-y-2">
-        <Label htmlFor="mobile_user_id">Utilisateur Mobile</Label>
+        <Label htmlFor="employee_id">Utilisateur Mobile</Label>
         <Select
-          value={formData.mobile_user_id}
-          onValueChange={(value) => handleInputChange("mobile_user_id", value)}
+          value={formData.employee_id}
+          onValueChange={(value) => handleInputChange("employee_id", value)}
           disabled={isLoadingMobileUsers}
         >
           <SelectTrigger>

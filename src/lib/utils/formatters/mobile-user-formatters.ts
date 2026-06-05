@@ -1,7 +1,7 @@
 import type { MobileUserFormData } from "@/lib/schemas/mobile-user-schema";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 // Fonction utilitaire pour obtenir une valeur avec fallback
 function getValue<T>(value: T | null | undefined, defaultValue: T): T {

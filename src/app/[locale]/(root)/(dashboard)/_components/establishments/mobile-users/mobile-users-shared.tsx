@@ -21,7 +21,7 @@ interface MobileUsersSharedProps {
   isAdmin: boolean;
 }
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 type MobileUserFormData = {
   firstname: string;
@@ -59,7 +59,7 @@ export function MobileUsersShared({ establishmentId, organizationId, isAdmin }: 
   const handleCreateUser = (formData: MobileUserFormData) => {
     const userData = {
       establishment_id: establishmentId,
-      organization_id: organizationId ?? null,
+      organization_id: organizationId ?? "",
       firstname: formData.firstname,
       lastname: formData.lastname,
       email: formData.email,

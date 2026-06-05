@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import type { MobileUserFormData } from "@/lib/schemas/mobile-user-schema";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 export function useMobileUserForm(initialData?: MobileUser) {
   const [formData, setFormData] = useState<MobileUserFormData>({

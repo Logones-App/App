@@ -17,7 +17,7 @@ import { PageHeader } from "./page-header";
 import { PermissionsList } from "./permissions-list";
 import { StatsCards } from "./stats-cards";
 
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
 
 interface MobileUserPermissionsSharedProps {
   establishmentId: string;

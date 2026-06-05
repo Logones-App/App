@@ -10,7 +10,7 @@ import { useMobileUser } from "@/lib/queries/mobile-users-queries";
 import type { Database } from "@/lib/supabase/database.types";
 
 // ✅ UTILISER LE TYPE GÉNÉRÉ AUTOMATIQUEMENT
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
 
 interface PermissionsListProps {
   permissions: MobileUserPermission[];
@@ -101,11 +101,7 @@ export function PermissionsList({
               <h3 className="font-semibold">{permission.permission}</h3>
               <p className="text-muted-foreground text-sm">
                 Utilisateur:{" "}
-                {permission.mobile_user_id ? (
-                  <MobileUserInfo userId={permission.mobile_user_id} />
-                ) : (
-                  "Utilisateur non défini"
-                )}
+                {permission.employee_id ? <MobileUserInfo userId={permission.employee_id} /> : "Utilisateur non défini"}
               </p>
               {permission.granted_at && (
                 <p className="text-muted-foreground text-sm">

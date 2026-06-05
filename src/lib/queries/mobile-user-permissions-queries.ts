@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUserPermission = Database["public"]["Tables"]["mobile_user_permissions"]["Row"];
+type MobileUserPermission = Database["public"]["Tables"]["employee_permissions"]["Row"];
 
 // Hook principal pour récupérer les permissions d'un utilisateur mobile
 export function useMobileUserPermissions(mobileUserId: string) {
@@ -13,9 +13,9 @@ export function useMobileUserPermissions(mobileUserId: string) {
     queryKey: ["mobile-user-permissions", mobileUserId],
     queryFn: async (): Promise<MobileUserPermission[]> => {
       const { data, error } = await supabase
-        .from("mobile_user_permissions")
+        .from("employee_permissions")
         .select("*")
-        .eq("mobile_user_id", mobileUserId)
+        .eq("employee_id", mobileUserId)
         .eq("deleted", false)
         .order("created_at", { ascending: false });
 
@@ -38,7 +38,7 @@ export function useEstablishmentMobileUserPermissions(establishmentId: string) {
     queryKey: ["mobile-user-permissions", "establishment", establishmentId],
     queryFn: async (): Promise<MobileUserPermission[]> => {
       const { data, error } = await supabase
-        .from("mobile_user_permissions")
+        .from("employee_permissions")
         .select("*")
         .eq("establishment_id", establishmentId)
         .eq("deleted", false)
@@ -63,7 +63,7 @@ export function useMobileUserPermission(id: string) {
     queryKey: ["mobile-user-permissions", id],
     queryFn: async (): Promise<MobileUserPermission | null> => {
       const { data, error } = await supabase
-        .from("mobile_user_permissions")
+        .from("employee_permissions")
         .select("*")
         .eq("id", id)
         .eq("deleted", false)

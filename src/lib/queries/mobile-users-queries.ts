@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 // Hook pour récupérer tous les mobile users d'un établissement
 export function useEstablishmentMobileUsers(establishmentId: string) {
@@ -13,7 +13,7 @@ export function useEstablishmentMobileUsers(establishmentId: string) {
     queryKey: ["mobile-users", "establishment", establishmentId],
     queryFn: async (): Promise<MobileUser[]> => {
       const { data, error } = await supabase
-        .from("mobile_users")
+        .from("employees")
         .select("*")
         .eq("establishment_id", establishmentId)
         .eq("deleted", false)
@@ -38,7 +38,7 @@ export function useMobileUser(userId: string) {
     queryKey: ["mobile-users", userId],
     queryFn: async (): Promise<MobileUser | null> => {
       const { data, error } = await supabase
-        .from("mobile_users")
+        .from("employees")
         .select("*")
         .eq("id", userId)
         .eq("deleted", false)

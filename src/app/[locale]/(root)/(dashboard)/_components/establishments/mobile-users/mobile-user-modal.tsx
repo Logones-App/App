@@ -12,7 +12,7 @@ import { ModalHeader, FormButtons } from "./_components";
 import { useMobileUserForm } from "./_components/use-mobile-user-form";
 import { FormFields } from "./mobile-user-form";
 
-type MobileUser = Database["public"]["Tables"]["mobile_users"]["Row"];
+type MobileUser = Database["public"]["Tables"]["employees"]["Row"];
 
 export function MobileUserModal({
   isOpen,
