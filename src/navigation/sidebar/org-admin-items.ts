@@ -21,6 +21,10 @@ import {
   SlidersHorizontal,
   FileText,
   BookOpen,
+  FolderOpen,
+  UserCheck,
+  ClipboardList,
+  Receipt,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -106,11 +110,6 @@ export const getOrgAdminSidebarItems = (
               icon: Image,
             },
             {
-              title: "Appareils",
-              url: `${est}/devices`,
-              icon: Monitor,
-            },
-            {
               title: "Site & domaines",
               url: `${est}/site-configuration`,
               icon: MapPin,
@@ -159,21 +158,54 @@ export const getOrgAdminSidebarItems = (
       ],
     },
 
-    // ─── Gestion équipe ────────────────────────────────────────────────────────
+    // ─── Ressources Humaines ──────────────────────────────────────────────────
     {
       id: 5,
+      label: "Ressources Humaines",
+      items: [
+        {
+          title: "Employés",
+          url: `${baseUrl}/dashboard/rh/employees`,
+          icon: Users,
+        },
+        {
+          title: "Planning",
+          url: est ? `${est}/planning` : `${baseUrl}/dashboard/establishments`,
+          icon: CalendarDays,
+        },
+        {
+          title: "Absences",
+          url: `${baseUrl}/dashboard/rh/absences`,
+          icon: UserCheck,
+        },
+        {
+          title: "Fiches mensuelles",
+          url: `${baseUrl}/dashboard/rh/monthly-reports`,
+          icon: Receipt,
+        },
+        {
+          title: "Documents RH",
+          url: `${baseUrl}/dashboard/rh/documents`,
+          icon: FolderOpen,
+        },
+      ],
+    },
+
+    // ─── Gestion équipe (appareils & accès) ───────────────────────────────────
+    {
+      id: 7,
       label: "Gestion équipe",
       items: est
         ? [
             {
-              title: "Utilisateurs mobiles",
-              url: `${est}/mobile-users`,
-              icon: Users,
+              title: "Appareils",
+              url: `${est}/devices`,
+              icon: Monitor,
             },
             {
               title: "Permissions",
               url: `${est}/mobile-user-permissions`,
-              icon: Settings,
+              icon: ClipboardList,
             },
             {
               title: "Formation",

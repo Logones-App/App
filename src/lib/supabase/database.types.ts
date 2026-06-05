@@ -1894,6 +1894,64 @@ export type Database = {
           },
         ]
       }
+      establishment_modules: {
+        Row: {
+          active_device_id: string | null
+          created_at: string
+          deleted: boolean
+          enabled: boolean
+          establishment_id: string | null
+          id: string
+          module: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          active_device_id?: string | null
+          created_at?: string
+          deleted?: boolean
+          enabled?: boolean
+          establishment_id?: string | null
+          id?: string
+          module: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          active_device_id?: string | null
+          created_at?: string
+          deleted?: boolean
+          enabled?: boolean
+          establishment_id?: string | null
+          id?: string
+          module?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_modules_active_device_id_fkey"
+            columns: ["active_device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_modules_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_modules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null
@@ -3733,6 +3791,53 @@ export type Database = {
             columns: ["tables_id"]
             isOneToOne: false
             referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_modules: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          enabled: boolean
+          enabled_at: string | null
+          id: string
+          max_concurrent_devices: number | null
+          max_establishments: number | null
+          module: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          enabled?: boolean
+          enabled_at?: string | null
+          id?: string
+          max_concurrent_devices?: number | null
+          max_establishments?: number | null
+          module: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          enabled?: boolean
+          enabled_at?: string | null
+          id?: string
+          max_concurrent_devices?: number | null
+          max_establishments?: number | null
+          module?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_modules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
