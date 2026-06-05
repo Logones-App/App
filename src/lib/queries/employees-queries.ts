@@ -31,6 +31,25 @@ export function useEmployees(organizationId: string) {
   });
 }
 
+export function useEstablishmentEmployees(establishmentId: string, organizationId: string) {
+  return useQuery({
+    queryKey: [QUERY_KEY, "establishment", establishmentId, organizationId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("establishment_id", establishmentId)
+        .eq("deleted", false)
+        .order("lastname", { ascending: true });
+      if (error) throw error;
+      return data as Employee[];
+    },
+    enabled: !!establishmentId && !!organizationId,
+  });
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export function useCreateEmployee(organizationId: string) {

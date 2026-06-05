@@ -137,7 +137,7 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
       <DeviceModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateDevice}
+        onSubmit={(data) => handleCreateDevice(data as Parameters<typeof handleCreateDevice>[0])}
         isEdit={false}
         isLoading={createDeviceMutation.isPending}
         establishmentId={establishmentId}
@@ -149,7 +149,7 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
           setIsEditModalOpen(false);
           setEditingDevice(null);
         }}
-        onSubmit={handleUpdateDevice}
+        onSubmit={(data) => handleUpdateDevice(data as Parameters<typeof handleUpdateDevice>[0])}
         initialData={editingDevice ?? undefined}
         isEdit={true}
         isLoading={updateDeviceMutation.isPending}

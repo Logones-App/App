@@ -53,11 +53,17 @@
       "Bash(rm \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/documents/[docId]/matching/document-matching-client.tsx\")",
       "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\_components\\\\establishments\\\\product-dashboard-stock-panel.tsx\" | Measure-Object -Line\\).Lines)",
       "Bash(Remove-Item \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\_components\\\\establishments\\\\product-option-dialog.tsx\")",
-      "Bash(rm \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-option-dialog.tsx\")"
+      "Bash(rm \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-option-dialog.tsx\")",
+      "Bash(cd \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main\" && sed -i 's/employees: typeof MOCK_EMPLOYEES/employees: Employee[]/g' \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx\" && echo \"DONE\")",
+      "Bash(sed -i 's/const visibleEmployees = useMemo\\(\\(\\) => MOCK_EMPLOYEES.filter/const visibleEmployees = useMemo\\(\\(\\) => allEmployees.filter/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
+      "Bash(sed -i 's/const modalEmployee = MOCK_EMPLOYEES.find/const modalEmployee = allEmployees.find/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
+      "Bash(sed -i 's/visibleIds.size < MOCK_EMPLOYEES.length/visibleIds.size < allEmployees.length/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
+      "Bash(sed -i 's/{MOCK_EMPLOYEES.map\\(\\(emp\\) =>/{allEmployees.map\\(\\(emp\\) =>/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
-      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\_components\\establishments"
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\_components\\establishments",
+      "C:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\_components\\establishments"
     ]
   }
 }

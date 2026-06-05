@@ -1581,6 +1581,158 @@ export type Database = {
           },
         ]
       }
+      employee_shift_templates: {
+        Row: {
+          color: string | null
+          created_at: string
+          deleted: boolean
+          end_hour: number
+          end_minute: number
+          establishment_id: string
+          id: string
+          label: string
+          organization_id: string
+          start_hour: number
+          start_minute: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          deleted?: boolean
+          end_hour: number
+          end_minute?: number
+          establishment_id: string
+          id?: string
+          label: string
+          organization_id: string
+          start_hour: number
+          start_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          deleted?: boolean
+          end_hour?: number
+          end_minute?: number
+          establishment_id?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          start_hour?: number
+          start_minute?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_shift_templates_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shift_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_shifts: {
+        Row: {
+          created_at: string
+          date_end: string | null
+          date_start: string
+          deleted: boolean
+          employee_id: string
+          employee_shift_template_id: string | null
+          end_hour: number
+          end_minute: number
+          establishment_id: string
+          id: string
+          is_recurring: boolean
+          label: string
+          organization_id: string
+          overnight: boolean
+          recurrence_days: number[] | null
+          start_hour: number
+          start_minute: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_end?: string | null
+          date_start: string
+          deleted?: boolean
+          employee_id: string
+          employee_shift_template_id?: string | null
+          end_hour: number
+          end_minute?: number
+          establishment_id: string
+          id?: string
+          is_recurring?: boolean
+          label: string
+          organization_id: string
+          overnight?: boolean
+          recurrence_days?: number[] | null
+          start_hour: number
+          start_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_end?: string | null
+          date_start?: string
+          deleted?: boolean
+          employee_id?: string
+          employee_shift_template_id?: string | null
+          end_hour?: number
+          end_minute?: number
+          establishment_id?: string
+          id?: string
+          is_recurring?: boolean
+          label?: string
+          organization_id?: string
+          overnight?: boolean
+          recurrence_days?: number[] | null
+          start_hour?: number
+          start_minute?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shifts_employee_shift_template_id_fkey"
+            columns: ["employee_shift_template_id"]
+            isOneToOne: false
+            referencedRelation: "employee_shift_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shifts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shifts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           birth_city: string | null

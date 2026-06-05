@@ -1,26 +1,48 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { DeviceFormData } from "@/lib/schemas/device-schema";
+import { DEVICE_MODS, DEVICE_ROLES, DEVICE_DISPLAYS, type DeviceFormData } from "@/lib/schemas/device-schema";
+
+const MOD_LABELS: Record<string, string> = {
+  pos: "Caisse (POS)",
+  kds: "Écran cuisine (KDS)",
+  haccp: "HACCP",
+  hr: "RH & Planning",
+  booking: "Réservations",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  master: "Master (principal)",
+  slave: "Slave (secondaire)",
+};
+
+const DISPLAY_LABELS: Record<string, string> = {
+  landscape: "Paysage (horizontal)",
+  portrait: "Portrait (vertical)",
+};
 
 interface DeviceFormProps {
   formData: DeviceFormData;
   handleInputChange: (field: keyof DeviceFormData, value: string) => void;
+  handleModsChange: (mod: string, checked: boolean) => void;
   handleSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
   errors: Record<string, string>;
   isEdit: boolean;
   isLoading: boolean;
   establishmentId: string;
 }
 
-/* eslint-disable complexity -- formulaire multi-champs (rôles, statuts, erreurs par champ) */
 export function DeviceForm({
   formData,
   handleInputChange,
+  handleModsChange,
   handleSubmit,
+  onCancel,
   errors,
   isEdit,
   isLoading,
@@ -43,25 +65,44 @@ export function DeviceForm({
 
       {/* Rôle */}
       <div className="space-y-2">
-        <Label htmlFor="device_role">Rôle du device</Label>
-        <Select value={formData.device_role} onValueChange={(value) => handleInputChange("device_role", value)}>
+        <Label htmlFor="device_role">Rôle</Label>
+        <Select value={formData.device_role} onValueChange={(v) => handleInputChange("device_role", v)}>
           <SelectTrigger className={errors.device_role ? "border-destructive" : ""}>
             <SelectValue placeholder="Sélectionnez un rôle" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="tablet">Tablette</SelectItem>
-            <SelectItem value="phone">Smartphone</SelectItem>
-            <SelectItem value="pos">POS</SelectItem>
-            <SelectItem value="kiosk">Borne</SelectItem>
+            {DEVICE_ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {errors.device_role && <p className="text-destructive text-sm">{errors.device_role}</p>}
       </div>
 
+      {/* Orientation */}
+      <div className="space-y-2">
+        <Label htmlFor="display">Orientation écran</Label>
+        <Select value={formData.display} onValueChange={(v) => handleInputChange("display", v)}>
+          <SelectTrigger className={errors.display ? "border-destructive" : ""}>
+            <SelectValue placeholder="Sélectionnez une orientation" />
+          </SelectTrigger>
+          <SelectContent>
+            {DEVICE_DISPLAYS.map((d) => (
+              <SelectItem key={d} value={d}>
+                {DISPLAY_LABELS[d]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.display && <p className="text-destructive text-sm">{errors.display}</p>}
+      </div>
+
       {/* Statut */}
       <div className="space-y-2">
         <Label htmlFor="status">Statut</Label>
-        <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+        <Select value={formData.status} onValueChange={(v) => handleInputChange("status", v)}>
           <SelectTrigger className={errors.status ? "border-destructive" : ""}>
             <SelectValue placeholder="Sélectionnez un statut" />
           </SelectTrigger>
@@ -81,10 +122,8 @@ export function DeviceForm({
           id="manufacturer"
           value={formData.manufacturer ?? ""}
           onChange={(e) => handleInputChange("manufacturer", e.target.value)}
-          placeholder="Ex: Samsung"
-          className={errors.manufacturer ? "border-destructive" : ""}
+          placeholder="Ex: SUNMI"
         />
-        {errors.manufacturer && <p className="text-destructive text-sm">{errors.manufacturer}</p>}
       </div>
 
       {/* Modèle (optionnel) */}
@@ -94,10 +133,8 @@ export function DeviceForm({
           id="model"
           value={formData.model ?? ""}
           onChange={(e) => handleInputChange("model", e.target.value)}
-          placeholder="Ex: Galaxy Tab A8"
-          className={errors.model ? "border-destructive" : ""}
+          placeholder="Ex: V3"
         />
-        {errors.model && <p className="text-destructive text-sm">{errors.model}</p>}
       </div>
 
       {/* Port attribué (optionnel) */}
@@ -114,16 +151,30 @@ export function DeviceForm({
         {errors.port_attribue && <p className="text-destructive text-sm">{errors.port_attribue}</p>}
       </div>
 
-      {/* Établissement ID (caché) */}
-      <input
-        type="hidden"
-        value={establishmentId}
-        onChange={(e) => handleInputChange("establishment_id", e.target.value)}
-      />
+      {/* Modules */}
+      <div className="space-y-2">
+        <Label>Modules disponibles</Label>
+        <p className="text-muted-foreground text-xs">Sélectionnez les modules accessibles depuis ce device.</p>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {DEVICE_MODS.map((mod) => (
+            <label
+              key={mod}
+              className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2"
+            >
+              <Checkbox
+                checked={formData.mods.includes(mod)}
+                onCheckedChange={(v) => handleModsChange(mod, Boolean(v))}
+              />
+              <span className="text-sm">{MOD_LABELS[mod]}</span>
+            </label>
+          ))}
+        </div>
+      </div>
 
-      {/* Boutons d'action */}
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" disabled={isLoading}>
+      <input type="hidden" value={establishmentId} readOnly />
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" disabled={isLoading} onClick={onCancel}>
           Annuler
         </Button>
         <Button type="submit" disabled={isLoading}>
@@ -133,4 +184,3 @@ export function DeviceForm({
     </form>
   );
 }
-/* eslint-enable complexity */

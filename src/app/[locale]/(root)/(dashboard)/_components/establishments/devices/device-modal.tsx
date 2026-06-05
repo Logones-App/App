@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { DeviceFormData, DeviceUpdateFormData } from "@/lib/schemas/device-schema";
 import type { Database } from "@/lib/supabase/database.types";
 
 import { useDeviceForm } from "./_components/use-device-form";
@@ -11,7 +12,7 @@ type Device = Database["public"]["Tables"]["devices"]["Row"];
 interface DeviceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: DeviceFormData | DeviceUpdateFormData) => void;
   initialData?: Device;
   isEdit: boolean;
   isLoading: boolean;
@@ -27,31 +28,29 @@ export function DeviceModal({
   isLoading,
   establishmentId,
 }: DeviceModalProps) {
-  const { formData, handleInputChange } = useDeviceForm(initialData);
+  const { formData, deviceId, handleInputChange, handleModsChange } = useDeviceForm(initialData);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-  };
-
-  const getModalTitle = () => {
-    return isEdit ? "Modifier le Device" : "Ajouter un Device";
-  };
-
-  const getModalDescription = () => {
-    return isEdit ? "Modifiez les informations du device" : "Ajoutez un nouveau device à votre établissement";
+    if (isEdit && deviceId) {
+      onSubmit({ ...formData, id: deviceId });
+    } else {
+      onSubmit(formData);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{getModalTitle()}</DialogTitle>
+          <DialogTitle>{isEdit ? "Modifier le device" : "Ajouter un device"}</DialogTitle>
         </DialogHeader>
         <DeviceForm
           formData={formData}
           handleInputChange={handleInputChange}
+          handleModsChange={handleModsChange}
           handleSubmit={handleSubmit}
+          onCancel={onClose}
           errors={{}}
           isEdit={isEdit}
           isLoading={isLoading}

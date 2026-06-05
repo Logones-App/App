@@ -34,10 +34,12 @@ export function useDeviceHandlers({
       establishment_id: establishmentId,
       serial_number: formData.serial_number,
       device_role: formData.device_role,
+      display: formData.display,
       status: formData.status,
       manufacturer: formData.manufacturer ?? null,
       model: formData.model ?? null,
       port_attribue: formData.port_attribue ?? null,
+      mods: formData.mods ?? [],
     };
 
     createDeviceMutation.mutate(deviceData, {
@@ -57,10 +59,12 @@ export function useDeviceHandlers({
     const updateData = {
       serial_number: formData.serial_number,
       device_role: formData.device_role,
+      display: formData.display,
       status: formData.status,
       manufacturer: formData.manufacturer ?? null,
       model: formData.model ?? null,
       port_attribue: formData.port_attribue ?? null,
+      mods: formData.mods ?? [],
     };
 
     updateDeviceMutation.mutate(

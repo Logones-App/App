@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { addDays, format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -16,9 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { DbShiftTemplate } from "@/lib/queries/planning-queries";
 import { cn } from "@/lib/utils";
 
-import { HOUR_END, generateShiftId, type Employee, type Shift } from "./planning-types";
+import { type CreateShiftPayload, type Employee, type Shift } from "./planning-types";
 
 // ─── Helpers (extraits pour garder handleSave complexity ≤ 20) ───────────────
 
@@ -40,36 +41,7 @@ function buildDates(
   return result;
 }
 
-function createShiftEntries(
-  empId: string,
-  date: string,
-  combinedStart: number,
-  resolvedEnd: number,
-  isOvernight: boolean,
-  combinedEnd: number,
-  lbl: string,
-): Shift[] {
-  if (!isOvernight) {
-    return [
-      { id: generateShiftId(), employeeId: empId, date, startHour: combinedStart, endHour: resolvedEnd, label: lbl },
-    ];
-  }
-  const nextDate = format(addDays(parseISO(date), 1), "yyyy-MM-dd");
-  return [
-    { id: generateShiftId(), employeeId: empId, date, startHour: combinedStart, endHour: HOUR_END, label: lbl },
-    { id: generateShiftId(), employeeId: empId, date: nextDate, startHour: 0, endHour: combinedEnd, label: lbl },
-  ];
-}
-
 // ─── Constantes ───────────────────────────────────────────────────────────────
-
-const SHIFT_TEMPLATES = [
-  { id: "t1", label: "Service midi", sh: 9, sm: 0, eh: 17, em: 0 },
-  { id: "t2", label: "Service soir", sh: 18, sm: 0, eh: 22, em: 0 },
-  { id: "t3", label: "Ouverture", sh: 8, sm: 0, eh: 14, em: 0 },
-  { id: "t4", label: "Fermeture", sh: 16, sm: 0, eh: 23, em: 0 },
-  { id: "t5", label: "Nuit", sh: 22, sm: 0, eh: 26, em: 0 },
-];
 
 const MINUTES = [0, 15, 30, 45];
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -209,6 +181,7 @@ export function ShiftCreateModal({
   employee,
   weekDays,
   existingShifts,
+  templates,
   onSave,
 }: {
   open: boolean;
@@ -216,7 +189,8 @@ export function ShiftCreateModal({
   employee: Employee | null;
   weekDays: Date[];
   existingShifts: Shift[];
-  onSave: (shifts: Shift[]) => void;
+  templates: DbShiftTemplate[];
+  onSave: (payload: CreateShiftPayload) => void;
 }) {
   const [label, setLabel] = useState("");
   const [templateId, setTemplateId] = useState("custom");
@@ -247,13 +221,13 @@ export function ShiftCreateModal({
 
   const applyTemplate = (tid: string) => {
     setTemplateId(tid);
-    const tpl = SHIFT_TEMPLATES.find((t) => t.id === tid);
+    const tpl = templates.find((t) => t.id === tid);
     if (!tpl) return;
     setLabel(tpl.label);
-    setStartHour(tpl.sh);
-    setStartMinute(tpl.sm);
-    setEndHour(tpl.eh);
-    setEndMinute(tpl.em);
+    setStartHour(tpl.start_hour);
+    setStartMinute(tpl.start_minute);
+    setEndHour(tpl.end_hour);
+    setEndMinute(tpl.end_minute);
   };
 
   const toggleDay = (d: number) =>
@@ -287,10 +261,9 @@ export function ShiftCreateModal({
 
     const refStr = format(startNow ? new Date() : dateStart!, "yyyy-MM-dd");
     const endStr = dateEnd ? format(dateEnd, "yyyy-MM-dd") : null;
-    const dates = buildDates(isRecurring, weekDays, recurrenceDays, refStr, endStr);
 
-    const lbl = label.trim();
-    const newShifts: Shift[] = [];
+    // Vérification chevauchement sur les occurrences de la semaine visible
+    const dates = buildDates(isRecurring, weekDays, recurrenceDays, refStr, endStr);
     for (const date of dates) {
       const overlap = existingShifts.some(
         (s) =>
@@ -300,16 +273,22 @@ export function ShiftCreateModal({
         toast.error(`Chevauchement détecté le ${date}.`);
         return;
       }
-      newShifts.push(
-        ...createShiftEntries(employee.id, date, combinedStart, resolvedEnd, isOvernight, combinedEnd, lbl),
-      );
     }
 
-    if (newShifts.length === 0) {
-      toast.error("Aucun créneau généré pour cette période.");
-      return;
-    }
-    onSave(newShifts);
+    onSave({
+      employeeId: employee.id,
+      label: label.trim(),
+      startHour,
+      startMinute,
+      endHour,
+      endMinute,
+      overnight: isOvernight,
+      isRecurring,
+      recurrenceDays: isRecurring ? recurrenceDays : null,
+      dateStart: refStr,
+      dateEnd: endStr,
+      templateId: templateId === "custom" ? null : templateId,
+    });
     onOpenChange(false);
   };
 
@@ -335,7 +314,7 @@ export function ShiftCreateModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="custom">— Personnalisé —</SelectItem>
-                {SHIFT_TEMPLATES.map((t) => (
+                {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.label}
                   </SelectItem>

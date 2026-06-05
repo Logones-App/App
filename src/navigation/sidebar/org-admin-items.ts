@@ -25,6 +25,8 @@ import {
   UserCheck,
   ClipboardList,
   Receipt,
+  KeyRound,
+  LayoutGrid,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -103,6 +105,10 @@ export const getOrgAdminSidebarItems = (
               title: "Planning",
               url: `${est}/planning`,
               icon: CalendarDays,
+              subItems: [
+                { title: "Vue semaine", url: `${est}/planning` },
+                { title: "Modèles de créneaux", url: `${est}/planning-templates` },
+              ],
             },
             {
               title: "Galerie",
@@ -203,7 +209,17 @@ export const getOrgAdminSidebarItems = (
               icon: Monitor,
             },
             {
-              title: "Permissions",
+              title: "Modules",
+              url: `${est}/modules`,
+              icon: LayoutGrid,
+            },
+            {
+              title: "Accès & Permissions",
+              url: `${est}/employee-access`,
+              icon: KeyRound,
+            },
+            {
+              title: "Permissions (ancien)",
               url: `${est}/mobile-user-permissions`,
               icon: ClipboardList,
             },
@@ -227,6 +243,11 @@ export const getOrgAdminSidebarItems = (
       id: 6,
       label: "Configuration",
       items: [
+        {
+          title: "Mon abonnement",
+          url: `${baseUrl}/dashboard/organization-modules`,
+          icon: LayoutGrid,
+        },
         {
           title: "Paramètres",
           url: `${baseUrl}/dashboard/settings`,

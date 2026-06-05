@@ -1,4 +1,4 @@
-import { addDays, format } from "date-fns";
+import { addDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,11 +11,40 @@ export type Employee = {
 
 export type Shift = {
   id: string;
+  dbId?: string; // employee_shifts.id — absent pour les shifts mock
   employeeId: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (occurrence réelle)
   startHour: number;
   endHour: number;
   label: string;
+  isRecurring?: boolean;
+};
+
+// Payload émis par ShiftCreateModal vers planning-schedule
+export type CreateShiftPayload = {
+  employeeId: string;
+  label: string;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  overnight: boolean;
+  isRecurring: boolean;
+  recurrenceDays: number[] | null;
+  dateStart: string;
+  dateEnd: string | null;
+  templateId: string | null;
+};
+
+// Payload émis par ShiftEditModal vers planning-schedule
+export type UpdateShiftPayload = {
+  dbId: string;
+  label: string;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  overnight: boolean;
 };
 
 type ShiftPattern = [dayOffset: number, startHour: number, endHour: number, label: string];
@@ -29,7 +58,31 @@ export const CELL_HEIGHT_COMPACT = 80;
 export const CELL_HEIGHT_COVERAGE = 480; // 20px/heure sur 24h
 export const TIME_MARKERS = [0, 4, 8, 12, 16, 20];
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+// ─── Palette couleurs auto ────────────────────────────────────────────────────
+
+const EMPLOYEE_COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+  "#6366f1",
+  "#84cc16",
+  "#06b6d4",
+  "#d946ef",
+  "#0ea5e9",
+  "#22c55e",
+  "#eab308",
+];
+
+export function getEmployeeColor(index: number): string {
+  return EMPLOYEE_COLORS[index % EMPLOYEE_COLORS.length] ?? "#6b7280";
+}
+
+// ─── Mock data (fallback développement) ──────────────────────────────────────
 
 export const MOCK_EMPLOYEES: Employee[] = [
   { id: "e1", name: "Alice Martin", role: "Serveuse", color: "#3b82f6" },
@@ -107,10 +160,10 @@ const SHIFT_PATTERNS: ShiftPattern[][] = [
   ],
 ];
 
-export function generateShifts(weekStart: Date): Shift[] {
+export function generateShifts(weekStart: Date, employees: Employee[] = MOCK_EMPLOYEES): Shift[] {
   const shifts: Shift[] = [];
-  MOCK_EMPLOYEES.forEach((emp, ei) => {
-    (SHIFT_PATTERNS[ei] ?? []).forEach(([dayOffset, startHour, endHour, label], pi) => {
+  employees.forEach((emp, ei) => {
+    (SHIFT_PATTERNS[ei % SHIFT_PATTERNS.length] ?? []).forEach(([dayOffset, startHour, endHour, label], pi) => {
       shifts.push({
         id: `${emp.id}-${pi}`,
         employeeId: emp.id,
@@ -130,6 +183,18 @@ export function getWeekDays(weekStart: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 }
 
+export function getMonthCalendarDays(monthStart: Date): Date[] {
+  const gridStart = startOfWeek(startOfMonth(monthStart), { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
+  const days: Date[] = [];
+  let cur = gridStart;
+  while (cur <= gridEnd) {
+    days.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return days;
+}
+
 export function fmtHour(h: number): string {
   const raw = Math.floor(h);
   const display = raw >= 24 ? raw - 24 : raw;
@@ -141,6 +206,68 @@ export function fmtHour(h: number): string {
 
 export function generateShiftId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+// ─── Conversion DB → shifts d'affichage ──────────────────────────────────────
+
+type DbShiftRow = {
+  id: string;
+  employee_id: string;
+  date_start: string;
+  date_end: string | null;
+  start_hour: number;
+  start_minute: number;
+  end_hour: number;
+  end_minute: number;
+  label: string;
+  is_recurring: boolean;
+  recurrence_days: number[] | null;
+  overnight: boolean;
+};
+
+export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): Shift[] {
+  const result: Shift[] = [];
+
+  for (const row of dbShifts) {
+    const startHour = row.start_hour + row.start_minute / 60;
+    const endHour = row.end_hour + row.end_minute / 60;
+
+    if (row.is_recurring && row.recurrence_days && row.recurrence_days.length > 0) {
+      for (const day of weekDays) {
+        const dayIndex = (day.getDay() + 6) % 7; // Lun=0 … Dim=6
+        if (!row.recurrence_days.includes(dayIndex)) continue;
+        const dateStr = format(day, "yyyy-MM-dd");
+        if (dateStr < row.date_start) continue;
+        if (row.date_end && dateStr > row.date_end) continue;
+        result.push({
+          id: `${row.id}-${dateStr}`,
+          dbId: row.id,
+          employeeId: row.employee_id,
+          date: dateStr,
+          startHour,
+          endHour,
+          label: row.label,
+          isRecurring: true,
+        });
+      }
+    } else {
+      const weekStrs = weekDays.map((d) => format(d, "yyyy-MM-dd"));
+      if (weekStrs.includes(row.date_start)) {
+        result.push({
+          id: row.id,
+          dbId: row.id,
+          employeeId: row.employee_id,
+          date: row.date_start,
+          startHour,
+          endHour,
+          label: row.label,
+          isRecurring: false,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 export function pxPerHour(cellHeight: number): number {

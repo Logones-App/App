@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Trash2, Plus, Smartphone, Tablet, Monitor, Wrench } from "lucide-react";
+import { Edit, Monitor, Plus, Smartphone, Tablet, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Device = Database["public"]["Tables"]["devices"]["Row"];
+
+const MOD_LABELS: Record<string, string> = {
+  pos: "POS",
+  kds: "KDS",
+  haccp: "HACCP",
+  hr: "RH",
+  booking: "Résa",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  master: "Master",
+  slave: "Slave",
+};
+
+const DISPLAY_LABELS: Record<string, string> = {
+  landscape: "Paysage",
+  portrait: "Portrait",
+};
 
 interface DevicesListProps {
   devices: Device[];
@@ -34,14 +52,10 @@ export function DevicesList({
 }: DevicesListProps) {
   const getDeviceIcon = (deviceRole: string) => {
     switch (deviceRole) {
-      case "phone":
-        return <Smartphone className="h-4 w-4" />;
-      case "tablet":
-        return <Tablet className="h-4 w-4" />;
-      case "pos":
+      case "master":
         return <Monitor className="h-4 w-4" />;
-      case "kiosk":
-        return <Wrench className="h-4 w-4" />;
+      case "slave":
+        return <Tablet className="h-4 w-4" />;
       default:
         return <Smartphone className="h-4 w-4" />;
     }
@@ -61,11 +75,7 @@ export function DevicesList({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-muted-foreground">Chargement...</div>
-      </div>
-    );
+    return <div className="text-muted-foreground flex items-center justify-center py-8">Chargement...</div>;
   }
 
   if (error) {
@@ -95,13 +105,13 @@ export function DevicesList({
     <div className="space-y-4">
       {devices.map((device) => (
         <Card key={device.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 {getDeviceIcon(device.device_role)}
-                <CardTitle className="text-lg">{device.serial_number}</CardTitle>
+                <CardTitle className="text-base">{device.serial_number}</CardTitle>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 {getStatusBadge(device.status)}
                 <Button variant="outline" size="sm" onClick={() => onEditClick(device)} disabled={isUpdateLoading}>
                   <Edit className="h-4 w-4" />
@@ -113,32 +123,41 @@ export function DevicesList({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Rôle:</span>
-                <span className="text-muted-foreground text-sm capitalize">{device.device_role}</span>
+                <span className="text-muted-foreground">Rôle</span>
+                <span className="font-medium">{ROLE_LABELS[device.device_role] ?? device.device_role}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Fabricant:</span>
-                <span className="text-muted-foreground text-sm">{device.manufacturer ?? "—"}</span>
+                <span className="text-muted-foreground">Orientation</span>
+                <span className="font-medium">{DISPLAY_LABELS[device.display] ?? device.display}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Modèle:</span>
-                <span className="text-muted-foreground text-sm">{device.model ?? "—"}</span>
+                <span className="text-muted-foreground">Fabricant</span>
+                <span>{device.manufacturer ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Dernière synchro:</span>
-                <span className="text-muted-foreground text-sm">
-                  {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString("fr-FR") : "Jamais"}
-                </span>
+                <span className="text-muted-foreground">Modèle</span>
+                <span>{device.model ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Créé le:</span>
-                <span className="text-muted-foreground text-sm">
-                  {device.created_at ? new Date(device.created_at).toLocaleDateString("fr-FR") : "Non défini"}
-                </span>
+                <span className="text-muted-foreground">Dernière synchro</span>
+                <span>{device.last_sync_at ? new Date(device.last_sync_at).toLocaleString("fr-FR") : "Jamais"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Créé le</span>
+                <span>{device.created_at ? new Date(device.created_at).toLocaleDateString("fr-FR") : "—"}</span>
               </div>
             </div>
+            {device.mods.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {device.mods.map((mod) => (
+                  <Badge key={mod} variant="secondary" className="text-xs">
+                    {MOD_LABELS[mod] ?? mod}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

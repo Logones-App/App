@@ -101,6 +101,7 @@ function ShiftBlock({
   height,
   col,
   totalCols,
+  onEditShift,
 }: {
   shift: Shift;
   color: string;
@@ -108,6 +109,7 @@ function ShiftBlock({
   height: number;
   col: number;
   totalCols: number;
+  onEditShift: (shift: Shift) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: shift.id,
@@ -137,6 +139,7 @@ function ShiftBlock({
             style={style}
             {...listeners}
             {...attributes}
+            onClick={() => !isDragging && onEditShift(shift)}
           >
             <p className="truncate text-[10px] leading-tight font-semibold">{shift.label}</p>
             {height >= 28 && (
@@ -166,6 +169,7 @@ function EmployeeGridRow({
   shifts,
   cellHeight,
   onAddShift,
+  onEditShift,
 }: {
   emp: Employee;
   idx: number;
@@ -173,6 +177,7 @@ function EmployeeGridRow({
   shifts: Shift[];
   cellHeight: number;
   onAddShift: (employeeId: string) => void;
+  onEditShift: (shift: Shift) => void;
 }) {
   const empHours = shifts.filter((s) => s.employeeId === emp.id).reduce((a, s) => a + (s.endHour - s.startHour), 0);
 
@@ -226,6 +231,7 @@ function EmployeeGridRow({
                 height={shiftHeight(s.startHour, s.endHour, cellHeight)}
                 col={si}
                 totalCols={dayShifts.length}
+                onEditShift={onEditShift}
               />
             ))}
           </DroppableCell>
@@ -286,6 +292,7 @@ export function WeekGrid({
   cellHeight,
   onMoveShift,
   onAddShift,
+  onEditShift,
 }: {
   employees: Employee[];
   shifts: Shift[];
@@ -293,6 +300,7 @@ export function WeekGrid({
   cellHeight: number;
   onMoveShift: (shiftId: string, toEmployeeId: string, toDate: string) => void;
   onAddShift: (employeeId: string) => void;
+  onEditShift: (shift: Shift) => void;
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -344,6 +352,7 @@ export function WeekGrid({
               shifts={shifts}
               cellHeight={cellHeight}
               onAddShift={onAddShift}
+              onEditShift={onEditShift}
             />
           ))}
 
