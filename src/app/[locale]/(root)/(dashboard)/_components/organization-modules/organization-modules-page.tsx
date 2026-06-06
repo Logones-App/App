@@ -59,14 +59,17 @@ export function OrganizationModulesPage({ organizationId }: OrganizationModulesP
               {isEnabled && row && (
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2 text-xs">
-                    {row.max_concurrent_devices !== null && (
-                      <Badge variant="secondary">
-                        {row.max_concurrent_devices} device{row.max_concurrent_devices > 1 ? "s" : ""} max
-                      </Badge>
-                    )}
+                    <Badge variant="secondary">
+                      {row.seats} siège{row.seats > 1 ? "s" : ""}
+                    </Badge>
                     {row.max_establishments !== null && (
                       <Badge variant="secondary">
                         {row.max_establishments} établissement{row.max_establishments > 1 ? "s" : ""} max
+                      </Badge>
+                    )}
+                    {row.max_concurrent_devices !== null && (
+                      <Badge variant="outline">
+                        {row.max_concurrent_devices} device{row.max_concurrent_devices > 1 ? "s" : ""} simultanés max
                       </Badge>
                     )}
                     {row.enabled_at && (

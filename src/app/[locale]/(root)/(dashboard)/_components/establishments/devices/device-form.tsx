@@ -1,11 +1,20 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DEVICE_MODS, DEVICE_ROLES, DEVICE_DISPLAYS, type DeviceFormData } from "@/lib/schemas/device-schema";
+import { cn } from "@/lib/utils";
+
+export type ModuleSeatInfo = {
+  module: string;
+  seats: number;
+  used: number;
+  enabled: boolean;
+};
 
 const MOD_LABELS: Record<string, string> = {
   pos: "Caisse (POS)",
@@ -35,6 +44,7 @@ interface DeviceFormProps {
   isEdit: boolean;
   isLoading: boolean;
   establishmentId: string;
+  moduleSeatInfo: ModuleSeatInfo[];
 }
 
 export function DeviceForm({
@@ -47,6 +57,7 @@ export function DeviceForm({
   isEdit,
   isLoading,
   establishmentId,
+  moduleSeatInfo,
 }: DeviceFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,20 +165,43 @@ export function DeviceForm({
       {/* Modules */}
       <div className="space-y-2">
         <Label>Modules disponibles</Label>
-        <p className="text-muted-foreground text-xs">Sélectionnez les modules accessibles depuis ce device.</p>
+        <p className="text-muted-foreground text-xs">
+          Les modules bloqués ont atteint le plafond de sièges de l&apos;établissement.
+        </p>
         <div className="grid grid-cols-2 gap-2 pt-1">
-          {DEVICE_MODS.map((mod) => (
-            <label
-              key={mod}
-              className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2"
-            >
-              <Checkbox
-                checked={formData.mods.includes(mod)}
-                onCheckedChange={(v) => handleModsChange(mod, Boolean(v))}
-              />
-              <span className="text-sm">{MOD_LABELS[mod]}</span>
-            </label>
-          ))}
+          {DEVICE_MODS.map((mod) => {
+            const info = moduleSeatInfo.find((m) => m.module === mod);
+            const isChecked = formData.mods.includes(mod);
+            const atCapacity = info ? !isChecked && info.seats > 0 && info.used >= info.seats : false;
+            const notEnabled = info ? !info.enabled && !isChecked : false;
+            const blocked = atCapacity || notEnabled;
+            return (
+              <label
+                key={mod}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                  blocked ? "cursor-not-allowed opacity-50" : "hover:bg-muted/50",
+                )}
+              >
+                <Checkbox
+                  checked={isChecked}
+                  onCheckedChange={(v) => handleModsChange(mod, Boolean(v))}
+                  disabled={isLoading || blocked}
+                />
+                <span className="text-sm">{MOD_LABELS[mod]}</span>
+                {info && info.seats > 0 && (
+                  <Badge variant={atCapacity ? "destructive" : "secondary"} className="ml-auto text-[10px]">
+                    {info.used}/{info.seats}
+                  </Badge>
+                )}
+                {notEnabled && (
+                  <Badge variant="outline" className="ml-auto text-[10px]">
+                    inactif
+                  </Badge>
+                )}
+              </label>
+            );
+          })}
         </div>
       </div>
 

@@ -2048,7 +2048,6 @@ export type Database = {
       }
       establishment_modules: {
         Row: {
-          active_device_id: string | null
           created_at: string
           deleted: boolean
           enabled: boolean
@@ -2056,10 +2055,10 @@ export type Database = {
           id: string
           module: string
           organization_id: string
+          seats: number
           updated_at: string
         }
         Insert: {
-          active_device_id?: string | null
           created_at?: string
           deleted?: boolean
           enabled?: boolean
@@ -2067,10 +2066,10 @@ export type Database = {
           id?: string
           module: string
           organization_id: string
+          seats?: number
           updated_at?: string
         }
         Update: {
-          active_device_id?: string | null
           created_at?: string
           deleted?: boolean
           enabled?: boolean
@@ -2078,16 +2077,10 @@ export type Database = {
           id?: string
           module?: string
           organization_id?: string
+          seats?: number
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "establishment_modules_active_device_id_fkey"
-            columns: ["active_device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "establishment_modules_establishment_id_fkey"
             columns: ["establishment_id"]
@@ -3958,6 +3951,7 @@ export type Database = {
           max_establishments: number | null
           module: string
           organization_id: string
+          seats: number
           updated_at: string
         }
         Insert: {
@@ -3970,6 +3964,7 @@ export type Database = {
           max_establishments?: number | null
           module: string
           organization_id: string
+          seats?: number
           updated_at?: string
         }
         Update: {
@@ -3982,6 +3977,7 @@ export type Database = {
           max_establishments?: number | null
           module?: string
           organization_id?: string
+          seats?: number
           updated_at?: string
         }
         Relationships: [

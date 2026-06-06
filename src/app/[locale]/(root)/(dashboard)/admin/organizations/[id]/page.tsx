@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowLeft, Building2, Edit, Trash2, Calendar, Globe } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, Edit, Globe, LayoutGrid, Trash2 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +71,7 @@ export default function OrganizationManagementPage() {
         console.log("📊 Résultat de la requête établissements:", {
           data: establishmentsData,
           error: establishmentsError,
-          count: establishmentsData?.length || 0,
+          count: establishmentsData?.length ?? 0,
         });
 
         if (establishmentsError) {
@@ -124,7 +124,7 @@ export default function OrganizationManagementPage() {
             <CardTitle>Erreur</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-destructive text-center">{error || "Organisation non trouvée"}</div>
+            <div className="text-destructive text-center">{error ?? "Organisation non trouvée"}</div>
             <div className="mt-4 text-center">
               <Button onClick={handleBackToList} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -227,7 +227,13 @@ export default function OrganizationManagementPage() {
       </Card>
 
       {/* Onglets pour différentes sections */}
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link href={`/admin/organizations/${organizationId}/modules`}>
+          <Button variant="outline">
+            <LayoutGrid className="mr-2 h-4 w-4" />
+            Attribution modules
+          </Button>
+        </Link>
         <Link href={`/admin/organizations/${organizationId}/users`}>
           <Button variant="outline">Utilisateurs</Button>
         </Link>

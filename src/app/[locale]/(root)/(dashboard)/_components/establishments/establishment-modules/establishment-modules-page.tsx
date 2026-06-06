@@ -4,13 +4,12 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useEstablishmentDevices } from "@/lib/queries/devices-queries";
 import {
   useEstablishmentModules,
   useToggleEstablishmentModule,
-  useSetActiveDevice,
+  useUpdateEstablishmentModuleSeats,
 } from "@/lib/queries/establishment-modules-queries";
 
 import { BackToEstablishmentButton } from "../back-to-establishment-button";
@@ -30,22 +29,20 @@ interface EstablishmentModulesPageProps {
 
 export function EstablishmentModulesPage({ establishmentId, organizationId }: EstablishmentModulesPageProps) {
   const { data: modules = [], isLoading } = useEstablishmentModules(establishmentId, organizationId);
-  const { data: devices = [] } = useEstablishmentDevices(establishmentId);
   const toggleModule = useToggleEstablishmentModule(establishmentId, organizationId);
-  const setActiveDevice = useSetActiveDevice(establishmentId, organizationId);
+  const updateSeats = useUpdateEstablishmentModuleSeats(establishmentId, organizationId);
 
   const moduleMap = new Map(modules.map((m) => [m.module, m]));
-  const isPending = toggleModule.isPending || setActiveDevice.isPending;
+  const isPending = toggleModule.isPending || updateSeats.isPending;
 
   const handleToggle = (module: string, enabled: boolean) => {
     toggleModule.mutate({ module, enabled }, { onError: () => toast.error("Erreur lors de la mise à jour du module") });
   };
 
-  const handleDeviceChange = (module: string, deviceId: string) => {
-    setActiveDevice.mutate(
-      { module, deviceId: deviceId === "none" ? null : deviceId },
-      { onError: () => toast.error("Erreur lors de l'assignation du device") },
-    );
+  const handleSeats = (module: string, value: string) => {
+    const seats = parseInt(value, 10);
+    if (isNaN(seats) || seats < 1) return;
+    updateSeats.mutate({ module, seats }, { onError: () => toast.error("Erreur lors de la mise à jour des sièges") });
   };
 
   if (isLoading) {
@@ -58,7 +55,7 @@ export function EstablishmentModulesPage({ establishmentId, organizationId }: Es
         <BackToEstablishmentButton establishmentId={establishmentId} organizationId={organizationId} />
         <h1 className="text-2xl font-bold">Modules de l&apos;établissement</h1>
         <p className="text-muted-foreground text-sm">
-          Activez les modules disponibles et assignez-les aux devices correspondants.
+          Activez les modules disponibles et configurez le nombre de postes autorisés.
         </p>
       </div>
 
@@ -66,7 +63,7 @@ export function EstablishmentModulesPage({ establishmentId, organizationId }: Es
         {Object.entries(MODULE_DEFINITIONS).map(([moduleId, def]) => {
           const row = moduleMap.get(moduleId);
           const isEnabled = row?.enabled ?? false;
-          const activeDeviceId = row?.active_device_id ?? null;
+          const seats = row?.seats ?? 1;
 
           return (
             <Card key={moduleId} className={!isEnabled ? "opacity-60" : ""}>
@@ -81,32 +78,19 @@ export function EstablishmentModulesPage({ establishmentId, organizationId }: Es
               </CardHeader>
               {isEnabled && (
                 <CardContent className="pt-0">
-                  <div className="space-y-2">
-                    <p className="text-muted-foreground text-xs">Device actif</p>
-                    <Select
-                      value={activeDeviceId ?? "none"}
-                      onValueChange={(v) => handleDeviceChange(moduleId, v)}
+                  <div className="flex items-center gap-3">
+                    <span className="text-muted-foreground text-sm">Postes</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      defaultValue={seats}
+                      className="h-7 w-20 text-sm"
+                      onBlur={(e) => handleSeats(moduleId, e.target.value)}
                       disabled={isPending}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Aucun device assigné" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          <span className="text-muted-foreground">Aucun</span>
-                        </SelectItem>
-                        {devices.map((device) => (
-                          <SelectItem key={device.id} value={device.id}>
-                            <span className="flex items-center gap-2">
-                              {device.serial_number}
-                              <Badge variant="outline" className="text-[10px]">
-                                {device.device_role}
-                              </Badge>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
+                    <Badge variant="secondary" className="text-xs">
+                      {seats} poste{seats > 1 ? "s" : ""}
+                    </Badge>
                   </div>
                 </CardContent>
               )}

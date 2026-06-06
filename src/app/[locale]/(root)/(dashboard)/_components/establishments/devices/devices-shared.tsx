@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateDevice, useUpdateDevice, useDeleteDevice } from "@/lib/queries/devices-mutations";
 import { useEstablishmentDevices } from "@/lib/queries/devices-queries";
+import { useEstablishmentModules } from "@/lib/queries/establishment-modules-queries";
+import { DEVICE_MODS } from "@/lib/schemas/device-schema";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import type { Database } from "@/lib/supabase/database.types";
 
 import { useDeviceHandlers } from "./_components/use-device-handlers";
+import { type ModuleSeatInfo } from "./device-form";
 import { DeviceModal } from "./device-modal";
 import { DevicesList } from "./devices-list";
 import { PageHeader } from "./page-header";
@@ -25,16 +28,15 @@ interface DevicesSharedProps {
 export function DevicesShared({ establishmentId, organizationId, isAdmin }: DevicesSharedProps) {
   const { user } = useAuthStore();
   const { data: devices = [], isLoading, error } = useEstablishmentDevices(establishmentId);
+  const { data: estModules = [] } = useEstablishmentModules(establishmentId, organizationId ?? "");
   const createDeviceMutation = useCreateDevice();
   const updateDeviceMutation = useUpdateDevice();
   const deleteDeviceMutation = useDeleteDevice();
 
-  // États pour les modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
-  // Handlers extraits dans un hook personnalisé
   const { handleCreateDevice, handleUpdateDevice, handleDeleteDevice, openEditModal } = useDeviceHandlers({
     establishmentId,
     createDeviceMutation,
@@ -45,38 +47,46 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
     setEditingDevice,
   });
 
-  // Vérification des permissions
-  if (!user) {
-    return <div>Non autorisé</div>;
-  }
+  const createModuleSeatInfo = useMemo<ModuleSeatInfo[]>(
+    () =>
+      DEVICE_MODS.map((mod) => {
+        const mc = estModules.find((m) => m.module === mod);
+        return {
+          module: mod,
+          seats: mc?.seats ?? 0,
+          used: devices.filter((d) => !d.deleted && d.mods.includes(mod)).length,
+          enabled: mc?.enabled ?? false,
+        };
+      }),
+    [devices, estModules],
+  );
 
-  // Calcul des statistiques
+  const editModuleSeatInfo = useMemo<ModuleSeatInfo[]>(
+    () =>
+      DEVICE_MODS.map((mod) => {
+        const mc = estModules.find((m) => m.module === mod);
+        const used = devices.filter((d) => !d.deleted && d.id !== editingDevice?.id && d.mods.includes(mod)).length;
+        return { module: mod, seats: mc?.seats ?? 0, used, enabled: mc?.enabled ?? false };
+      }),
+    [devices, estModules, editingDevice],
+  );
+
+  if (!user) return <div>Non autorisé</div>;
+
   const totalDevices = devices.length;
-  const activeDevices = devices.filter((device) => device.status === "active").length;
-  const inactiveDevices = devices.filter((device) => device.status === "inactive").length;
-  const maintenanceDevices = devices.filter((device) => device.status === "maintenance").length;
-
-  const getPageTitle = () => {
-    return isAdmin ? `Admin - Devices (Établissement: ${establishmentId})` : `Devices - ${establishmentId}`;
-  };
-
-  const getPageDescription = () => {
-    return isAdmin
-      ? `Gestion des devices de l&apos;établissement ${establishmentId}`
-      : `Gestion des devices de votre établissement`;
-  };
+  const activeDevices = devices.filter((d) => d.status === "active").length;
+  const inactiveDevices = devices.filter((d) => d.status === "inactive").length;
+  const maintenanceDevices = devices.filter((d) => d.status === "maintenance").length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <PageHeader
-        pageTitle={getPageTitle()}
-        pageDescription={getPageDescription()}
+        pageTitle={isAdmin ? `Admin - Devices (${establishmentId})` : "Devices"}
+        pageDescription={isAdmin ? `Établissement ${establishmentId}` : "Gérez les devices de votre établissement"}
         onCreateClick={() => setIsCreateModalOpen(true)}
         isCreateLoading={createDeviceMutation.isPending}
       />
 
-      {/* Stats Cards */}
       <StatsCards
         totalDevices={totalDevices}
         activeDevices={activeDevices}
@@ -84,7 +94,6 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
         maintenanceDevices={maintenanceDevices}
       />
 
-      {/* Devices List */}
       <Card>
         <CardHeader>
           <CardTitle>Liste des Devices</CardTitle>
@@ -105,35 +114,28 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
         </CardContent>
       </Card>
 
-      {/* Debug Info */}
       {isAdmin && organizationId && (
         <Card>
           <CardHeader>
-            <CardTitle>Informations de Debug</CardTitle>
+            <CardTitle>Debug</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>Type d&apos;accès:</strong> Admin
-              </p>
-              <p>
-                <strong>Établissement ID:</strong> {establishmentId}
-              </p>
-              <p>
-                <strong>Organisation ID:</strong> {organizationId}
-              </p>
-              <p>
-                <strong>Utilisateur actuel:</strong> {user.email}
-              </p>
-              <p>
-                <strong>Rôle utilisateur:</strong> {user.user_metadata.role ?? "Non défini"}
-              </p>
-            </div>
+          <CardContent className="space-y-1 text-sm">
+            <p>
+              <strong>Établissement :</strong> {establishmentId}
+            </p>
+            <p>
+              <strong>Organisation :</strong> {organizationId}
+            </p>
+            <p>
+              <strong>Utilisateur :</strong> {user.email}
+            </p>
+            <p>
+              <strong>Rôle :</strong> {user.user_metadata.role ?? "Non défini"}
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Modals */}
       <DeviceModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -141,6 +143,7 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
         isEdit={false}
         isLoading={createDeviceMutation.isPending}
         establishmentId={establishmentId}
+        moduleSeatInfo={createModuleSeatInfo}
       />
 
       <DeviceModal
@@ -154,6 +157,7 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
         isEdit={true}
         isLoading={updateDeviceMutation.isPending}
         establishmentId={establishmentId}
+        moduleSeatInfo={editModuleSeatInfo}
       />
     </div>
   );

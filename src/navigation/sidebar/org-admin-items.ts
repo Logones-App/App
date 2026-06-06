@@ -23,7 +23,6 @@ import {
   BookOpen,
   FolderOpen,
   UserCheck,
-  ClipboardList,
   Receipt,
   KeyRound,
   LayoutGrid,
@@ -217,11 +216,6 @@ export const getOrgAdminSidebarItems = (
               title: "Accès & Permissions",
               url: `${est}/employee-access`,
               icon: KeyRound,
-            },
-            {
-              title: "Permissions (ancien)",
-              url: `${est}/mobile-user-permissions`,
-              icon: ClipboardList,
             },
             {
               title: "Formation",

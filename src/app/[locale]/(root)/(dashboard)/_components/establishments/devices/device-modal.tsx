@@ -5,7 +5,7 @@ import type { DeviceFormData, DeviceUpdateFormData } from "@/lib/schemas/device-
 import type { Database } from "@/lib/supabase/database.types";
 
 import { useDeviceForm } from "./_components/use-device-form";
-import { DeviceForm } from "./device-form";
+import { DeviceForm, type ModuleSeatInfo } from "./device-form";
 
 type Device = Database["public"]["Tables"]["devices"]["Row"];
 
@@ -17,6 +17,7 @@ interface DeviceModalProps {
   isEdit: boolean;
   isLoading: boolean;
   establishmentId: string;
+  moduleSeatInfo: ModuleSeatInfo[];
 }
 
 export function DeviceModal({
@@ -27,6 +28,7 @@ export function DeviceModal({
   isEdit,
   isLoading,
   establishmentId,
+  moduleSeatInfo,
 }: DeviceModalProps) {
   const { formData, deviceId, handleInputChange, handleModsChange } = useDeviceForm(initialData);
 
@@ -55,6 +57,7 @@ export function DeviceModal({
           isEdit={isEdit}
           isLoading={isLoading}
           establishmentId={establishmentId}
+          moduleSeatInfo={moduleSeatInfo}
         />
       </DialogContent>
     </Dialog>
