@@ -20,7 +20,7 @@ export function useOrganizationModules(organizationId: string) {
         .eq("organization_id", organizationId)
         .eq("deleted", false);
       if (error) throw new Error(error.message);
-      return data ?? [];
+      return data;
     },
     enabled: !!organizationId,
   });

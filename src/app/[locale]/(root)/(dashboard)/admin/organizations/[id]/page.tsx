@@ -18,7 +18,6 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Organization = Database["public"]["Tables"]["organizations"]["Row"];
-type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
 
 export default function OrganizationManagementPage() {
   const params = useParams();
@@ -26,9 +25,7 @@ export default function OrganizationManagementPage() {
   const organizationId = params.id as string;
 
   const [organization, setOrganization] = useState<Organization | null>(null);
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [establishmentsError, setEstablishmentsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
@@ -76,13 +73,8 @@ export default function OrganizationManagementPage() {
 
         if (establishmentsError) {
           console.error("❌ Erreur lors du chargement des établissements:", establishmentsError);
-          setEstablishmentsError("Impossible de charger les établissements. Vérifiez les permissions.");
-          // Ne pas bloquer le chargement de l'organisation si les établissements échouent
-          setEstablishments([]);
         } else {
           console.log("✅ Établissements chargés avec succès:", establishmentsData);
-          setEstablishments(establishmentsData ?? []);
-          setEstablishmentsError(null);
         }
       } catch (err) {
         console.error("❌ Erreur inattendue:", err);

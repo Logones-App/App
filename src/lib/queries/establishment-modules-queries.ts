@@ -21,7 +21,7 @@ export function useEstablishmentModules(establishmentId: string, organizationId:
         .eq("organization_id", organizationId)
         .eq("deleted", false);
       if (error) throw new Error(error.message);
-      return data ?? [];
+      return data;
     },
     enabled: !!establishmentId && !!organizationId,
   });
@@ -59,7 +59,7 @@ export function useAllEstablishmentModulesByOrg(organizationId: string) {
         .eq("organization_id", organizationId)
         .eq("deleted", false);
       if (error) throw new Error(error.message);
-      return data ?? [];
+      return data;
     },
     enabled: !!organizationId,
   });

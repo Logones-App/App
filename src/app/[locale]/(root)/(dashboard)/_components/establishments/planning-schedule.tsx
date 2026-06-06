@@ -256,6 +256,10 @@ export function PlanningSchedule({
           end_hour: payload.endHour,
           end_minute: payload.endMinute,
           overnight: payload.overnight,
+          is_recurring: payload.isRecurring,
+          recurrence_days: payload.recurrenceDays,
+          date_start: payload.dateStart,
+          date_end: payload.dateEnd,
         },
         {
           onSuccess: () => toast.success("Créneau modifié"),
@@ -411,7 +415,6 @@ export function PlanningSchedule({
           if (!o) setAddModalEmployeeId(null);
         }}
         employee={modalEmployee}
-        weekDays={weekDays}
         existingShifts={shifts}
         templates={templates}
         onSave={handleCreateShift}
@@ -429,15 +432,17 @@ export function PlanningSchedule({
         onDelete={handleDeleteShift}
       />
 
-      <div className="lg:hidden">
-        <MobileDayView
-          employees={visibleEmployees}
-          shifts={visibleShifts}
-          day={weekDays[dayIndex]}
-          onPrev={prevDay}
-          onNext={nextDay}
-        />
-      </div>
+      {viewMode !== "month" && (
+        <div className="lg:hidden">
+          <MobileDayView
+            employees={visibleEmployees}
+            shifts={visibleShifts}
+            day={weekDays[dayIndex]}
+            onPrev={prevDay}
+            onNext={nextDay}
+          />
+        </div>
+      )}
 
       <WeekStats employees={visibleEmployees} shifts={visibleShifts} />
     </div>

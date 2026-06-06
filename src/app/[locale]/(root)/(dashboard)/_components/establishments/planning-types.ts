@@ -18,6 +18,9 @@ export type Shift = {
   endHour: number;
   label: string;
   isRecurring?: boolean;
+  recurrenceDays?: number[] | null;
+  dateStart?: string;
+  dateEnd?: string | null;
 };
 
 // Payload émis par ShiftCreateModal vers planning-schedule
@@ -45,6 +48,10 @@ export type UpdateShiftPayload = {
   endHour: number;
   endMinute: number;
   overnight: boolean;
+  isRecurring: boolean;
+  recurrenceDays: number[] | null;
+  dateStart: string;
+  dateEnd: string | null;
 };
 
 type ShiftPattern = [dayOffset: number, startHour: number, endHour: number, label: string];
@@ -248,6 +255,9 @@ export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): S
           endHour,
           label: row.label,
           isRecurring: true,
+          recurrenceDays: row.recurrence_days,
+          dateStart: row.date_start,
+          dateEnd: row.date_end,
         });
       }
     } else {
@@ -262,12 +272,74 @@ export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): S
           endHour,
           label: row.label,
           isRecurring: false,
+          recurrenceDays: null,
+          dateStart: row.date_start,
+          dateEnd: row.date_end,
         });
       }
     }
   }
 
   return result;
+}
+
+// ─── Overlap detection (règles complètes, pas seulement semaine visible) ────────
+
+type OverlapCandidate = {
+  employeeId: string;
+  startHour: number;
+  endHour: number;
+  isRecurring: boolean;
+  recurrenceDays: number[];
+  dateStart: string;
+  dateEnd: string | null;
+};
+
+function isoWeekday(dateStr: string): number {
+  return (new Date(dateStr).getDay() + 6) % 7;
+}
+
+function daysOverlap(
+  newDays: number[] | null,
+  ruleDays: number[] | null,
+  ruleStart: string,
+  newDateStart: string,
+): boolean {
+  if (newDays && ruleDays) return newDays.some((d) => ruleDays.includes(d));
+  if (newDays) return newDays.includes(isoWeekday(ruleStart));
+  if (ruleDays) return ruleDays.includes(isoWeekday(newDateStart));
+  return newDateStart === ruleStart;
+}
+
+export function hasShiftOverlap(
+  newShift: OverlapCandidate,
+  existingShifts: Shift[],
+  excludeDbId?: string,
+): string | null {
+  const seen = new Set<string>();
+  const rules: Shift[] = [];
+  for (const s of existingShifts) {
+    if (s.employeeId !== newShift.employeeId) continue;
+    const key = s.dbId ?? s.id;
+    if (excludeDbId && (key === excludeDbId || s.id === excludeDbId)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rules.push(s);
+  }
+
+  for (const rule of rules) {
+    if (newShift.startHour >= rule.endHour || newShift.endHour <= rule.startHour) continue;
+    const newEnd = newShift.dateEnd ?? "9999-12-31";
+    const ruleEnd = rule.dateEnd ?? "9999-12-31";
+    const ruleStart = rule.dateStart ?? rule.date;
+    if (newShift.dateStart > ruleEnd || ruleStart > newEnd) continue;
+    const newDays = newShift.isRecurring ? newShift.recurrenceDays : null;
+    const ruleDays = rule.isRecurring ? (rule.recurrenceDays ?? []) : null;
+    if (!daysOverlap(newDays, ruleDays, ruleStart, newShift.dateStart)) continue;
+    return ruleStart;
+  }
+
+  return null;
 }
 
 export function pxPerHour(cellHeight: number): number {

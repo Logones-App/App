@@ -19,27 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { DbShiftTemplate } from "@/lib/queries/planning-queries";
 import { cn } from "@/lib/utils";
 
-import { type CreateShiftPayload, type Employee, type Shift } from "./planning-types";
+import { hasShiftOverlap, type CreateShiftPayload, type Employee, type Shift } from "./planning-types";
 
 // ─── Helpers (extraits pour garder handleSave complexity ≤ 20) ───────────────
-
-function buildDates(
-  isRecurring: boolean,
-  weekDays: Date[],
-  recurrenceDays: number[],
-  refStr: string,
-  endStr: string | null,
-): string[] {
-  if (!isRecurring) return [refStr];
-  const result: string[] = [];
-  weekDays.forEach((day, idx) => {
-    if (!recurrenceDays.includes(idx)) return;
-    const ds = format(day, "yyyy-MM-dd");
-    if (ds < refStr || (endStr !== null && ds > endStr)) return;
-    result.push(ds);
-  });
-  return result;
-}
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -179,7 +161,6 @@ export function ShiftCreateModal({
   open,
   onOpenChange,
   employee,
-  weekDays,
   existingShifts,
   templates,
   onSave,
@@ -187,7 +168,6 @@ export function ShiftCreateModal({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   employee: Employee | null;
-  weekDays: Date[];
   existingShifts: Shift[];
   templates: DbShiftTemplate[];
   onSave: (payload: CreateShiftPayload) => void;
@@ -262,17 +242,22 @@ export function ShiftCreateModal({
     const refStr = format(startNow ? new Date() : dateStart!, "yyyy-MM-dd");
     const endStr = dateEnd ? format(dateEnd, "yyyy-MM-dd") : null;
 
-    // Vérification chevauchement sur les occurrences de la semaine visible
-    const dates = buildDates(isRecurring, weekDays, recurrenceDays, refStr, endStr);
-    for (const date of dates) {
-      const overlap = existingShifts.some(
-        (s) =>
-          s.employeeId === employee.id && s.date === date && combinedStart < s.endHour && resolvedEnd > s.startHour,
-      );
-      if (overlap) {
-        toast.error(`Chevauchement détecté le ${date}.`);
-        return;
-      }
+    // Vérification chevauchement sur toute la plage de dates (règles complètes)
+    const conflictDate = hasShiftOverlap(
+      {
+        employeeId: employee.id,
+        startHour: combinedStart,
+        endHour: resolvedEnd,
+        isRecurring,
+        recurrenceDays,
+        dateStart: refStr,
+        dateEnd: endStr,
+      },
+      existingShifts,
+    );
+    if (conflictDate) {
+      toast.error(`Chevauchement détecté (à partir du ${conflictDate}).`);
+      return;
     }
 
     onSave({
