@@ -58,7 +58,8 @@
       "Bash(sed -i 's/const visibleEmployees = useMemo\\(\\(\\) => MOCK_EMPLOYEES.filter/const visibleEmployees = useMemo\\(\\(\\) => allEmployees.filter/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
       "Bash(sed -i 's/const modalEmployee = MOCK_EMPLOYEES.find/const modalEmployee = allEmployees.find/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
       "Bash(sed -i 's/visibleIds.size < MOCK_EMPLOYEES.length/visibleIds.size < allEmployees.length/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
-      "Bash(sed -i 's/{MOCK_EMPLOYEES.map\\(\\(emp\\) =>/{allEmployees.map\\(\\(emp\\) =>/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')"
+      "Bash(sed -i 's/{MOCK_EMPLOYEES.map\\(\\(emp\\) =>/{allEmployees.map\\(\\(emp\\) =>/g' 'src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/planning-schedule.tsx')",
+      "Bash(del \"C:\\\\Users\\\\Administrateur\\\\.claude\\\\projects\\\\c--Users-Administrateur-Documents-www-APP-13-07-25-next-shadcn-admin-dashboard-main-next-shadcn-admin-dashboard-main\\\\memory\\\\feedback_audit_refacto.md\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
