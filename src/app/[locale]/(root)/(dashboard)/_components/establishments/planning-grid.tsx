@@ -13,7 +13,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { format, isToday } from "date-fns";
+import { addDays, format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarDays, Clock, Plus, TrendingUp, Users } from "lucide-react";
 
@@ -81,7 +81,7 @@ function DroppableCell({
     <div
       ref={setNodeRef}
       className={cn(
-        "relative border-b border-l",
+        "relative overflow-hidden border-b border-l",
         today && "bg-primary/5",
         isOver && "bg-emerald-500/10 ring-2 ring-emerald-500/30 ring-inset",
       )}
@@ -101,6 +101,7 @@ function ShiftBlock({
   height,
   col,
   totalCols,
+  isContinuation = false,
   onEditShift,
 }: {
   shift: Shift;
@@ -109,10 +110,11 @@ function ShiftBlock({
   height: number;
   col: number;
   totalCols: number;
+  isContinuation?: boolean;
   onEditShift: (shift: Shift) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: shift.id,
+    id: isContinuation ? `${shift.id}-cont` : shift.id,
     data: { shiftId: shift.id },
   });
 
@@ -123,11 +125,16 @@ function ShiftBlock({
     height,
     left: `calc(${col * w * 100}% + 2px)`,
     width: `calc(${w * 100}% - 4px)`,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.4 : isContinuation ? 0.8 : 1,
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     zIndex: isDragging ? 50 : 1,
-    cursor: isDragging ? "grabbing" : "grab",
+    cursor: isContinuation ? "pointer" : isDragging ? "grabbing" : "grab",
   };
+
+  const endDisplay = shift.endHour > 24 ? shift.endHour - 24 : shift.endHour;
+  const timeLabel = isContinuation
+    ? `→ ${fmtHour(endDisplay)}`
+    : `${fmtHour(shift.startHour)}–${fmtHour(shift.endHour > 24 ? 24 : shift.endHour)}`;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -137,23 +144,24 @@ function ShiftBlock({
             ref={setNodeRef}
             className="absolute overflow-hidden rounded-md px-1.5 py-0.5 text-white shadow-sm select-none"
             style={style}
-            {...listeners}
-            {...attributes}
+            {...(isContinuation ? {} : listeners)}
+            {...(isContinuation ? {} : attributes)}
             onClick={() => !isDragging && onEditShift(shift)}
           >
-            <p className="truncate text-[10px] leading-tight font-semibold">{shift.label}</p>
-            {height >= 28 && (
-              <p className="text-[9px] tabular-nums opacity-80">
-                {fmtHour(shift.startHour)}–{fmtHour(shift.endHour)}
-              </p>
-            )}
+            {isContinuation && <div className="absolute inset-x-0 top-0 h-0.5 bg-white/50" />}
+            <p className="truncate text-[10px] leading-tight font-semibold">
+              {isContinuation ? "↩ " : ""}
+              {shift.label}
+            </p>
+            {height >= 28 && <p className="text-[9px] tabular-nums opacity-80">{timeLabel}</p>}
           </div>
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">
           <p className="font-semibold">{shift.label}</p>
           <p className="text-muted-foreground">
-            {fmtHour(shift.startHour)} → {fmtHour(shift.endHour)} · {shift.endHour - shift.startHour}h
+            {fmtHour(shift.startHour)} → {fmtHour(endDisplay)} · {shift.endHour - shift.startHour}h
           </p>
+          {shift.endHour > 24 && <p className="text-[10px] text-amber-400">Shift overnight</p>}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -179,7 +187,10 @@ function EmployeeGridRow({
   onAddShift: (employeeId: string) => void;
   onEditShift: (shift: Shift) => void;
 }) {
-  const empHours = shifts.filter((s) => s.employeeId === emp.id).reduce((a, s) => a + (s.endHour - s.startHour), 0);
+  const weekDateStrs = new Set(weekDays.map((d) => format(d, "yyyy-MM-dd")));
+  const empHours = shifts
+    .filter((s) => s.employeeId === emp.id && weekDateStrs.has(s.date))
+    .reduce((a, s) => a + (s.endHour - s.startHour), 0);
 
   return (
     <div className={cn("grid", COLS, idx % 2 === 0 ? "bg-background" : "bg-muted/10")}>
@@ -212,7 +223,31 @@ function EmployeeGridRow({
       </div>
       {weekDays.map((day) => {
         const dateStr = format(day, "yyyy-MM-dd");
-        const dayShifts = shifts.filter((s) => s.employeeId === emp.id && s.date === dateStr);
+        const prevDayStr = format(addDays(day, -1), "yyyy-MM-dd");
+
+        // Shifts qui démarrent ce jour (bloc J, cappé à minuit si overnight)
+        const startingShifts = shifts.filter((s) => s.employeeId === emp.id && s.date === dateStr);
+        // Shifts overnight du jour précédent → bloc de continuation J+1
+        const continuingShifts = shifts.filter(
+          (s) => s.employeeId === emp.id && s.date === prevDayStr && s.endHour > 24,
+        );
+
+        type Block = { shift: Shift; displayStart: number; displayEnd: number; isContinuation: boolean };
+        const blocks: Block[] = [
+          ...startingShifts.map((s) => ({
+            shift: s,
+            displayStart: s.startHour,
+            displayEnd: Math.min(s.endHour, 24), // cappé à minuit — overflow hidden coupe le reste
+            isContinuation: false,
+          })),
+          ...continuingShifts.map((s) => ({
+            shift: s,
+            displayStart: 0,
+            displayEnd: s.endHour - 24, // continuation : 0h → fin réelle
+            isContinuation: true,
+          })),
+        ];
+
         return (
           <DroppableCell
             key={day.toISOString()}
@@ -222,15 +257,16 @@ function EmployeeGridRow({
             today={isToday(day)}
           >
             {isToday(day) && <CurrentTimeLine cellHeight={cellHeight} />}
-            {dayShifts.map((s, si) => (
+            {blocks.map(({ shift: s, displayStart, displayEnd, isContinuation }, si) => (
               <ShiftBlock
-                key={s.id}
+                key={isContinuation ? `${s.id}-cont` : s.id}
                 shift={s}
                 color={emp.color}
-                top={shiftTop(s.startHour, cellHeight)}
-                height={shiftHeight(s.startHour, s.endHour, cellHeight)}
+                top={shiftTop(displayStart, cellHeight)}
+                height={shiftHeight(displayStart, displayEnd, cellHeight)}
                 col={si}
-                totalCols={dayShifts.length}
+                totalCols={blocks.length}
+                isContinuation={isContinuation}
                 onEditShift={onEditShift}
               />
             ))}
@@ -246,11 +282,21 @@ function EmployeeGridRow({
 
 // ─── WeekStats ────────────────────────────────────────────────────────────────
 
-export function WeekStats({ employees, shifts }: { employees: Employee[]; shifts: Shift[] }) {
-  const totalHours = shifts.reduce((a, s) => a + (s.endHour - s.startHour), 0);
+export function WeekStats({
+  employees,
+  shifts,
+  weekDays,
+}: {
+  employees: Employee[];
+  shifts: Shift[];
+  weekDays: Date[];
+}) {
+  const weekDateStrs = new Set(weekDays.map((d) => format(d, "yyyy-MM-dd")));
+  const weekShifts = shifts.filter((s) => weekDateStrs.has(s.date));
+  const totalHours = weekShifts.reduce((a, s) => a + (s.endHour - s.startHour), 0);
   const avgPerEmp = employees.length ? Math.round(totalHours / employees.length) : 0;
-  const avgShift = shifts.length ? (totalHours / shifts.length).toFixed(1) : "—";
-  const hoursByDay = shifts.reduce<Record<string, number>>((acc, s) => {
+  const avgShift = weekShifts.length ? (totalHours / weekShifts.length).toFixed(1) : "—";
+  const hoursByDay = weekShifts.reduce<Record<string, number>>((acc, s) => {
     acc[s.date] = (acc[s.date] ?? 0) + (s.endHour - s.startHour);
     return acc;
   }, {});
@@ -369,7 +415,10 @@ export function WeekGrid({
             ))}
             <div className="border-t border-l px-2 py-2 text-center">
               <span className="text-xs font-bold tabular-nums">
-                {shifts.reduce((a, s) => a + (s.endHour - s.startHour), 0)}h
+                {shifts
+                  .filter((s) => weekDays.some((d) => format(d, "yyyy-MM-dd") === s.date))
+                  .reduce((a, s) => a + (s.endHour - s.startHour), 0)}
+                h
               </span>
             </div>
           </div>

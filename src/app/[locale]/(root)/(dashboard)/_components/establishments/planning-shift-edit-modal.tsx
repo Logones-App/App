@@ -22,25 +22,22 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 function TimeSelector({
   hour,
   minute,
-  maxHour,
   onChange,
 }: {
   hour: number;
   minute: number;
-  maxHour?: number;
   onChange: (h: number, m: number) => void;
 }) {
-  const max = maxHour ?? 26;
   return (
     <div className="flex items-center gap-2">
-      <Select value={String(hour)} onValueChange={(v) => onChange(Number(v), minute)}>
+      <Select value={String(hour % 24)} onValueChange={(v) => onChange(Number(v), minute)}>
         <SelectTrigger className="w-[80px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="max-h-48">
-          {Array.from({ length: max }, (_, i) => (
+          {Array.from({ length: 24 }, (_, i) => (
             <SelectItem key={i} value={String(i)}>
-              {pad2(i % 24)}h{i >= 24 ? <span className="text-muted-foreground ml-1 text-[10px]">+1</span> : null}
+              {pad2(i)}h
             </SelectItem>
           ))}
         </SelectContent>
@@ -66,6 +63,7 @@ interface ShiftEditModalProps {
   onOpenChange: (o: boolean) => void;
   shift: Shift | null;
   employee: Employee | null;
+  employees: Employee[];
   existingShifts: Shift[];
   onSave: (payload: UpdateShiftPayload) => void;
   onDelete: (shiftId: string) => void;
@@ -76,10 +74,12 @@ export function ShiftEditModal({
   onOpenChange,
   shift,
   employee,
+  employees,
   existingShifts,
   onSave,
   onDelete,
 }: ShiftEditModalProps) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employee?.id ?? "");
   const [label, setLabel] = useState("");
   const [startHour, setStartHour] = useState(9);
   const [startMinute, setStartMinute] = useState(0);
@@ -92,10 +92,11 @@ export function ShiftEditModal({
 
   useEffect(() => {
     if (!shift) return;
+    setSelectedEmployeeId(shift.employeeId);
     setLabel(shift.label);
     setStartHour(Math.floor(shift.startHour));
     setStartMinute(Math.round((shift.startHour % 1) * 60));
-    setEndHour(Math.floor(shift.endHour));
+    setEndHour(Math.floor(shift.endHour) % 24);
     setEndMinute(Math.round((shift.endHour % 1) * 60));
     setIsRecurring(shift.isRecurring ?? false);
     setRecurrenceDays(shift.recurrenceDays ?? []);
@@ -127,7 +128,7 @@ export function ShiftEditModal({
     }
     const conflictDate = hasShiftOverlap(
       {
-        employeeId: shift.employeeId,
+        employeeId: selectedEmployeeId,
         startHour: combinedStart,
         endHour: combinedEnd,
         isRecurring,
@@ -148,6 +149,7 @@ export function ShiftEditModal({
 
     onSave({
       dbId: shift.dbId ?? shift.id,
+      employeeId: selectedEmployeeId !== shift.employeeId ? selectedEmployeeId : undefined,
       label: label.trim(),
       startHour,
       startMinute,
@@ -172,14 +174,39 @@ export function ShiftEditModal({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: employee.color }} />
-            Modifier le créneau — {employee.name}
+            <span
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{
+                backgroundColor: (employees.find((e) => e.id === selectedEmployeeId) ?? employee)?.color ?? "#6b7280",
+              }}
+            />
+            Modifier le créneau
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="text-muted-foreground text-sm">
             {shift.date} · {fmtHour(shift.startHour)} → {fmtHour(shift.endHour)}
+          </div>
+
+          {/* Employé */}
+          <div className="space-y-1.5">
+            <Label>Employé</Label>
+            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+                      {e.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
@@ -195,7 +222,6 @@ export function ShiftEditModal({
               <TimeSelector
                 hour={startHour}
                 minute={startMinute}
-                maxHour={24}
                 onChange={(h, m) => {
                   setStartHour(h);
                   setStartMinute(m);
@@ -207,7 +233,6 @@ export function ShiftEditModal({
               <TimeSelector
                 hour={endHour}
                 minute={endMinute}
-                maxHour={27}
                 onChange={(h, m) => {
                   setEndHour(h);
                   setEndMinute(m);

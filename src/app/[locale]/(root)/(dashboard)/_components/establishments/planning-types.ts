@@ -42,6 +42,7 @@ export type CreateShiftPayload = {
 // Payload émis par ShiftEditModal vers planning-schedule
 export type UpdateShiftPayload = {
   dbId: string;
+  employeeId?: string; // si différent de l'employé actuel → réassignation
   label: string;
   startHour: number;
   startMinute: number;
@@ -234,18 +235,30 @@ type DbShiftRow = {
 
 export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): Shift[] {
   const result: Shift[] = [];
+  if (weekDays.length === 0) return result;
+
+  const weekStrs = new Set(weekDays.map((d) => format(d, "yyyy-MM-dd")));
+  // Jour précédant la semaine — pour détecter les continuations overnight en J+1
+  const prevDay = addDays(weekDays[0], -1);
+  const prevDayStr = format(prevDay, "yyyy-MM-dd");
 
   for (const row of dbShifts) {
     const startHour = row.start_hour + row.start_minute / 60;
-    const endHour = row.end_hour + row.end_minute / 60;
+    const rawEnd = row.end_hour + row.end_minute / 60;
+    const endHour = row.overnight && rawEnd < startHour ? rawEnd + 24 : rawEnd;
+    const isOvernightRow = endHour > 24;
 
     if (row.is_recurring && row.recurrence_days && row.recurrence_days.length > 0) {
-      for (const day of weekDays) {
-        const dayIndex = (day.getDay() + 6) % 7; // Lun=0 … Dim=6
+      // On inclut aussi prevDay pour les récurrents overnight (continuation lundi si dim récurrent)
+      const daysToCheck = isOvernightRow ? [prevDay, ...weekDays] : weekDays;
+      for (const day of daysToCheck) {
+        const dayIndex = (day.getDay() + 6) % 7;
         if (!row.recurrence_days.includes(dayIndex)) continue;
         const dateStr = format(day, "yyyy-MM-dd");
         if (dateStr < row.date_start) continue;
         if (row.date_end && dateStr > row.date_end) continue;
+        // prevDay : seulement si overnight (sinon pas besoin de continuation)
+        if (dateStr === prevDayStr && !isOvernightRow) continue;
         result.push({
           id: `${row.id}-${dateStr}`,
           dbId: row.id,
@@ -261,8 +274,22 @@ export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): S
         });
       }
     } else {
-      const weekStrs = weekDays.map((d) => format(d, "yyyy-MM-dd"));
-      if (weekStrs.includes(row.date_start)) {
+      if (weekStrs.has(row.date_start)) {
+        result.push({
+          id: row.id,
+          dbId: row.id,
+          employeeId: row.employee_id,
+          date: row.date_start,
+          startHour,
+          endHour,
+          label: row.label,
+          isRecurring: false,
+          recurrenceDays: null,
+          dateStart: row.date_start,
+          dateEnd: row.date_end,
+        });
+      } else if (row.date_start === prevDayStr && isOvernightRow) {
+        // Shift ponctuel overnight du jour précédent — inclus uniquement pour la continuation
         result.push({
           id: row.id,
           dbId: row.id,

@@ -726,12 +726,12 @@ export type Database = {
         Row: {
           created_at: string | null
           device_id: string
+          employee_id: string
           establishment_id: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
           last_activity: string | null
-          mobile_user_id: string | null
           orga_user_id: string
           organization_id: string
           session_data: Json | null
@@ -740,12 +740,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           device_id: string
+          employee_id: string
           establishment_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           last_activity?: string | null
-          mobile_user_id?: string | null
           orga_user_id: string
           organization_id: string
           session_data?: Json | null
@@ -754,12 +754,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           device_id?: string
+          employee_id?: string
           establishment_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           last_activity?: string | null
-          mobile_user_id?: string | null
           orga_user_id?: string
           organization_id?: string
           session_data?: Json | null
@@ -775,7 +775,7 @@ export type Database = {
           },
           {
             foreignKeyName: "device_sessions_mobile_user_id_fkey"
-            columns: ["mobile_user_id"]
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -2815,11 +2815,11 @@ export type Database = {
           created_at: string | null
           device_id: string
           emitter_snapshot: Json | null
+          employee_id: string
           establishment_id: string
           hash_chain_input: string | null
           id: string
           line_count: number
-          mobile_user_id: string | null
           operation_type: string
           order_id: string
           organization_id: string | null
@@ -2835,11 +2835,11 @@ export type Database = {
           created_at?: string | null
           device_id: string
           emitter_snapshot?: Json | null
+          employee_id: string
           establishment_id: string
           hash_chain_input?: string | null
           id?: string
           line_count?: number
-          mobile_user_id?: string | null
           operation_type?: string
           order_id: string
           organization_id?: string | null
@@ -2855,11 +2855,11 @@ export type Database = {
           created_at?: string | null
           device_id?: string
           emitter_snapshot?: Json | null
+          employee_id?: string
           establishment_id?: string
           hash_chain_input?: string | null
           id?: string
           line_count?: number
-          mobile_user_id?: string | null
           operation_type?: string
           order_id?: string
           organization_id?: string | null
@@ -2888,7 +2888,7 @@ export type Database = {
           },
           {
             foreignKeyName: "nf525_pieces_mobile_user_id_fkey"
-            columns: ["mobile_user_id"]
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]

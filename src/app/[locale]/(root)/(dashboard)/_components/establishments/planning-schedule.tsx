@@ -16,6 +16,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,9 +56,11 @@ import {
   type CreateShiftPayload,
   type UpdateShiftPayload,
   expandShiftsForWeek,
+  fmtHour,
   getEmployeeColor,
   getMonthCalendarDays,
   getWeekDays,
+  hasShiftOverlap,
 } from "./planning-types";
 
 // ─── MobileDayView ────────────────────────────────────────────────────────────
@@ -104,8 +116,7 @@ function MobileDayView({
                     <div>
                       <p className="text-sm font-medium">{s.label}</p>
                       <p className="text-muted-foreground text-xs tabular-nums">
-                        {String(s.startHour).padStart(2, "0")}h → {String(s.endHour).padStart(2, "0")}h ·{" "}
-                        {s.endHour - s.startHour}h
+                        {fmtHour(s.startHour)} → {fmtHour(s.endHour)} · {s.endHour - s.startHour}h
                       </p>
                     </div>
                   </div>
@@ -160,6 +171,11 @@ export function PlanningSchedule({
   const [addModalEmployeeId, setAddModalEmployeeId] = useState<string | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [viewMode, setViewMode] = useState<"employees" | "coverage" | "month">("employees");
+  const [pendingMove, setPendingMove] = useState<{
+    shift: Shift;
+    toEmployeeId: string;
+    toDate: string;
+  } | null>(null);
 
   const cellHeight = compact ? CELL_HEIGHT_COMPACT : CELL_HEIGHT_COMFORTABLE;
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
@@ -200,21 +216,52 @@ export function PlanningSchedule({
     } else setDayIndex((i) => i + 1);
   };
 
+  const doMove = useCallback(
+    (s: Shift, toEmployeeId: string, toDate: string) => {
+      const updates: Record<string, unknown> = { id: s.dbId, employee_id: toEmployeeId };
+      if (!s.isRecurring && toDate !== s.date) updates.date_start = toDate;
+      updateShift.mutate(updates as Parameters<typeof updateShift.mutate>[0], {
+        onError: () => toast.error("Erreur lors du déplacement du créneau"),
+      });
+    },
+    [updateShift],
+  );
+
   const moveShift = useCallback(
     (shiftId: string, toEmployeeId: string, toDate: string) => {
       const s = shifts.find((x) => x.id === shiftId);
       if (!s?.dbId) return;
 
-      const updates: Record<string, unknown> = { id: s.dbId, employee_id: toEmployeeId };
-      // Pour les shifts non-récurrents, on met aussi à jour la date
-      if (!s.isRecurring && toDate !== s.date) {
-        updates.date_start = toDate;
+      // Vérification chevauchement sur la destination
+      const conflict = hasShiftOverlap(
+        {
+          employeeId: toEmployeeId,
+          startHour: s.startHour,
+          endHour: s.endHour,
+          isRecurring: s.isRecurring ?? false,
+          recurrenceDays: s.recurrenceDays ?? [],
+          dateStart: s.isRecurring ? (s.dateStart ?? s.date) : toDate,
+          dateEnd: s.dateEnd ?? null,
+        },
+        shifts,
+        s.dbId,
+      );
+      if (conflict) {
+        toast.error(`Chevauchement détecté (à partir du ${conflict}).`, {
+          action: { label: "Forcer quand même", onClick: () => doMove(s, toEmployeeId, toDate) },
+        });
+        return;
       }
-      updateShift.mutate(updates as Parameters<typeof updateShift.mutate>[0], {
-        onError: () => toast.error("Erreur lors du déplacement du créneau"),
-      });
+
+      // Shift récurrent + changement d'employé → confirmation
+      if (s.isRecurring && toEmployeeId !== s.employeeId) {
+        setPendingMove({ shift: s, toEmployeeId, toDate });
+        return;
+      }
+
+      doMove(s, toEmployeeId, toDate);
     },
-    [shifts, updateShift],
+    [shifts, doMove],
   );
 
   const handleCreateShift = useCallback(
@@ -250,6 +297,7 @@ export function PlanningSchedule({
       updateShift.mutate(
         {
           id: payload.dbId,
+          ...(payload.employeeId ? { employee_id: payload.employeeId } : {}),
           label: payload.label,
           start_hour: payload.startHour,
           start_minute: payload.startMinute,
@@ -415,6 +463,7 @@ export function PlanningSchedule({
           if (!o) setAddModalEmployeeId(null);
         }}
         employee={modalEmployee}
+        employees={allEmployees}
         existingShifts={shifts}
         templates={templates}
         onSave={handleCreateShift}
@@ -427,10 +476,34 @@ export function PlanningSchedule({
         }}
         shift={editingShift}
         employee={editingShift ? (allEmployees.find((e) => e.id === editingShift.employeeId) ?? null) : null}
+        employees={allEmployees}
         existingShifts={shifts}
         onSave={handleUpdateShift}
         onDelete={handleDeleteShift}
       />
+
+      <AlertDialog open={pendingMove !== null} onOpenChange={(o) => !o && setPendingMove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Modifier l&apos;employé du créneau récurrent ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ce créneau est récurrent. Le changement d&apos;employé s&apos;appliquera à{" "}
+              <strong>toutes les occurrences</strong> passées et futures.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingMove) doMove(pendingMove.shift, pendingMove.toEmployeeId, pendingMove.toDate);
+                setPendingMove(null);
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {viewMode !== "month" && (
         <div className="lg:hidden">
@@ -444,7 +517,7 @@ export function PlanningSchedule({
         </div>
       )}
 
-      <WeekStats employees={visibleEmployees} shifts={visibleShifts} />
+      <WeekStats employees={visibleEmployees} shifts={visibleShifts} weekDays={weekDays} />
     </div>
   );
 }

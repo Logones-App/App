@@ -41,10 +41,10 @@ function TimeSelector({
   onChange: (h: number, m: number) => void;
 }) {
   const [precise, setPrecise] = useState(false);
-  const [text, setText] = useState(`${pad2(hour % 24)}:${pad2(minute)}`);
+  const [text, setText] = useState(`${pad2(hour)}:${pad2(minute)}`);
 
   useEffect(() => {
-    if (!precise) setText(`${pad2(hour % 24)}:${pad2(minute)}`);
+    if (!precise) setText(`${pad2(hour)}:${pad2(minute)}`);
   }, [hour, minute, precise]);
 
   const applyText = () => {
@@ -161,6 +161,7 @@ export function ShiftCreateModal({
   open,
   onOpenChange,
   employee,
+  employees,
   existingShifts,
   templates,
   onSave,
@@ -168,10 +169,12 @@ export function ShiftCreateModal({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   employee: Employee | null;
+  employees: Employee[];
   existingShifts: Shift[];
   templates: DbShiftTemplate[];
   onSave: (payload: CreateShiftPayload) => void;
 }) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employee?.id ?? "");
   const [label, setLabel] = useState("");
   const [templateId, setTemplateId] = useState("custom");
   const [startHour, setStartHour] = useState(9);
@@ -186,6 +189,7 @@ export function ShiftCreateModal({
 
   useEffect(() => {
     if (!open) return;
+    setSelectedEmployeeId(employee?.id ?? "");
     setLabel("");
     setTemplateId("custom");
     setStartHour(9);
@@ -197,7 +201,7 @@ export function ShiftCreateModal({
     setStartNow(true);
     setDateStart(null);
     setDateEnd(null);
-  }, [open]);
+  }, [open, employee]);
 
   const applyTemplate = (tid: string) => {
     setTemplateId(tid);
@@ -214,7 +218,10 @@ export function ShiftCreateModal({
     setRecurrenceDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
   const handleSave = () => {
-    if (!employee) return;
+    if (!selectedEmployeeId) {
+      toast.error("Sélectionnez un employé.");
+      return;
+    }
     if (!label.trim()) {
       toast.error("Le label est requis.");
       return;
@@ -245,7 +252,7 @@ export function ShiftCreateModal({
     // Vérification chevauchement sur toute la plage de dates (règles complètes)
     const conflictDate = hasShiftOverlap(
       {
-        employeeId: employee.id,
+        employeeId: selectedEmployeeId,
         startHour: combinedStart,
         endHour: resolvedEnd,
         isRecurring,
@@ -261,7 +268,7 @@ export function ShiftCreateModal({
     }
 
     onSave({
-      employeeId: employee.id,
+      employeeId: selectedEmployeeId,
       label: label.trim(),
       startHour,
       startMinute,
@@ -277,19 +284,44 @@ export function ShiftCreateModal({
     onOpenChange(false);
   };
 
-  if (!employee) return null;
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) ?? employee;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: employee.color }} />
-            Nouveau créneau — {employee.name}
+            <span
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{ backgroundColor: selectedEmployee?.color ?? "#6b7280" }}
+            />
+            Nouveau créneau
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
+          {/* Employé */}
+          <div className="space-y-1.5">
+            <Label>
+              Employé <span className="text-destructive">*</span>
+            </Label>
+            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un employé" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+                      {e.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Template */}
           <div className="space-y-1.5">
             <Label>Modèle de créneau</Label>
