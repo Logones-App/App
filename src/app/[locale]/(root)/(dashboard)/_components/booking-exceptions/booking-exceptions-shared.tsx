@@ -44,7 +44,7 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
     update,
     delete: deleteException,
   } = useBookingExceptionsRealtime({
-    establishmentId: establishmentId || "",
+    establishmentId: establishmentId ?? "",
     organizationId,
   });
 
@@ -68,8 +68,8 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
   // Filtrer les exceptions
   const filteredExceptions = exceptions.filter((exception) => {
     const matchesSearch =
-      exception.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exception.exception_type?.toLowerCase().includes(searchTerm.toLowerCase());
+      (exception.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (exception.exception_type?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     const matchesType = selectedType === "all" || exception.exception_type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -77,7 +77,7 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
   // Fonction pour obtenir le nom de l'établissement
   const getEstablishmentName = (establishmentId: string) => {
     const establishment = establishments.find((est) => est.id === establishmentId);
-    return establishment?.name || "Établissement inconnu";
+    return establishment?.name ?? "Établissement inconnu";
   };
 
   // Fonction pour formater la date
@@ -258,7 +258,7 @@ export function BookingExceptionsShared({ organizationId, establishmentId }: Boo
                   <TableRow key={exception.id}>
                     <TableCell>{getTypeBadge(exception.exception_type || "")}</TableCell>
                     <TableCell>
-                      <div className="max-w-xs truncate">{exception.reason || "Aucune description"}</div>
+                      <div className="max-w-xs truncate">{exception.reason ?? "Aucune description"}</div>
                     </TableCell>
                     <TableCell>{getEstablishmentName(exception.establishment_id)}</TableCell>
                     <TableCell>

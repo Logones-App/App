@@ -67,9 +67,9 @@ export function SiteConfigurationImageSelector({
     } else {
       const filtered = availableImages.filter(
         (image) =>
-          (image.image_name && image.image_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (image.image_description && image.image_description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (image.alt_text && image.alt_text.toLowerCase().includes(searchTerm.toLowerCase())),
+          (image.image_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+          (image.image_description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+          (image.alt_text?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false),
       );
       setFilteredImages(filtered);
     }

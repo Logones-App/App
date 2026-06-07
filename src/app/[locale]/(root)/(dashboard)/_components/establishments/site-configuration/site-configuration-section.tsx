@@ -9,8 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useGallerySectionRealtime } from "@/hooks/gallery/use-gallery-section-realtime";
-import { GallerySectionConfig, GallerySection } from "@/types/gallery";
-import { GallerySectionImage } from "@/types/gallery";
+import { GallerySectionConfig, GallerySection, GallerySectionImage } from "@/types/gallery";
 
 import { SiteConfigurationImageReorder } from "./site-configuration-image-reorder";
 import { SiteConfigurationImageSelector } from "./site-configuration-image-selector";

@@ -178,10 +178,10 @@ function prepareScheduleForDisplay(
   // LOG: Afficher le type déterminé pour chaque schedule
   if (schedule) {
     console.log(
-      `[SCHEDULE TYPE] Menu: ${menuName || "?"} (id: ${schedule.menu_id || "?"}) Schedule: ${schedule.id || "?"} => ${type}`,
+      `[SCHEDULE TYPE] Menu: ${menuName ?? "?"} (id: ${schedule.menu_id || "?"}) Schedule: ${schedule.id || "?"} => ${type}`,
     );
   } else {
-    console.log(`[SCHEDULE TYPE] Menu permanent: ${menuName || "?"} => permanent`);
+    console.log(`[SCHEDULE TYPE] Menu permanent: ${menuName ?? "?"} => permanent`);
   }
 
   // 2. Complétion dynamique des dates manquantes pour l'affichage
@@ -242,8 +242,8 @@ export function MenuCalendar({ menus, schedules = [], onDateClick, onEventClick 
       if (!menuSchedules || menuSchedules.length === 0) {
         const { start: periodStart, end: periodEnd } = getVisiblePeriod(currentView, currentDate);
         events.push({
-          id: `${menu.id || "menu"}-permanent`,
-          title: menu.name || "Menu",
+          id: `${menu.id ?? "menu"}-permanent`,
+          title: menu.name ?? "Menu",
           start: format(periodStart, "yyyy-MM-dd"),
           end: format(addDays(endOfMonth(currentDate), 1), "yyyy-MM-dd"), // Inclure le dernier jour du mois
           allDay: true,
@@ -256,69 +256,58 @@ export function MenuCalendar({ menus, schedules = [], onDateClick, onEventClick 
       }
 
       // Cas 2 : Schedules associés
-      menuSchedules.forEach((schedule: Tables<"menu_schedules">, sidx: number) => {
+      const addScheduleEvents = (schedule: Tables<"menu_schedules">, sidx: number) => {
         const display = prepareScheduleForDisplay(schedule, currentView, currentDate, menu.name ?? undefined);
-
-        // Génération selon le type
+        const menuName = menu.name ?? "Menu";
+        const eventId = `${menu.id ?? "menu"}-schedule-${sidx}`;
+        const base = { backgroundColor: color, borderColor: color, textColor: "white" as const };
         if (display.type === "recurrent-heures" || display.type === "recurrent-all-day") {
-          // NOUVELLE LOGIQUE : Générer des événements simples au lieu d'utiliser rrule
-          const recurringEvents = generateRecurringEvents(schedule, menu, currentView, currentDate, color);
-          events.push(...recurringEvents);
+          events.push(...generateRecurringEvents(schedule, menu, currentView, currentDate, color));
         } else if (display.type === "permanent" || display.type === "plage-all-day") {
           events.push({
             id: `${menu.id}-schedule-${sidx}`,
-            title: menu.name ?? "Menu",
+            title: menuName,
+            ...base,
+            allDay: true,
             start: display.valid_from,
             end: format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd"),
-            backgroundColor: color,
-            borderColor: color,
-            textColor: "white",
-            allDay: true,
             extendedProps: { menu, schedule, type: display.type },
           });
         } else if (display.type === "plage-heures") {
-          // Plage de dates avec heures
           const startTime = normalizeTimeStringSafe(display.start_time ?? "");
           const endTime = normalizeTimeStringSafe(display.end_time ?? "");
           events.push({
-            id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
-            title: menu.name || "Menu",
+            id: eventId,
+            title: menuName,
+            ...base,
             start: `${display.valid_from}T${startTime}`,
             end: `${format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd")}T${endTime}`,
-            backgroundColor: color,
-            borderColor: color,
-            textColor: "white",
             extendedProps: { menu, schedule, type: display.type },
           });
         } else if (display.type === "ponctuel-heures") {
-          // Ponctuel avec heures
           const startTime = normalizeTimeStringSafe(display.start_time ?? "");
           const endTime = normalizeTimeStringSafe(display.end_time ?? "");
           events.push({
-            id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
-            title: menu.name || "Menu",
+            id: eventId,
+            title: menuName,
+            ...base,
             start: `${display.valid_from}T${startTime}`,
             end: display.end_time ? `${display.valid_from}T${endTime}` : undefined,
-            backgroundColor: color,
-            borderColor: color,
-            textColor: "white",
             extendedProps: { menu, schedule, type: display.type },
           });
         } else if (display.type === "ponctuel-all-day") {
-          // Ponctuel all-day
           events.push({
-            id: `${menu.id || "menu"}-schedule-${typeof sidx !== "undefined" ? sidx : 0}`,
-            title: menu.name || "Menu",
+            id: eventId,
+            title: menuName,
+            ...base,
+            allDay: true,
             start: display.valid_from,
             end: display.valid_until ? format(addDays(new Date(display.valid_until), 1), "yyyy-MM-dd") : undefined,
-            allDay: true,
-            backgroundColor: color,
-            borderColor: color,
-            textColor: "white",
             extendedProps: { menu, schedule, type: display.type },
           });
         }
-      });
+      };
+      menuSchedules.forEach(addScheduleEvents);
     });
 
     return events;
