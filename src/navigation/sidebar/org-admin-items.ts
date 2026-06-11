@@ -7,7 +7,6 @@ import {
   Users,
   BarChart3,
   Settings,
-  Bell,
   HelpCircle,
   ShoppingBag,
   Clock,
@@ -15,8 +14,6 @@ import {
   Monitor,
   Image,
   MapPin,
-  Wrench,
-  GraduationCap,
   CalendarDays,
   SlidersHorizontal,
   FileText,
@@ -26,6 +23,11 @@ import {
   Receipt,
   KeyRound,
   LayoutGrid,
+  CreditCard,
+  Warehouse,
+  ClipboardCheck,
+  CalendarX,
+  BookMarked,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -36,12 +38,13 @@ export const getOrgAdminSidebarItems = (
   organizationId?: string | null,
 ): NavGroup[] => {
   const baseUrl = locale ? `/${locale}` : "";
-  void organizationId; // réservé pour usage futur (multi-orga)
-  // Base de l'établissement actif — null si aucun sélectionné
+  void organizationId;
   const est = establishmentId ? `${baseUrl}/dashboard/establishments/${establishmentId}` : null;
+  const fallback = `${baseUrl}/dashboard/establishments`;
+  const u = (path: string): string => (est !== null ? `${est}/${path}` : fallback);
 
   return [
-    // ─── Tableau de bord ──────────────────────────────────────────────────────
+    // ─── Tableau de bord (avant le switcher) ──────────────────────────────────
     {
       id: 1,
       label: "Tableau de bord",
@@ -51,192 +54,137 @@ export const getOrgAdminSidebarItems = (
           url: `${baseUrl}/dashboard`,
           icon: Home,
         },
-        {
-          title: "Statistiques",
-          url: `${baseUrl}/dashboard/analytics`,
-          icon: BarChart3,
-        },
       ],
     },
 
-    // ─── Gestion restaurant (lié à l'établissement actif) ─────────────────────
+    // ─── Caisse ───────────────────────────────────────────────────────────────
+    {
+      id: 2,
+      label: "Caisse",
+      labelUrl: u("caisse"),
+      items: [
+        { title: "Dashboard", url: u("caisse"), icon: CreditCard },
+        { title: "Commandes POS", url: u("orders"), icon: ShoppingBag },
+        { title: "Rapport journalier", url: u("daily-report"), icon: BarChart3 },
+        { title: "Appareils", url: u("devices"), icon: Monitor },
+      ],
+    },
+
+    // ─── Réservations ─────────────────────────────────────────────────────────
     {
       id: 3,
-      label: "Gestion restaurant",
-      items: est
-        ? [
-            {
-              title: "Produits",
-              url: `${est}/products`,
-              icon: Package,
-              subItems: [
-                { title: "Catalogue", url: `${est}/products` },
-                { title: "Nouveau produit", url: `${est}/products/new` },
-                { title: "Options produits", url: `${est}/options`, icon: SlidersHorizontal },
-              ],
-            },
-            {
-              title: "Menus",
-              url: `${est}/menus`,
-              icon: Utensils,
-            },
-            {
-              title: "Réservations",
-              url: `${est}/bookings`,
-              icon: Calendar,
-            },
-            {
-              title: "Commandes POS",
-              url: `${est}/orders`,
-              icon: ShoppingBag,
-            },
-            {
-              title: "Rapport journalier",
-              url: `${est}/daily-report`,
-              icon: BarChart3,
-            },
-            {
-              title: "Horaires",
-              url: `${est}/opening-hours`,
-              icon: Clock,
-            },
-            {
-              title: "Planning",
-              url: `${est}/planning`,
-              icon: CalendarDays,
-              subItems: [
-                { title: "Vue semaine", url: `${est}/planning` },
-                { title: "Modèles de créneaux", url: `${est}/planning-templates` },
-              ],
-            },
-            {
-              title: "Galerie",
-              url: `${est}/gallery`,
-              icon: Image,
-            },
-            {
-              title: "Site & domaines",
-              url: `${est}/site-configuration`,
-              icon: MapPin,
-            },
-            {
-              title: "Stocks",
-              url: `${est}/products`,
-              icon: Wrench,
-            },
-            {
-              title: "Documents",
-              url: `${est}/documents`,
-              icon: FileText,
-            },
-          ]
-        : [
-            {
-              title: "← Sélectionnez un établissement",
-              url: `${baseUrl}/dashboard/establishments`,
-              icon: Building2,
-              comingSoon: false,
-            },
+      label: "Réservations",
+      labelUrl: u("reservations"),
+      items: [
+        { title: "Dashboard", url: u("reservations"), icon: Calendar },
+        {
+          title: "Réservations",
+          url: u("bookings"),
+          icon: BookMarked,
+          subItems: [
+            { title: "Liste réservations", url: u("bookings") },
+            { title: "Exceptions", url: u("booking-exceptions") },
           ],
+        },
+        {
+          title: "Configuration",
+          url: u("opening-hours"),
+          icon: Settings,
+          subItems: [
+            { title: "Horaires", url: u("opening-hours") },
+            { title: "Créneaux", url: u("slots") },
+          ],
+        },
+      ],
     },
 
-    // ─── Catalogue organisation (transversal) ─────────────────────────────────
+    // ─── RH ───────────────────────────────────────────────────────────────────
     {
       id: 4,
-      label: "Catalogue",
+      label: "RH",
+      labelUrl: u("rh"),
       items: [
-        {
-          title: "Tous les établissements",
-          url: `${baseUrl}/dashboard/establishments`,
-          icon: Building2,
-        },
-        {
-          title: "Fournisseurs",
-          url: `${baseUrl}/dashboard/suppliers`,
-          icon: Truck,
-        },
-        {
-          title: "Catalogue achats",
-          url: `${baseUrl}/dashboard/catalog-achats`,
-          icon: BookOpen,
-        },
-      ],
-    },
-
-    // ─── Ressources Humaines ──────────────────────────────────────────────────
-    {
-      id: 5,
-      label: "Ressources Humaines",
-      items: [
-        {
-          title: "Employés",
-          url: `${baseUrl}/dashboard/rh/employees`,
-          icon: Users,
-        },
+        { title: "Dashboard", url: u("rh"), icon: Users },
         {
           title: "Planning",
-          url: est ? `${est}/planning` : `${baseUrl}/dashboard/establishments`,
+          url: u("planning"),
           icon: CalendarDays,
+          subItems: [
+            { title: "Planning", url: u("planning") },
+            { title: "Modèles créneaux", url: u("planning-templates") },
+          ],
         },
         {
-          title: "Absences",
-          url: `${baseUrl}/dashboard/rh/absences`,
-          icon: UserCheck,
+          title: "Équipe",
+          url: `${baseUrl}/dashboard/rh/employees`,
+          icon: Users,
+          subItems: [
+            { title: "Employés", url: `${baseUrl}/dashboard/rh/employees` },
+            { title: "Absences", url: `${baseUrl}/dashboard/rh/absences` },
+            { title: "Fiches mensuelles", url: `${baseUrl}/dashboard/rh/monthly-reports` },
+            { title: "Documents RH", url: `${baseUrl}/dashboard/rh/documents` },
+          ],
+        },
+        { title: "Accès & permissions", url: u("employee-access"), icon: KeyRound },
+      ],
+    },
+
+    // ─── Stock ────────────────────────────────────────────────────────────────
+    {
+      id: 5,
+      label: "Stock",
+      labelUrl: u("stock"),
+      items: [
+        { title: "Dashboard", url: u("stock"), icon: Warehouse },
+        {
+          title: "Catalogue",
+          url: u("products"),
+          icon: Package,
+          subItems: [
+            { title: "Produits", url: u("products") },
+            { title: "Options", url: u("options") },
+            { title: "Menus", url: u("menus") },
+          ],
         },
         {
-          title: "Fiches mensuelles",
-          url: `${baseUrl}/dashboard/rh/monthly-reports`,
-          icon: Receipt,
-        },
-        {
-          title: "Documents RH",
-          url: `${baseUrl}/dashboard/rh/documents`,
-          icon: FolderOpen,
+          title: "Achats",
+          url: `${baseUrl}/dashboard/suppliers`,
+          icon: Truck,
+          subItems: [
+            { title: "Fournisseurs", url: `${baseUrl}/dashboard/suppliers` },
+            { title: "Catalogue achats", url: `${baseUrl}/dashboard/catalog-achats` },
+            { title: "Documents achats", url: u("documents") },
+          ],
         },
       ],
     },
 
-    // ─── Gestion équipe (appareils & accès) ───────────────────────────────────
-    {
-      id: 7,
-      label: "Gestion équipe",
-      items: est
-        ? [
-            {
-              title: "Appareils",
-              url: `${est}/devices`,
-              icon: Monitor,
-            },
-            {
-              title: "Modules",
-              url: `${est}/modules`,
-              icon: LayoutGrid,
-            },
-            {
-              title: "Accès & Permissions",
-              url: `${est}/employee-access`,
-              icon: KeyRound,
-            },
-            {
-              title: "Formation",
-              url: `${baseUrl}/dashboard/training`,
-              icon: GraduationCap,
-            },
-          ]
-        : [
-            {
-              title: "← Sélectionnez un établissement",
-              url: `${baseUrl}/dashboard/establishments`,
-              icon: Building2,
-            },
-          ],
-    },
-
-    // ─── Configuration ─────────────────────────────────────────────────────────
+    // ─── HACCP ────────────────────────────────────────────────────────────────
     {
       id: 6,
+      label: "HACCP",
+      labelUrl: u("haccp"),
+      items: [{ title: "Dashboard", url: u("haccp"), icon: ClipboardCheck }],
+    },
+
+    // ─── Configuration ────────────────────────────────────────────────────────
+    {
+      id: 7,
       label: "Configuration",
       items: [
+        {
+          title: "Établissements",
+          url: fallback,
+          icon: Building2,
+        },
+        ...(est
+          ? [
+              { title: "Fiche établissement", url: est, icon: Building2 },
+              { title: "Galerie", url: `${est}/gallery`, icon: Image },
+              { title: "Site & domaines", url: `${est}/site-configuration`, icon: MapPin },
+              { title: "Modules activés", url: `${est}/modules`, icon: LayoutGrid },
+            ]
+          : []),
         {
           title: "Mon abonnement",
           url: `${baseUrl}/dashboard/organization-modules`,
@@ -246,11 +194,6 @@ export const getOrgAdminSidebarItems = (
           title: "Paramètres",
           url: `${baseUrl}/dashboard/settings`,
           icon: Settings,
-        },
-        {
-          title: "Notifications",
-          url: `${baseUrl}/dashboard/notifications`,
-          icon: Bell,
         },
         {
           title: "Aide",

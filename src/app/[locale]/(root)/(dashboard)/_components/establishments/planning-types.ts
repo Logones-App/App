@@ -9,9 +9,14 @@ export type Employee = {
   color: string;
 };
 
+export type RecurrenceEditMode = "single" | "following" | "all";
+export type ViewMode = "employees" | "coverage" | "capacity" | "day" | "month";
+
 export type Shift = {
   id: string;
-  dbId?: string; // employee_shifts.id — absent pour les shifts mock
+  dbId?: string;
+  isOverride?: boolean; // occurrence issue de employee_shift_overrides
+  parentShiftId?: string; // parent recurring shift pour les overrides
   employeeId: string;
   date: string; // YYYY-MM-DD (occurrence réelle)
   startHour: number;
@@ -26,7 +31,7 @@ export type Shift = {
 // Payload émis par ShiftCreateModal vers planning-schedule
 export type CreateShiftPayload = {
   employeeId: string;
-  label: string;
+  label?: string;
   startHour: number;
   startMinute: number;
   endHour: number;
@@ -42,8 +47,9 @@ export type CreateShiftPayload = {
 // Payload émis par ShiftEditModal vers planning-schedule
 export type UpdateShiftPayload = {
   dbId: string;
-  employeeId?: string; // si différent de l'employé actuel → réassignation
-  label: string;
+  isOverride?: boolean;
+  employeeId?: string;
+  label?: string;
   startHour: number;
   startMinute: number;
   endHour: number;
@@ -53,6 +59,8 @@ export type UpdateShiftPayload = {
   recurrenceDays: number[] | null;
   dateStart: string;
   dateEnd: string | null;
+  recurrenceMode?: RecurrenceEditMode; // "single" | "following" | "all"
+  occurrenceDate?: string; // date spécifique de l'occurrence éditée
 };
 
 type ShiftPattern = [dayOffset: number, startHour: number, endHour: number, label: string];
@@ -227,86 +235,167 @@ type DbShiftRow = {
   start_minute: number;
   end_hour: number;
   end_minute: number;
-  label: string;
+  label: string | null;
   is_recurring: boolean;
   recurrence_days: number[] | null;
   overnight: boolean;
+  excluded_dates: string[];
 };
 
-export function expandShiftsForWeek(dbShifts: DbShiftRow[], weekDays: Date[]): Shift[] {
+type DbShiftOverrideRow = {
+  id: string;
+  parent_shift_id: string;
+  override_date: string;
+  employee_id: string | null;
+  start_hour: number | null;
+  end_hour: number | null;
+  label: string | null;
+  deleted: boolean;
+};
+
+const EMPTY_SET = new Set<string>();
+
+function isValidRecurring(row: DbShiftRow): boolean {
+  return !!(row.is_recurring && row.recurrence_days?.length);
+}
+
+// Dates à ignorer par shift : excluded_dates + dates ayant un override
+function buildSkippedDates(dbShifts: DbShiftRow[], dbOverrides: DbShiftOverrideRow[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const row of dbShifts) {
+    if (row.excluded_dates.length > 0) map.set(row.id, new Set(row.excluded_dates));
+  }
+  for (const ov of dbOverrides) {
+    const s = map.get(ov.parent_shift_id);
+    if (s) s.add(ov.override_date);
+    else map.set(ov.parent_shift_id, new Set([ov.override_date]));
+  }
+  return map;
+}
+
+// Génère les occurrences d'un shift récurrent pour les jours de la semaine
+function expandRecurringShift(
+  row: DbShiftRow,
+  startHour: number,
+  endHour: number,
+  weekDays: Date[],
+  prevDay: Date,
+  skipSet: Set<string>,
+): Shift[] {
+  const isOvernightRow = endHour > 24;
+  const daysToCheck = isOvernightRow ? [prevDay, ...weekDays] : weekDays;
+  const prevDayStr = format(prevDay, "yyyy-MM-dd");
+  const label = row.label ?? "";
+  const result: Shift[] = [];
+  for (const day of daysToCheck) {
+    const dayIndex = (day.getDay() + 6) % 7;
+    if (!row.recurrence_days!.includes(dayIndex)) continue;
+    const dateStr = format(day, "yyyy-MM-dd");
+    if (dateStr < row.date_start) continue;
+    if (row.date_end && dateStr > row.date_end) continue;
+    if (dateStr === prevDayStr && !isOvernightRow) continue;
+    if (skipSet.has(dateStr)) continue;
+    result.push({
+      id: `${row.id}-${dateStr}`,
+      dbId: row.id,
+      employeeId: row.employee_id,
+      date: dateStr,
+      startHour,
+      endHour,
+      label,
+      isRecurring: true,
+      recurrenceDays: row.recurrence_days,
+      dateStart: row.date_start,
+      dateEnd: row.date_end,
+    });
+  }
+  return result;
+}
+
+// Génère les occurrences issues des overrides (exceptions individuelles)
+function expandOverrides(dbOverrides: DbShiftOverrideRow[], dbShifts: DbShiftRow[], weekStrs: Set<string>): Shift[] {
+  const result: Shift[] = [];
+  for (const ov of dbOverrides) {
+    if (ov.deleted) continue;
+    if (!weekStrs.has(ov.override_date)) continue;
+    const parent = dbShifts.find((s) => s.id === ov.parent_shift_id);
+    if (!parent) continue;
+    const startH = ov.start_hour ?? parent.start_hour + parent.start_minute / 60;
+    const rawEnd = ov.end_hour ?? parent.end_hour + parent.end_minute / 60;
+    result.push({
+      id: `override-${ov.id}`,
+      dbId: ov.id,
+      isOverride: true,
+      parentShiftId: ov.parent_shift_id,
+      employeeId: ov.employee_id ?? parent.employee_id,
+      date: ov.override_date,
+      startHour: startH,
+      endHour: rawEnd < startH ? rawEnd + 24 : rawEnd,
+      label: ov.label ?? parent.label ?? "",
+      isRecurring: false,
+      recurrenceDays: null,
+      dateStart: ov.override_date,
+      dateEnd: ov.override_date,
+    });
+  }
+  return result;
+}
+
+export function expandShiftsForWeek(
+  dbShifts: DbShiftRow[],
+  weekDays: Date[],
+  dbOverrides: DbShiftOverrideRow[] = [],
+): Shift[] {
   const result: Shift[] = [];
   if (weekDays.length === 0) return result;
 
   const weekStrs = new Set(weekDays.map((d) => format(d, "yyyy-MM-dd")));
-  // Jour précédant la semaine — pour détecter les continuations overnight en J+1
   const prevDay = addDays(weekDays[0], -1);
   const prevDayStr = format(prevDay, "yyyy-MM-dd");
+  const skipped = buildSkippedDates(dbShifts, dbOverrides);
 
   for (const row of dbShifts) {
     const startHour = row.start_hour + row.start_minute / 60;
     const rawEnd = row.end_hour + row.end_minute / 60;
     const endHour = row.overnight && rawEnd < startHour ? rawEnd + 24 : rawEnd;
-    const isOvernightRow = endHour > 24;
+    const label = row.label ?? "";
 
-    if (row.is_recurring && row.recurrence_days && row.recurrence_days.length > 0) {
-      // On inclut aussi prevDay pour les récurrents overnight (continuation lundi si dim récurrent)
-      const daysToCheck = isOvernightRow ? [prevDay, ...weekDays] : weekDays;
-      for (const day of daysToCheck) {
-        const dayIndex = (day.getDay() + 6) % 7;
-        if (!row.recurrence_days.includes(dayIndex)) continue;
-        const dateStr = format(day, "yyyy-MM-dd");
-        if (dateStr < row.date_start) continue;
-        if (row.date_end && dateStr > row.date_end) continue;
-        // prevDay : seulement si overnight (sinon pas besoin de continuation)
-        if (dateStr === prevDayStr && !isOvernightRow) continue;
-        result.push({
-          id: `${row.id}-${dateStr}`,
-          dbId: row.id,
-          employeeId: row.employee_id,
-          date: dateStr,
-          startHour,
-          endHour,
-          label: row.label,
-          isRecurring: true,
-          recurrenceDays: row.recurrence_days,
-          dateStart: row.date_start,
-          dateEnd: row.date_end,
-        });
-      }
-    } else {
-      if (weekStrs.has(row.date_start)) {
-        result.push({
-          id: row.id,
-          dbId: row.id,
-          employeeId: row.employee_id,
-          date: row.date_start,
-          startHour,
-          endHour,
-          label: row.label,
-          isRecurring: false,
-          recurrenceDays: null,
-          dateStart: row.date_start,
-          dateEnd: row.date_end,
-        });
-      } else if (row.date_start === prevDayStr && isOvernightRow) {
-        // Shift ponctuel overnight du jour précédent — inclus uniquement pour la continuation
-        result.push({
-          id: row.id,
-          dbId: row.id,
-          employeeId: row.employee_id,
-          date: row.date_start,
-          startHour,
-          endHour,
-          label: row.label,
-          isRecurring: false,
-          recurrenceDays: null,
-          dateStart: row.date_start,
-          dateEnd: row.date_end,
-        });
-      }
+    if (isValidRecurring(row)) {
+      result.push(
+        ...expandRecurringShift(row, startHour, endHour, weekDays, prevDay, skipped.get(row.id) ?? EMPTY_SET),
+      );
+    } else if (weekStrs.has(row.date_start)) {
+      result.push({
+        id: row.id,
+        dbId: row.id,
+        employeeId: row.employee_id,
+        date: row.date_start,
+        startHour,
+        endHour,
+        label,
+        isRecurring: false,
+        recurrenceDays: null,
+        dateStart: row.date_start,
+        dateEnd: row.date_end,
+      });
+    } else if (row.date_start === prevDayStr && endHour > 24) {
+      result.push({
+        id: row.id,
+        dbId: row.id,
+        employeeId: row.employee_id,
+        date: row.date_start,
+        startHour,
+        endHour,
+        label,
+        isRecurring: false,
+        recurrenceDays: null,
+        dateStart: row.date_start,
+        dateEnd: row.date_end,
+      });
     }
   }
 
+  result.push(...expandOverrides(dbOverrides, dbShifts, weekStrs));
   return result;
 }
 
@@ -367,6 +456,11 @@ export function hasShiftOverlap(
   }
 
   return null;
+}
+
+// Retourne le label à afficher — fallback sur les heures si label vide
+export function shiftLabel(label: string, startHour: number, endHour: number): string {
+  return label !== "" ? label : `${fmtHour(startHour)}–${fmtHour(endHour)}`;
 }
 
 export function pxPerHour(cellHeight: number): number {

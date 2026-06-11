@@ -1581,6 +1581,80 @@ export type Database = {
           },
         ]
       }
+      employee_shift_overrides: {
+        Row: {
+          created_at: string
+          deleted: boolean
+          employee_id: string | null
+          end_hour: number | null
+          establishment_id: string
+          id: string
+          label: string | null
+          organization_id: string
+          override_date: string
+          parent_shift_id: string
+          start_hour: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted?: boolean
+          employee_id?: string | null
+          end_hour?: number | null
+          establishment_id: string
+          id?: string
+          label?: string | null
+          organization_id: string
+          override_date: string
+          parent_shift_id: string
+          start_hour?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted?: boolean
+          employee_id?: string | null
+          end_hour?: number | null
+          establishment_id?: string
+          id?: string
+          label?: string | null
+          organization_id?: string
+          override_date?: string
+          parent_shift_id?: string
+          start_hour?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_shift_overrides_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shift_overrides_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shift_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_shift_overrides_parent_shift_id_fkey"
+            columns: ["parent_shift_id"]
+            isOneToOne: false
+            referencedRelation: "employee_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_shift_templates: {
         Row: {
           color: string | null
@@ -1652,9 +1726,10 @@ export type Database = {
           end_hour: number
           end_minute: number
           establishment_id: string
+          excluded_dates: string[]
           id: string
           is_recurring: boolean
-          label: string
+          label: string | null
           organization_id: string
           overnight: boolean
           recurrence_days: number[] | null
@@ -1672,9 +1747,10 @@ export type Database = {
           end_hour: number
           end_minute?: number
           establishment_id: string
+          excluded_dates?: string[]
           id?: string
           is_recurring?: boolean
-          label: string
+          label?: string | null
           organization_id: string
           overnight?: boolean
           recurrence_days?: number[] | null
@@ -1692,9 +1768,10 @@ export type Database = {
           end_hour?: number
           end_minute?: number
           establishment_id?: string
+          excluded_dates?: string[]
           id?: string
           is_recurring?: boolean
-          label?: string
+          label?: string | null
           organization_id?: string
           overnight?: boolean
           recurrence_days?: number[] | null
@@ -3589,6 +3666,7 @@ export type Database = {
           id: string
           kitchen_print_count: number
           kitchen_sent_at: string | null
+          late_addition: boolean
           notes: string | null
           order_formulas_id: string | null
           order_id: string
@@ -3619,6 +3697,7 @@ export type Database = {
           id?: string
           kitchen_print_count?: number
           kitchen_sent_at?: string | null
+          late_addition?: boolean
           notes?: string | null
           order_formulas_id?: string | null
           order_id: string
@@ -3649,6 +3728,7 @@ export type Database = {
           id?: string
           kitchen_print_count?: number
           kitchen_sent_at?: string | null
+          late_addition?: boolean
           notes?: string | null
           order_formulas_id?: string | null
           order_id?: string
@@ -3807,6 +3887,7 @@ export type Database = {
           establishment_id: string
           id: string
           is_active: boolean | null
+          kds_status: string
           order: number
           order_id: string
           organization_id: string
@@ -3819,6 +3900,7 @@ export type Database = {
           establishment_id: string
           id?: string
           is_active?: boolean | null
+          kds_status?: string
           order?: number
           order_id: string
           organization_id: string
@@ -3831,6 +3913,7 @@ export type Database = {
           establishment_id?: string
           id?: string
           is_active?: boolean | null
+          kds_status?: string
           order?: number
           order_id?: string
           organization_id?: string
@@ -3862,6 +3945,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          covers: number
           created_at: string | null
           created_by: string | null
           daily_found_id: string | null
@@ -3871,6 +3955,7 @@ export type Database = {
           discount_reason: string | null
           establishment_id: string
           id: string
+          kds_status: string
           opened: boolean | null
           organization_id: string | null
           server_id: string
@@ -3878,6 +3963,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          covers?: number
           created_at?: string | null
           created_by?: string | null
           daily_found_id?: string | null
@@ -3887,6 +3973,7 @@ export type Database = {
           discount_reason?: string | null
           establishment_id: string
           id?: string
+          kds_status?: string
           opened?: boolean | null
           organization_id?: string | null
           server_id: string
@@ -3894,6 +3981,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          covers?: number
           created_at?: string | null
           created_by?: string | null
           daily_found_id?: string | null
@@ -3903,6 +3991,7 @@ export type Database = {
           discount_reason?: string | null
           establishment_id?: string
           id?: string
+          kds_status?: string
           opened?: boolean | null
           organization_id?: string | null
           server_id?: string

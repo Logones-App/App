@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 
-import { PlusCircleIcon, MailIcon, ChevronRight } from "lucide-react";
+import { PlusCircleIcon, MailIcon, ChevronRight, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -25,6 +25,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { type NavGroup, type NavMainItem } from "@/navigation/sidebar/sidebar-items";
 
 interface NavMainProps {
@@ -33,6 +34,25 @@ interface NavMainProps {
 
 const IsComingSoon = () => (
   <span className="ml-auto rounded-md bg-gray-200 px-2 py-1 text-xs dark:text-gray-800">Soon</span>
+);
+
+const NavItemLocked = ({ item }: { item: NavMainItem }) => (
+  <TooltipProvider delayDuration={200}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <SidebarMenuItem>
+          <SidebarMenuButton disabled className="cursor-not-allowed opacity-50">
+            {item.icon && <item.icon />}
+            <span>{item.title}</span>
+            <Lock className="ml-auto h-3.5 w-3.5 shrink-0" />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        <p>{item.lockReason ?? "Accès non autorisé"}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 const NavItemExpanded = ({
@@ -188,11 +208,23 @@ export function NavMain({ items }: NavMainProps) {
       </SidebarGroup>
       {items.map((group) => (
         <SidebarGroup key={group.id}>
-          {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
+          {group.label && (
+            <SidebarGroupLabel className="text-foreground text-sm font-semibold">
+              {group.labelUrl ? (
+                <Link href={group.labelUrl} className="hover:text-primary transition-colors">
+                  {group.label}
+                </Link>
+              ) : (
+                group.label
+              )}
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent className="flex flex-col gap-2">
             <SidebarMenu>
               {group.items.map((item) =>
-                state === "collapsed" && !isMobile ? (
+                item.locked ? (
+                  <NavItemLocked key={item.title} item={item} />
+                ) : state === "collapsed" && !isMobile ? (
                   <NavItemCollapsed
                     key={item.title}
                     item={{

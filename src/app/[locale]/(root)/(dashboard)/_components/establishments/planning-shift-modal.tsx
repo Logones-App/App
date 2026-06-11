@@ -165,6 +165,7 @@ export function ShiftCreateModal({
   existingShifts,
   templates,
   onSave,
+  initialDate,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -173,6 +174,7 @@ export function ShiftCreateModal({
   existingShifts: Shift[];
   templates: DbShiftTemplate[];
   onSave: (payload: CreateShiftPayload) => void;
+  initialDate?: Date;
 }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employee?.id ?? "");
   const [label, setLabel] = useState("");
@@ -198,10 +200,15 @@ export function ShiftCreateModal({
     setEndMinute(0);
     setIsRecurring(false);
     setRecurrenceDays([]);
-    setStartNow(true);
-    setDateStart(null);
+    if (initialDate) {
+      setStartNow(false);
+      setDateStart(initialDate);
+    } else {
+      setStartNow(true);
+      setDateStart(null);
+    }
     setDateEnd(null);
-  }, [open, employee]);
+  }, [open, employee, initialDate]);
 
   const applyTemplate = (tid: string) => {
     setTemplateId(tid);
@@ -220,10 +227,6 @@ export function ShiftCreateModal({
   const handleSave = () => {
     if (!selectedEmployeeId) {
       toast.error("Sélectionnez un employé.");
-      return;
-    }
-    if (!label.trim()) {
-      toast.error("Le label est requis.");
       return;
     }
     if (!startNow && !dateStart) {
@@ -342,10 +345,12 @@ export function ShiftCreateModal({
 
           {/* Label */}
           <div className="space-y-1.5">
-            <Label>
-              Label <span className="text-destructive">*</span>
-            </Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex : Service midi" />
+            <Label>Label</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Ex : Service midi (facultatif)"
+            />
           </div>
 
           {/* Horaires */}

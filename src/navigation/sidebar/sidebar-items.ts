@@ -11,6 +11,8 @@ export interface NavSubItem {
   icon?: LucideIcon;
   comingSoon?: boolean;
   newTab?: boolean;
+  locked?: boolean;
+  lockReason?: string;
 }
 
 export interface NavMainItem {
@@ -20,11 +22,14 @@ export interface NavMainItem {
   subItems?: NavSubItem[];
   comingSoon?: boolean;
   newTab?: boolean;
+  locked?: boolean;
+  lockReason?: string;
 }
 
 export interface NavGroup {
   id: number;
   label?: string;
+  labelUrl?: string;
   items: NavMainItem[];
 }
 

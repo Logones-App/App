@@ -63,7 +63,9 @@
       "Bash(grep -E \"^\\\\s+[a-z_]+: \\\\{$\")",
       "Read(//c/Users/Administrateur/Documents/www/mobile-logones-app/**)",
       "Bash(Get-ChildItem -Path . -Directory)",
-      "Bash(xargs grep -l \"planning\\\\|Planning\\\\|agenda\\\\|Agenda\")"
+      "Bash(xargs grep -l \"planning\\\\|Planning\\\\|agenda\\\\|Agenda\")",
+      "Bash(Select-String -Pattern \"planning-capacity|planning-schedule|planning-coverage\")",
+      "Bash(echo \"EXIT: $?\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

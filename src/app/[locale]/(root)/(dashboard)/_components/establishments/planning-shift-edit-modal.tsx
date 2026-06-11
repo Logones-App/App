@@ -13,7 +13,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-import { fmtHour, hasShiftOverlap, type Employee, type Shift, type UpdateShiftPayload } from "./planning-types";
+import {
+  fmtHour,
+  hasShiftOverlap,
+  type Employee,
+  type RecurrenceEditMode,
+  type Shift,
+  type UpdateShiftPayload,
+} from "./planning-types";
 
 const MINUTES = [0, 15, 30, 45];
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -66,7 +73,7 @@ interface ShiftEditModalProps {
   employees: Employee[];
   existingShifts: Shift[];
   onSave: (payload: UpdateShiftPayload) => void;
-  onDelete: (shiftId: string) => void;
+  onDelete: (shiftId: string, mode: RecurrenceEditMode, occurrenceDate: string) => void;
 }
 
 export function ShiftEditModal({
@@ -80,6 +87,7 @@ export function ShiftEditModal({
   onDelete,
 }: ShiftEditModalProps) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employee?.id ?? "");
+  const [recurrenceMode, setRecurrenceMode] = useState<RecurrenceEditMode>("single");
   const [label, setLabel] = useState("");
   const [startHour, setStartHour] = useState(9);
   const [startMinute, setStartMinute] = useState(0);
@@ -93,6 +101,7 @@ export function ShiftEditModal({
   useEffect(() => {
     if (!shift) return;
     setSelectedEmployeeId(shift.employeeId);
+    setRecurrenceMode("single");
     setLabel(shift.label);
     setStartHour(Math.floor(shift.startHour));
     setStartMinute(Math.round((shift.startHour % 1) * 60));
@@ -114,10 +123,6 @@ export function ShiftEditModal({
     setRecurrenceDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
   const handleSave = () => {
-    if (!label.trim()) {
-      toast.error("Le label est requis.");
-      return;
-    }
     if (!isOvernight && combinedEnd <= combinedStart) {
       toast.error("L'heure de fin doit être après le début.");
       return;
@@ -147,8 +152,10 @@ export function ShiftEditModal({
     const isMidnight = endHour === 0 && endMinute === 0 && startHour > 0;
     const overnight = !isMidnight && endHour < startHour;
 
+    const mode = shift.isRecurring && !shift.isOverride ? recurrenceMode : "all";
     onSave({
       dbId: shift.dbId ?? shift.id,
+      isOverride: shift.isOverride,
       employeeId: selectedEmployeeId !== shift.employeeId ? selectedEmployeeId : undefined,
       label: label.trim(),
       startHour,
@@ -160,12 +167,15 @@ export function ShiftEditModal({
       recurrenceDays: isRecurring ? recurrenceDays : null,
       dateStart: dateStart || shift.date,
       dateEnd: dateEnd || null,
+      recurrenceMode: mode,
+      occurrenceDate: shift.date,
     });
     onOpenChange(false);
   };
 
   const handleDelete = () => {
-    onDelete(shift.id);
+    const mode = shift.isRecurring && !shift.isOverride ? recurrenceMode : "all";
+    onDelete(shift.id, mode, shift.date);
     onOpenChange(false);
   };
 
@@ -187,7 +197,30 @@ export function ShiftEditModal({
         <div className="space-y-4 py-1">
           <div className="text-muted-foreground text-sm">
             {shift.date} · {fmtHour(shift.startHour)} → {fmtHour(shift.endHour)}
+            {shift.isOverride && <span className="ml-2 text-xs text-amber-600">(exception)</span>}
           </div>
+
+          {/* Sélecteur de portée — uniquement pour les récurrents */}
+          {shift.isRecurring && !shift.isOverride && (
+            <div className="bg-muted/50 space-y-1.5 rounded-lg p-3">
+              <p className="text-muted-foreground text-xs font-medium">Modifier :</p>
+              <div className="grid grid-cols-3 gap-1">
+                {(["single", "following", "all"] as RecurrenceEditMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setRecurrenceMode(m)}
+                    className={cn(
+                      "rounded-md border px-2 py-1.5 text-xs transition-colors",
+                      recurrenceMode === m ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted/70",
+                    )}
+                  >
+                    {m === "single" ? "Ce créneau" : m === "following" ? "Et suivants" : "Tous"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Employé */}
           <div className="space-y-1.5">
@@ -210,10 +243,12 @@ export function ShiftEditModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label>
-              Label <span className="text-destructive">*</span>
-            </Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+            <Label>Label</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Ex : Service midi (facultatif)"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

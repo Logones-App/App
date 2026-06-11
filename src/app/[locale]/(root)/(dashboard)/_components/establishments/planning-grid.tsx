@@ -30,6 +30,7 @@ import {
   fmtHour,
   pxPerHour,
   shiftHeight,
+  shiftLabel,
   shiftTop,
 } from "./planning-types";
 
@@ -151,13 +152,13 @@ function ShiftBlock({
             {isContinuation && <div className="absolute inset-x-0 top-0 h-0.5 bg-white/50" />}
             <p className="truncate text-[10px] leading-tight font-semibold">
               {isContinuation ? "↩ " : ""}
-              {shift.label}
+              {shiftLabel(shift.label, shift.startHour, shift.endHour)}
             </p>
             {height >= 28 && <p className="text-[9px] tabular-nums opacity-80">{timeLabel}</p>}
           </div>
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">
-          <p className="font-semibold">{shift.label}</p>
+          <p className="font-semibold">{shiftLabel(shift.label, shift.startHour, shift.endHour)}</p>
           <p className="text-muted-foreground">
             {fmtHour(shift.startHour)} → {fmtHour(endDisplay)} · {shift.endHour - shift.startHour}h
           </p>
