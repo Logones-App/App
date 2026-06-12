@@ -45,9 +45,14 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK != '' }}
 
     steps:
       - name: Trigger Coolify redeploy
+        env:
+          WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
         run: |
-          curl -fsSL -X GET "${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}"
+          if [ -n "$WEBHOOK" ]; then
+            curl -fsSL -X GET "$WEBHOOK"
+          else
+            echo "No webhook configured, skipping"
+          fi
