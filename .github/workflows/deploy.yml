@@ -7,6 +7,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: logones-app/app
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
@@ -29,7 +30,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -44,6 +45,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    if: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK != '' }}
 
     steps:
       - name: Trigger Coolify redeploy
