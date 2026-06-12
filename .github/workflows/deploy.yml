@@ -47,21 +47,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Coolify redeploy
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: COOLIFY_API_TOKEN
+          script: |
+            curl -s -X GET "http://localhost:8000/api/v1/deploy?uuid=n8owk8sw4sowskwkwwg0gc48&force=false" \
+              -H "Authorization: Bearer $COOLIFY_API_TOKEN"
         env:
-          WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
-          TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
-        run: |
-          if [ -n "$WEBHOOK" ]; then
-            RESPONSE=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" \
-              -X GET "$WEBHOOK" \
-              -H "Authorization: Bearer $TOKEN")
-            echo "$RESPONSE"
-            STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
-            if [ "$STATUS" -ge 400 ]; then
-              echo "Webhook failed with HTTP $STATUS"
-              exit 1
-            fi
-          else
-            echo "No webhook configured, skipping"
-          fi
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
