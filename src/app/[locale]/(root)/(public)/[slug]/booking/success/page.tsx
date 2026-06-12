@@ -4,12 +4,12 @@ import React, { useEffect, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { CheckCircle, ArrowLeft, Calendar, Clock, Users, MapPin, Mail, Phone, User, Hash } from "lucide-react";
+import { CheckCircle, ArrowLeft, Calendar, Clock, Users, Mail, Phone, User, Hash } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { useBookingConfirmationStore } from "@/lib/stores/booking-confirmation-store";
 import { Tables } from "@/lib/supabase/database.types";
 
@@ -25,17 +25,24 @@ import {
 
 type Establishment = Tables<"establishments">;
 
+interface BookingData {
+  id?: string;
+  date: string;
+  time: string;
+  guests: number | string;
+  customerName?: string;
+  email?: string;
+  phone?: string;
+}
+
 interface BookingSuccessPageProps {
   params: Promise<{
     slug?: string;
-    establishmentSlug?: string;
-    "establishment-slug"?: string;
     locale: string;
   }>;
 }
 
-// Composant pour l'en-tête de succès
-const SuccessHeader = ({ t }: { t: any }) => (
+const SuccessHeader = ({ t }: { t: ReturnType<typeof useTranslations> }) => (
   <div className="mb-8 text-center">
     <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
       <CheckCircle className="h-12 w-12 text-green-600" />
@@ -49,8 +56,7 @@ const SuccessHeader = ({ t }: { t: any }) => (
   </div>
 );
 
-// Composant pour les détails de réservation
-const BookingDetails = ({ bookingData }: { bookingData: any }) => (
+const BookingDetails = ({ bookingData }: { bookingData: BookingData }) => (
   <Card className="h-fit">
     <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
       <CardTitle className="flex items-center gap-2 text-blue-900">
@@ -88,7 +94,7 @@ const BookingDetails = ({ bookingData }: { bookingData: any }) => (
           <span className="text-sm font-medium text-gray-700">Nombre de personnes</span>
         </div>
         <p className="text-lg font-semibold text-gray-900">
-          {bookingData.guests} {bookingData.guests > 1 ? "personnes" : "personne"}
+          {bookingData.guests} {Number(bookingData.guests) > 1 ? "personnes" : "personne"}
         </p>
       </div>
       {bookingData.id && (
@@ -104,8 +110,7 @@ const BookingDetails = ({ bookingData }: { bookingData: any }) => (
   </Card>
 );
 
-// Composant pour les informations client
-const CustomerInfo = ({ bookingData }: { bookingData: any }) => (
+const CustomerInfo = ({ bookingData }: { bookingData: BookingData }) => (
   <Card className="h-fit">
     <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
       <CardTitle className="flex items-center gap-2 text-green-900">
@@ -145,7 +150,6 @@ const CustomerInfo = ({ bookingData }: { bookingData: any }) => (
   </Card>
 );
 
-// Composant pour les messages informatifs
 const InfoMessages = () => (
   <div className="mt-8 grid gap-4 md:grid-cols-2">
     <Card className="border-l-4 border-l-blue-500">
@@ -178,8 +182,7 @@ const InfoMessages = () => (
   </div>
 );
 
-// Composant pour les actions
-const ActionButtons = ({ establishment }: { establishment: any }) => (
+const ActionButtons = ({ establishment }: { establishment: Establishment }) => (
   <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
     <Button asChild variant="outline" size="lg">
       <Link href={`/${establishment.slug}`}>
@@ -194,61 +197,14 @@ const ActionButtons = ({ establishment }: { establishment: any }) => (
 );
 
 export default function BookingSuccessPage({ params }: BookingSuccessPageProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("Booking.success");
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
 
-  // Récupérer les données de réservation depuis le store ou les paramètres
   const { getConfirmationData } = useBookingConfirmationStore();
-
-  // Fonction pour traiter les données de réservation
-  const processBookingData = async () => {
-    const bookingId = searchParams.get("bookingId");
-    const bookingDate = searchParams.get("date");
-    const bookingTime = searchParams.get("time");
-    const guests = searchParams.get("guests");
-
-    console.log("🔍 Paramètres de recherche:", { bookingId, bookingDate, bookingTime, guests });
-
-    // Détecter si nous sommes sur un custom domain
-    const isCustomDomain =
-      window.location.hostname !== "logones.fr" &&
-      window.location.hostname !== "localhost" &&
-      !window.location.hostname.includes("127.0.0.1");
-
-    console.log("🌐 Type de domaine:", isCustomDomain ? "Custom domain" : "Domaine principal");
-
-    // Pour les custom domains, privilégier les paramètres URL
-    if (isCustomDomain && bookingId) {
-      console.log("📋 Custom domain détecté, récupération via API sécurisée");
-      const bookingDataFromApi = await fetchBookingFromSecureApi(bookingId);
-      if (bookingDataFromApi) {
-        setBookingData(bookingDataFromApi);
-        return;
-      }
-    }
-
-    // Essayer d'abord le store Zustand
-    const bookingConfirmation = getConfirmationData();
-    if (bookingConfirmation) {
-      console.log("📋 Données trouvées dans le store Zustand");
-      setBookingData(createBookingDataFromStore(bookingConfirmation));
-      return;
-    }
-
-    // Fallback : récupération via API sécurisée
-    if (bookingId) {
-      console.log("📋 Récupération via API sécurisée");
-      const bookingDataFromApi = await fetchBookingFromSecureApi(bookingId);
-      if (bookingDataFromApi) {
-        setBookingData(bookingDataFromApi);
-      }
-    }
-  };
 
   useEffect(() => {
     async function loadData() {
@@ -257,7 +213,6 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
         const establishmentSlug = getEstablishmentSlug(resolvedParams);
 
         if (!establishmentSlug) {
-          console.error("❌ Slug manquant");
           setError("Établissement non trouvé");
           setLoading(false);
           return;
@@ -271,10 +226,38 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
         }
 
         setEstablishment(establishmentData);
-        await processBookingData();
+
+        // Récupération des données de réservation
+        const bookingId = searchParams.get("bookingId");
+
+        const isCustomDomain =
+          window.location.hostname !== "logones.fr" &&
+          window.location.hostname !== "localhost" &&
+          !window.location.hostname.includes("127.0.0.1");
+
+        if (isCustomDomain && bookingId) {
+          const data = await fetchBookingFromSecureApi(bookingId);
+          if (data) {
+            setBookingData(data);
+            setLoading(false);
+            return;
+          }
+        }
+
+        const storeData = getConfirmationData();
+        if (storeData) {
+          setBookingData(createBookingDataFromStore(storeData));
+          setLoading(false);
+          return;
+        }
+
+        if (bookingId) {
+          const data = await fetchBookingFromSecureApi(bookingId);
+          if (data) setBookingData(data);
+        }
+
         setLoading(false);
-      } catch (error) {
-        console.error("❌ Erreur lors du chargement:", error);
+      } catch {
         setError("Erreur lors du chargement");
         setLoading(false);
       }
@@ -283,17 +266,9 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
     loadData();
   }, [params, searchParams, getConfirmationData]);
 
-  if (loading) {
-    return <LoadingState message="Chargement de la confirmation..." />;
-  }
-
-  if (error) {
-    return <ErrorState message={error} />;
-  }
-
-  if (!establishment) {
-    return <ErrorState message="Établissement non trouvé" />;
-  }
+  if (loading) return <LoadingState message="Chargement de la confirmation..." />;
+  if (error) return <ErrorState message={error} />;
+  if (!establishment) return <ErrorState message="Établissement non trouvé" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
@@ -301,12 +276,10 @@ export default function BookingSuccessPage({ params }: BookingSuccessPageProps) 
         <SuccessHeader t={t} />
 
         <div className="mx-auto max-w-4xl">
-          {/* Informations de l'établissement */}
           <div className="mb-8">
             <EstablishmentInfo establishment={establishment} />
           </div>
 
-          {/* Récapitulatif détaillé de la réservation */}
           {bookingData && (
             <div className="grid gap-6 md:grid-cols-2">
               <BookingDetails bookingData={bookingData} />

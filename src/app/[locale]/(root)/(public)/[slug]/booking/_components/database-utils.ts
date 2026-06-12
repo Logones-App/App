@@ -1,3 +1,4 @@
+import { type BookingData } from "@/lib/stores/booking-confirmation-store";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 
@@ -19,92 +20,30 @@ interface Booking {
   created_at: string;
 }
 
-// Fonction pour récupérer l'établissement par slug
 export async function getEstablishmentBySlug(slug: string): Promise<Establishment | null> {
-  try {
-    console.log("🔍 Recherche de l'établissement avec le slug:", slug);
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("establishments")
+    .select(
+      "id, name, slug, description, address, phone, email, logo_url, cover_image_url, website, is_public, created_at, updated_at, deleted",
+    )
+    .eq("slug", slug)
+    .eq("deleted", false)
+    .single();
 
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("establishments")
-      .select(
-        `
-        id,
-        name,
-        slug,
-        description,
-        address,
-        phone,
-        email,
-        logo_url,
-        cover_image_url,
-        website,
-        is_public,
-        created_at,
-        updated_at,
-        deleted
-      `,
-      )
-      .eq("slug", slug)
-      .eq("deleted", false)
-      .single();
-
-    if (error) {
-      console.error("❌ Erreur lors de la récupération de l'établissement:", error);
-      return null;
-    }
-
-    if (!data) {
-      console.log("⚠️ Aucun établissement trouvé avec le slug:", slug);
-      return null;
-    }
-
-    // Vérifier si l'établissement est public
-    if (!data.is_public) {
-      console.log("🚫 Établissement non public:", data.name);
-      return null;
-    }
-
-    console.log("✅ Établissement trouvé:", data.name);
-    return data as Establishment;
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération de l'établissement:", error);
-    return null;
-  }
+  if (error) return null;
+  if (!data.is_public) return null;
+  return data as Establishment;
 }
 
-// Fonction pour récupérer une réservation
 export async function getBooking(bookingId: string): Promise<Booking | null> {
-  try {
-    console.log("🔍 Recherche de la réservation:", bookingId);
+  const supabase = createClient();
+  const { data, error } = await supabase.from("bookings").select("*").eq("id", bookingId).eq("deleted", false).single();
 
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("id", bookingId)
-      .eq("deleted", false)
-      .single();
-
-    if (error) {
-      console.error("❌ Erreur lors de la récupération de la réservation:", error);
-      return null;
-    }
-
-    if (!data) {
-      console.log("⚠️ Aucune réservation trouvée avec l'ID:", bookingId);
-      return null;
-    }
-
-    console.log("✅ Réservation trouvée:", data.id);
-    return data as Booking;
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la récupération de la réservation:", error);
-    return null;
-  }
+  if (error) return null;
+  return data as Booking;
 }
 
-// Fonction pour créer une réservation
 export async function createBooking(
   establishmentId: string,
   organizationId: string,
@@ -118,16 +57,11 @@ export async function createBooking(
     numberOfGuests: number;
     specialRequests: string;
   },
-): Promise<{ success: boolean; bookingId?: string; bookingData?: any; error?: string }> {
+): Promise<{ success: boolean; bookingId?: string; bookingData?: BookingData; error?: string }> {
   try {
-    console.log("🚀 Création de la réservation:", { establishmentId, date, time, formData });
-
-    // Appeler l'API Route pour créer la réservation
     const response = await fetch("/api/booking/create", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         establishmentId,
         date,
@@ -137,25 +71,18 @@ export async function createBooking(
         customerEmail: formData.email,
         customerPhone: formData.phone,
         numberOfGuests: formData.numberOfGuests,
-        specialRequests: formData.specialRequests ?? null,
+        specialRequests: formData.specialRequests,
       }),
     });
 
-    const data = await response.json();
+    const raw = (await response.json()) as { error?: string; bookingData?: BookingData };
 
     if (!response.ok) {
-      console.error("❌ Erreur lors de la création de la réservation:", data.error);
-      return { success: false, error: data.error ?? "Erreur lors de la création de la réservation" };
+      return { success: false, error: raw.error ?? "Erreur lors de la création de la réservation" };
     }
 
-    console.log("✅ Réservation créée avec succès:", data.bookingData?.id);
-    return {
-      success: true,
-      bookingId: data.bookingData?.id,
-      bookingData: data.bookingData,
-    };
-  } catch (error) {
-    console.error("💥 Erreur inattendue lors de la création de la réservation:", error);
+    return { success: true, bookingId: raw.bookingData?.id, bookingData: raw.bookingData };
+  } catch {
     return { success: false, error: "Erreur inattendue" };
   }
 }

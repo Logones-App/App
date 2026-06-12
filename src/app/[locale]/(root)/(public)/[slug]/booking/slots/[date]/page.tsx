@@ -14,14 +14,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useSlotsWithExceptions } from "@/hooks/use-slots-with-exceptions";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Tables } from "@/lib/supabase/database.types";
+import type { ServiceGroup } from "@/lib/utils/slots-realtime-utils";
 
-// Import des composants extraits
 import { getEstablishmentBySlug } from "../../_components/database-utils";
 import { EstablishmentInfo } from "../../_components/establishment-info";
 import { SlotsLoadingState, ErrorState } from "../../_components/loading-states";
 import { DateInfo, SelectedSlotDisplay } from "../../_components/slots-components";
-
-// Import du hook realtime et du composant d'affichage
 
 interface TimeSlot {
   time: string;
@@ -31,74 +29,17 @@ interface TimeSlot {
 }
 
 type Establishment = Tables<"establishments">;
+type BookingException = Tables<"booking_exceptions">;
+type TranslateFn = ReturnType<typeof useTranslations>;
 
 interface BookingPageProps {
   params: Promise<{
     slug?: string;
-    establishmentSlug?: string;
-    "establishment-slug"?: string;
     locale: string;
     date: string;
   }>;
 }
 
-// Fonction pour charger les données de l'établissement et de la date
-async function loadEstablishmentData(
-  params: Promise<{
-    slug?: string;
-    establishmentSlug?: string;
-    "establishment-slug"?: string;
-    locale: string;
-    date: string;
-  }>,
-  router: any,
-  setSelectedDate: (date: Date) => void,
-  setEstablishment: (establishment: Establishment | null) => void,
-  setLoading: (loading: boolean) => void,
-) {
-  try {
-    const resolvedParams = await params;
-    const establishmentSlug =
-      resolvedParams.slug ?? resolvedParams["establishment-slug"] ?? resolvedParams.establishmentSlug;
-
-    if (!establishmentSlug) {
-      console.error("❌ Slug manquant");
-      return;
-    }
-
-    // Récupérer la date depuis les paramètres
-    const dateParam = resolvedParams.date;
-    console.log("🔍 Date dans les paramètres:", dateParam);
-
-    if (!dateParam) {
-      // Rediriger automatiquement vers la page de sélection de date
-      console.log("❌ Date manquante, redirection vers la sélection de date");
-      router.push(`/${establishmentSlug}/booking`);
-      return;
-    }
-
-    const date = parseISO(dateParam);
-    console.log("✅ Date parsée:", date);
-    setSelectedDate(date);
-
-    // Récupérer l'établissement
-    const establishmentData = await getEstablishmentBySlug(establishmentSlug);
-    console.log("🔍 DEBUG loadEstablishmentData:");
-    console.log("  - EstablishmentSlug:", establishmentSlug);
-    console.log("  - EstablishmentData:", establishmentData ? "✅ Trouvé" : "❌ Non trouvé");
-    if (establishmentData) {
-      console.log("  - EstablishmentId:", establishmentData.id);
-      console.log("  - EstablishmentName:", establishmentData.name);
-    }
-    setEstablishment(establishmentData);
-  } catch (error) {
-    console.error("❌ Erreur lors du chargement:", error);
-  } finally {
-    setLoading(false);
-  }
-}
-
-// Composant pour le header
 function BookingHeader({
   establishment,
   selectedDate,
@@ -108,7 +49,7 @@ function BookingHeader({
   establishment: Establishment;
   selectedDate: Date;
   formatDate: (date: Date) => string;
-  t: any;
+  t: TranslateFn;
 }) {
   return (
     <div className="border-b bg-white shadow-sm">
@@ -134,7 +75,6 @@ function BookingHeader({
   );
 }
 
-// Composant pour les informations de l'établissement
 function EstablishmentSection({
   establishment,
   selectedDate,
@@ -142,20 +82,16 @@ function EstablishmentSection({
 }: {
   establishment: Establishment;
   selectedDate: Date;
-  exceptions: any[];
+  exceptions: BookingException[];
 }) {
   return (
     <div className="lg:col-span-1">
       <EstablishmentInfo establishment={establishment} />
       <DateInfo selectedDate={selectedDate} />
 
-      {/* Debug: Affichage des exceptions (optionnel) */}
-      {exceptions && exceptions.length > 0 && (
+      {exceptions.length > 0 && (
         <Card className="mt-4">
-          <CardHeader>
-            <CardTitle className="text-sm">Exceptions actives</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <div className="space-y-2">
               {exceptions.map((exception) => (
                 <div key={exception.id} className="text-muted-foreground text-xs">
@@ -170,49 +106,25 @@ function EstablishmentSection({
   );
 }
 
-// Composant pour la grille des créneaux
 function SlotsGrid({
   serviceGroups,
   selectedSlot,
   setSelectedSlot,
   slotsLoading,
-  slotsError,
-  refreshSlots,
   exceptions,
   handleContinue,
   establishment,
   selectedDate,
 }: {
-  serviceGroups: any[];
+  serviceGroups: ServiceGroup[];
   selectedSlot: TimeSlot | null;
   setSelectedSlot: (slot: TimeSlot | null) => void;
   slotsLoading: boolean;
-  slotsError: any;
-  refreshSlots: () => void;
-  exceptions: any[];
+  exceptions: BookingException[];
   handleContinue: () => void;
   establishment: Establishment;
   selectedDate: Date;
 }) {
-  // Debug logs pour comprendre la structure des données
-  console.log("🔍 DEBUG SlotsGrid:");
-  console.log("  - ServiceGroups reçus:", serviceGroups);
-  console.log("  - Nombre de groupes:", serviceGroups?.length ?? 0);
-
-  if (serviceGroups && serviceGroups.length > 0) {
-    serviceGroups.forEach((group, index) => {
-      console.log(`  - Groupe ${index}:`, {
-        serviceName: group.serviceName,
-        slotsCount: group.slots?.length ?? 0,
-        slots: group.slots,
-      });
-    });
-  }
-
-  const allSlots = serviceGroups.flatMap((group) => group.slots ?? []);
-  console.log("  - Total slots après flatMap:", allSlots.length);
-  console.log("  - Slots:", allSlots);
-
   return (
     <div className="lg:col-span-2">
       <Card className="shadow-lg">
@@ -228,7 +140,7 @@ function SlotsGrid({
           </CardTitle>
           <CardDescription>
             Sélectionnez l&apos;heure de votre réservation
-            {exceptions && exceptions.length > 0 && (
+            {exceptions.length > 0 && (
               <span className="ml-2 text-orange-600">
                 • {exceptions.length} exception{exceptions.length > 1 ? "s" : ""} active
                 {exceptions.length > 1 ? "s" : ""}
@@ -237,20 +149,17 @@ function SlotsGrid({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Composant d'affichage realtime */}
           <RealtimeSlotsDisplay
             establishmentId={establishment.id}
             date={selectedDate}
             serviceGroups={serviceGroups}
-            exceptions={exceptions || []}
+            exceptions={exceptions}
             onSlotSelect={setSelectedSlot}
             selectedSlot={selectedSlot}
           />
 
-          {/* Créneau sélectionné */}
           {selectedSlot && <SelectedSlotDisplay selectedSlot={selectedSlot} />}
 
-          {/* Bouton continuer */}
           {selectedSlot && (
             <div className="mt-6">
               <Button onClick={handleContinue} className="w-full" size="lg">
@@ -261,7 +170,6 @@ function SlotsGrid({
         </CardContent>
       </Card>
 
-      {/* Bouton retour */}
       <div className="mt-6">
         <Card>
           <CardContent className="pt-6">
@@ -285,12 +193,9 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hook realtime pour les créneaux avec exceptions
   const {
     serviceGroups,
     isLoading: slotsLoading,
-    error: slotsError,
-    refresh: refreshSlots,
     exceptions,
   } = useSlotsWithExceptions({
     establishmentId: establishment?.id ?? "",
@@ -298,74 +203,65 @@ export default function BookingSlotsPage({ params }: BookingPageProps) {
     enabled: !!establishment?.id && !!selectedDate,
   });
 
-  console.log("🔍 DEBUG BookingSlotsPage:");
-  console.log("  - Establishment:", establishment?.id ? "✅ Chargé" : "❌ Non chargé");
-  console.log("  - EstablishmentId:", establishment?.id);
-  console.log("  - SelectedDate:", selectedDate);
-  console.log("  - Hook enabled:", !!establishment?.id && !!selectedDate);
-
   useEffect(() => {
-    loadEstablishmentData(params, router, setSelectedDate, setEstablishment, setLoading);
+    async function load() {
+      const resolvedParams = await params;
+      const slug = resolvedParams.slug;
+
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+
+      if (!resolvedParams.date) {
+        router.push(`/${slug}/booking`);
+        return;
+      }
+
+      setSelectedDate(parseISO(resolvedParams.date));
+      const data = await getEstablishmentBySlug(slug);
+      setEstablishment(data);
+      setLoading(false);
+    }
+
+    load();
   }, [params, router]);
 
-  // Fonction pour formater la date
-  const formatDate = (date: Date) => {
-    return format(date, "EEEE d MMMM yyyy", { locale: fr });
-  };
+  const formatDate = (date: Date) => format(date, "EEEE d MMMM yyyy", { locale: fr });
 
-  // Fonction pour continuer vers la confirmation
   const handleContinue = () => {
     if (!establishment || !selectedSlot || !selectedDate) return;
 
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
-    const formattedTime = selectedSlot.time.replace(":", "-"); // 19:00 → 19-00
+    const formattedTime = selectedSlot.time.replace(":", "-");
 
-    // Détecter si nous sommes sur un custom domain
     const isCustomDomain =
       window.location.hostname !== "logones.fr" &&
       window.location.hostname !== "localhost" &&
       !window.location.hostname.includes("127.0.0.1");
 
-    // Générer l'URL appropriée selon le type de domaine
     const targetUrl = isCustomDomain
-      ? `/booking/confirm/${formattedDate}/${formattedTime}` // Custom domain : URL sans slug
-      : `/${establishment.slug}/booking/confirm/${formattedDate}/${formattedTime}`; // Domaine principal : URL avec slug
-
-    console.log("🚀 Navigation vers la confirmation:", targetUrl);
-    console.log("🌐 Type de domaine:", isCustomDomain ? "Custom domain" : "Domaine principal");
+      ? `/booking/confirm/${formattedDate}/${formattedTime}`
+      : `/${establishment.slug}/booking/confirm/${formattedDate}/${formattedTime}`;
 
     router.push(targetUrl);
   };
 
-  // Afficher un loader pendant le chargement initial
-  if (loading) {
-    return <SlotsLoadingState />;
-  }
-
-  // Afficher une erreur si l'établissement n'est pas trouvé ou si la date est absente
-  if (!establishment || !selectedDate) {
-    return <ErrorState establishmentSlug={establishment?.slug} />;
-  }
+  if (loading) return <SlotsLoadingState />;
+  if (!establishment || !selectedDate) return <ErrorState establishmentSlug={establishment?.slug} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
       <BookingHeader establishment={establishment} selectedDate={selectedDate} formatDate={formatDate} t={t} />
 
-      {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Informations de l'établissement */}
           <EstablishmentSection establishment={establishment} selectedDate={selectedDate} exceptions={exceptions} />
-
-          {/* Grille des créneaux */}
           <SlotsGrid
             serviceGroups={serviceGroups}
             selectedSlot={selectedSlot}
             setSelectedSlot={setSelectedSlot}
             slotsLoading={slotsLoading}
-            slotsError={slotsError}
-            refreshSlots={refreshSlots}
             exceptions={exceptions}
             handleContinue={handleContinue}
             establishment={establishment}

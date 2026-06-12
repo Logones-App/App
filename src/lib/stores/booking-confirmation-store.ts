@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-interface BookingData {
+export interface BookingData {
   id: string;
   establishment_id: string;
   date: string;

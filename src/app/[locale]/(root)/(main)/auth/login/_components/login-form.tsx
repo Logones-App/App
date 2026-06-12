@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { useLogin } from "@/lib/queries/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
@@ -21,11 +21,10 @@ const FormSchema = z.object({
 });
 
 export function LoginFormV1() {
-  const router = useRouter();
+  const locale = useLocale();
   const loginMutation = useLogin();
-  const { setUser, user, isAuthenticated } = useAuthStore();
+  const { setUser } = useAuthStore();
   const t = useTranslations("auth.login");
-  const tv = useTranslations("auth.validation");
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -60,21 +59,15 @@ export function LoginFormV1() {
 
       if (response.ok) {
         const roleData = await response.json();
-        console.log("🔍 Rôle récupéré:", roleData);
-
-        if (roleData.role === "system_admin") {
-          console.log("✅ System admin détecté - redirection vers /admin");
-          router.push("/admin");
-        } else if (roleData.role === "org_admin") {
-          console.log("✅ Org admin détecté - redirection vers /dashboard");
-          router.push("/dashboard");
-        } else {
-          console.log("⚠️ Aucun rôle valide trouvé - redirection vers /unauthorized");
-          router.push("/unauthorized");
-        }
+        const dest =
+          roleData.role === "system_admin"
+            ? `/${locale}/admin`
+            : roleData.role === "org_admin"
+              ? `/${locale}/dashboard`
+              : `/${locale}/unauthorized`;
+        window.location.href = dest;
       } else {
-        console.log("❌ Erreur lors de la récupération du rôle");
-        router.push("/unauthorized");
+        window.location.href = `/${locale}/unauthorized`;
       }
     } catch (error: any) {
       console.error("Login error:", error);

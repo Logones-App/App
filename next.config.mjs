@@ -4,10 +4,10 @@ const withNextIntl = createNextIntlPlugin();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
-  // Désactiver ESLint en production pour éviter les erreurs
   eslint: {
     ignoreDuringBuilds: true,
   },
