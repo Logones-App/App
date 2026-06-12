@@ -50,9 +50,12 @@ jobs:
       - name: Trigger Coolify redeploy
         env:
           WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+          TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
           if [ -n "$WEBHOOK" ]; then
-            RESPONSE=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" -X GET "$WEBHOOK")
+            RESPONSE=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" \
+              -X GET "$WEBHOOK" \
+              -H "Authorization: Bearer $TOKEN")
             echo "$RESPONSE"
             STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
             if [ "$STATUS" -ge 400 ]; then
