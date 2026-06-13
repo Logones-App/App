@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -11,42 +12,6 @@ async function assertSystemAdmin() {
   if (!data.user) return null;
   const role = (data.user.app_metadata as Record<string, unknown> | null)?.role as string | undefined;
   return role === "system_admin" ? data.user : null;
-}
-
-async function sendInvitationEmail(to: string, name: string, actionLink: string): Promise<void> {
-  try {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.BREVO_SMTP_USER!,
-        pass: process.env.BREVO_SMTP_PASSWORD!,
-      },
-    });
-    const displayName = name.trim() || to;
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM ?? "noreply@logones.fr",
-      to,
-      subject: "Votre accès à la plateforme Logones",
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2>Bienvenue sur Logones</h2>
-          <p>Bonjour ${displayName},</p>
-          <p>Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace :</p>
-          <p style="text-align:center;margin:32px 0">
-            <a href="${actionLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
-              Définir mon mot de passe
-            </a>
-          </p>
-          <p style="color:#71717a;font-size:13px">Ce lien est valable 24 heures.</p>
-        </div>
-      `,
-    });
-  } catch (err) {
-    console.error("sendInvitationEmail:", err);
-  }
 }
 
 // DELETE /api/admin/users/[id]
@@ -96,26 +61,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { error: authError } = await service.auth.admin.updateUserById(id, { app_metadata: { role } });
   if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
 
-  // Si le nouveau rôle est org_admin ou manager : une seule org autorisée
-  // → soft-delete toutes les orgs sauf celle sélectionnée
-  if ((role === "org_admin" || role === "manager") && organizationId) {
-    await service
-      .from("users_organizations")
-      .update({ deleted: true })
-      .eq("user_id", id)
-      .neq("organization_id", organizationId)
-      .eq("deleted", false);
-  }
-
-  // Mettre à jour le rôle dans users_organizations si une org est fournie
+  // Si on vient d'employee et qu'une org est fournie → INSERT (pas d'entrée existante)
+  // Sinon → UPDATE de l'entrée existante
   if (organizationId) {
-    const { error: orgError } = await service
-      .from("users_organizations")
-      .update({ role, establishment_id: establishmentId ?? null })
-      .eq("user_id", id)
-      .eq("organization_id", organizationId)
-      .eq("deleted", false);
-    if (orgError) return NextResponse.json({ error: orgError.message }, { status: 500 });
+    if (previousRole === "employee") {
+      const { error: orgError } = await service.from("users_organizations").insert({
+        user_id: id,
+        organization_id: organizationId,
+        role,
+        establishment_id: establishmentId ?? null,
+      });
+      if (orgError) return NextResponse.json({ error: orgError.message }, { status: 500 });
+    } else {
+      // Si le nouveau rôle est org_admin ou manager : soft-delete les orgs excédentaires
+      if (role === "org_admin" || role === "manager") {
+        await service
+          .from("users_organizations")
+          .update({ deleted: true })
+          .eq("user_id", id)
+          .neq("organization_id", organizationId)
+          .eq("deleted", false);
+      }
+      const { error: orgError } = await service
+        .from("users_organizations")
+        .update({ role, establishment_id: establishmentId ?? null })
+        .eq("user_id", id)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (orgError) return NextResponse.json({ error: orgError.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });
@@ -137,13 +111,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const email = userData.user.email;
   const name = (userData.user.user_metadata.full_name as string | undefined) ?? "";
 
-  const { data: linkData } = await service.auth.admin.generateLink({ type: "recovery", email });
+  const { data: linkData, error: linkError } = await service.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: INVITATION_REDIRECT_URL },
+  });
   const actionLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link;
-  if (!actionLink) {
+  if (linkError ?? !actionLink) {
     return NextResponse.json({ error: "Impossible de générer le lien" }, { status: 500 });
   }
 
-  await sendInvitationEmail(email, name, actionLink);
+  const emailSent = await sendInvitationEmail(email, name, actionLink);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, actionLink, emailSent });
 }

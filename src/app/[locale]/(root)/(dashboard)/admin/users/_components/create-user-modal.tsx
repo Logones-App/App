@@ -26,11 +26,16 @@ interface EmployeeOption {
   email: string | null;
 }
 
+export interface CreateUserResult {
+  actionLink: string | null;
+  emailSent: boolean;
+}
+
 interface Props {
   open: boolean;
   organizations: OrgOption[];
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (result: CreateUserResult) => void;
 }
 
 type RoleType = "commercial" | "org_admin" | "manager" | "employee";
@@ -130,11 +135,11 @@ export function CreateUserModal({ open, organizations, onClose, onSuccess }: Pro
         }),
       });
 
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; actionLink?: string | null; emailSent?: boolean };
       if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
 
       reset();
-      onSuccess();
+      onSuccess({ actionLink: data.actionLink ?? null, emailSent: data.emailSent ?? false });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue");
     } finally {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Loader2, Plus, Search, Users } from "lucide-react";
+import { Copy, Loader2, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -18,11 +18,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { ChangeRoleModal } from "./_components/change-role-modal";
-import { CreateUserModal, type OrgOption } from "./_components/create-user-modal";
+import { CreateUserModal, type CreateUserResult, type OrgOption } from "./_components/create-user-modal";
 import { ManageOrgsModal } from "./_components/manage-orgs-modal";
 import { UsersTable, type UserRow } from "./_components/users-table";
 
@@ -39,6 +47,7 @@ export default function AdminUsersPage() {
   const [changingRoleUser, setChangingRoleUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -78,10 +87,16 @@ export default function AdminUsersPage() {
     employee: users.filter((u) => u.role === "employee").length,
   };
 
-  async function handleCreateSuccess() {
+  async function handleCreateSuccess({ actionLink, emailSent }: CreateUserResult) {
     setShowCreate(false);
     await fetchUsers();
-    toast.success("Utilisateur créé — un email d'invitation a été envoyé.");
+    if (emailSent) {
+      toast.success("Utilisateur créé — email d'invitation envoyé.");
+    } else if (actionLink) {
+      setInviteLink(actionLink);
+    } else {
+      toast.warning("Utilisateur créé mais l'email n'a pas pu être envoyé.");
+    }
   }
 
   async function handleManageSuccess() {
@@ -92,9 +107,15 @@ export default function AdminUsersPage() {
   async function handleResend(user: UserRow) {
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, { method: "POST" });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; actionLink?: string | null; emailSent?: boolean };
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Email d'invitation envoyé à ${user.email}`);
+      if (data.emailSent) {
+        toast.success(`Email d'invitation envoyé à ${user.email}`);
+      } else if (data.actionLink) {
+        setInviteLink(data.actionLink);
+      } else {
+        toast.warning("Impossible d'envoyer l'email d'invitation.");
+      }
     } catch {
       toast.error("Échec de l'envoi de l'email");
     }
@@ -244,6 +265,42 @@ export default function AdminUsersPage() {
         onClose={() => setChangingRoleUser(null)}
         onSuccess={fetchUsers}
       />
+
+      <Dialog
+        open={!!inviteLink}
+        onOpenChange={(v) => {
+          if (!v) setInviteLink(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Lien d&apos;invitation</DialogTitle>
+            <DialogDescription>
+              L&apos;email n&apos;a pas pu être envoyé. Copiez ce lien et transmettez-le manuellement à
+              l&apos;utilisateur.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+            <code className="text-muted-foreground min-w-0 flex-1 truncate text-xs">{inviteLink}</code>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0"
+              onClick={() => {
+                if (inviteLink) {
+                  navigator.clipboard.writeText(inviteLink).catch(() => {});
+                  toast.success("Lien copié !");
+                }
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setInviteLink(null)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={!!deletingUser}

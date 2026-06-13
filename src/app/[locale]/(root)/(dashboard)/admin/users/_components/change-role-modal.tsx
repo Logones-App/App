@@ -41,8 +41,12 @@ export function ChangeRoleModal({ user, organizations, onClose, onSuccess }: Pro
 
   async function handleSubmit() {
     if (!user) return;
-    setIsLoading(true);
     setError(null);
+    if (isFromEmployee && (role === "org_admin" || role === "manager") && !orgId) {
+      setError("Veuillez sélectionner une organisation");
+      return;
+    }
+    setIsLoading(true);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",

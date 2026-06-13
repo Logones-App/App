@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -11,42 +12,6 @@ async function assertSystemAdmin() {
   if (!data.user) return null;
   const role = (data.user.app_metadata as Record<string, unknown> | null)?.role as string | undefined;
   return role === "system_admin" ? data.user : null;
-}
-
-async function sendInvitationEmail(to: string, name: string, actionLink: string): Promise<void> {
-  try {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.BREVO_SMTP_USER!,
-        pass: process.env.BREVO_SMTP_PASSWORD!,
-      },
-    });
-    const displayName = name.trim() || to;
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM ?? "noreply@logones.fr",
-      to,
-      subject: "Votre accès à la plateforme Logones",
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2>Bienvenue sur Logones</h2>
-          <p>Bonjour ${displayName},</p>
-          <p>Votre compte a été créé. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace :</p>
-          <p style="text-align:center;margin:32px 0">
-            <a href="${actionLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
-              Définir mon mot de passe
-            </a>
-          </p>
-          <p style="color:#71717a;font-size:13px">Ce lien est valable 24 heures. Si vous n'avez pas demandé ce compte, ignorez cet email.</p>
-        </div>
-      `,
-    });
-  } catch (err) {
-    console.error("sendInvitationEmail:", err);
-  }
 }
 
 export async function GET() {
@@ -149,6 +114,9 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: "email requis" }, { status: 400 });
     }
+    if ((role === "org_admin" || role === "manager") && organizationIds.length === 0) {
+      return NextResponse.json({ error: "Une organisation est requise pour ce rôle" }, { status: 400 });
+    }
 
     const service = createServiceClient();
 
@@ -181,13 +149,20 @@ export async function POST(request: NextRequest) {
       if (insertError) throw insertError;
     }
 
-    const { data: linkData } = await service.auth.admin.generateLink({ type: "recovery", email });
+    const { data: linkData, error: linkError } = await service.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: INVITATION_REDIRECT_URL },
+    });
     const actionLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+    if (linkError) console.error("generateLink error:", linkError);
+
+    let emailSent = false;
     if (actionLink) {
-      await sendInvitationEmail(email, name, actionLink);
+      emailSent = await sendInvitationEmail(email, name, actionLink);
     }
 
-    return NextResponse.json({ userId });
+    return NextResponse.json({ userId, actionLink: actionLink ?? null, emailSent });
   } catch (err) {
     console.error("POST /api/admin/users:", err);
     const message = err instanceof Error ? err.message : "Erreur inattendue";

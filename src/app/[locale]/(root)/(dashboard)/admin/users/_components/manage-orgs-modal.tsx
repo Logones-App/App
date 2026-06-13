@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,12 @@ export function ManageOrgsModal({ user, organizations, onClose, onSuccess }: Pro
   async function removeOrg(orgId: string) {
     setLoadingId(`remove-${orgId}`);
     try {
-      await fetch(`/api/admin/users/${user!.id}/orgs?orgId=${orgId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/users/${user!.id}/orgs?orgId=${orgId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = (await res.json()) as { error?: string };
+        toast.error(d.error ?? "Erreur lors de la suppression");
+        return;
+      }
       onSuccess();
     } finally {
       setLoadingId(null);
@@ -48,7 +54,7 @@ export function ManageOrgsModal({ user, organizations, onClose, onSuccess }: Pro
     if (pendingAdd.size === 0) return;
     setLoadingId("add");
     try {
-      await Promise.all(
+      const results = await Promise.all(
         Array.from(pendingAdd).map((orgId) =>
           fetch(`/api/admin/users/${user!.id}/orgs`, {
             method: "POST",
@@ -57,6 +63,10 @@ export function ManageOrgsModal({ user, organizations, onClose, onSuccess }: Pro
           }),
         ),
       );
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        toast.error(`${failed.length} organisation(s) n'ont pas pu être ajoutées`);
+      }
       setPendingAdd(new Set());
       onSuccess();
     } finally {
