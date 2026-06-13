@@ -589,7 +589,13 @@
     "updateSuccess": "Updated successfully",
     "logoutSuccess": "Logged out successfully",
     "loginSuccess": "Logged in successfully",
-    "unknownError": "An unknown error occurred"
+    "unknownError": "An unknown error occurred",
+    "password_label": "New password",
+    "password_placeholder": "Enter your new password",
+    "confirm_password_label": "Confirm password",
+    "confirm_password_placeholder": "Confirm your new password",
+    "resetButton": "Reset password",
+    "back_to_login": "Back to login"
   },
   "units": {
     "g": "g (grams)",

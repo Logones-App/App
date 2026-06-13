@@ -95,7 +95,10 @@
       "PowerShell(cmd /c \"dir /s /b \"\"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\dashboard\"\" 2>&1\" | Select-String \"\\\\.tsx$\" | ForEach-Object { $_.Line })",
       "Bash(grep -E \"^\\\\./\\(src/app/api/admin|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/admin/users|src/navigation/sidebar/employee|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/_components/sidebar/app-sidebar\\)\")",
       "Bash(grep -A2 \"src/app/api/admin/employees\\\\|src/app/api/admin/users\\\\|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/admin/users\\\\|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/_components/sidebar/app-sidebar\")",
-      "Bash(grep -E \"^\\\\./\\(src/app/api/admin|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/admin/users|src/navigation/sidebar/employee|app-sidebar\\)\")"
+      "Bash(grep -E \"^\\\\./\\(src/app/api/admin|src/app/\\\\[locale\\\\]/\\\\\\(root\\\\\\)/\\\\\\(dashboard\\\\\\)/admin/users|src/navigation/sidebar/employee|app-sidebar\\)\")",
+      "Bash(node -e \"const f=require\\('./messages/fr.json'\\); console.log\\(JSON.stringify\\(f.common, null, 2\\)\\)\")",
+      "Bash(node -e \"const f=require\\('./messages/en.json'\\); console.log\\(JSON.stringify\\(f.common, null, 2\\)\\)\")",
+      "Bash(node -e \"const f=require\\('./messages/es.json'\\); console.log\\(JSON.stringify\\(f.common, null, 2\\)\\)\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

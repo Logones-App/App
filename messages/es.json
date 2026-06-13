@@ -582,7 +582,13 @@
     "success": "Operación exitosa.",
     "loadError": "Error al cargar los datos.",
     "loginSuccess": "¡Inicio de sesión exitoso!",
-    "logoutSuccess": "¡Sesión cerrada exitosamente!"
+    "logoutSuccess": "¡Sesión cerrada exitosamente!",
+    "password_label": "Nueva contraseña",
+    "password_placeholder": "Ingrese su nueva contraseña",
+    "confirm_password_label": "Confirmar contraseña",
+    "confirm_password_placeholder": "Confirme su nueva contraseña",
+    "resetButton": "Restablecer contraseña",
+    "back_to_login": "Volver al inicio de sesión"
   },
   "units": {
     "g": "g (gramos)",

@@ -642,7 +642,13 @@
     "updateSuccess": "Mise à jour réussie",
     "logoutSuccess": "Déconnexion réussie",
     "loginSuccess": "Connexion réussie",
-    "unknownError": "Une erreur inconnue est survenue"
+    "unknownError": "Une erreur inconnue est survenue",
+    "password_label": "Nouveau mot de passe",
+    "password_placeholder": "Entrez votre nouveau mot de passe",
+    "confirm_password_label": "Confirmer le mot de passe",
+    "confirm_password_placeholder": "Confirmez votre nouveau mot de passe",
+    "resetButton": "Réinitialiser le mot de passe",
+    "back_to_login": "Retour à la connexion"
   },
   "units": {
     "g": "g (grammes)",
