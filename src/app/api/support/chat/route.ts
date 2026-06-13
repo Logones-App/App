@@ -5,8 +5,7 @@ import OpenAI from "openai";
 
 import { createServiceClient } from "@/lib/supabase/service";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export const dynamic = "force-dynamic";
 
 const CONFIDENCE_THRESHOLD = 0.65;
 
@@ -45,6 +44,8 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { message: string; history?: ChatMessage[] };
     const { message, history = [] } = body;
 
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const supabase = createServiceClient();
 
     const embeddingResponse = await openai.embeddings.create({

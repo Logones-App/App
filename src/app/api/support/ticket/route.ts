@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createServiceClient } from "@/lib/supabase/service";
 
+export const dynamic = "force-dynamic";
+
 interface ConversationMessage {
   role: string;
   content: string;

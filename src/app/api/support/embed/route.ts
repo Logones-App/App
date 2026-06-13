@@ -4,7 +4,7 @@ import OpenAI from "openai";
 
 import { createServiceClient } from "@/lib/supabase/service";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export const dynamic = "force-dynamic";
 
 interface EmbedBody {
   title: string;
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as EmbedBody;
     const { title, content, category } = body;
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const embeddingResponse = await openai.embeddings.create({
       model: "text-embedding-3-small",
