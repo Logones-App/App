@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -27,7 +29,7 @@ const FormSchema = z
 export function ResetPasswordForm() {
   const router = useRouter();
   const t = useTranslations("common");
-  const tv = useTranslations("auth.validation");
+  const [sessionReady, setSessionReady] = useState(false);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -36,6 +38,25 @@ export function ResetPasswordForm() {
       confirmPassword: "",
     },
   });
+
+  useEffect(() => {
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setSessionReady(true);
+      }
+    });
+    // Vérifier si une session existe déjà (cas où le hash a déjà été traité)
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (data.session) setSessionReady(true);
+      })
+      .catch(() => {});
+    return () => subscription.unsubscribe();
+  }, []);
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     try {
@@ -98,7 +119,7 @@ export function ResetPasswordForm() {
             </FormItem>
           )}
         />
-        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
+        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting || !sessionReady}>
           {form.formState.isSubmitting ? t("loading") : t("resetButton")}
         </Button>
 
