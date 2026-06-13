@@ -102,6 +102,14 @@ export function CreateUserModal({ open, organizations, onClose, onSuccess }: Pro
       setError("L'email est requis");
       return;
     }
+    if ((role === "org_admin" || role === "manager") && !selectedOrgId) {
+      setError("Veuillez sélectionner une organisation");
+      return;
+    }
+    if (role === "employee" && !selectedEmployeeId) {
+      setError("Veuillez sélectionner un employé à lier");
+      return;
+    }
 
     const organizationIds = role === "commercial" ? Array.from(selectedOrgIds) : selectedOrgId ? [selectedOrgId] : [];
 

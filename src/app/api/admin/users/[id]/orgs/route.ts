@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const service = createServiceClient();
     const { error } = await service
       .from("users_organizations")
-      .delete()
+      .update({ deleted: true })
       .eq("user_id", userId)
       .eq("organization_id", organizationId);
     if (error) throw error;

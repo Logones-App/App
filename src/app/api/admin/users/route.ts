@@ -13,6 +13,42 @@ async function assertSystemAdmin() {
   return role === "system_admin" ? data.user : null;
 }
 
+async function sendInvitationEmail(to: string, name: string, actionLink: string): Promise<void> {
+  try {
+    const nodemailer = await import("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.BREVO_SMTP_USER!,
+        pass: process.env.BREVO_SMTP_PASSWORD!,
+      },
+    });
+    const displayName = name.trim() || to;
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM ?? "noreply@logones.fr",
+      to,
+      subject: "Votre accès à la plateforme Logones",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2>Bienvenue sur Logones</h2>
+          <p>Bonjour ${displayName},</p>
+          <p>Votre compte a été créé. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace :</p>
+          <p style="text-align:center;margin:32px 0">
+            <a href="${actionLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+              Définir mon mot de passe
+            </a>
+          </p>
+          <p style="color:#71717a;font-size:13px">Ce lien est valable 24 heures. Si vous n'avez pas demandé ce compte, ignorez cet email.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("sendInvitationEmail:", err);
+  }
+}
+
 export async function GET() {
   try {
     const caller = await assertSystemAdmin();
@@ -43,10 +79,30 @@ export async function GET() {
       orgsByUser.set(row.user_id, list);
     }
 
+    // Fetch employee data for linked accounts
+    const { data: empRowsRaw } = await service
+      .from("employees")
+      .select("auth_user_id, organization_id, establishment_id, establishments(id, name)")
+      .not("auth_user_id", "is", null)
+      .eq("deleted", false);
+
+    type EmpRow = {
+      auth_user_id: string;
+      organization_id: string | null;
+      establishment_id: string | null;
+      establishments: { id: string; name: string } | null;
+    };
+    const empRows = (empRowsRaw ?? []) as EmpRow[];
+    const empByUserId = new Map<string, EmpRow>();
+    for (const row of empRows) {
+      if (row.auth_user_id) empByUserId.set(row.auth_user_id, row);
+    }
+
     const users = authData.users.map((u) => {
       const appRole = (u.app_metadata.role as string | undefined) ?? null;
       const userOrgs = orgsByUser.get(u.id) ?? [];
       const orgRole = userOrgs.at(0)?.role ?? null;
+      const empRow = empByUserId.get(u.id) ?? null;
       return {
         id: u.id,
         email: u.email ?? "",
@@ -60,6 +116,7 @@ export async function GET() {
           role: o.role,
           establishmentId: o.establishment_id,
         })),
+        employeeEstablishment: empRow?.establishments ?? null,
         createdAt: u.created_at,
         lastSignIn: u.last_sign_in_at ?? null,
       };
@@ -90,24 +147,22 @@ export async function POST(request: NextRequest) {
     const { email, name, role, organizationIds, establishmentId, employeeId } = body;
 
     if (!email) {
-      return NextResponse.json({ error: "email et role requis" }, { status: 400 });
+      return NextResponse.json({ error: "email requis" }, { status: 400 });
     }
 
     const service = createServiceClient();
 
-    const appMeta = { role };
     const { data: created, error: createError } = await service.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: { full_name: name },
-      app_metadata: appMeta,
+      app_metadata: { role },
     });
     if (createError) throw createError;
 
     const userId = created.user.id;
 
     if (role === "employee") {
-      // Lier la fiche employé existante au compte auth
       if (employeeId) {
         const { error: linkError } = await service
           .from("employees")
@@ -126,7 +181,11 @@ export async function POST(request: NextRequest) {
       if (insertError) throw insertError;
     }
 
-    await service.auth.admin.generateLink({ type: "recovery", email });
+    const { data: linkData } = await service.auth.admin.generateLink({ type: "recovery", email });
+    const actionLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+    if (actionLink) {
+      await sendInvitationEmail(email, name, actionLink);
+    }
 
     return NextResponse.json({ userId });
   } catch (err) {

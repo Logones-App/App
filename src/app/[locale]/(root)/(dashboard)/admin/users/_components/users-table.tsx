@@ -23,6 +23,7 @@ export interface UserRow {
   appRole: string | null;
   orgRole: string | null;
   organizations: { id: string; name: string; role: string; establishmentId: string | null }[];
+  employeeEstablishment: { id: string; name: string } | null;
   createdAt: string;
   lastSignIn: string | null;
 }
@@ -87,7 +88,10 @@ export function UsersTable({ users, onManageOrgs, onChangeRole, onResend, onDele
             </TableCell>
             <TableCell>
               {user.role === "employee" ? (
-                <span className="text-muted-foreground text-xs">Via fiche employé</span>
+                <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs">
+                  <Building2 className="h-3 w-3" />
+                  {user.employeeEstablishment?.name ?? "Via fiche employé"}
+                </span>
               ) : user.organizations.length === 0 ? (
                 <span className="text-muted-foreground text-xs">Aucune</span>
               ) : (

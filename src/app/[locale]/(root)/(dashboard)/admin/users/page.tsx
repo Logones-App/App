@@ -5,6 +5,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +37,8 @@ export default function AdminUsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [managingUser, setManagingUser] = useState<UserRow | null>(null);
   const [changingRoleUser, setChangingRoleUser] = useState<UserRow | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -69,13 +81,12 @@ export default function AdminUsersPage() {
   async function handleCreateSuccess() {
     setShowCreate(false);
     await fetchUsers();
-    toast.success("Utilisateur créé — un email de réinitialisation a été envoyé.");
+    toast.success("Utilisateur créé — un email d'invitation a été envoyé.");
   }
 
   async function handleManageSuccess() {
     await fetchUsers();
-    const updated = users.find((u) => u.id === managingUser?.id);
-    if (updated) setManagingUser(updated);
+    setManagingUser(null);
   }
 
   async function handleResend(user: UserRow) {
@@ -83,23 +94,26 @@ export default function AdminUsersPage() {
       const res = await fetch(`/api/admin/users/${user.id}`, { method: "POST" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Email de réinitialisation envoyé à ${user.email}`);
+      toast.success(`Email d'invitation envoyé à ${user.email}`);
     } catch {
       toast.error("Échec de l'envoi de l'email");
     }
   }
 
-  async function handleDelete(user: UserRow) {
-    const confirmed = window.confirm(`Supprimer définitivement ${user.email} ?`);
-    if (!confirmed) return;
+  async function handleDeleteConfirm() {
+    if (!deletingUser) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/users/${deletingUser.id}`, { method: "DELETE" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error);
       toast.success("Utilisateur supprimé");
+      setDeletingUser(null);
       await fetchUsers();
     } catch {
       toast.error("Échec de la suppression");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -204,7 +218,7 @@ export default function AdminUsersPage() {
               onManageOrgs={(u) => setManagingUser(u)}
               onChangeRole={(u) => setChangingRoleUser(u)}
               onResend={handleResend}
-              onDelete={handleDelete}
+              onDelete={(u) => setDeletingUser(u)}
             />
           )}
         </CardContent>
@@ -230,6 +244,34 @@ export default function AdminUsersPage() {
         onClose={() => setChangingRoleUser(null)}
         onSuccess={fetchUsers}
       />
+
+      <AlertDialog
+        open={!!deletingUser}
+        onOpenChange={(v) => {
+          if (!v) setDeletingUser(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l&apos;utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium">{deletingUser?.email}</span> sera supprimé définitivement. Cette action est
+              irréversible. Ses accès organisations et sa fiche employé seront dissociés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
