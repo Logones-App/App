@@ -5232,6 +5232,134 @@ export type Database = {
           },
         ]
       }
+      support_knowledge_base: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          confidence_score: number | null
+          content: string
+          created_at: string | null
+          id: string
+          is_ai_generated: boolean | null
+          role: string | null
+          ticket_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_ai_generated?: boolean | null
+          role?: string | null
+          ticket_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_ai_generated?: boolean | null
+          role?: string | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          ai_handled: boolean | null
+          assigned_to: string | null
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          establishment_id: string | null
+          id: string
+          organization_id: string | null
+          priority: string | null
+          status: string | null
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_handled?: boolean | null
+          assigned_to?: string | null
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          establishment_id?: string | null
+          id?: string
+          organization_id?: string | null
+          priority?: string | null
+          status?: string | null
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_handled?: boolean | null
+          assigned_to?: string | null
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          establishment_id?: string | null
+          id?: string
+          organization_id?: string | null
+          priority?: string | null
+          status?: string | null
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tables: {
         Row: {
           color: string
@@ -5641,6 +5769,20 @@ export type Database = {
           p_slot_number: number
         }
         Returns: boolean
+      }
+      match_knowledge_base: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          similarity: number
+          title: string
+        }[]
       }
       reserve_nf525_piece_number_range: {
         Args: {

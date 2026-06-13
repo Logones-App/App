@@ -1,16 +1,17 @@
 import {
-  BarChart3,
-  Building2,
-  Settings,
-  Users,
-  Home,
   Activity,
-  Shield,
+  BarChart3,
+  Bell,
+  BookOpen,
+  Building2,
   Database,
   FileText,
-  Bell,
-  HelpCircle,
   Globe,
+  HelpCircle,
+  Home,
+  Settings,
+  Shield,
+  Users,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -202,6 +203,11 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
           title: "Aide et support",
           url: `${baseUrl}/admin/support`,
           icon: HelpCircle,
+        },
+        {
+          title: "Base de connaissances",
+          url: `${baseUrl}/admin/knowledge-base`,
+          icon: BookOpen,
         },
       ],
     },

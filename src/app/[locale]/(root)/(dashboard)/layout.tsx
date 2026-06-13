@@ -16,6 +16,7 @@ import { AppSidebar } from "./_components/sidebar/app-sidebar";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
 import { SearchDialog } from "./_components/sidebar/search-dialog";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
+import { SupportChatWidget } from "./_components/support-chat-widget";
 
 export default async function Layout({
   children,
@@ -65,6 +66,7 @@ export default async function Layout({
         </SidebarInset>
       </SidebarProvider>
       <RealtimeMessages />
+      <SupportChatWidget />
     </RealtimeProvider>
   );
 }
