@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -85,6 +85,7 @@ export default function SupportPage() {
   const [reply, setReply] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [isSending, setIsSending] = useState(false);
+  const selectedTicketIdRef = useRef<string | null>(null);
 
   async function loadTickets() {
     const supabase = createClient();
@@ -111,7 +112,37 @@ export default function SupportPage() {
     void loadTickets();
   }, [statusFilter]);
 
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("support-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_tickets" }, async (payload) => {
+        const { data } = await supabase
+          .from("support_tickets")
+          .select("*, establishments(id, name), organizations(id, name)")
+          .eq("id", (payload.new as { id: string }).id)
+          .single();
+        if (data) setTickets((prev) => [data as TicketWithRelations, ...prev]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_tickets" }, (payload) => {
+        const updated = payload.new as TicketWithRelations;
+        setTickets((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+        setSelectedTicket((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
+        const msg = payload.new as SupportMessage;
+        if (msg.ticket_id === selectedTicketIdRef.current) {
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+        }
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
   async function handleSelectTicket(ticket: TicketWithRelations) {
+    selectedTicketIdRef.current = ticket.id;
     setSelectedTicket(ticket);
     await loadMessages(ticket.id);
   }
@@ -127,13 +158,21 @@ export default function SupportPage() {
   async function handleSendReply() {
     if (!selectedTicket || !reply.trim()) return;
     setIsSending(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("support_messages")
-      .insert({ ticket_id: selectedTicket.id, content: reply.trim(), role: "agent", is_ai_generated: false })
-      .select()
-      .single();
-    if (data) setMessages((prev) => [...prev, data]);
+    const res = await fetch("/api/support/agent-reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticketId: selectedTicket.id,
+        content: reply.trim(),
+        customerEmail: selectedTicket.customer_email,
+        customerName: selectedTicket.customer_name,
+        subject: selectedTicket.subject,
+        conversationHistory: messages,
+      }),
+    });
+    const data = (await res.json()) as { message: SupportMessage };
+    if (data.message)
+      setMessages((prev) => (prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]));
     setReply("");
     setIsSending(false);
   }
