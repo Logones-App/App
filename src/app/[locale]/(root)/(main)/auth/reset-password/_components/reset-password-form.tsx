@@ -30,6 +30,7 @@ export function ResetPasswordForm() {
   const router = useRouter();
   const t = useTranslations("common");
   const [sessionReady, setSessionReady] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -41,21 +42,42 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     const supabase = createClient();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setSessionReady(true);
-      }
-    });
-    // Vérifier si une session existe déjà (cas où le hash a déjà été traité)
+
+    // Parser le hash manuellement pour récupérer les tokens Supabase
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type = params.get("type");
+    const error = params.get("error");
+    const errorCode = params.get("error_code");
+
+    if (error) {
+      const msg =
+        errorCode === "otp_expired"
+          ? "Ce lien a expiré. Demandez un nouveau lien d'invitation."
+          : "Lien invalide. Demandez un nouveau lien d'invitation.";
+      setLinkError(msg);
+      return;
+    }
+
+    if (accessToken && refreshToken && type === "recovery") {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data, error }) => {
+          if (!error && data.session) setSessionReady(true);
+        })
+        .catch(() => {});
+      return;
+    }
+
+    // Fallback : session déjà établie
     supabase.auth
       .getSession()
       .then(({ data }) => {
         if (data.session) setSessionReady(true);
       })
       .catch(() => {});
-    return () => subscription.unsubscribe();
   }, []);
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
@@ -77,6 +99,17 @@ export function ResetPasswordForm() {
       toast.error(t("error"));
     }
   };
+
+  if (linkError) {
+    return (
+      <div className="space-y-4 text-center">
+        <p className="text-destructive text-sm">{linkError}</p>
+        <Link href="/auth/login" className="text-primary text-sm font-medium hover:underline">
+          {t("back_to_login")}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
