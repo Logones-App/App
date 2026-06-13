@@ -3,6 +3,7 @@ import { type LucideIcon } from "lucide-react";
 // Import des fonctions depuis les fichiers séparés
 import { getCommercialSidebarItems } from "./commercial-items";
 import { getDefaultSidebarItems } from "./default-items";
+import { getEmployeeSidebarItems } from "./employee-items";
 import { getOrgAdminSidebarItems } from "./org-admin-items";
 import { getSystemAdminSidebarItems } from "./system-admin-items";
 
@@ -49,6 +50,8 @@ export const getSidebarItemsByRole = (
     case "org_admin":
     case "manager":
       return getOrgAdminSidebarItems(locale, establishmentId, organizationId);
+    case "employee":
+      return getEmployeeSidebarItems(locale, establishmentId);
     default:
       return getDefaultSidebarItems(locale);
   }

@@ -60,6 +60,7 @@ export function isRestaurantPublicRoute(pathname: string): boolean {
   if (
     routeWithoutLocale.startsWith("/admin") ||
     routeWithoutLocale.startsWith("/dashboard") ||
+    routeWithoutLocale.startsWith("/commercial") ||
     routeWithoutLocale.startsWith("/auth")
   ) {
     return false;
@@ -67,6 +68,7 @@ export function isRestaurantPublicRoute(pathname: string): boolean {
 
   // Accepter les routes de restaurant public avec un ou plusieurs segments
   // Exemples : /restaurant-slug, /restaurant-slug/menu, /restaurant-slug/booking/success
+  // eslint-disable-next-line security/detect-unsafe-regex
   return /^\/[^/]+(\/[^/]+)*$/.test(routeWithoutLocale);
 }
 
@@ -115,8 +117,12 @@ export async function getDomainInfo(hostname: string): Promise<{ establishment: 
 
     const data = await response.json();
     const establishmentSlug =
-      (((data as Record<string, unknown>).establishment as Record<string, unknown>)?.slug as string) ??
-      (((data as Record<string, unknown>).domain as Record<string, unknown>)?.establishment_slug as string);
+      (((data as Record<string, unknown>).establishment as Record<string, unknown> | undefined)?.slug as
+        | string
+        | undefined) ??
+      (((data as Record<string, unknown>).domain as Record<string, unknown> | undefined)?.establishment_slug as
+        | string
+        | undefined);
 
     if (!establishmentSlug) {
       return null;
@@ -222,7 +228,7 @@ export function getAuthorizedRoute(userRole: string): string {
     case "manager":
       return "/dashboard";
     case "employee":
-      return "/unauthorized";
+      return "/dashboard";
     default:
       return "/auth/login";
   }

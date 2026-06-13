@@ -12,18 +12,26 @@ export async function getServerUser(): Promise<ServerUser | null> {
   try {
     const supabase = await createClient();
 
-    // Récupère l'utilisateur depuis les cookies
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
 
-    if (error || !user) {
-      return null;
-    }
+    if (error || !user) return null;
 
-    // Récupère le rôle depuis les metadata
-    const role = user.user_metadata?.role ?? user.app_metadata?.role ?? null;
+    // Priorité : app_metadata, puis user_metadata, puis users_organizations
+    let role =
+      (user.app_metadata.role as string | undefined) ?? (user.user_metadata.role as string | undefined) ?? null;
+
+    if (!role) {
+      const { data: orgRow } = await supabase
+        .from("users_organizations")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("deleted", false)
+        .maybeSingle();
+      role = orgRow?.role ?? null;
+    }
 
     return {
       id: user.id,
@@ -32,8 +40,7 @@ export async function getServerUser(): Promise<ServerUser | null> {
       user_metadata: user.user_metadata,
       app_metadata: user.app_metadata,
     };
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur côté serveur:", error);
+  } catch {
     return null;
   }
 }
