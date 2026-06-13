@@ -47,15 +47,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          envs: COOLIFY_API_TOKEN
-          script: |
-            curl -s -X GET "http://localhost:8000/api/v1/deploy?uuid=n8owk8sw4sowskwkwwg0gc48&force=false" \
-              -H "Authorization: Bearer $COOLIFY_API_TOKEN"
-        env:
-          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      - name: Deploy via Coolify API
+        run: |
+          curl -s -X GET "http://${{ secrets.VPS_HOST }}:8000/api/v1/deploy?uuid=n8owk8sw4sowskwkwwg0gc48&force=false" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}"
