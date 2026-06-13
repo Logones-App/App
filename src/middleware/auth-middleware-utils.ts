@@ -19,7 +19,7 @@ const PUBLIC_ROUTES = [
 ];
 
 // Domaines exclus (pas de redirection)
-const EXCLUDED_DOMAINS = ["localhost", "127.0.0.1", "0.0.0.0", MAIN_DOMAIN];
+const EXCLUDED_DOMAINS = ["localhost", "127.0.0.1", "0.0.0.0", MAIN_DOMAIN, `app.${MAIN_DOMAIN}`];
 
 /**
  * Vérifie si c'est une route technique
