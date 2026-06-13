@@ -1812,6 +1812,7 @@ export type Database = {
       }
       employees: {
         Row: {
+          auth_user_id: string | null
           birth_city: string | null
           birth_date: string | null
           birth_department: string | null
@@ -1847,6 +1848,7 @@ export type Database = {
           work_permit_type: string | null
         }
         Insert: {
+          auth_user_id?: string | null
           birth_city?: string | null
           birth_date?: string | null
           birth_department?: string | null
@@ -1882,6 +1884,7 @@ export type Database = {
           work_permit_type?: string | null
         }
         Update: {
+          auth_user_id?: string | null
           birth_city?: string | null
           birth_date?: string | null
           birth_department?: string | null
@@ -5497,28 +5500,41 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted: boolean | null
+          establishment_id: string | null
           id: string
           organization_id: string
+          role: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
           organization_id: string
+          role?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           deleted?: boolean | null
+          establishment_id?: string | null
           id?: string
           organization_id?: string
+          role?: string
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "users_organizations_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "users_organizations_organization_id_fkey"
             columns: ["organization_id"]

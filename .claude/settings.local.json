@@ -67,13 +67,18 @@
       "Bash(Select-String -Pattern \"planning-capacity|planning-schedule|planning-coverage\")",
       "Bash(echo \"EXIT: $?\")",
       "Bash(mkdir \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\knowledge-base\" 2>nul; echo done)",
-      "Bash(mkdir \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\support\" 2>nul; echo done)"
+      "Bash(mkdir \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\support\" 2>nul; echo done)",
+      "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/[locale]/\\(root\\)/\\(dashboard\\)/commercial/organizations\")",
+      "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/[locale]/\\(root\\)/\\(dashboard\\)/commercial/_components\")",
+      "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/[locale]/\\(root\\)/\\(dashboard\\)/commercial/organizations/[id]\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\_components\\establishments",
       "C:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\_components\\establishments",
-      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin"
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin",
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\commercial",
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\commercial\\organizations"
     ]
   }
 }

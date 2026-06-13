@@ -6,57 +6,66 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Récupérer l'utilisateur actuel
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (userError ?? !user) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    console.log("API - User metadata:", user.user_metadata);
-    console.log("API - App metadata:", user.app_metadata);
+    const appRole = user.app_metadata?.role as string | undefined;
 
-    // Vérifier si c'est un system_admin via les métadonnées
-    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
-
-    if (systemRole === "system_admin") {
-      console.log("API - User is system_admin (from metadata)");
-      return NextResponse.json({
-        role: "system_admin",
-        organizationId: null,
-      });
+    if (appRole === "system_admin") {
+      return NextResponse.json({ role: "system_admin", organizationId: null });
     }
 
-    // Vérifier si c'est un org_admin via users_organizations
-    const { data: orgRole, error: orgError } = await supabase
+    if (appRole === "commercial") {
+      const { data: orgs } = await supabase
+        .from("users_organizations")
+        .select("organization_id, organizations(id, name)")
+        .eq("user_id", user.id)
+        .eq("deleted", false);
+      return NextResponse.json({ role: "commercial", organizations: orgs ?? [] });
+    }
+
+    if (appRole === "employee") {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("id, establishment_id, organization_id")
+        .eq("auth_user_id", user.id)
+        .eq("deleted", false)
+        .maybeSingle();
+      return NextResponse.json({ role: "employee", employee: employee ?? null });
+    }
+
+    const { data: orgRow } = await supabase
       .from("users_organizations")
-      .select(
-        `
-        organization_id,
-        organizations (*)
-      `,
-      )
+      .select("organization_id, role, establishment_id, organizations(*)")
       .eq("user_id", user.id)
       .eq("deleted", false)
-      .single();
+      .maybeSingle();
 
-    console.log("API - Org role check:", { orgRole, orgError });
-
-    if (orgRole) {
+    if (orgRow?.role === "manager") {
       return NextResponse.json({
-        role: "org_admin",
-        organizationId: orgRole.organization_id,
-        organization: orgRole.organizations,
+        role: "manager",
+        organizationId: orgRow.organization_id,
+        establishmentId: orgRow.establishment_id,
+        organization: orgRow.organizations,
       });
     }
 
-    // Si aucun rôle trouvé, retourner null
+    if (orgRow?.role === "org_admin") {
+      return NextResponse.json({
+        role: "org_admin",
+        organizationId: orgRow.organization_id,
+        organization: orgRow.organizations,
+      });
+    }
+
     return NextResponse.json({ role: null });
-  } catch (error) {
-    console.error("API Roles - Error:", error);
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

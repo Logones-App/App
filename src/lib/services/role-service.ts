@@ -2,95 +2,71 @@ import type { User } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 
+export type AppRole = "system_admin" | "commercial" | "org_admin" | "manager" | "employee" | null;
+
 export class RoleService {
   private static supabase = createClient();
 
-  static async isSystemAdmin(user: User): Promise<boolean> {
-    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
-    return systemRole === "system_admin";
+  static isSystemAdmin(user: User): boolean {
+    return (user.app_metadata?.role ?? user.user_metadata?.role) === "system_admin";
+  }
+
+  static isCommercial(user: User): boolean {
+    return (user.app_metadata?.role ?? user.user_metadata?.role) === "commercial";
+  }
+
+  static isEmployee(user: User): boolean {
+    return (user.app_metadata?.role ?? user.user_metadata?.role) === "employee";
   }
 
   static async isOrgAdmin(user: User): Promise<boolean> {
-    try {
-      const { data, error } = await this.supabase
-        .from("users_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("deleted", false)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Erreur lors de la vérification org_admin:", error);
-        return false;
-      }
-
-      return Boolean(data);
-    } catch (error) {
-      console.error("Erreur lors de la vérification org_admin:", error);
-      return false;
-    }
+    const { data } = await this.supabase
+      .from("users_organizations")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("deleted", false)
+      .maybeSingle();
+    return data?.role === "org_admin";
   }
 
-  static async getUserRole(user: User): Promise<"system_admin" | "org_admin" | null> {
-    // Vérifier d'abord system_admin via métadonnées
-    const systemRole = user.app_metadata?.role ?? user.user_metadata?.role;
-
-    if (systemRole === "system_admin") {
-      return "system_admin";
-    }
-
-    // Vérifier org_admin via users_organizations
-    try {
-      const { data, error } = await this.supabase
-        .from("users_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("deleted", false)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Erreur lors de la récupération du rôle:", error);
-        return null;
-      }
-
-      return data ? "org_admin" : null;
-    } catch (error) {
-      console.error("Erreur lors de la récupération du rôle:", error);
-      return null;
-    }
+  static async isManager(user: User): Promise<boolean> {
+    const { data } = await this.supabase
+      .from("users_organizations")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("deleted", false)
+      .maybeSingle();
+    return data?.role === "manager";
   }
 
-  static async setUserRole(userId: string, role: "system_admin" | "org_admin"): Promise<boolean> {
-    try {
-      if (role === "system_admin") {
-        // Pour system_admin, mettre à jour les métadonnées
-        const { error } = await this.supabase.auth.admin.updateUserById(userId, {
-          app_metadata: { role: "system_admin" },
-          user_metadata: { role: "system_admin" },
-        });
+  static async getUserRole(user: User): Promise<AppRole> {
+    const appRole = (user.app_metadata?.role ?? user.user_metadata?.role) as string | undefined;
 
-        if (error) {
-          console.error("Erreur lors de la mise à jour des métadonnées:", error);
-          return false;
-        }
+    if (appRole === "system_admin") return "system_admin";
+    if (appRole === "commercial") return "commercial";
+    if (appRole === "employee") return "employee";
 
-        // Supprimer l'organisation si elle existe
-        await this.supabase
-          .from("users_organizations")
-          .update({ deleted: true })
-          .eq("user_id", userId)
-          .eq("deleted", false);
+    const { data } = await this.supabase
+      .from("users_organizations")
+      .select("role, establishment_id, organization_id")
+      .eq("user_id", user.id)
+      .eq("deleted", false)
+      .maybeSingle();
 
-        return true;
-      } else {
-        // Pour org_admin, on ne met pas à jour les métadonnées
-        // L'organisation est gérée via users_organizations
-        return true;
-      }
-    } catch (error) {
-      console.error("Erreur lors de la définition du rôle:", error);
-      return false;
-    }
+    if (data?.role === "org_admin") return "org_admin";
+    if (data?.role === "manager") return "manager";
+
+    return null;
+  }
+
+  static async getUserOrgContext(user: User) {
+    const { data } = await this.supabase
+      .from("users_organizations")
+      .select("organization_id, role, establishment_id")
+      .eq("user_id", user.id)
+      .eq("deleted", false)
+      .maybeSingle();
+    return data ?? null;
   }
 }
 

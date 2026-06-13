@@ -48,7 +48,7 @@ export function isPublicRoute(pathname: string): boolean {
  * Vérifie si c'est une route protégée
  */
 export function isProtectedRoute(pathname: string): boolean {
-  return pathname.startsWith("/admin") || pathname.startsWith("/dashboard");
+  return pathname.startsWith("/admin") || pathname.startsWith("/dashboard") || pathname.startsWith("/commercial");
 }
 
 /**
@@ -216,8 +216,13 @@ export function getAuthorizedRoute(userRole: string): string {
   switch (userRole) {
     case "system_admin":
       return "/admin";
+    case "commercial":
+      return "/commercial";
     case "org_admin":
+    case "manager":
       return "/dashboard";
+    case "employee":
+      return "/unauthorized";
     default:
       return "/auth/login";
   }
