@@ -20,6 +20,11 @@ export interface Lead {
   sector: string | null;
   website: string | null;
   notes: string | null;
+  // Champs Gonex (Phase 1 SQL)
+  current_software: string | null;
+  employees_count: number | null;
+  covers_per_day: number | null;
+  photo_url: string | null;
   status: LeadStatus;
   source: LeadSource;
   source_details: string | null;

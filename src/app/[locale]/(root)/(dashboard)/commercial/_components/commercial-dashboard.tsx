@@ -7,7 +7,19 @@ import { useParams } from "next/navigation";
 
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertCircle, Building2, CheckSquare, Loader2, Target, TrendingUp } from "lucide-react";
+import {
+  CalendarDays,
+  CheckSquare,
+  ClipboardCheck,
+  Euro,
+  Flag,
+  Loader2,
+  Percent,
+  Receipt,
+  RefreshCw,
+  Send,
+  Target,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,21 +39,35 @@ interface Task {
   leads: { company_name: string } | null;
 }
 
+interface ObjData {
+  target: number;
+  achieved: number;
+}
+
 interface DashboardData {
-  actifs: number;
-  gagneCeMois: number;
-  clients: number;
+  leadsATraiter: number;
+  demosPrevu: number;
+  propositions: number;
+  signatures: number;
+  objective: ObjData | null;
+  mrrTotal: number;
+  caSigne: number;
+  tauxConversion: number;
+  panierMoyen: number;
   tasks: Task[];
   recentLeads: Lead[];
 }
 
 async function loadData(userId: string): Promise<DashboardData> {
   const supabase = createClient();
-  const today = format(new Date(), "yyyy-MM-dd");
-  const monthStart = startOfMonth(new Date()).toISOString();
+  const now = new Date();
+  const today = format(now, "yyyy-MM-dd");
+  const monthStart = startOfMonth(now).toISOString();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
 
-  const [leadsRes, tasksRes, orgsRes, recentRes] = await Promise.all([
-    supabase.from("leads").select("status, converted_at").eq("assigned_to", userId).eq("deleted", false),
+  const [leadsRes, tasksRes, recentRes, objRes, subsRes, quotesRes] = await Promise.all([
+    supabase.from("leads").select("id, status").eq("assigned_to", userId).eq("deleted", false),
     supabase
       .from("lead_tasks")
       .select("id, title, type, due_date, lead_id, leads(company_name)")
@@ -51,7 +77,6 @@ async function loadData(userId: string): Promise<DashboardData> {
       .lte("due_date", today)
       .order("due_date", { ascending: true })
       .limit(10),
-    supabase.from("users_organizations").select("id").eq("user_id", userId).eq("deleted", false),
     supabase
       .from("leads")
       .select("id, company_name, contact_name, status, stage_changed_at")
@@ -60,16 +85,40 @@ async function loadData(userId: string): Promise<DashboardData> {
       .in("status", [...ACTIVE_STATUSES])
       .order("stage_changed_at", { ascending: false, nullsFirst: false })
       .limit(5),
+    supabase
+      .from("crm_commercial_objectives")
+      .select("target_amount, achieved_amount")
+      .eq("user_id", userId)
+      .eq("month", currentMonth)
+      .eq("year", currentYear)
+      .maybeSingle(),
+    supabase.from("crm_subscriptions").select("amount_monthly").eq("status", "active").eq("deleted", false),
+    supabase
+      .from("crm_quotes")
+      .select("total_ttc")
+      .eq("status", "signed")
+      .eq("created_by", userId)
+      .gte("signed_at", monthStart)
+      .eq("deleted", false),
   ]);
 
   const leads = leadsRes.data ?? [];
-  const actifs = leads.filter((l) => (ACTIVE_STATUSES as readonly string[]).includes(l.status)).length;
-  const gagneCeMois = leads.filter((l) => l.status === "won" && l.converted_at && l.converted_at >= monthStart).length;
+  const won = leads.filter((l) => l.status === "won").length;
+  const lost = leads.filter((l) => l.status === "lost").length;
+  const rawQuotes = quotesRes.data ?? [];
+  const caSigne = rawQuotes.reduce((s, q) => s + Number(q.total_ttc), 0);
+  const obj = objRes.data;
 
   return {
-    actifs,
-    gagneCeMois,
-    clients: (orgsRes.data ?? []).length,
+    leadsATraiter: leads.filter((l) => l.status === "new" || l.status === "contacted").length,
+    demosPrevu: leads.filter((l) => l.status === "demo_scheduled").length,
+    propositions: leads.filter((l) => l.status === "proposal").length,
+    signatures: leads.filter((l) => l.status === "negotiation").length,
+    objective: obj ? { target: Number(obj.target_amount), achieved: Number(obj.achieved_amount) } : null,
+    mrrTotal: (subsRes.data ?? []).reduce((s, sub) => s + Number(sub.amount_monthly), 0),
+    caSigne,
+    tauxConversion: won + lost > 0 ? Math.round((won / (won + lost)) * 100) : 0,
+    panierMoyen: rawQuotes.length > 0 ? Math.round(caSigne / rawQuotes.length) : 0,
     tasks: (tasksRes.data ?? []) as unknown as Task[],
     recentLeads: (recentRes.data ?? []) as unknown as Lead[],
   };
@@ -88,7 +137,7 @@ function KpiCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 pt-6">
+      <CardContent className="flex items-center gap-3 pt-5">
         <div className={`rounded-lg p-2 ${color}`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -101,9 +150,69 @@ function KpiCard({
   );
 }
 
+function ObjectiveCard({ objective }: { objective: ObjData | null }) {
+  const target = objective?.target ?? 0;
+  const achieved = objective?.achieved ?? 0;
+  const pct = target > 0 ? Math.min(100, Math.round((achieved / target) * 100)) : 0;
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="rounded-lg bg-purple-100 p-2 text-purple-700">
+            <Flag className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-muted-foreground text-sm">Objectif mensuel</p>
+            <p className="text-2xl font-bold">{pct}%</p>
+          </div>
+        </div>
+        <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+          <div className="h-full rounded-full bg-purple-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+        </div>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {target > 0
+            ? `${achieved.toLocaleString("fr-FR")} € / ${target.toLocaleString("fr-FR")} €`
+            : "Aucun objectif fixé"}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IndicatorCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-start gap-3 pt-5">
+        <div className="bg-muted rounded-lg p-2">
+          <Icon className="text-muted-foreground h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs">{label}</p>
+          <p className="text-lg font-bold">{value}</p>
+          {sub && <p className="text-muted-foreground text-xs">{sub}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function isOverdue(dueDate: string | null) {
   if (!dueDate) return false;
   return dueDate < format(new Date(), "yyyy-MM-dd");
+}
+
+function fmtEur(n: number) {
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 }
 
 export function CommercialDashboard() {
@@ -141,26 +250,27 @@ export function CommercialDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Target} label="Leads actifs" value={data.actifs} color="bg-blue-100 text-blue-700" />
+      {/* KPI — pipeline statuts + objectif */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <KpiCard icon={Target} label="Leads à traiter" value={data.leadsATraiter} color="bg-blue-100 text-blue-700" />
         <KpiCard
-          icon={TrendingUp}
-          label="Gagnés ce mois"
-          value={data.gagneCeMois}
-          color="bg-green-100 text-green-700"
+          icon={CalendarDays}
+          label="Démos prévues"
+          value={data.demosPrevu}
+          color="bg-violet-100 text-violet-700"
         />
-        <KpiCard icon={Building2} label="Clients assignés" value={data.clients} color="bg-violet-100 text-violet-700" />
+        <KpiCard icon={Send} label="Propositions" value={data.propositions} color="bg-amber-100 text-amber-700" />
         <KpiCard
-          icon={AlertCircle}
-          label="Tâches en attente"
-          value={data.tasks.length}
-          color="bg-amber-100 text-amber-700"
+          icon={ClipboardCheck}
+          label="Signatures att."
+          value={data.signatures}
+          color="bg-orange-100 text-orange-700"
         />
+        <ObjectiveCard objective={data.objective} />
       </div>
 
+      {/* Tâches en retard + Pipeline */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Tâches en retard / du jour */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -175,7 +285,7 @@ export function CommercialDashboard() {
           </CardHeader>
           <CardContent>
             {data.tasks.length === 0 ? (
-              <p className="text-muted-foreground py-4 text-center text-sm">Aucune tâche en attente</p>
+              <p className="text-muted-foreground py-4 text-center text-sm">Aucune tâche en retard</p>
             ) : (
               <ul className="divide-y">
                 {data.tasks.map((task) => {
@@ -192,7 +302,7 @@ export function CommercialDashboard() {
                         <span
                           className={`shrink-0 text-xs font-medium ${overdue ? "text-red-600" : "text-muted-foreground"}`}
                         >
-                          {overdue ? "En retard · " : ""}
+                          {overdue ? "Retard · " : ""}
                           {format(new Date(`${task.due_date}T00:00:00`), "d MMM", { locale: fr })}
                         </span>
                       )}
@@ -204,7 +314,6 @@ export function CommercialDashboard() {
           </CardContent>
         </Card>
 
-        {/* Leads actifs récents */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -245,6 +354,34 @@ export function CommercialDashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Indicateurs financiers */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Indicateurs du mois</h2>
+          <Link href={`/${locale}/commercial/rapports`}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs">
+              Voir les rapports →
+            </Button>
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <IndicatorCard icon={Euro} label="CA signé ce mois" value={fmtEur(data.caSigne)} />
+          <IndicatorCard
+            icon={RefreshCw}
+            label="MRR prévisionnel"
+            value={fmtEur(data.mrrTotal)}
+            sub="abonnements actifs"
+          />
+          <IndicatorCard
+            icon={Percent}
+            label="Taux de conversion"
+            value={`${data.tauxConversion}%`}
+            sub="leads won / total closés"
+          />
+          <IndicatorCard icon={Receipt} label="Panier moyen" value={fmtEur(data.panierMoyen)} sub="devis signés" />
+        </div>
       </div>
     </div>
   );

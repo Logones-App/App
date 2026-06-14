@@ -9,14 +9,18 @@ import { fr } from "date-fns/locale";
 import {
   ArrowLeft,
   Building2,
-  CheckSquare,
   ExternalLink,
+  FileText,
   Globe,
   Loader2,
   Mail,
   MapPin,
+  Monitor,
+  Pencil,
   Phone,
   User,
+  Users,
+  Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,14 +28,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 
 import { type Lead, LEAD_STATUSES, getStatusConfig } from "../../_components/leads-types";
 
 import { ActivityFeed } from "./activity-feed";
 import { AddActivityModal } from "./add-activity-modal";
+import { AddNoteModal } from "./add-note-modal";
 import { AddTaskModal } from "./add-task-modal";
 import { ConvertLeadWizard } from "./convert-lead-modal";
+import { EditLeadModal } from "./edit-lead-modal";
 import { TaskList } from "./task-list";
 
 interface LeadActivity {
@@ -60,6 +67,35 @@ interface LeadTask {
   assignee_profile?: { full_name: string | null } | null;
 }
 
+function QualificationSection({ lead }: { lead: Lead }) {
+  if (!lead.current_software && lead.employees_count === null && lead.covers_per_day === null) return null;
+  return (
+    <div className="border-t pt-3">
+      <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">Qualification</p>
+      {lead.current_software && (
+        <div className="flex items-center gap-2">
+          <Monitor className="text-muted-foreground h-4 w-4 shrink-0" />
+          <span>{lead.current_software}</span>
+        </div>
+      )}
+      {lead.employees_count !== null && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <Users className="text-muted-foreground h-4 w-4 shrink-0" />
+          <span>
+            {lead.employees_count} personne{lead.employees_count > 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+      {lead.covers_per_day !== null && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <Utensils className="text-muted-foreground h-4 w-4 shrink-0" />
+          <span>{lead.covers_per_day} couverts / jour</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   id: string;
   locale: string;
@@ -72,8 +108,10 @@ export function LeadDetail({ id, locale }: Props) {
   const [tasks, setTasks] = useState<LeadTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddActivity, setShowAddActivity] = useState(false);
+  const [showAddNote, setShowAddNote] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   async function loadLead() {
     const supabase = createClient();
@@ -103,13 +141,12 @@ export function LeadDetail({ id, locale }: Props) {
     setTasks((data ?? []) as unknown as LeadTask[]);
   }
 
-  async function loadAll() {
-    await Promise.all([loadLead(), loadActivities(), loadTasks()]);
-    setIsLoading(false);
-  }
-
   useEffect(() => {
-    void loadAll();
+    async function init() {
+      await Promise.all([loadLead(), loadActivities(), loadTasks()]);
+      setIsLoading(false);
+    }
+    void init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -151,6 +188,8 @@ export function LeadDetail({ id, locale }: Props) {
   }
 
   const status = getStatusConfig(lead.status);
+  const nonNoteActivities = activities.filter((a) => a.type !== "note");
+  const noteActivities = activities.filter((a) => a.type === "note");
 
   return (
     <div className="flex flex-col gap-6">
@@ -172,29 +211,41 @@ export function LeadDetail({ id, locale }: Props) {
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Select value={lead.status} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-44">
-              <Badge className={`border-0 ${status.color}`}>{status.label}</Badge>
-            </SelectTrigger>
-            <SelectContent>
-              {LEAD_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  <Badge className={`border-0 ${s.color}`}>{s.label}</Badge>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={lead.status} onValueChange={handleStatusChange}>
+          <SelectTrigger className="w-44">
+            <Badge className={`border-0 ${status.color}`}>{status.label}</Badge>
+          </SelectTrigger>
+          <SelectContent>
+            {LEAD_STATUSES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                <Badge className={`border-0 ${s.color}`}>{s.label}</Badge>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Colonne gauche : infos */}
-        <div className="flex flex-col gap-4 lg:col-span-1">
+      {/* Onglets */}
+      <Tabs defaultValue="info">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="info">Informations</TabsTrigger>
+          <TabsTrigger value="activities">
+            Activités {nonNoteActivities.length > 0 && `(${nonNoteActivities.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="tasks">Tâches {tasks.length > 0 && `(${tasks.length})`}</TabsTrigger>
+          <TabsTrigger value="notes">Notes {noteActivities.length > 0 && `(${noteActivities.length})`}</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
+
+        {/* Informations */}
+        <TabsContent value="info" className="mt-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Informations</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base">Informations du lead</CardTitle>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowEdit(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Éditer
+              </Button>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {lead.contact_name && (
@@ -244,11 +295,15 @@ export function LeadDetail({ id, locale }: Props) {
                   </a>
                 </div>
               )}
+
+              <QualificationSection lead={lead} />
+
               {lead.notes && (
                 <div className="border-t pt-2">
                   <p className="text-muted-foreground text-xs whitespace-pre-wrap">{lead.notes}</p>
                 </div>
               )}
+
               {lead.converted_org_id && (
                 <div className="border-t pt-2">
                   <Button
@@ -264,40 +319,73 @@ export function LeadDetail({ id, locale }: Props) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Tâches */}
+        {/* Activités */}
+        <TabsContent value="activities" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="flex items-center gap-1.5 text-base">
-                <CheckSquare className="h-4 w-4" />
-                Tâches
-              </CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowAddTask(true)}>
-                + Ajouter
+              <CardTitle className="text-base">Historique des activités</CardTitle>
+              <Button size="sm" onClick={() => setShowAddActivity(true)}>
+                + Activité
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ActivityFeed activities={nonNoteActivities} lead={lead} onRefresh={loadActivities} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tâches */}
+        <TabsContent value="tasks" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base">Tâches</CardTitle>
+              <Button size="sm" onClick={() => setShowAddTask(true)}>
+                + Tâche
               </Button>
             </CardHeader>
             <CardContent>
               <TaskList tasks={tasks} onRefresh={loadTasks} />
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        {/* Colonne droite : activités */}
-        <div className="lg:col-span-2">
-          <Card className="h-full">
+        {/* Notes */}
+        <TabsContent value="notes" className="mt-4">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Historique</CardTitle>
-              <Button size="sm" onClick={() => setShowAddActivity(true)}>
-                + Activité
+              <CardTitle className="text-base">Notes internes</CardTitle>
+              <Button size="sm" onClick={() => setShowAddNote(true)}>
+                + Note
               </Button>
             </CardHeader>
             <CardContent>
-              <ActivityFeed activities={activities} lead={lead} onRefresh={loadActivities} />
+              <ActivityFeed activities={noteActivities} lead={lead} onRefresh={loadActivities} />
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
 
+        {/* Documents */}
+        <TabsContent value="documents" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4" />
+                Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed">
+                <FileText className="text-muted-foreground h-8 w-8" />
+                <p className="text-muted-foreground text-sm">Gestion des documents à venir</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modales */}
       <AddActivityModal
         open={showAddActivity}
         leadId={id}
@@ -309,6 +397,16 @@ export function LeadDetail({ id, locale }: Props) {
         }}
       />
 
+      <AddNoteModal
+        open={showAddNote}
+        leadId={id}
+        onClose={() => setShowAddNote(false)}
+        onSuccess={() => {
+          setShowAddNote(false);
+          void loadActivities();
+        }}
+      />
+
       <AddTaskModal
         open={showAddTask}
         leadId={id}
@@ -316,6 +414,16 @@ export function LeadDetail({ id, locale }: Props) {
         onSuccess={() => {
           setShowAddTask(false);
           void loadTasks();
+        }}
+      />
+
+      <EditLeadModal
+        open={showEdit}
+        lead={lead}
+        onClose={() => setShowEdit(false)}
+        onSuccess={() => {
+          setShowEdit(false);
+          void loadLead();
         }}
       />
 

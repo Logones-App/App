@@ -619,6 +619,463 @@ export type Database = {
           },
         ]
       }
+      crm_commercial_objectives: {
+        Row: {
+          achieved_amount: number
+          created_at: string
+          id: string
+          month: string
+          target_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved_amount?: number
+          created_at?: string
+          id?: string
+          month: string
+          target_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved_amount?: number
+          created_at?: string
+          id?: string
+          month?: string
+          target_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      crm_onboarding_checklists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          org_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          org_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          org_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_onboarding_checklists_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_onboarding_steps: {
+        Row: {
+          checklist_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          label: string
+          position: number
+        }
+        Insert: {
+          checklist_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+        }
+        Update: {
+          checklist_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_onboarding_steps_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "crm_onboarding_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pre_invoice_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          label: string
+          paid_at: string | null
+          pre_invoice_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          label: string
+          paid_at?: string | null
+          pre_invoice_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          label?: string
+          paid_at?: string | null
+          pre_invoice_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pre_invoice_installments_pre_invoice_id_fkey"
+            columns: ["pre_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pre_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pre_invoices: {
+        Row: {
+          commitment_months: number
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          lead_id: string | null
+          mrr: number
+          notes: string | null
+          org_id: string | null
+          pre_invoice_number: string
+          quote_id: string | null
+          status: string
+          total_ht: number
+          total_ttc: number
+          updated_at: string
+        }
+        Insert: {
+          commitment_months?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          lead_id?: string | null
+          mrr?: number
+          notes?: string | null
+          org_id?: string | null
+          pre_invoice_number?: string
+          quote_id?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          updated_at?: string
+        }
+        Update: {
+          commitment_months?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          lead_id?: string | null
+          mrr?: number
+          notes?: string | null
+          org_id?: string | null
+          pre_invoice_number?: string
+          quote_id?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pre_invoices_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pre_invoices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pre_invoices_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_products: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price_type: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_type?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_type?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_quote_items: {
+        Row: {
+          created_at: string
+          designation: string
+          id: string
+          position: number
+          price_type: string
+          product_id: string | null
+          quantity: number
+          quote_id: string
+          total_ht: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          designation: string
+          id?: string
+          position?: number
+          price_type?: string
+          product_id?: string | null
+          quantity?: number
+          quote_id: string
+          total_ht?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          designation?: string
+          id?: string
+          position?: number
+          price_type?: string
+          product_id?: string | null
+          quantity?: number
+          quote_id?: string
+          total_ht?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quote_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "crm_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          lead_id: string | null
+          notes: string | null
+          org_id: string | null
+          quote_number: string
+          sent_at: string | null
+          signed_at: string | null
+          status: string
+          total_ht: number
+          total_ttc: number
+          total_tva: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          org_id?: string | null
+          quote_number?: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_tva?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          org_id?: string | null
+          quote_number?: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_tva?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_subscriptions: {
+        Row: {
+          amount_monthly: number
+          commitment_months: number
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          name: string
+          next_billing_date: string | null
+          notes: string | null
+          org_id: string
+          product_id: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_monthly?: number
+          commitment_months?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          name: string
+          next_billing_date?: string | null
+          notes?: string | null
+          org_id: string
+          product_id?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_monthly?: number
+          commitment_months?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          name?: string
+          next_billing_date?: string | null
+          notes?: string | null
+          org_id?: string
+          product_id?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "crm_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_domains: {
         Row: {
           created_at: string | null
@@ -2642,13 +3099,17 @@ export type Database = {
           contact_phone: string | null
           converted_at: string | null
           converted_org_id: string | null
+          covers_per_day: number | null
           created_at: string | null
           created_by: string | null
+          current_software: string | null
           deleted: boolean | null
+          employees_count: number | null
           id: string
           lost_reason: string | null
           notes: string | null
           pennylane_contact_id: string | null
+          photo_url: string | null
           sector: string | null
           source: string
           source_details: string | null
@@ -2666,13 +3127,17 @@ export type Database = {
           contact_phone?: string | null
           converted_at?: string | null
           converted_org_id?: string | null
+          covers_per_day?: number | null
           created_at?: string | null
           created_by?: string | null
+          current_software?: string | null
           deleted?: boolean | null
+          employees_count?: number | null
           id?: string
           lost_reason?: string | null
           notes?: string | null
           pennylane_contact_id?: string | null
+          photo_url?: string | null
           sector?: string | null
           source?: string
           source_details?: string | null
@@ -2690,13 +3155,17 @@ export type Database = {
           contact_phone?: string | null
           converted_at?: string | null
           converted_org_id?: string | null
+          covers_per_day?: number | null
           created_at?: string | null
           created_by?: string | null
+          current_software?: string | null
           deleted?: boolean | null
+          employees_count?: number | null
           id?: string
           lost_reason?: string | null
           notes?: string | null
           pennylane_contact_id?: string | null
+          photo_url?: string | null
           sector?: string | null
           source?: string
           source_details?: string | null
