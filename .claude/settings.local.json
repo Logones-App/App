@@ -107,7 +107,8 @@
       "Bash(xargs grep -l \"assigned_to\")",
       "Bash(npm run *)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(dir /s /b \"database.types.ts\")"
+      "Bash(dir /s /b \"database.types.ts\")",
+      "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\devis\\\\_components\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
@@ -119,7 +120,8 @@
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\commercial\\leads",
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\commercial\\leads\\[id]",
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\api\\leads\\[id]",
-      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\leads"
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\leads",
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\devis"
     ]
   }
 }

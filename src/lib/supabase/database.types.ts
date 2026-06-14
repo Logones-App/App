@@ -772,6 +772,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted: boolean
+          deposit_amount: number | null
           id: string
           lead_id: string | null
           mrr: number
@@ -789,6 +790,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          deposit_amount?: number | null
           id?: string
           lead_id?: string | null
           mrr?: number
@@ -806,6 +808,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          deposit_amount?: number | null
           id?: string
           lead_id?: string | null
           mrr?: number
@@ -853,6 +856,7 @@ export type Database = {
           is_active: boolean
           name: string
           price_type: string
+          purchase_price: number
           unit_price: number
           updated_at: string
         }
@@ -866,6 +870,7 @@ export type Database = {
           is_active?: boolean
           name: string
           price_type?: string
+          purchase_price?: number
           unit_price?: number
           updated_at?: string
         }
@@ -879,6 +884,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           price_type?: string
+          purchase_price?: number
           unit_price?: number
           updated_at?: string
         }
@@ -892,6 +898,7 @@ export type Database = {
           position: number
           price_type: string
           product_id: string | null
+          purchase_price: number
           quantity: number
           quote_id: string
           total_ht: number
@@ -904,6 +911,7 @@ export type Database = {
           position?: number
           price_type?: string
           product_id?: string | null
+          purchase_price?: number
           quantity?: number
           quote_id: string
           total_ht?: number
@@ -916,6 +924,7 @@ export type Database = {
           position?: number
           price_type?: string
           product_id?: string | null
+          purchase_price?: number
           quantity?: number
           quote_id?: string
           total_ht?: number
@@ -943,6 +952,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted: boolean
+          deposit_amount: number | null
           id: string
           lead_id: string | null
           notes: string | null
@@ -955,12 +965,15 @@ export type Database = {
           total_ttc: number
           total_tva: number
           updated_at: string
+          validated_at: string | null
+          validated_by: string | null
           vat_rate: number
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          deposit_amount?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -973,12 +986,15 @@ export type Database = {
           total_ttc?: number
           total_tva?: number
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           vat_rate?: number
         }
         Update: {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          deposit_amount?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -991,6 +1007,8 @@ export type Database = {
           total_ttc?: number
           total_tva?: number
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           vat_rate?: number
         }
         Relationships: [

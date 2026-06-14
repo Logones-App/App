@@ -4,6 +4,7 @@ export interface CrmProduct {
   description: string | null;
   category: "software" | "hardware" | "service" | "other";
   unit_price: number;
+  purchase_price: number;
   price_type: "monthly" | "one_time";
   is_active: boolean;
   created_by: string | null;

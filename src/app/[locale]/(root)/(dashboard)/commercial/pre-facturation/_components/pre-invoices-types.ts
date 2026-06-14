@@ -7,6 +7,7 @@ export interface CrmPreInvoice {
   status: "draft" | "pending" | "partial" | "complete";
   total_ht: number;
   total_ttc: number;
+  deposit_amount: number | null;
   commitment_months: number;
   mrr: number;
   notes: string | null;

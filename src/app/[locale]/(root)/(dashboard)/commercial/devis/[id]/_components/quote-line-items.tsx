@@ -12,6 +12,7 @@ import { type QuoteLineDraft, fmtEur } from "../../_components/quotes-types";
 interface Props {
   items: QuoteLineDraft[];
   onChange: (items: QuoteLineDraft[]) => void;
+  readonly?: boolean;
 }
 
 function updateLine(
@@ -28,7 +29,7 @@ function updateLine(
   });
 }
 
-export function QuoteLineItems({ items, onChange }: Props) {
+export function QuoteLineItems({ items, onChange, readonly = false }: Props) {
   function handleAddLine() {
     const newLine: QuoteLineDraft = {
       tempId: crypto.randomUUID(),
@@ -36,6 +37,7 @@ export function QuoteLineItems({ items, onChange }: Props) {
       designation: "",
       quantity: 1,
       unit_price: 0,
+      purchase_price: 0,
       price_type: "one_time",
       total_ht: 0,
       position: items.length,
@@ -48,7 +50,7 @@ export function QuoteLineItems({ items, onChange }: Props) {
   }
 
   function handleChange(tempId: string, field: keyof QuoteLineDraft, raw: string) {
-    const isNum = field === "quantity" || field === "unit_price";
+    const isNum = field === "quantity" || field === "unit_price" || field === "purchase_price";
     const value = isNum ? parseFloat(raw) || 0 : raw;
     onChange(updateLine(items, tempId, field, value));
   }
@@ -56,30 +58,36 @@ export function QuoteLineItems({ items, onChange }: Props) {
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="text-muted-foreground hidden grid-cols-[1fr_60px_90px_80px_80px_32px] gap-2 px-2 text-xs sm:grid">
+      <div className="text-muted-foreground hidden grid-cols-[1fr_60px_90px_90px_80px_80px_32px] gap-2 px-2 text-xs sm:grid">
         <span>Désignation</span>
         <span className="text-right">Qté</span>
         <span className="text-right">PU HT (€)</span>
+        <span className="text-right">PA (€)</span>
         <span>Type</span>
         <span className="text-right">Total HT</span>
         <span />
       </div>
 
       {items.map((item) => (
-        <div key={item.tempId} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_60px_90px_80px_80px_32px]">
+        <div
+          key={item.tempId}
+          className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_60px_90px_90px_80px_80px_32px]"
+        >
           <Input
             value={item.designation}
             onChange={(e) => handleChange(item.tempId, "designation", e.target.value)}
             placeholder="Désignation du produit / service"
             className="text-sm"
+            readOnly={readonly}
           />
           <Input
             type="number"
             min="0"
-            step="0.01"
+            step="1"
             value={item.quantity}
             onChange={(e) => handleChange(item.tempId, "quantity", e.target.value)}
             className="hidden text-right text-sm sm:block"
+            readOnly={readonly}
           />
           <Input
             type="number"
@@ -88,8 +96,23 @@ export function QuoteLineItems({ items, onChange }: Props) {
             value={item.unit_price}
             onChange={(e) => handleChange(item.tempId, "unit_price", e.target.value)}
             className="hidden text-right text-sm sm:block"
+            readOnly={readonly}
           />
-          <Select value={item.price_type} onValueChange={(v) => handleChange(item.tempId, "price_type", v)}>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={item.purchase_price}
+            onChange={(e) => handleChange(item.tempId, "purchase_price", e.target.value)}
+            className="hidden text-right text-sm sm:block"
+            placeholder="0.00"
+            readOnly={readonly}
+          />
+          <Select
+            value={item.price_type}
+            onValueChange={(v) => handleChange(item.tempId, "price_type", v)}
+            disabled={readonly}
+          >
             <SelectTrigger className="hidden text-xs sm:flex">
               <SelectValue />
             </SelectTrigger>
@@ -103,21 +126,27 @@ export function QuoteLineItems({ items, onChange }: Props) {
               {fmtEur(item.total_ht)}
             </Badge>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
-            onClick={() => handleDelete(item.tempId)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {readonly ? (
+            <div />
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
+              onClick={() => handleDelete(item.tempId)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       ))}
 
-      <Button variant="outline" size="sm" className="mt-1 w-full" onClick={handleAddLine}>
-        <Plus className="mr-1.5 h-4 w-4" />
-        Ajouter une ligne
-      </Button>
+      {!readonly && (
+        <Button variant="outline" size="sm" className="mt-1 w-full" onClick={handleAddLine}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Ajouter une ligne
+        </Button>
+      )}
     </div>
   );
 }

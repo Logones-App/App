@@ -7362,106 +7362,140 @@ CREATE POLICY "crm_installments_update" ON "public"."crm_pre_invoice_installment
 
 
 
-CREATE POLICY "crm_objectives_insert" ON "public"."crm_commercial_objectives" FOR INSERT WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text"));
+CREATE POLICY "crm_objectives_insert" ON "public"."crm_commercial_objectives" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text"));
 
 
 
-CREATE POLICY "crm_objectives_select" ON "public"."crm_commercial_objectives" FOR SELECT USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_objectives_select" ON "public"."crm_commercial_objectives" FOR SELECT USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
-CREATE POLICY "crm_objectives_update" ON "public"."crm_commercial_objectives" FOR UPDATE USING (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text"));
+CREATE POLICY "crm_objectives_update" ON "public"."crm_commercial_objectives" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text"));
 
 
 
 ALTER TABLE "public"."crm_onboarding_checklists" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "crm_onboarding_checklists_delete" ON "public"."crm_onboarding_checklists" FOR DELETE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_onboarding_checklists_delete" ON "public"."crm_onboarding_checklists" FOR DELETE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
-CREATE POLICY "crm_onboarding_checklists_insert" ON "public"."crm_onboarding_checklists" FOR INSERT WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
+CREATE POLICY "crm_onboarding_checklists_insert" ON "public"."crm_onboarding_checklists" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
 
 
 
-CREATE POLICY "crm_onboarding_checklists_select" ON "public"."crm_onboarding_checklists" FOR SELECT USING ((("deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
-   FROM "public"."users_organizations" "uo"
-  WHERE (("uo"."organization_id" = "crm_onboarding_checklists"."org_id") AND (("uo"."user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")) AND ("uo"."deleted" = false)))))));
+CREATE POLICY "crm_onboarding_checklists_select" ON "public"."crm_onboarding_checklists" FOR SELECT USING ((("deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
+   FROM "public"."organizations" "o"
+  WHERE (("o"."id" = "crm_onboarding_checklists"."org_id") AND ("o"."deleted" = false)))))));
 
 
 
-CREATE POLICY "crm_onboarding_checklists_update" ON "public"."crm_onboarding_checklists" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_onboarding_checklists_update" ON "public"."crm_onboarding_checklists" FOR UPDATE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
 ALTER TABLE "public"."crm_onboarding_steps" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "crm_onboarding_steps_delete" ON "public"."crm_onboarding_steps" FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM "public"."crm_onboarding_checklists" "c"
+  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
+           FROM "public"."organizations" "o"
+          WHERE (("o"."id" = "c"."org_id") AND ("o"."deleted" = false)))))))));
+
+
+
 CREATE POLICY "crm_onboarding_steps_insert" ON "public"."crm_onboarding_steps" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."crm_onboarding_checklists" "c"
-  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"]))))));
+  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"]))))));
 
 
 
 CREATE POLICY "crm_onboarding_steps_select" ON "public"."crm_onboarding_steps" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM "public"."crm_onboarding_checklists" "c"
-  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ("c"."deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
-           FROM "public"."users_organizations" "uo"
-          WHERE (("uo"."organization_id" = "c"."org_id") AND (("uo"."user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")) AND ("uo"."deleted" = false)))))))));
+  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ("c"."deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
+           FROM "public"."organizations" "o"
+          WHERE (("o"."id" = "c"."org_id") AND ("o"."deleted" = false)))))))));
 
 
 
 CREATE POLICY "crm_onboarding_steps_update" ON "public"."crm_onboarding_steps" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."crm_onboarding_checklists" "c"
-  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ("c"."deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
-           FROM "public"."users_organizations" "uo"
-          WHERE (("uo"."organization_id" = "c"."org_id") AND (("uo"."user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")) AND ("uo"."deleted" = false))))))))) WITH CHECK ((EXISTS ( SELECT 1
+  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ("c"."deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
+           FROM "public"."organizations" "o"
+          WHERE (("o"."id" = "c"."org_id") AND ("o"."deleted" = false))))))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."crm_onboarding_checklists" "c"
-  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
-           FROM "public"."users_organizations" "uo"
-          WHERE (("uo"."organization_id" = "c"."org_id") AND (("uo"."user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")) AND ("uo"."deleted" = false)))))))));
+  WHERE (("c"."id" = "crm_onboarding_steps"."checklist_id") AND ("c"."deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
+           FROM "public"."organizations" "o"
+          WHERE (("o"."id" = "c"."org_id") AND ("o"."deleted" = false)))))))));
 
 
 
 ALTER TABLE "public"."crm_pre_invoice_installments" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "crm_pre_invoice_installments_delete" ON "public"."crm_pre_invoice_installments" FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM "public"."crm_pre_invoices" "pi"
+  WHERE (("pi"."id" = "crm_pre_invoice_installments"."pre_invoice_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("pi"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+
+
+
+CREATE POLICY "crm_pre_invoice_installments_insert" ON "public"."crm_pre_invoice_installments" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."crm_pre_invoices" "pi"
+  WHERE (("pi"."id" = "crm_pre_invoice_installments"."pre_invoice_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("pi"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+
+
+
+CREATE POLICY "crm_pre_invoice_installments_select" ON "public"."crm_pre_invoice_installments" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."crm_pre_invoices" "pi"
+  WHERE (("pi"."id" = "crm_pre_invoice_installments"."pre_invoice_id") AND ("pi"."deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("pi"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+
+
+
+CREATE POLICY "crm_pre_invoice_installments_update" ON "public"."crm_pre_invoice_installments" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."crm_pre_invoices" "pi"
+  WHERE (("pi"."id" = "crm_pre_invoice_installments"."pre_invoice_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("pi"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."crm_pre_invoices" "pi"
+  WHERE (("pi"."id" = "crm_pre_invoice_installments"."pre_invoice_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("pi"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+
+
+
 ALTER TABLE "public"."crm_pre_invoices" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "crm_pre_invoices_delete" ON "public"."crm_pre_invoices" FOR DELETE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_pre_invoices_delete" ON "public"."crm_pre_invoices" FOR DELETE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
-CREATE POLICY "crm_pre_invoices_insert" ON "public"."crm_pre_invoices" FOR INSERT WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
+CREATE POLICY "crm_pre_invoices_insert" ON "public"."crm_pre_invoices" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
 
 
 
-CREATE POLICY "crm_pre_invoices_select" ON "public"."crm_pre_invoices" FOR SELECT USING ((("deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))));
+CREATE POLICY "crm_pre_invoices_select" ON "public"."crm_pre_invoices" FOR SELECT USING ((("deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))));
 
 
 
-CREATE POLICY "crm_pre_invoices_update" ON "public"."crm_pre_invoices" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_pre_invoices_update" ON "public"."crm_pre_invoices" FOR UPDATE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
 ALTER TABLE "public"."crm_products" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "crm_products_delete" ON "public"."crm_products" FOR DELETE USING (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text"));
+CREATE POLICY "crm_products_delete" ON "public"."crm_products" FOR DELETE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text"));
 
 
 
-CREATE POLICY "crm_products_insert" ON "public"."crm_products" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") AND (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_products_insert" ON "public"."crm_products" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text"));
 
 
 
-CREATE POLICY "crm_products_select" ON "public"."crm_products" FOR SELECT USING ((("deleted" = false) AND ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"]))));
+CREATE POLICY "crm_products_select" ON "public"."crm_products" FOR SELECT USING ((("deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"]))));
 
 
 
-CREATE POLICY "crm_products_update" ON "public"."crm_products" FOR UPDATE USING (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text"));
+CREATE POLICY "crm_products_update" ON "public"."crm_products" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text"));
 
 
 
@@ -7470,67 +7504,65 @@ ALTER TABLE "public"."crm_quote_items" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "crm_quote_items_delete" ON "public"."crm_quote_items" FOR DELETE USING ((EXISTS ( SELECT 1
    FROM "public"."crm_quotes" "q"
-  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
 
 
 
 CREATE POLICY "crm_quote_items_insert" ON "public"."crm_quote_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."crm_quotes" "q"
-  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
 
 
 
 CREATE POLICY "crm_quote_items_select" ON "public"."crm_quote_items" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM "public"."crm_quotes" "q"
-  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ("q"."deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ("q"."deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
 
 
 
 CREATE POLICY "crm_quote_items_update" ON "public"."crm_quote_items" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."crm_quotes" "q"
-  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))))))) WITH CHECK ((EXISTS ( SELECT 1
+  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."crm_quotes" "q"
-  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
+  WHERE (("q"."id" = "crm_quote_items"."quote_id") AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("q"."created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))))));
 
 
 
 ALTER TABLE "public"."crm_quotes" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "crm_quotes_delete" ON "public"."crm_quotes" FOR DELETE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_quotes_delete" ON "public"."crm_quotes" FOR DELETE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
-CREATE POLICY "crm_quotes_insert" ON "public"."crm_quotes" FOR INSERT WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
+CREATE POLICY "crm_quotes_insert" ON "public"."crm_quotes" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
 
 
 
-CREATE POLICY "crm_quotes_select" ON "public"."crm_quotes" FOR SELECT USING ((("deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))));
+CREATE POLICY "crm_quotes_select" ON "public"."crm_quotes" FOR SELECT USING ((("deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))));
 
 
 
-CREATE POLICY "crm_quotes_update" ON "public"."crm_quotes" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_quotes_update" ON "public"."crm_quotes" FOR UPDATE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
 ALTER TABLE "public"."crm_subscriptions" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "crm_subscriptions_delete" ON "public"."crm_subscriptions" FOR DELETE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_subscriptions_delete" ON "public"."crm_subscriptions" FOR DELETE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 
-CREATE POLICY "crm_subscriptions_insert" ON "public"."crm_subscriptions" FOR INSERT WITH CHECK (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
+CREATE POLICY "crm_subscriptions_insert" ON "public"."crm_subscriptions" FOR INSERT WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'commercial'::"text", 'account_manager'::"text"])));
 
 
 
-CREATE POLICY "crm_subscriptions_select" ON "public"."crm_subscriptions" FOR SELECT USING ((("deleted" = false) AND (((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (EXISTS ( SELECT 1
-   FROM "public"."users_organizations" "uo"
-  WHERE (("uo"."organization_id" = "crm_subscriptions"."org_id") AND (("uo"."user_id")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")) AND ("uo"."deleted" = false)))))));
+CREATE POLICY "crm_subscriptions_select" ON "public"."crm_subscriptions" FOR SELECT USING ((("deleted" = false) AND ((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))));
 
 
 
-CREATE POLICY "crm_subscriptions_update" ON "public"."crm_subscriptions" FOR UPDATE USING ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK ((((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
+CREATE POLICY "crm_subscriptions_update" ON "public"."crm_subscriptions" FOR UPDATE USING (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text")))) WITH CHECK (((((("current_setting"('request.jwt.claims'::"text", true))::"json" -> 'app_metadata'::"text") ->> 'role'::"text") = 'system_admin'::"text") OR (("created_by")::"text" = (("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))));
 
 
 

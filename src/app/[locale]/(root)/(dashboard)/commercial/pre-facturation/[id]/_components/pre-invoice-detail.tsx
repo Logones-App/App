@@ -140,17 +140,18 @@ export function PreInvoiceDetail({ id, locale }: Props) {
     if (!pi) return;
     const supabase = createClient();
     await supabase.from("crm_pre_invoice_installments").delete().eq("pre_invoice_id", id);
-    const acompte = Math.round(pi.total_ttc * 0.3 * 100) / 100;
     const today = new Date();
-    const rows = [
-      {
+    const acompte = pi.deposit_amount ?? 0;
+    const rows: { pre_invoice_id: string; label: string; amount: number; due_date: string; status: string }[] = [];
+    if (acompte > 0) {
+      rows.push({
         pre_invoice_id: id,
-        label: "Acompte 30%",
+        label: "Acompte",
         amount: acompte,
         due_date: format(today, "yyyy-MM-dd"),
         status: "pending",
-      },
-    ];
+      });
+    }
     for (let m = 1; m <= pi.commitment_months; m++) {
       rows.push({
         pre_invoice_id: id,

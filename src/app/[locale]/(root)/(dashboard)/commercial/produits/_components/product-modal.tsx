@@ -28,6 +28,7 @@ interface FormState {
   description: string;
   category: string;
   unit_price: string;
+  purchase_price: string;
   price_type: string;
   is_active: boolean;
 }
@@ -39,6 +40,7 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
     description: "",
     category: "service",
     unit_price: "",
+    purchase_price: "",
     price_type: "monthly",
     is_active: true,
   });
@@ -50,6 +52,7 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
       description: product?.description ?? "",
       category: product?.category ?? "service",
       unit_price: product ? String(product.unit_price) : "",
+      purchase_price: product ? String(product.purchase_price) : "",
       price_type: product?.price_type ?? "monthly",
       is_active: product?.is_active ?? true,
     });
@@ -69,6 +72,7 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
       toast.error("Le prix doit être un nombre positif");
       return;
     }
+    const purchasePrice = parseFloat(form.purchase_price) || 0;
     setIsLoading(true);
     try {
       const supabase = createClient();
@@ -84,6 +88,7 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
         description: form.description.trim() || null,
         category: form.category,
         unit_price: price,
+        purchase_price: purchasePrice,
         price_type: form.price_type,
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
@@ -162,16 +167,29 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
               </Select>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Prix (€ HT)</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.unit_price}
-              onChange={(e) => set("unit_price", e.target.value)}
-              placeholder="0.00"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Prix de vente (€ HT)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.unit_price}
+                onChange={(e) => set("unit_price", e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Prix d&apos;achat (€)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.purchase_price}
+                onChange={(e) => set("purchase_price", e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox

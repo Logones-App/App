@@ -3,14 +3,17 @@ export interface CrmQuote {
   lead_id: string | null;
   org_id: string | null;
   quote_number: string;
-  status: "draft" | "sent" | "signed" | "rejected";
+  status: "draft" | "pending_validation" | "validated" | "sent" | "signed" | "rejected";
   vat_rate: number;
   total_ht: number;
   total_tva: number;
   total_ttc: number;
+  deposit_amount: number | null;
   notes: string | null;
   sent_at: string | null;
   signed_at: string | null;
+  validated_at: string | null;
+  validated_by: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -26,6 +29,7 @@ export interface CrmQuoteItem {
   designation: string;
   quantity: number;
   unit_price: number;
+  purchase_price: number;
   price_type: "monthly" | "one_time";
   total_ht: number;
   position: number;
@@ -38,6 +42,7 @@ export interface QuoteLineDraft {
   designation: string;
   quantity: number;
   unit_price: number;
+  purchase_price: number;
   price_type: "monthly" | "one_time";
   total_ht: number;
   position: number;
@@ -45,6 +50,8 @@ export interface QuoteLineDraft {
 
 export const QUOTE_STATUSES = [
   { value: "draft", label: "Brouillon", color: "bg-gray-100 text-gray-700" },
+  { value: "pending_validation", label: "En attente validation", color: "bg-amber-100 text-amber-700" },
+  { value: "validated", label: "Validé", color: "bg-violet-100 text-violet-700" },
   { value: "sent", label: "Envoyé", color: "bg-blue-100 text-blue-700" },
   { value: "signed", label: "Signé", color: "bg-green-100 text-green-700" },
   { value: "rejected", label: "Refusé", color: "bg-red-100 text-red-700" },

@@ -81,6 +81,7 @@ export function QuoteBuilder({ id, locale }: Props) {
       designation: product.name,
       quantity: 1,
       unit_price: product.unit_price,
+      purchase_price: product.purchase_price,
       price_type: product.price_type,
       total_ht: product.unit_price,
       position: lines.length,
@@ -124,6 +125,7 @@ export function QuoteBuilder({ id, locale }: Props) {
             designation: l.designation,
             quantity: l.quantity,
             unit_price: l.unit_price,
+            purchase_price: l.purchase_price,
             price_type: l.price_type,
             total_ht: l.total_ht,
             position: idx,
@@ -179,6 +181,16 @@ export function QuoteBuilder({ id, locale }: Props) {
         </div>
         <div className="flex gap-2">
           {quote.status === "draft" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSave("pending_validation")}
+              disabled={isSaving}
+            >
+              Demander validation
+            </Button>
+          )}
+          {quote.status === "validated" && (
             <Button variant="outline" size="sm" onClick={() => void handleSave("sent")} disabled={isSaving}>
               Marquer envoyé
             </Button>
@@ -193,10 +205,12 @@ export function QuoteBuilder({ id, locale }: Props) {
               </Button>
             </>
           )}
-          <Button size="sm" onClick={() => void handleSave()} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Sauvegarder
-          </Button>
+          {(quote.status === "draft" || quote.status === "pending_validation") && (
+            <Button size="sm" onClick={() => void handleSave()} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sauvegarder
+            </Button>
+          )}
         </div>
       </div>
 
