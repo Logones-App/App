@@ -27,11 +27,36 @@ export function CommercialOrganizationsList() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: orgLinks } = await supabase
+        .from("users_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .eq("deleted", false);
+
+      const orgIds = (orgLinks ?? []).map((r) => r.organization_id).filter(Boolean);
+
+      if (orgIds.length === 0) {
+        setOrganizations([]);
+        setIsLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("organizations")
         .select("*, establishments(id, name, deleted)")
         .eq("deleted", false)
+        .in("id", orgIds)
         .order("name");
+
       setOrganizations((data ?? []) as Organization[]);
       setIsLoading(false);
     }

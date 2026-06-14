@@ -35,7 +35,7 @@ import { CreateUserModal, type CreateUserResult, type OrgOption } from "./_compo
 import { ManageOrgsModal } from "./_components/manage-orgs-modal";
 import { UsersTable, type UserRow } from "./_components/users-table";
 
-type RoleFilter = "all" | "system_admin" | "commercial" | "org_admin" | "manager" | "employee";
+type RoleFilter = "all" | "system_admin" | "commercial" | "account_manager" | "org_admin" | "manager" | "employee";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -223,6 +223,7 @@ export default function AdminUsersPage() {
                 <SelectItem value="all">Tous les rôles</SelectItem>
                 <SelectItem value="system_admin">System Admin</SelectItem>
                 <SelectItem value="commercial">Commercial</SelectItem>
+                <SelectItem value="account_manager">Account Manager</SelectItem>
                 <SelectItem value="org_admin">Org Admin</SelectItem>
                 <SelectItem value="manager">Manager</SelectItem>
                 <SelectItem value="employee">Employé</SelectItem>

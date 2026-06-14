@@ -33,7 +33,8 @@ export function ManageOrgsModal({ user, organizations, onClose, onSuccess }: Pro
   const unassigned = organizations.filter((o) => !assignedIds.has(o.id));
 
   // org_admin et manager : une seule org autorisée
-  const canAddOrg = user.role === "commercial" || user.organizations.length === 0;
+  const isMultiOrgRole = user.role === "commercial" || user.role === "account_manager";
+  const canAddOrg = isMultiOrgRole || user.organizations.length === 0;
 
   async function removeOrg(orgId: string) {
     setLoadingId(`remove-${orgId}`);

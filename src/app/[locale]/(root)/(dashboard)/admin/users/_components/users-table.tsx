@@ -31,6 +31,7 @@ export interface UserRow {
 const ROLE_LABELS: Record<string, string> = {
   system_admin: "System Admin",
   commercial: "Commercial",
+  account_manager: "Account Manager",
   org_admin: "Org Admin",
   manager: "Manager",
   employee: "Employé",
@@ -40,6 +41,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   system_admin: "destructive",
   commercial: "default",
+  account_manager: "default",
   org_admin: "secondary",
   manager: "outline",
   employee: "outline",
