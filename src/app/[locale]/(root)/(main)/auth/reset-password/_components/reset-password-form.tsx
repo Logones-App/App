@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ export function ResetPasswordForm() {
   const router = useRouter();
   const t = useTranslations("common");
   const [sessionReady, setSessionReady] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [linkError, setLinkError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -55,19 +57,21 @@ export function ResetPasswordForm() {
     if (error) {
       const msg =
         errorCode === "otp_expired"
-          ? "Ce lien a expiré. Demandez un nouveau lien d'invitation."
+          ? "Ce lien a expiré (valable 1 heure). Demandez un nouveau lien d'invitation."
           : "Lien invalide. Demandez un nouveau lien d'invitation.";
       setLinkError(msg);
+      setChecking(false);
       return;
     }
 
     if (accessToken && refreshToken && type === "recovery") {
       supabase.auth
         .setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ data, error }) => {
-          if (!error && data.session) setSessionReady(true);
+        .then(({ data, error: sessErr }) => {
+          if (!sessErr && data.session) setSessionReady(true);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setChecking(false));
       return;
     }
 
@@ -77,7 +81,8 @@ export function ResetPasswordForm() {
       .then(({ data }) => {
         if (data.session) setSessionReady(true);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setChecking(false));
   }, []);
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
@@ -99,6 +104,15 @@ export function ResetPasswordForm() {
       toast.error(t("error"));
     }
   };
+
+  if (checking) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8">
+        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <p className="text-muted-foreground text-sm">Vérification du lien…</p>
+      </div>
+    );
+  }
 
   if (linkError) {
     return (

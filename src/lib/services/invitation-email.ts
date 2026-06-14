@@ -29,7 +29,7 @@ export async function sendInvitationEmail(to: string, name: string, actionLink: 
                 Définir mon mot de passe
               </a>
             </p>
-            <p style="color:#71717a;font-size:13px">Ce lien est valable 24 heures.</p>
+            <p style="color:#71717a;font-size:13px">Ce lien est valable 1 heure et ne peut être utilisé qu&apos;une seule fois.</p>
           </div>
         `,
       }),
