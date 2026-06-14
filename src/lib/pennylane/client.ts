@@ -1,10 +1,14 @@
 const PENNYLANE_BASE = "https://app.pennylane.com/api/external/v2";
 
+function activeToken() {
+  return process.env.PENNYLANE_API_TOKEN_SANDBOX ?? process.env.PENNYLANE_API_TOKEN;
+}
+
 function headers() {
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
-    Authorization: `Bearer ${process.env.PENNYLANE_API_TOKEN}`,
+    Authorization: `Bearer ${activeToken()}`,
   };
 }
 
