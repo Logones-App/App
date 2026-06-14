@@ -72,6 +72,9 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
     setIsLoading(true);
     try {
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || null,
@@ -83,7 +86,7 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
       };
       const { error } = product
         ? await supabase.from("crm_products").update(payload).eq("id", product.id)
-        : await supabase.from("crm_products").insert({ ...payload });
+        : await supabase.from("crm_products").insert({ ...payload, created_by: user?.id ?? null });
       if (error) throw error;
       toast.success(product ? "Produit mis à jour" : "Produit créé");
       onSuccess();
