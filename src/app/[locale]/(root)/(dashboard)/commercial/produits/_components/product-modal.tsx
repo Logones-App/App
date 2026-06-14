@@ -75,6 +75,10 @@ export function ProductModal({ open, product, onClose, onSuccess }: Props) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!product && !user) {
+        toast.error("Session expirée, reconnectez-vous");
+        return;
+      }
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || null,

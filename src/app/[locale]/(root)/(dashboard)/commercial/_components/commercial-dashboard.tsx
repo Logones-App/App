@@ -63,8 +63,7 @@ async function loadData(userId: string): Promise<DashboardData> {
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
   const monthStart = startOfMonth(now).toISOString();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
+  const currentMonthStr = format(now, "yyyy-MM");
 
   const [leadsRes, tasksRes, recentRes, objRes, subsRes, quotesRes] = await Promise.all([
     supabase.from("leads").select("id, status").eq("assigned_to", userId).eq("deleted", false),
@@ -89,8 +88,7 @@ async function loadData(userId: string): Promise<DashboardData> {
       .from("crm_commercial_objectives")
       .select("target_amount, achieved_amount")
       .eq("user_id", userId)
-      .filter("month", "eq", String(currentMonth))
-      .filter("year", "eq", String(currentYear))
+      .filter("month", "eq", currentMonthStr)
       .maybeSingle(),
     supabase.from("crm_subscriptions").select("amount_monthly").eq("status", "active").eq("deleted", false),
     supabase
