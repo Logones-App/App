@@ -89,8 +89,8 @@ async function loadData(userId: string): Promise<DashboardData> {
       .from("crm_commercial_objectives")
       .select("target_amount, achieved_amount")
       .eq("user_id", userId)
-      .eq("month", currentMonth)
-      .eq("year", currentYear)
+      .filter("month", "eq", String(currentMonth))
+      .filter("year", "eq", String(currentYear))
       .maybeSingle(),
     supabase.from("crm_subscriptions").select("amount_monthly").eq("status", "active").eq("deleted", false),
     supabase

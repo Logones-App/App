@@ -104,7 +104,9 @@
       "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\api\\\\leads\\\\[id]\\\\email\" *)",
       "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\leads\\\\_components\")",
       "Bash(git diff *)",
-      "Bash(xargs grep -l \"assigned_to\")"
+      "Bash(xargs grep -l \"assigned_to\")",
+      "Bash(npm run *)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
