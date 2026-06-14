@@ -16,7 +16,7 @@ export async function sendInvitationEmail(to: string, name: string, actionLink: 
       method: "POST",
       headers: { "Content-Type": "application/json", "api-key": brevoApiKey },
       body: JSON.stringify({
-        sender: { name: "Logones", email: process.env.EMAIL_FROM ?? "noreply@logones.fr" },
+        sender: { name: "Logones", email: process.env.EMAIL_FROM ?? "no-reply@logones.fr" },
         to: [{ email: to, name: displayName }],
         subject: "Votre accès à la plateforme Logones",
         htmlContent: `

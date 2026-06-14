@@ -15,6 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+function getPasswordErrorMessage(msg: string): string {
+  if (msg.includes("different from the old password") || msg.includes("same as the old password"))
+    return "Le nouveau mot de passe doit être différent de l'ancien.";
+  if (msg.includes("at least") || msg.includes("too short"))
+    return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (msg.includes("too weak") || msg.includes("weak"))
+    return "Le mot de passe est trop faible. Ajoutez des chiffres ou des caractères spéciaux.";
+  if (msg.includes("session") || msg.includes("Auth session missing"))
+    return "Session expirée. Redemandez un lien d'invitation.";
+  return msg;
+}
+
 const FormSchema = z
   .object({
     password: z.string().min(8, { message: "Le mot de passe doit contenir au moins 8 caractères." }),
@@ -94,14 +106,15 @@ export function ResetPasswordForm() {
 
       if (error) {
         console.error("Update password error:", error);
-        toast.error(t("error"));
+        const msg = getPasswordErrorMessage(error.message);
+        toast.error(msg);
       } else {
-        toast.success(t("success"));
+        toast.success("Mot de passe défini avec succès !");
         router.push("/auth/login");
       }
     } catch (error) {
       console.error("Update password error:", error);
-      toast.error(t("error"));
+      toast.error("Une erreur inattendue est survenue.");
     }
   };
 

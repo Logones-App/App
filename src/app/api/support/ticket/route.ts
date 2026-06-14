@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json", "api-key": brevoApiKey },
         body: JSON.stringify({
-          sender: { name: "Logones Support", email: "noreply@logones.com" },
+          sender: { name: "Logones Support", email: "no-reply@logones.fr" },
           to: [{ email: "dev@logones.fr" }],
           subject: `[Support] Nouveau ticket — ${subject}`,
           htmlContent: `<h2>Nouveau ticket de support</h2><table style="font-family:sans-serif;font-size:14px;"><tr><td style="padding:4px 12px 4px 0"><strong>Client</strong></td><td>${customerName}</td></tr><tr><td style="padding:4px 12px 4px 0"><strong>Email</strong></td><td>${customerEmail}</td></tr><tr><td style="padding:4px 12px 4px 0"><strong>Sujet</strong></td><td>${subject}</td></tr><tr><td style="padding:4px 12px 4px 0"><strong>ID</strong></td><td>${ticket.id}</td></tr></table><br><a href="https://app.logones.fr/fr/admin/support" style="background:#000;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">Voir le ticket</a>`,
