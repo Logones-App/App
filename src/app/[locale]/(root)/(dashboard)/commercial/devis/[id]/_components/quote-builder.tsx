@@ -43,6 +43,7 @@ export function QuoteBuilder({ id, locale }: Props) {
   const [vatRate, setVatRate] = useState("20");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -87,6 +88,25 @@ export function QuoteBuilder({ id, locale }: Props) {
       position: lines.length,
     };
     setLines((prev) => [...prev, newLine]);
+  }
+
+  async function handleSendPennylane() {
+    if (!quote) return;
+    setIsSending(true);
+    try {
+      const res = await fetch(`/api/quotes/${id}/send`, { method: "POST" });
+      const json = (await res.json()) as { error?: string; pennylane_quote_id?: number };
+      if (!res.ok) {
+        toast.error(json.error ?? "Erreur Pennylane");
+        return;
+      }
+      setQuote((prev) => (prev ? { ...prev, status: "sent" as CrmQuote["status"] } : prev));
+      toast.success("Devis créé dans Pennylane");
+    } catch {
+      toast.error("Erreur réseau");
+    } finally {
+      setIsSending(false);
+    }
   }
 
   async function handleSave(newStatus?: string) {
@@ -191,8 +211,9 @@ export function QuoteBuilder({ id, locale }: Props) {
             </Button>
           )}
           {quote.status === "validated" && (
-            <Button variant="outline" size="sm" onClick={() => void handleSave("sent")} disabled={isSaving}>
-              Marquer envoyé
+            <Button variant="outline" size="sm" onClick={() => void handleSendPennylane()} disabled={isSending}>
+              {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Envoyer via Pennylane
             </Button>
           )}
           {quote.status === "sent" && (

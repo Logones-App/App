@@ -957,6 +957,7 @@ export type Database = {
           lead_id: string | null
           notes: string | null
           org_id: string | null
+          pennylane_quote_id: string | null
           quote_number: string
           sent_at: string | null
           signed_at: string | null
@@ -978,6 +979,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           org_id?: string | null
+          pennylane_quote_id?: string | null
           quote_number?: string
           sent_at?: string | null
           signed_at?: string | null
@@ -999,6 +1001,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           org_id?: string | null
+          pennylane_quote_id?: string | null
           quote_number?: string
           sent_at?: string | null
           signed_at?: string | null
@@ -3109,6 +3112,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          address: string | null
           assigned_to: string | null
           city: string | null
           company_name: string
@@ -3117,6 +3121,7 @@ export type Database = {
           contact_phone: string | null
           converted_at: string | null
           converted_org_id: string | null
+          country: string | null
           covers_per_day: number | null
           created_at: string | null
           created_by: string | null
@@ -3135,8 +3140,10 @@ export type Database = {
           status: string
           updated_at: string | null
           website: string | null
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
           assigned_to?: string | null
           city?: string | null
           company_name: string
@@ -3145,6 +3152,7 @@ export type Database = {
           contact_phone?: string | null
           converted_at?: string | null
           converted_org_id?: string | null
+          country?: string | null
           covers_per_day?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -3163,8 +3171,10 @@ export type Database = {
           status?: string
           updated_at?: string | null
           website?: string | null
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
           assigned_to?: string | null
           city?: string | null
           company_name?: string
@@ -3173,6 +3183,7 @@ export type Database = {
           contact_phone?: string | null
           converted_at?: string | null
           converted_org_id?: string | null
+          country?: string | null
           covers_per_day?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -3191,6 +3202,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           website?: string | null
+          zip_code?: string | null
         }
         Relationships: [
           {
