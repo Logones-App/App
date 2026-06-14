@@ -223,6 +223,7 @@ export function getAuthorizedRoute(userRole: string): string {
     case "system_admin":
       return "/admin";
     case "commercial":
+    case "account_manager":
       return "/commercial";
     case "org_admin":
     case "manager":

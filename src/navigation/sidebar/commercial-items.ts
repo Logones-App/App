@@ -1,4 +1,4 @@
-import { BarChart3, Building2, HeadphonesIcon, Home, Users } from "lucide-react";
+import { BarChart3, Building2, HeadphonesIcon, Home, Target, Users } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
 
@@ -25,6 +25,17 @@ export const getCommercialSidebarItems = (locale?: string): NavGroup[] => {
     },
     {
       id: 2,
+      label: "Prospection",
+      items: [
+        {
+          title: "Leads",
+          url: `${baseUrl}/commercial/leads`,
+          icon: Target,
+        },
+      ],
+    },
+    {
+      id: 3,
       label: "Mes clients",
       items: [
         {
@@ -41,7 +52,7 @@ export const getCommercialSidebarItems = (locale?: string): NavGroup[] => {
       ],
     },
     {
-      id: 3,
+      id: 4,
       label: "Support",
       items: [
         {

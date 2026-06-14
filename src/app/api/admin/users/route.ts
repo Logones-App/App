@@ -14,10 +14,13 @@ async function assertSystemAdmin() {
   return role === "system_admin" ? data.user : null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const caller = await assertSystemAdmin();
     if (!caller) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const rolesParam = request.nextUrl.searchParams.get("roles");
+    const rolesFilter = rolesParam ? rolesParam.split(",").map((r) => r.trim()) : null;
 
     const service = createServiceClient();
     const { data: authData, error } = await service.auth.admin.listUsers({ perPage: 1000 });
@@ -63,15 +66,18 @@ export async function GET() {
       if (row.auth_user_id) empByUserId.set(row.auth_user_id, row);
     }
 
-    const users = authData.users.map((u) => {
+    const allUsers = authData.users.map((u) => {
       const appRole = (u.app_metadata.role as string | undefined) ?? null;
       const userOrgs = orgsByUser.get(u.id) ?? [];
       const orgRole = userOrgs.at(0)?.role ?? null;
       const empRow = empByUserId.get(u.id) ?? null;
+      const name =
+        (u.user_metadata.full_name as string | undefined) ?? (u.user_metadata.name as string | undefined) ?? "";
       return {
         id: u.id,
         email: u.email ?? "",
-        name: (u.user_metadata.full_name as string | undefined) ?? (u.user_metadata.name as string | undefined) ?? "",
+        name,
+        full_name: name || null,
         appRole,
         orgRole,
         role: appRole ?? orgRole ?? "unknown",
@@ -86,6 +92,8 @@ export async function GET() {
         lastSignIn: u.last_sign_in_at ?? null,
       };
     });
+
+    const users = rolesFilter ? allUsers.filter((u) => rolesFilter.includes(u.appRole ?? "")) : allUsers;
 
     return NextResponse.json({ users });
   } catch (err) {

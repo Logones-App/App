@@ -2479,6 +2479,242 @@ export type Database = {
           },
         ]
       }
+      lead_activities: {
+        Row: {
+          brevo_message_id: string | null
+          content: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted: boolean | null
+          duration_minutes: number | null
+          email_subject: string | null
+          email_to: string | null
+          id: string
+          lead_id: string
+          meeting_url: string | null
+          title: string | null
+          type: string
+        }
+        Insert: {
+          brevo_message_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          duration_minutes?: number | null
+          email_subject?: string | null
+          email_to?: string | null
+          id?: string
+          lead_id: string
+          meeting_url?: string | null
+          title?: string | null
+          type: string
+        }
+        Update: {
+          brevo_message_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          duration_minutes?: number | null
+          email_subject?: string | null
+          email_to?: string | null
+          id?: string
+          lead_id?: string
+          meeting_url?: string | null
+          title?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_contacts: {
+        Row: {
+          created_at: string | null
+          deleted: boolean | null
+          email: string | null
+          first_name: string | null
+          id: string
+          is_primary: boolean | null
+          last_name: string
+          lead_id: string
+          phone: string | null
+          position: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          is_primary?: boolean | null
+          last_name: string
+          lead_id: string
+          phone?: string | null
+          position?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted?: boolean | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          is_primary?: boolean | null
+          last_name?: string
+          lead_id?: string
+          phone?: string | null
+          position?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contacts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted: boolean | null
+          due_date: string | null
+          id: string
+          lead_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          due_date?: string | null
+          id?: string
+          lead_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          due_date?: string | null
+          id?: string
+          lead_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          city: string | null
+          company_name: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          converted_at: string | null
+          converted_org_id: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted: boolean | null
+          id: string
+          lost_reason: string | null
+          notes: string | null
+          pennylane_contact_id: string | null
+          sector: string | null
+          source: string
+          source_details: string | null
+          stage_changed_at: string | null
+          status: string
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          city?: string | null
+          company_name: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          converted_org_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          pennylane_contact_id?: string | null
+          sector?: string | null
+          source?: string
+          source_details?: string | null
+          stage_changed_at?: string | null
+          status?: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          city?: string | null
+          company_name?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          converted_org_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted?: boolean | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          pennylane_contact_id?: string | null
+          sector?: string | null
+          source?: string
+          source_details?: string | null
+          stage_changed_at?: string | null
+          status?: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_org_id_fkey"
+            columns: ["converted_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_schedules: {
         Row: {
           created_at: string | null
@@ -4087,33 +4323,48 @@ export type Database = {
           created_at: string | null
           deleted: boolean | null
           description: string | null
+          gocardless_customer_id: string | null
+          gocardless_mandate_id: string | null
           id: string
           logo_url: string | null
           name: string
+          pennylane_id: string | null
           settings: Json | null
           slug: string
+          subscription_plan: string | null
+          subscription_status: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           deleted?: boolean | null
           description?: string | null
+          gocardless_customer_id?: string | null
+          gocardless_mandate_id?: string | null
           id?: string
           logo_url?: string | null
           name: string
+          pennylane_id?: string | null
           settings?: Json | null
           slug: string
+          subscription_plan?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           deleted?: boolean | null
           description?: string | null
+          gocardless_customer_id?: string | null
+          gocardless_mandate_id?: string | null
           id?: string
           logo_url?: string | null
           name?: string
+          pennylane_id?: string | null
           settings?: Json | null
           slug?: string
+          subscription_plan?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -5663,6 +5914,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auth_can_access_establishment: {
+        Args: { p_est_id: string; p_org_id: string }
+        Returns: boolean
+      }
       cleanup_expired_device_sessions: { Args: never; Returns: undefined }
       cleanup_old_cache: { Args: never; Returns: number }
       cleanup_old_email_logs: {

@@ -46,6 +46,7 @@ export const getSidebarItemsByRole = (
     case "system_admin":
       return getSystemAdminSidebarItems(locale);
     case "commercial":
+    case "account_manager":
       return getCommercialSidebarItems(locale);
     case "org_admin":
     case "manager":

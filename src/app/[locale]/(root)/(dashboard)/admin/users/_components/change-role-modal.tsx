@@ -19,10 +19,11 @@ interface Props {
   onSuccess: () => void;
 }
 
-type RoleType = "commercial" | "org_admin" | "manager";
+type RoleType = "commercial" | "account_manager" | "org_admin" | "manager";
 
 const ROLES: { value: RoleType; label: string }[] = [
   { value: "commercial", label: "Commercial" },
+  { value: "account_manager", label: "Account Manager" },
   { value: "org_admin", label: "Org Admin" },
   { value: "manager", label: "Manager" },
 ];

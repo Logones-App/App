@@ -11,6 +11,7 @@ import {
   Home,
   Settings,
   Shield,
+  Target,
   Users,
 } from "lucide-react";
 
@@ -43,6 +44,17 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
     },
     {
       id: 2,
+      label: "CRM",
+      items: [
+        {
+          title: "Leads",
+          url: `${baseUrl}/admin/leads`,
+          icon: Target,
+        },
+      ],
+    },
+    {
+      id: 3,
       label: "Administration",
       items: [
         {
@@ -124,7 +136,7 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
       ],
     },
     {
-      id: 3,
+      id: 4,
       label: "Système",
       items: [
         {
@@ -191,7 +203,7 @@ export const getSystemAdminSidebarItems = (locale?: string): NavGroup[] => {
       ],
     },
     {
-      id: 4,
+      id: 5,
       label: "Support",
       items: [
         {

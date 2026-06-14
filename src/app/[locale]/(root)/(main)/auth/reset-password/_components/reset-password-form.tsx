@@ -110,7 +110,7 @@ export function ResetPasswordForm() {
         toast.error(msg);
       } else {
         toast.success("Mot de passe défini avec succès !");
-        router.push("/auth/login");
+        router.push("/");
       }
     } catch (error) {
       console.error("Update password error:", error);
