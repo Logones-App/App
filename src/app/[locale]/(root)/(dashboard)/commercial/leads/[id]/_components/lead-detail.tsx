@@ -6,13 +6,24 @@ import { useRouter } from "next/navigation";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowLeft, Building2, CheckSquare, Globe, Loader2, Mail, MapPin, Phone, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  CheckSquare,
+  ExternalLink,
+  Globe,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 
 import { type Lead, LEAD_STATUSES, getStatusConfig } from "../../_components/leads-types";
@@ -20,6 +31,7 @@ import { type Lead, LEAD_STATUSES, getStatusConfig } from "../../_components/lea
 import { ActivityFeed } from "./activity-feed";
 import { AddActivityModal } from "./add-activity-modal";
 import { AddTaskModal } from "./add-task-modal";
+import { ConvertLeadWizard } from "./convert-lead-modal";
 import { TaskList } from "./task-list";
 
 interface LeadActivity {
@@ -61,6 +73,7 @@ export function LeadDetail({ id, locale }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showConvert, setShowConvert] = useState(false);
 
   async function loadLead() {
     const supabase = createClient();
@@ -101,6 +114,10 @@ export function LeadDetail({ id, locale }: Props) {
   }, [id]);
 
   async function handleStatusChange(status: string) {
+    if (status === "won" && !lead?.converted_org_id) {
+      setShowConvert(true);
+      return;
+    }
     const supabase = createClient();
     const { error } = await supabase
       .from("leads")
@@ -232,6 +249,19 @@ export function LeadDetail({ id, locale }: Props) {
                   <p className="text-muted-foreground text-xs whitespace-pre-wrap">{lead.notes}</p>
                 </div>
               )}
+              {lead.converted_org_id && (
+                <div className="border-t pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-full text-xs"
+                    onClick={() => router.push(`/${locale}/commercial/organizations/${lead.converted_org_id}`)}
+                  >
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                    Voir l&apos;organisation
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -286,6 +316,24 @@ export function LeadDetail({ id, locale }: Props) {
         onSuccess={() => {
           setShowAddTask(false);
           void loadTasks();
+        }}
+      />
+
+      <ConvertLeadWizard
+        open={showConvert}
+        leadId={id}
+        lead={{
+          company_name: lead.company_name,
+          contact_email: lead.contact_email,
+          contact_phone: lead.contact_phone,
+          city: lead.city,
+          website: lead.website,
+        }}
+        onClose={() => setShowConvert(false)}
+        onSuccess={() => {
+          setShowConvert(false);
+          void loadLead();
+          void loadActivities();
         }}
       />
     </div>

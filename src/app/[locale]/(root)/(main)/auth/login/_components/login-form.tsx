@@ -59,23 +59,22 @@ export function LoginFormV1() {
 
       if (response.ok) {
         const roleData = await response.json();
-        const dest =
-          roleData.role === "system_admin"
-            ? `/${locale}/admin`
-            : roleData.role === "org_admin"
-              ? `/${locale}/dashboard`
-              : `/${locale}/unauthorized`;
+        const role = roleData.role as string | null;
+        let dest = `/${locale}/unauthorized`;
+        if (role === "system_admin") dest = `/${locale}/admin`;
+        else if (role === "commercial" || role === "account_manager") dest = `/${locale}/commercial`;
+        else if (role === "org_admin" || role === "manager" || role === "employee") dest = `/${locale}/dashboard`;
         window.location.href = dest;
       } else {
         window.location.href = `/${locale}/unauthorized`;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-
+      const msg = error instanceof Error ? error.message : "";
       // Messages d'erreur plus spécifiques
-      if (error?.message?.includes("Invalid login credentials")) {
+      if (msg.includes("Invalid login credentials")) {
         toast.error(t("errors.invalid_credentials"));
-      } else if (error?.message?.includes("Email not confirmed")) {
+      } else if (msg.includes("Email not confirmed")) {
         toast.error(t("errors.email_not_confirmed"));
       } else {
         toast.error(t("errors.generic"));

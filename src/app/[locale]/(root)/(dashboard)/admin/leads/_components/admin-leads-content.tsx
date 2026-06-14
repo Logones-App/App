@@ -52,7 +52,7 @@ export function AdminLeadsContent() {
   async function loadCommercials() {
     const res = await fetch("/api/admin/users?roles=commercial,account_manager");
     if (res.ok) {
-      const data = (await res.json()) as { users: CommercialUser[] };
+      const data = (await res.json()) as { users: CommercialUser[] | null };
       setCommercials(data.users ?? []);
     }
   }
@@ -70,14 +70,16 @@ export function AdminLeadsContent() {
   async function handleAssign() {
     if (!assignModal || !selectedCommercial) return;
     setIsAssigning(true);
-    const supabase = createClient();
-    const { error } = await supabase.from("leads").update({ assigned_to: selectedCommercial }).eq("id", assignModal.id);
-
+    const res = await fetch(`/api/leads/${assignModal.id}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commercial_id: selectedCommercial }),
+    });
     setIsAssigning(false);
-    if (error) {
+    if (!res.ok) {
       toast.error("Impossible d'assigner le lead");
     } else {
-      toast.success("Lead assigné");
+      toast.success("Lead assigné — notification envoyée au commercial");
       setAssignModal(null);
       setSelectedCommercial("");
       void loadLeads();
