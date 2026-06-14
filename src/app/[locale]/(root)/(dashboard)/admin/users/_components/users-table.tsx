@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Building2, MailCheck, MoreHorizontal, Settings, Shield, Trash2, Unlink } from "lucide-react";
+import { AtSign, Building2, MailCheck, MoreHorizontal, Settings, Shield, Trash2, Unlink } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,11 +50,12 @@ interface Props {
   users: UserRow[];
   onManageOrgs: (user: UserRow) => void;
   onChangeRole: (user: UserRow) => void;
+  onChangeEmail: (user: UserRow) => void;
   onResend: (user: UserRow) => void;
   onDelete: (user: UserRow) => void;
 }
 
-export function UsersTable({ users, onManageOrgs, onChangeRole, onResend, onDelete }: Props) {
+export function UsersTable({ users, onManageOrgs, onChangeRole, onChangeEmail, onResend, onDelete }: Props) {
   if (users.length === 0) {
     return (
       <div className="text-muted-foreground flex h-32 items-center justify-center text-sm">
@@ -120,11 +121,14 @@ export function UsersTable({ users, onManageOrgs, onChangeRole, onResend, onDele
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {user.role === "employee" ? (
-                    // Actions spécifiques employé
                     <>
                       <DropdownMenuItem onClick={() => onChangeRole(user)}>
                         <Unlink className="mr-2 h-4 w-4" />
                         Changer de rôle
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onChangeEmail(user)}>
+                        <AtSign className="mr-2 h-4 w-4" />
+                        Changer l&apos;email
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onResend(user)}>
                         <MailCheck className="mr-2 h-4 w-4" />
@@ -132,7 +136,6 @@ export function UsersTable({ users, onManageOrgs, onChangeRole, onResend, onDele
                       </DropdownMenuItem>
                     </>
                   ) : (
-                    // Actions pour commercial / org_admin / manager
                     <>
                       <DropdownMenuItem onClick={() => onManageOrgs(user)}>
                         <Settings className="mr-2 h-4 w-4" />
@@ -141,6 +144,10 @@ export function UsersTable({ users, onManageOrgs, onChangeRole, onResend, onDele
                       <DropdownMenuItem onClick={() => onChangeRole(user)}>
                         <Shield className="mr-2 h-4 w-4" />
                         Changer le rôle
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onChangeEmail(user)}>
+                        <AtSign className="mr-2 h-4 w-4" />
+                        Changer l&apos;email
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onResend(user)}>
                         <MailCheck className="mr-2 h-4 w-4" />

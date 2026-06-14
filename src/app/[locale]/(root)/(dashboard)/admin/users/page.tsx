@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { ChangeEmailModal } from "./_components/change-email-modal";
 import { ChangeRoleModal } from "./_components/change-role-modal";
 import { CreateUserModal, type CreateUserResult, type OrgOption } from "./_components/create-user-modal";
 import { ManageOrgsModal } from "./_components/manage-orgs-modal";
@@ -45,6 +46,7 @@ export default function AdminUsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [managingUser, setManagingUser] = useState<UserRow | null>(null);
   const [changingRoleUser, setChangingRoleUser] = useState<UserRow | null>(null);
+  const [changingEmailUser, setChangingEmailUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -238,6 +240,7 @@ export default function AdminUsersPage() {
               users={filtered}
               onManageOrgs={(u) => setManagingUser(u)}
               onChangeRole={(u) => setChangingRoleUser(u)}
+              onChangeEmail={(u) => setChangingEmailUser(u)}
               onResend={handleResend}
               onDelete={(u) => setDeletingUser(u)}
             />
@@ -265,6 +268,8 @@ export default function AdminUsersPage() {
         onClose={() => setChangingRoleUser(null)}
         onSuccess={fetchUsers}
       />
+
+      <ChangeEmailModal user={changingEmailUser} onClose={() => setChangingEmailUser(null)} onSuccess={fetchUsers} />
 
       <Dialog
         open={!!inviteLink}

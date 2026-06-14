@@ -95,6 +95,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ ok: true });
 }
 
+// PUT /api/admin/users/[id] — change l'email
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const caller = await assertSystemAdmin();
+  if (!caller) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+  const { id } = await params;
+  const body = (await req.json()) as { email?: string };
+  const email = body.email?.trim().toLowerCase();
+
+  if (!email) return NextResponse.json({ error: "email requis" }, { status: 400 });
+
+  const service = createServiceClient();
+  const { error } = await service.auth.admin.updateUserById(id, { email, email_confirm: true });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}
+
 // POST /api/admin/users/[id] — renvoie l'email d'invitation
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const caller = await assertSystemAdmin();
