@@ -102,7 +102,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     setIsSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/table-order`, {
+      const res = await fetch(`/api/table-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
