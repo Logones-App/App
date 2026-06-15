@@ -16,7 +16,7 @@ const compat = new FlatCompat({
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
-  { ignores: [".github/", ".husky/", "node_modules/", ".next/", "src/components/ui", "*.config.ts", "*.mjs", "src/lib/supabase/database.types.ts"] },
+  { ignores: [".github/", ".husky/", "node_modules/", ".next/", "src/components/ui", "*.config.ts", "*.mjs", "src/lib/supabase/database.types.ts", "supabase/"] },
   {
     languageOptions: {
       globals: globals.browser,

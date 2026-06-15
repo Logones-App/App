@@ -33,6 +33,8 @@ import { Link } from "@/i18n/navigation";
 import { useEstablishment } from "@/lib/queries/establishments";
 import { cn } from "@/lib/utils";
 
+import { TableQrSection } from "./table-qr-section";
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 type SectionItem = {
@@ -280,6 +282,11 @@ export function EstablishmentDetailsShared({
           <GroupCard key={group.key} group={group} getLink={getLink} activeSection={activeSection} />
         ))}
       </div>
+
+      {/* ── QR codes commande par table ── */}
+      {establishment.slug && (
+        <TableQrSection establishmentId={establishmentId} establishmentSlug={establishment.slug} />
+      )}
     </div>
   );
 }

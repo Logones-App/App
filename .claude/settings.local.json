@@ -111,7 +111,8 @@
       "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(dashboard\\)\\\\admin\\\\devis\\\\_components\")",
       "WebFetch(domain:pennylane.readme.io)",
       "WebFetch(domain:help.pennylane.com)",
-      "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\lib\\\\pennylane\" && mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\api\\\\quotes\\\\[id]\\\\send\")"
+      "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\lib\\\\pennylane\" && mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\api\\\\quotes\\\\[id]\\\\send\")",
+      "Bash(xargs grep -l \"public_menu\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

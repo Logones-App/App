@@ -6113,6 +6113,70 @@ export type Database = {
           },
         ]
       }
+      table_order_requests: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          guest_name: string
+          id: string
+          items: Json
+          order_id: string | null
+          organization_id: string
+          status: string
+          table_id: string
+          table_label: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          guest_name: string
+          id?: string
+          items?: Json
+          order_id?: string | null
+          organization_id: string
+          status?: string
+          table_id: string
+          table_label: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          guest_name?: string
+          id?: string
+          items?: Json
+          order_id?: string | null
+          organization_id?: string
+          status?: string
+          table_id?: string
+          table_label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "table_order_requests_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_order_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_order_requests_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tables: {
         Row: {
           color: string
