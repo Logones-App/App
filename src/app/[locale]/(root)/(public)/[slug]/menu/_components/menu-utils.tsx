@@ -8,6 +8,7 @@ export type PublicProduct = {
   description: string | null;
   note: string | null;
   price: number | null;
+  vatRate: number | null;
   allergens: string[];
   labels: string[];
   productType: string | null;
@@ -68,7 +69,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       `id, section_id, note,
       menus_product:menus_products(
         id, price,
-        product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available)
+        product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available, vat_rate_entry:vat_rate_id(value))
       )`,
     )
     .in("section_id", sectionIds)
@@ -88,6 +89,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     portion_unit: string | null;
     portion_weight: number | null;
     is_available: boolean | null;
+    vat_rate_entry: { value: number | null } | null;
   };
   type RawItem = {
     id: string;
@@ -111,6 +113,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       description: mp.product.description,
       note: raw.note,
       price: mp.price,
+      vatRate: mp.product.vat_rate_entry?.value ?? null,
       allergens: (mp.product.allergens as string[] | null) ?? [],
       labels: (mp.product.labels as string[] | null) ?? [],
       productType: mp.product.product_type,

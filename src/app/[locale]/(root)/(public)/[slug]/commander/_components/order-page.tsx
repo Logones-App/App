@@ -24,6 +24,7 @@ type CartItem = {
   name: string;
   quantity: number;
   unitPrice: number;
+  vatRate: number | null;
 };
 
 type Step = "browse" | "checkout" | "waiting" | "confirmed";
@@ -79,6 +80,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           name: item.name,
           quantity: 1,
           unitPrice: item.price!,
+          vatRate: item.vatRate,
         },
       ];
     });
@@ -114,6 +116,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
             name: c.name,
             quantity: c.quantity,
             unit_price: c.unitPrice,
+            vat_rate: c.vatRate,
           })),
         }),
       });

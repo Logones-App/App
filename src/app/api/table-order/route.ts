@@ -9,6 +9,7 @@ interface OrderItem {
   name: string;
   quantity: number;
   unit_price: number;
+  vat_rate?: number | null;
   notes?: string;
 }
 
