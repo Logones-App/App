@@ -90,18 +90,19 @@ export function QuoteBuilder({ id, locale }: Props) {
     setLines((prev) => [...prev, newLine]);
   }
 
-  async function handleSendPennylane() {
+  async function handleSendPennylane(withEmail = false) {
     if (!quote) return;
     setIsSending(true);
     try {
-      const res = await fetch(`/api/quotes/${id}/send`, { method: "POST" });
+      const endpoint = withEmail ? `/api/quotes/${id}/send-email` : `/api/quotes/${id}/send`;
+      const res = await fetch(endpoint, { method: "POST" });
       const json = (await res.json()) as { error?: string; pennylane_quote_id?: number };
       if (!res.ok) {
         toast.error(json.error ?? "Erreur Pennylane");
         return;
       }
       setQuote((prev) => (prev ? { ...prev, status: "sent" as CrmQuote["status"] } : prev));
-      toast.success("Devis créé dans Pennylane");
+      toast.success(withEmail ? "Devis envoyé par email au client" : "Devis créé dans Pennylane");
     } catch {
       toast.error("Erreur réseau");
     } finally {
@@ -211,10 +212,16 @@ export function QuoteBuilder({ id, locale }: Props) {
             </Button>
           )}
           {quote.status === "validated" && (
-            <Button variant="outline" size="sm" onClick={() => void handleSendPennylane()} disabled={isSending}>
-              {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Envoyer via Pennylane
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => void handleSendPennylane(false)} disabled={isSending}>
+                {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Créer dans Pennylane
+              </Button>
+              <Button size="sm" onClick={() => void handleSendPennylane(true)} disabled={isSending}>
+                {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Envoyer par email
+              </Button>
+            </>
           )}
           {quote.status === "sent" && (
             <>

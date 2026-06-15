@@ -13,8 +13,7 @@ async function assertCommercial() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
   const role = (data.user.app_metadata as Record<string, unknown> | null)?.role as string | undefined;
-  const allowed = ["commercial", "account_manager", "system_admin"];
-  return allowed.includes(role ?? "") ? data.user : null;
+  return ["commercial", "account_manager", "system_admin"].includes(role ?? "") ? data.user : null;
 }
 
 interface PennylaneCustomer {
@@ -41,7 +40,6 @@ interface Lead {
   city: string | null;
   address: string | null;
   zip_code: string | null;
-  country: string | null;
   pennylane_contact_id: string | null;
 }
 
@@ -116,7 +114,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const { data: quoteData, error: quoteErr } = await service
       .from("crm_quotes")
       .select(
-        "*, leads(id, company_name, contact_first_name, contact_last_name, contact_email, city, address, zip_code, country, pennylane_contact_id), organizations(id, name, pennylane_id)",
+        "*, leads(id, company_name, contact_first_name, contact_last_name, contact_email, city, address, zip_code, pennylane_contact_id), organizations(id, name, pennylane_id)",
       )
       .eq("id", id)
       .eq("deleted", false)
@@ -125,6 +123,14 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     if (quoteErr || !quoteData) return NextResponse.json({ error: "Devis introuvable" }, { status: 404 });
     if (quoteData.status !== "validated") {
       return NextResponse.json({ error: "Le devis doit être validé avant d'être envoyé" }, { status: 400 });
+    }
+
+    const lead = quoteData.leads as unknown as Lead | null;
+    const org = quoteData.organizations as unknown as Org | null;
+
+    const recipientEmail = lead?.contact_email ?? null;
+    if (!recipientEmail) {
+      return NextResponse.json({ error: "Aucun email de contact renseigné sur le lead" }, { status: 400 });
     }
 
     const { data: itemsData } = await service
@@ -136,32 +142,45 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const items = (itemsData ?? []) as QuoteItem[];
     if (items.length === 0) return NextResponse.json({ error: "Le devis n'a aucune ligne" }, { status: 400 });
 
-    const lead = quoteData.leads as unknown as Lead | null;
-    const org = quoteData.organizations as unknown as Org | null;
-
     const customerId = await getOrCreateCustomer(service, lead, org);
 
-    const today = new Date();
-    const pennylaneQuote = await pennylanePost<PennylaneQuote>("/quotes", {
-      date: format(today, "yyyy-MM-dd"),
-      deadline: format(addDays(today, 30), "yyyy-MM-dd"),
-      customer_id: customerId,
-      currency: "EUR",
-      language: "fr_FR",
-      invoice_lines: buildInvoiceLines(items, quoteData.vat_rate),
+    let pennylaneQuoteId: number;
+
+    if (quoteData.pennylane_quote_id) {
+      pennylaneQuoteId = parseInt(quoteData.pennylane_quote_id, 10);
+    } else {
+      const today = new Date();
+      const pennylaneQuote = await pennylanePost<PennylaneQuote>("/quotes", {
+        date: format(today, "yyyy-MM-dd"),
+        deadline: format(addDays(today, 30), "yyyy-MM-dd"),
+        customer_id: customerId,
+        currency: "EUR",
+        language: "fr_FR",
+        invoice_lines: buildInvoiceLines(items, quoteData.vat_rate),
+      });
+      pennylaneQuoteId = pennylaneQuote.id;
+    }
+
+    const recipientName = lead
+      ? `${lead.contact_first_name ?? ""} ${lead.contact_last_name ?? ""}`.trim() || lead.company_name
+      : (org?.name ?? "");
+
+    await pennylanePost(`/quotes/${pennylaneQuoteId}/send-by-email`, {
+      to: [{ name: recipientName, email: recipientEmail }],
+      subject: `Devis ${quoteData.quote_number}`,
     });
 
     await service
       .from("crm_quotes")
       .update({
-        pennylane_quote_id: String(pennylaneQuote.id),
+        pennylane_quote_id: String(pennylaneQuoteId),
         status: "sent",
         sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
 
-    return NextResponse.json({ pennylane_quote_id: pennylaneQuote.id });
+    return NextResponse.json({ pennylane_quote_id: pennylaneQuoteId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     return NextResponse.json({ error: message }, { status: 500 });

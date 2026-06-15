@@ -45,6 +45,10 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
       toast.error("Le nom de l'entreprise est requis");
       return;
     }
+    if (!form.contact_email.trim()) {
+      toast.error("L'email de contact est requis");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -136,7 +140,9 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label>
+              Email <span className="text-destructive">*</span>
+            </Label>
             <Input
               type="email"
               value={form.contact_email}
