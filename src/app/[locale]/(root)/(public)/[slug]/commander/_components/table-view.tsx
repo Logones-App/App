@@ -38,13 +38,11 @@ export function TableView({
   onClearRoundError,
 }: Props) {
   const [data, setData] = useState<TableViewResponse | null>(null);
-  const [knownPaymentIds, setKnownPaymentIds] = useState<Set<string>>(new Set());
   const [tableClosed, setTableClosed] = useState(false);
 
   useEffect(() => {
     void fetchTableView(ordersId, establishmentId).then((d) => {
-      if (!d) return;
-      setData(d);
+      if (d) setData(d);
     });
   }, [ordersId, establishmentId]);
 
@@ -57,43 +55,15 @@ export function TableView({
       }, 300);
     };
 
-    const paymentsChannel = supabase
-      .channel(`table-payments-${ordersId}`)
+    // Nouveau round accepté par le POS → re-fetch
+    const requestsChannel = supabase
+      .channel(`table-requests-${ordersId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "order_payments", filter: `orders_id=eq.${ordersId}` },
+        { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `order_id=eq.${ordersId}` },
         (payload) => {
-          const id = (payload.new as { id: string }).id;
-          setKnownPaymentIds((prev) => new Set([...prev, id]));
-          refresh();
+          if ((payload.new as { status: string }).status === "accepted") refresh();
         },
-      )
-      .subscribe();
-
-    const rowsChannel = supabase
-      .channel(`table-rows-${ordersId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "order_payments_rows",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        (payload) => {
-          const ordersPaymentsId = (payload.new as { orders_payments_id: string | null }).orders_payments_id;
-          if (ordersPaymentsId && knownPaymentIds.has(ordersPaymentsId)) refresh();
-        },
-      )
-      .subscribe();
-
-    // Paiement d'un convive → re-fetch pour mettre à jour paid
-    const paidChannel = supabase
-      .channel(`table-paid-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "order_payments", filter: `orders_id=eq.${ordersId}` },
-        () => refresh(),
       )
       .subscribe();
 
@@ -110,12 +80,10 @@ export function TableView({
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(paymentsChannel);
-      void supabase.removeChannel(rowsChannel);
-      void supabase.removeChannel(paidChannel);
+      void supabase.removeChannel(requestsChannel);
       void supabase.removeChannel(ordersChannel);
     };
-  }, [ordersId, establishmentId, knownPaymentIds]);
+  }, [ordersId, establishmentId]);
 
   if (!data) {
     return (
@@ -135,14 +103,12 @@ export function TableView({
     );
   }
 
-  const allPaid = data.guests.every((g) => g.allPaid);
-
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
         <p className="text-muted-foreground text-xs">Commandes — {tableName}</p>
         <h1 className="font-bold">
-          {allPaid ? "Table réglée ✓" : `${data.guests.length} convive${data.guests.length > 1 ? "s" : ""}`}
+          {data.guests.length} convive{data.guests.length > 1 ? "s" : ""}
         </h1>
       </header>
 
@@ -158,15 +124,12 @@ export function TableView({
       <div className="space-y-4 p-4">
         {data.guests.map((guest: TableViewGuest) => (
           <div key={guest.name} className="rounded-lg border p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <User className="text-muted-foreground h-4 w-4" />
-                <span className="font-semibold">
-                  {guest.name}
-                  {guest.name === guestName && <span className="text-primary ml-1 text-xs">(vous)</span>}
-                </span>
-              </div>
-              {guest.allPaid && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            <div className="mb-2 flex items-center gap-2">
+              <User className="text-muted-foreground h-4 w-4" />
+              <span className="font-semibold">
+                {guest.name}
+                {guest.name === guestName && <span className="text-primary ml-1 text-xs">(vous)</span>}
+              </span>
             </div>
 
             <div className="space-y-1">
@@ -192,7 +155,7 @@ export function TableView({
           <span className="font-bold">{formatPrice(data.grand_total)}</span>
         </div>
 
-        {onAddRound && !allPaid && (
+        {onAddRound && (
           <Button variant="outline" className="w-full" onClick={onAddRound}>
             + Ajouter des articles
           </Button>
