@@ -63,9 +63,10 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [timedOut, setTimedOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [openOrderNames, setOpenOrderNames] = useState<string[]>([]);
-  const [isRound, setIsRound] = useState(false);
+  const [isAddingItems, setIsAddingItems] = useState(false);
   const [roundRequestId, setRoundRequestId] = useState<string | null>(null);
   const [roundError, setRoundError] = useState<string | null>(null);
+  const [pendingGuestName, setPendingGuestName] = useState<string | null>(null);
 
   useEffect(() => {
     void getPublicCarteSections(establishmentId).then(setSections);
@@ -147,6 +148,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           const row = payload.new as { status: string; rejection_reason?: string | null };
           if (row.status === "rejected") setRoundError(row.rejection_reason ?? "Articles refusés.");
           setRoundRequestId(null);
+          setPendingGuestName(null);
         },
       )
       .subscribe();
@@ -212,10 +214,11 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       const json = (await res.json()) as { id?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Erreur serveur");
       localStorage.setItem(`table_guest_${tableId}`, guestName.trim());
-      if (isRound) {
+      if (isAddingItems) {
+        setPendingGuestName(guestName.trim());
         setRoundRequestId(json.id!);
         setCart([]);
-        setIsRound(false);
+        setIsAddingItems(false);
         setStep("table-view");
       } else {
         setOrderId(json.id!);
@@ -228,9 +231,18 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     }
   }
 
-  function handleAddRound() {
+  function handleSelectGuest(name: string) {
+    setGuestName(name);
     setCart([]);
-    setIsRound(true);
+    setIsAddingItems(true);
+    setRoundError(null);
+    setStep("browse");
+  }
+
+  function handleNewGuest() {
+    setGuestName("");
+    setCart([]);
+    setIsAddingItems(true);
     setRoundError(null);
     setStep("browse");
   }
@@ -296,7 +308,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         establishmentId={establishmentId}
         tableName={tableName}
         guestName={guestName}
-        onAddRound={handleAddRound}
+        onSelectGuest={handleSelectGuest}
+        onNewGuest={handleNewGuest}
+        pendingGuestName={pendingGuestName}
         roundError={roundError}
         onClearRoundError={() => setRoundError(null)}
       />
@@ -367,9 +381,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
 
       {step === "browse" && (
         <>
-          {isRound && (
+          {isAddingItems && (
             <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
-              Ajout d&apos;articles pour <strong>{guestName}</strong>
+              Ajout d&apos;articles pour <strong>{guestName || "Nouveau convive"}</strong>
             </div>
           )}
           {sections.length === 0 && (
@@ -459,26 +473,26 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Entrez votre prénom"
-              readOnly={isRound}
-              disabled={isRound}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleSubmit();
               }}
             />
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          <p hidden={!error} className="text-destructive text-sm">
+            {error}
+          </p>
 
           <div className="flex flex-col gap-2">
             <Button onClick={() => void handleSubmit()} disabled={!guestName.trim() || isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Envoyer ma commande
             </Button>
-            {isRound ? (
+            {isAddingItems ? (
               <Button
                 variant="ghost"
                 onClick={() => {
-                  setIsRound(false);
+                  setIsAddingItems(false);
                   setCart([]);
                   setStep("table-view");
                 }}

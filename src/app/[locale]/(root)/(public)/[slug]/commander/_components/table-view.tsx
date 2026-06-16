@@ -17,7 +17,9 @@ interface Props {
   establishmentId: string;
   tableName: string;
   guestName: string;
-  onAddRound?: () => void;
+  onSelectGuest: (name: string) => void;
+  onNewGuest: () => void;
+  pendingGuestName: string | null;
   roundError?: string | null;
   onClearRoundError?: () => void;
 }
@@ -33,7 +35,9 @@ export function TableView({
   establishmentId,
   tableName,
   guestName,
-  onAddRound,
+  onSelectGuest,
+  onNewGuest,
+  pendingGuestName,
   roundError,
   onClearRoundError,
 }: Props) {
@@ -123,13 +127,23 @@ export function TableView({
 
       <div className="space-y-4 p-4">
         {data.guests.map((guest: TableViewGuest) => (
-          <div key={guest.name} className="rounded-lg border p-4">
+          <button
+            key={guest.name}
+            type="button"
+            onClick={() => onSelectGuest(guest.name)}
+            className="w-full rounded-lg border p-4 text-left transition-colors hover:bg-gray-50 active:bg-gray-100"
+          >
             <div className="mb-2 flex items-center gap-2">
-              <User className="text-muted-foreground h-4 w-4" />
+              <User className="text-muted-foreground h-4 w-4 shrink-0" />
               <span className="font-semibold">
                 {guest.name}
                 {guest.name === guestName && <span className="text-primary ml-1 text-xs">(vous)</span>}
               </span>
+              {pendingGuestName === guest.name && (
+                <span className="ml-auto rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-600">
+                  en attente
+                </span>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -147,7 +161,7 @@ export function TableView({
               <span>Sous-total</span>
               <span>{formatPrice(guest.subtotal)}</span>
             </div>
-          </div>
+          </button>
         ))}
 
         <div className="flex justify-between rounded-lg bg-black px-4 py-3 text-white">
@@ -155,11 +169,9 @@ export function TableView({
           <span className="font-bold">{formatPrice(data.grand_total)}</span>
         </div>
 
-        {onAddRound && (
-          <Button variant="outline" className="w-full" onClick={onAddRound}>
-            + Ajouter des articles
-          </Button>
-        )}
+        <Button variant="outline" className="w-full" onClick={onNewGuest}>
+          + Nouveau convive
+        </Button>
       </div>
     </div>
   );
