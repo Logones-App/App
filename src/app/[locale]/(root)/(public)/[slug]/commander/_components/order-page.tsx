@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle2, Loader2, Minus, Plus } from "lucide-react";
+import { CheckCircle2, Loader2, Minus, Plus, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,24 +44,58 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orderEnabled, setOrderEnabled] = useState<boolean | null>(null);
+  const [disabledReason, setDisabledReason] = useState<string | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "lost">("connecting");
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     void getPublicCarteSections(establishmentId).then(setSections);
   }, [establishmentId]);
 
   useEffect(() => {
+    void fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
+      .then((r) => r.json())
+      .then((json: { enabled: boolean; reason?: string }) => {
+        setOrderEnabled(json.enabled);
+        setDisabledReason(json.reason ?? null);
+      })
+      .catch(() => {
+        setOrderEnabled(false);
+        setDisabledReason("Impossible de vérifier la disponibilité.");
+      });
+  }, [establishmentId, tableId]);
+
+  useEffect(() => {
     if (!orderId) return;
+
+    const timeout = setTimeout(() => setTimedOut(true), 3 * 60 * 1000);
+
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `id=eq.${orderId}` },
         (payload) => {
-          if ((payload.new as { status: string }).status === "accepted") setStep("confirmed");
+          const row = payload.new as { status: string; rejection_reason?: string | null };
+          if (row.status === "accepted") {
+            clearTimeout(timeout);
+            setStep("confirmed");
+          }
+          if (row.status === "rejected") {
+            clearTimeout(timeout);
+            setError(row.rejection_reason ?? "Commande refusée.");
+            setStep("checkout");
+          }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setRealtimeStatus("connected");
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("lost");
+      });
+
     return () => {
+      clearTimeout(timeout);
       void supabase.removeChannel(channel);
     };
   }, [orderId]);
@@ -131,6 +165,26 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     }
   }
 
+  // Chargement du statut en cours
+  if (orderEnabled === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Commandes désactivées
+  if (!orderEnabled) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <XCircle className="h-16 w-16 text-orange-400" />
+        <h1 className="text-xl font-bold">Commandes indisponibles</h1>
+        <p className="text-muted-foreground text-sm">{disabledReason ?? "Le service de commande n'est pas actif."}</p>
+      </div>
+    );
+  }
+
   if (step === "confirmed") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
@@ -145,11 +199,35 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   }
 
   if (step === "waiting") {
+    if (timedOut) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+          <XCircle className="h-16 w-16 text-orange-400" />
+          <p className="text-lg font-medium">Aucune réponse</p>
+          <p className="text-muted-foreground text-sm">
+            La commande a été envoyée mais n&apos;a pas été confirmée. Contactez un serveur.
+          </p>
+          <button
+            onClick={() => {
+              setTimedOut(false);
+              setStep("checkout");
+            }}
+            className="text-primary mt-2 text-sm underline"
+          >
+            Retour à la commande
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
         <Loader2 className="text-primary h-12 w-12 animate-spin" />
         <p className="text-lg font-medium">Commande envoyée…</p>
         <p className="text-muted-foreground text-sm">En attente de confirmation par l&apos;équipe</p>
+        {realtimeStatus === "lost" && (
+          <p className="mt-2 text-xs text-orange-500">Connexion perdue — tentative de reconnexion…</p>
+        )}
       </div>
     );
   }

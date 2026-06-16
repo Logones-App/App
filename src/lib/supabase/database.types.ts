@@ -1245,6 +1245,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "device_sessions_device_fkey"
+            columns: ["device_id"]
+            isOneToOne: true
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "device_sessions_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
@@ -6122,6 +6129,7 @@ export type Database = {
           items: Json
           order_id: string | null
           organization_id: string
+          rejection_reason: string | null
           status: string
           table_id: string
           table_label: string
@@ -6135,6 +6143,7 @@ export type Database = {
           items?: Json
           order_id?: string | null
           organization_id: string
+          rejection_reason?: string | null
           status?: string
           table_id: string
           table_label: string
@@ -6148,6 +6157,7 @@ export type Database = {
           items?: Json
           order_id?: string | null
           organization_id?: string
+          rejection_reason?: string | null
           status?: string
           table_id?: string
           table_label?: string
