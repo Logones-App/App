@@ -20,6 +20,16 @@ import { TableView } from "./table-view";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
+type OpenOrderResult = { ordersId: string; savedNameMatch: boolean; names: string[] } | { ordersId: null };
+
+async function fetchOpenOrder(tableId: string, establishmentId: string): Promise<OpenOrderResult> {
+  const res = await fetch(`/api/table-order/open-order?table=${tableId}&est=${establishmentId}`);
+  const json = (await res.json()) as { ordersId: string | null; names: string[] };
+  if (!json.ordersId) return { ordersId: null };
+  const savedName = localStorage.getItem(`table_guest_${tableId}`);
+  return { ordersId: json.ordersId, savedNameMatch: !!savedName && json.names.includes(savedName), names: json.names };
+}
+
 type CartItem = {
   menuProductId: string;
   productId: string;
@@ -29,7 +39,7 @@ type CartItem = {
   vatRate: number | null;
 };
 
-type Step = "browse" | "checkout" | "waiting" | "table-view";
+type Step = "browse" | "checkout" | "waiting" | "table-view" | "name-pick";
 
 interface Props {
   establishment: { id: string; name: string; slug: string };
@@ -47,19 +57,25 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [ordersId, setOrdersId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderEnabled, setOrderEnabled] = useState<boolean | null>(null);
+  const [orderEnabled, setOrderEnabled] = useState(false);
   const [disabledReason, setDisabledReason] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "lost">("connecting");
   const [timedOut, setTimedOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [openOrderNames, setOpenOrderNames] = useState<string[]>([]);
+  const [isRound, setIsRound] = useState(false);
+  const [roundRequestId, setRoundRequestId] = useState<string | null>(null);
+  const [roundError, setRoundError] = useState<string | null>(null);
 
   useEffect(() => {
     void getPublicCarteSections(establishmentId).then(setSections);
   }, [establishmentId]);
 
+  // Rescan + status : parallèles, isLoading = false quand les deux sont faits
   useEffect(() => {
-    void fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
-      .then((r) => r.json())
-      .then((json: { enabled: boolean; reason?: string }) => {
+    const statusPromise = fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
+      .then((r) => r.json() as Promise<{ enabled: boolean; reason?: string }>)
+      .then((json) => {
         setOrderEnabled(json.enabled);
         setDisabledReason(json.reason ?? null);
       })
@@ -67,12 +83,27 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         setOrderEnabled(false);
         setDisabledReason("Impossible de vérifier la disponibilité.");
       });
-  }, [establishmentId, tableId]);
 
+    const openPromise = fetchOpenOrder(tableId, establishmentId).then((result) => {
+      if (!result.ordersId) return;
+      setOrdersId(result.ordersId);
+      if (result.savedNameMatch) {
+        setGuestName(localStorage.getItem(`table_guest_${tableId}`) ?? "");
+        setStep("table-view");
+      } else {
+        setOpenOrderNames(result.names);
+        setStep("name-pick");
+      }
+    });
+
+    void Promise.all([statusPromise, openPromise]).finally(() => setIsLoading(false));
+  }, [tableId, establishmentId]);
+
+  // Realtime: attente de validation première commande
   useEffect(() => {
     if (!orderId) return;
 
-    const timeout = setTimeout(() => setTimedOut(true), 45 * 1000);
+    const timeout = setTimeout(() => setTimedOut(true), 5 * 60 * 1000);
 
     const channel = supabase
       .channel(`order-${orderId}`)
@@ -95,7 +126,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") setRealtimeStatus("connected");
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("lost");
+        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) setRealtimeStatus("lost");
       });
 
     return () => {
@@ -103,6 +134,26 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       void supabase.removeChannel(channel);
     };
   }, [orderId]);
+
+  // Realtime: rejet d'un ajout d'articles (round background)
+  useEffect(() => {
+    if (!roundRequestId) return;
+    const channel = supabase
+      .channel(`round-${roundRequestId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `id=eq.${roundRequestId}` },
+        (payload) => {
+          const row = payload.new as { status: string; rejection_reason?: string | null };
+          if (row.status === "rejected") setRoundError(row.rejection_reason ?? "Articles refusés.");
+          setRoundRequestId(null);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [roundRequestId]);
 
   function addToCart(item: PublicProduct) {
     if (item.price === null) return;
@@ -160,8 +211,16 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       });
       const json = (await res.json()) as { id?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Erreur serveur");
-      setOrderId(json.id!);
-      setStep("waiting");
+      localStorage.setItem(`table_guest_${tableId}`, guestName.trim());
+      if (isRound) {
+        setRoundRequestId(json.id!);
+        setCart([]);
+        setIsRound(false);
+        setStep("table-view");
+      } else {
+        setOrderId(json.id!);
+        setStep("waiting");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
@@ -169,8 +228,20 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     }
   }
 
-  // Chargement du statut en cours
-  if (orderEnabled === null) {
+  function handleAddRound() {
+    setCart([]);
+    setIsRound(true);
+    setRoundError(null);
+    setStep("browse");
+  }
+
+  function handleNamePick(name: string) {
+    setGuestName(name);
+    localStorage.setItem(`table_guest_${tableId}`, name);
+    setStep("table-view");
+  }
+
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin" />
@@ -178,7 +249,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     );
   }
 
-  // Commandes désactivées
   if (!orderEnabled) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -189,9 +259,47 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     );
   }
 
+  if (step === "name-pick") {
+    return (
+      <div className="min-h-screen">
+        <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
+          <p className="text-muted-foreground text-xs">{establishment.name}</p>
+          <h1 className="font-bold">{tableName}</h1>
+        </header>
+        <div className="space-y-3 p-6">
+          <p className="font-medium">Une commande est en cours à cette table. Qui êtes-vous ?</p>
+          <div className="flex flex-col gap-2 pt-2">
+            {openOrderNames.map((name) => (
+              <Button key={name} onClick={() => handleNamePick(name)}>
+                {name}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOrdersId(null);
+                setStep("browse");
+              }}
+            >
+              Nouveau convive
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "table-view" && ordersId) {
     return (
-      <TableView ordersId={ordersId} establishmentId={establishmentId} tableName={tableName} guestName={guestName} />
+      <TableView
+        ordersId={ordersId}
+        establishmentId={establishmentId}
+        tableName={tableName}
+        guestName={guestName}
+        onAddRound={handleAddRound}
+        roundError={roundError}
+        onClearRoundError={() => setRoundError(null)}
+      />
     );
   }
 
@@ -259,6 +367,11 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
 
       {step === "browse" && (
         <>
+          {isRound && (
+            <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
+              Ajout d&apos;articles pour <strong>{guestName}</strong>
+            </div>
+          )}
           {sections.length === 0 && (
             <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
               Menu non disponible
@@ -346,6 +459,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Entrez votre prénom"
+              readOnly={isRound}
+              disabled={isRound}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleSubmit();
               }}
@@ -359,9 +474,22 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Envoyer ma commande
             </Button>
-            <Button variant="ghost" onClick={() => setStep("browse")}>
-              ← Modifier la commande
-            </Button>
+            {isRound ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsRound(false);
+                  setCart([]);
+                  setStep("table-view");
+                }}
+              >
+                ← Annuler
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => setStep("browse")}>
+                ← Modifier la commande
+              </Button>
+            )}
           </div>
         </div>
       )}
