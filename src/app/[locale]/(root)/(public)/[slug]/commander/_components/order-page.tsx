@@ -69,7 +69,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   useEffect(() => {
     if (!orderId) return;
 
-    const timeout = setTimeout(() => setTimedOut(true), 3 * 60 * 1000);
+    const timeout = setTimeout(() => setTimedOut(true), 45 * 1000);
 
     const channel = supabase
       .channel(`order-${orderId}`)
@@ -201,20 +201,41 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   if (step === "waiting") {
     if (timedOut) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <XCircle className="h-16 w-16 text-orange-400" />
-          <p className="text-lg font-medium">Aucune réponse</p>
-          <p className="text-muted-foreground text-sm">
-            La commande a été envoyée mais n&apos;a pas été confirmée. Contactez un serveur.
-          </p>
+        <div className="min-h-screen p-6">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
+            <XCircle className="h-14 w-14 text-orange-400" />
+            <p className="text-lg font-semibold">Commande non confirmée</p>
+            <p className="text-muted-foreground text-sm">
+              Montrez cette page à un serveur pour valider votre commande.
+            </p>
+          </div>
+
+          <div className="bg-muted rounded-lg p-4">
+            <p className="mb-2 text-sm font-semibold">Votre commande — {tableName}</p>
+            <div className="space-y-1">
+              {cart.map((item) => (
+                <div key={item.menuProductId} className="flex justify-between text-sm">
+                  <span>
+                    {item.quantity}× {item.name}
+                  </span>
+                  <span className="font-medium">{formatPrice(item.quantity * item.unitPrice)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex justify-between border-t pt-2 font-semibold">
+              <span>Total</span>
+              <span>{formatPrice(totalPrice)}</span>
+            </div>
+          </div>
+
           <button
             onClick={() => {
               setTimedOut(false);
               setStep("checkout");
             }}
-            className="text-primary mt-2 text-sm underline"
+            className="text-primary mt-6 w-full text-center text-sm underline"
           >
-            Retour à la commande
+            Retenter l&apos;envoi
           </button>
         </div>
       );
