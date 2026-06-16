@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 import { OrderPage } from "./_components/order-page";
 
@@ -16,7 +16,7 @@ export default async function CommanderPage({
 
   if (!tableId || !establishmentId) notFound();
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const [estRes, tableRes] = await Promise.all([
     supabase
