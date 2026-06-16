@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle2, Loader2, Minus, Plus, XCircle } from "lucide-react";
+import { Loader2, Minus, Plus, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ import {
   getPublicCarteSections,
 } from "../../menu/_components/menu-utils";
 
+import { TableView } from "./table-view";
+
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 type CartItem = {
@@ -27,7 +29,7 @@ type CartItem = {
   vatRate: number | null;
 };
 
-type Step = "browse" | "checkout" | "waiting" | "confirmed";
+type Step = "browse" | "checkout" | "waiting" | "table-view";
 
 interface Props {
   establishment: { id: string; name: string; slug: string };
@@ -42,6 +44,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [guestName, setGuestName] = useState("");
   const [step, setStep] = useState<Step>("browse");
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [ordersId, setOrdersId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderEnabled, setOrderEnabled] = useState<boolean | null>(null);
@@ -77,10 +80,11 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `id=eq.${orderId}` },
         (payload) => {
-          const row = payload.new as { status: string; rejection_reason?: string | null };
+          const row = payload.new as { status: string; order_id?: string | null; rejection_reason?: string | null };
           if (row.status === "accepted") {
             clearTimeout(timeout);
-            setStep("confirmed");
+            setOrdersId(row.order_id ?? null);
+            setStep("table-view");
           }
           if (row.status === "rejected") {
             clearTimeout(timeout);
@@ -185,16 +189,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     );
   }
 
-  if (step === "confirmed") {
+  if (step === "table-view" && ordersId) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
-        <CheckCircle2 className="h-20 w-20 text-green-500" />
-        <h1 className="text-2xl font-bold">Commande bien reçue !</h1>
-        <p className="text-muted-foreground">
-          Merci <strong>{guestName}</strong>, votre commande pour la <strong>{tableName}</strong> est en cours de
-          préparation.
-        </p>
-      </div>
+      <TableView ordersId={ordersId} establishmentId={establishmentId} tableName={tableName} guestName={guestName} />
     );
   }
 
