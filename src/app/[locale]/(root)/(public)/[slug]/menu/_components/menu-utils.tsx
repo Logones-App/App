@@ -15,6 +15,7 @@ export type PublicProduct = {
   portionWeight: number | null;
   portionUnit: string | null;
   isAvailable: boolean;
+  isOutOfStock: boolean;
 };
 
 export type PublicSection = {
@@ -45,7 +46,7 @@ export async function getPublicEstablishmentBySlug(slug: string): Promise<Public
     .eq("deleted", false)
     .eq("is_public", true)
     .single();
-  if (error || !data) return null;
+  if (error) return null;
   return data as PublicEstablishment;
 }
 
@@ -59,7 +60,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     .eq("deleted", false)
     .order("display_order", { ascending: true });
 
-  if (secError || !sections?.length) return [];
+  if (secError || !sections.length) return [];
 
   const sectionIds = sections.map((s) => s.id);
 
@@ -100,7 +101,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   const itemsBySection = new Map<string, PublicProduct[]>();
 
-  for (const raw of (items ?? []) as RawItem[]) {
+  for (const raw of items as RawItem[]) {
     const mp = raw.menus_product;
     if (!mp?.product) continue;
     if (mp.product.is_available === false) continue;
@@ -120,6 +121,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       portionWeight: mp.product.portion_weight,
       portionUnit: mp.product.portion_unit,
       isAvailable: mp.product.is_available ?? true,
+      isOutOfStock: false,
     });
     itemsBySection.set(raw.section_id, list);
   }
@@ -129,6 +131,24 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     name: s.name,
     description: s.description ?? null,
     items: itemsBySection.get(s.id) ?? [],
+  }));
+}
+
+export async function getPublicCarteSectionsWithStock(establishmentId: string): Promise<PublicSection[]> {
+  type StockMap = Partial<Record<string, { current_stock: number }>>;
+  const [sections, stockRes] = await Promise.all([
+    getPublicCarteSections(establishmentId),
+    fetch(`/api/table-order/stock?est=${establishmentId}`)
+      .then((r) => r.json())
+      .then((d) => d as StockMap)
+      .catch((): StockMap => ({})),
+  ]);
+  return sections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => ({
+      ...item,
+      isOutOfStock: (stockRes[item.productId]?.current_stock ?? 1) <= 0,
+    })),
   }));
 }
 

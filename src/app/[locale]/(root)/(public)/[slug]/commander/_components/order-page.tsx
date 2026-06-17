@@ -13,7 +13,7 @@ import {
   type PublicProduct,
   type PublicSection,
   formatPrice,
-  getPublicCarteSections,
+  getPublicCarteSectionsWithStock,
 } from "../../menu/_components/menu-utils";
 
 import { TableView } from "./table-view";
@@ -69,9 +69,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [pendingGuestName, setPendingGuestName] = useState<string | null>(null);
 
   useEffect(() => {
-    void getPublicCarteSections(establishmentId).then(setSections);
+    void getPublicCarteSectionsWithStock(establishmentId).then(setSections);
   }, [establishmentId]);
-
   // Rescan + status : parallèles, isLoading = false quand les deux sont faits
   useEffect(() => {
     const statusPromise = fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
@@ -99,7 +98,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
 
     void Promise.all([statusPromise, openPromise]).finally(() => setIsLoading(false));
   }, [tableId, establishmentId]);
-
   // Realtime: attente de validation première commande
   useEffect(() => {
     if (!orderId) return;
@@ -135,7 +133,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       void supabase.removeChannel(channel);
     };
   }, [orderId]);
-
   // Realtime: rejet d'un ajout d'articles (round background)
   useEffect(() => {
     if (!roundRequestId) return;
@@ -156,7 +153,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       void supabase.removeChannel(channel);
     };
   }, [roundRequestId]);
-
   function addToCart(item: PublicProduct) {
     if (item.price === null) return;
     setCart((prev) => {
@@ -176,7 +172,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       ];
     });
   }
-
   function removeFromCart(menuProductId: string) {
     setCart((prev) => {
       const existing = prev.find((c) => c.menuProductId === menuProductId);
@@ -185,11 +180,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       return prev.map((c) => (c.menuProductId === menuProductId ? { ...c, quantity: c.quantity - 1 } : c));
     });
   }
-
   const getQty = (menuProductId: string) => cart.find((c) => c.menuProductId === menuProductId)?.quantity ?? 0;
   const totalItems = cart.reduce((s, c) => s + c.quantity, 0);
   const totalPrice = cart.reduce((s, c) => s + c.quantity * c.unitPrice, 0);
-
   async function handleSubmit() {
     if (!guestName.trim() || cart.length === 0) return;
     setIsSubmitting(true);
@@ -230,7 +223,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       setIsSubmitting(false);
     }
   }
-
   function handleSelectGuest(name: string) {
     setGuestName(name);
     setCart([]);
@@ -238,21 +230,18 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     setRoundError(null);
     setStep("browse");
   }
-
   function handleNewGuest() {
     setGuestName("");
     setCart([]);
     setIsAddingItems(true);
     setRoundError(null);
-    setStep("browse");
+    setStep("checkout");
   }
-
   function handleNamePick(name: string) {
     setGuestName(name);
     localStorage.setItem(`table_guest_${tableId}`, name);
     setStep("table-view");
   }
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -300,7 +289,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       </div>
     );
   }
-
   if (step === "table-view" && ordersId) {
     return (
       <TableView
@@ -316,7 +304,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       />
     );
   }
-
   if (step === "waiting") {
     if (timedOut) {
       return (
@@ -328,7 +315,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               Montrez cette page à un serveur pour valider votre commande.
             </p>
           </div>
-
           <div className="bg-muted rounded-lg p-4">
             <p className="mb-2 text-sm font-semibold">Votre commande — {tableName}</p>
             <div className="space-y-1">
@@ -346,7 +332,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               <span>{formatPrice(totalPrice)}</span>
             </div>
           </div>
-
           <button
             onClick={() => {
               setTimedOut(false);
@@ -359,7 +344,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         </div>
       );
     }
-
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
         <Loader2 className="text-primary h-12 w-12 animate-spin" />
@@ -371,19 +355,21 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       </div>
     );
   }
-
+  const backToTable = () => setStep("table-view");
   return (
     <div className="min-h-screen pb-28">
       <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
         <p className="text-muted-foreground text-xs">{establishment.name}</p>
         <h1 className="font-bold">{tableName}</h1>
+        <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
+          ← Commande en cours
+        </button>
       </header>
-
       {step === "browse" && (
         <>
           {isAddingItems && (
             <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
-              Ajout d&apos;articles pour <strong>{guestName || "Nouveau convive"}</strong>
+              Ajout d&apos;articles pour <strong>{guestName}</strong>
             </div>
           )}
           {sections.length === 0 && (
@@ -398,14 +384,19 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
                 {section.items.map((item: PublicProduct) => {
                   const qty = getQty(item.menuProductId);
                   return (
-                    <div key={item.menuProductId} className="flex items-center gap-3">
+                    <div
+                      key={item.menuProductId}
+                      className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}
+                    >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{item.name}</p>
                         {item.description && (
                           <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>
                         )}
                         {item.price !== null && (
-                          <p className="mt-0.5 text-sm font-semibold">{formatPrice(item.price)}</p>
+                          <p className="mt-0.5 text-sm font-semibold">
+                            {item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}
+                          </p>
                         )}
                       </div>
                       {item.price !== null && (
@@ -423,7 +414,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
                           )}
                           <button
                             onClick={() => addToCart(item)}
-                            className="bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-full"
+                            disabled={item.isOutOfStock}
+                            className="bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-full disabled:opacity-40"
                           >
                             <Plus className="h-3 w-3" />
                           </button>
@@ -435,7 +427,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               </div>
             </div>
           ))}
-
           {cart.length > 0 && (
             <div className="fixed right-0 bottom-0 left-0 border-t bg-white p-4 shadow-lg">
               <Button className="w-full" onClick={() => setStep("checkout")}>
@@ -445,10 +436,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           )}
         </>
       )}
-
       {step === "checkout" && (
         <div className="space-y-5 p-4">
-          <div>
+          <div hidden={cart.length === 0}>
             <h2 className="mb-3 font-semibold">Votre commande</h2>
             <div className="space-y-1">
               {cart.map((item) => (
@@ -466,7 +456,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               <span>{formatPrice(totalPrice)}</span>
             </div>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Votre prénom *</label>
             <Input
@@ -478,11 +467,9 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               }}
             />
           </div>
-
           <p hidden={!error} className="text-destructive text-sm">
             {error}
           </p>
-
           <div className="flex flex-col gap-2">
             <Button onClick={() => void handleSubmit()} disabled={!guestName.trim() || isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -501,7 +488,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               </Button>
             ) : (
               <Button variant="ghost" onClick={() => setStep("browse")}>
-                ← Modifier la commande
+                <span hidden={cart.length === 0}>← Modifier la commande</span>
+                <span hidden={cart.length > 0}>Choisir des produits →</span>
               </Button>
             )}
           </div>
