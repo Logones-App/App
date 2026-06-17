@@ -41,16 +41,29 @@ export type CustomizationData = {
 // ─── Types panier ─────────────────────────────────────────────────────────────
 
 export type OptionSelection = {
+  option: {
+    id: string;
+    option_group: string;
+    option_value: string;
+    option_price: number;
+    selection_type: "unique" | "multiple" | "limited";
+    allow_quantity: boolean;
+    is_required: boolean;
+    min_quantity: number | null;
+    max_quantity: number | null;
+  };
   quantity: number;
-  option_group: string;
-  option_value: string;
-  option_price: number;
 };
 
 export type CompositionSelection = {
+  composition: {
+    id: string;
+    component_product_id: string;
+    composition_kind: string;
+    unit_supplement_price: number | null;
+    price_multiplier: number | null;
+  };
   quantity: number;
-  component_product_id: string;
-  supplement_price: number;
 };
 
 export type CartItemSelections = {
@@ -90,14 +103,12 @@ export function formatSupplementPrice(
 
 export function computeUnitPrice(basePrice: number, selections: CartItemSelections, data: CustomizationData): number {
   let unit = basePrice;
-  for (const [valueId, sel] of Object.entries(selections.options)) {
-    const val = data.optionValues.find((v) => v.id === valueId);
-    unit += (val?.option_price ?? 0) * (sel?.quantity ?? 0);
+  for (const [, sel] of Object.entries(selections.options)) {
+    if (sel) unit += sel.option.option_price * sel.quantity;
   }
   for (const [componentId, sel] of Object.entries(selections.compositions)) {
-    const comp = data.compositions.find((c) => c.component_product_id === componentId);
     // eslint-disable-next-line security/detect-object-injection
-    if (comp) unit += getSupplementPrice(comp, data.componentPrices[componentId] ?? 0) * (sel?.quantity ?? 0);
+    if (sel) unit += getSupplementPrice(sel.composition, data.componentPrices[componentId] ?? 0) * sel.quantity;
   }
   return Math.round(unit * 100) / 100;
 }
@@ -129,9 +140,14 @@ export function buildInitialSelections(data: CustomizationData): CartItemSelecti
     const qty = comp.default_quantity ?? 0;
     if (qty > 0) {
       compositions[comp.component_product_id] = {
+        composition: {
+          id: comp.id,
+          component_product_id: comp.component_product_id,
+          composition_kind: "modifier",
+          unit_supplement_price: comp.unit_supplement_price,
+          price_multiplier: comp.price_multiplier,
+        },
         quantity: qty,
-        component_product_id: comp.component_product_id,
-        supplement_price: getSupplementPrice(comp, data.componentPrices[comp.component_product_id] ?? 0),
       };
     }
   }

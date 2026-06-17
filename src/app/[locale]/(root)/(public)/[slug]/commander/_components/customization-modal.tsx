@@ -175,10 +175,18 @@ export function CustomizationModal({ product, establishmentId, initialSelections
           const vals = data?.optionValues.filter((v) => v.option_group_id === group.id) ?? [];
           for (const v of vals) delete next.options[v.id];
           next.options[value.id] = {
+            option: {
+              id: value.id,
+              option_group: group.name,
+              option_value: value.option_name,
+              option_price: value.option_price,
+              selection_type: group.selection_type,
+              allow_quantity: group.allow_quantity,
+              is_required: group.is_required,
+              min_quantity: value.min_quantity,
+              max_quantity: value.max_quantity,
+            },
             quantity: 1,
-            option_group: group.name,
-            option_value: value.option_name,
-            option_price: value.option_price,
           };
         }
       } else {
@@ -186,10 +194,18 @@ export function CustomizationModal({ product, establishmentId, initialSelections
           delete next.options[value.id];
         } else {
           next.options[value.id] = {
+            option: {
+              id: value.id,
+              option_group: group.name,
+              option_value: value.option_name,
+              option_price: value.option_price,
+              selection_type: group.selection_type,
+              allow_quantity: group.allow_quantity,
+              is_required: group.is_required,
+              min_quantity: value.min_quantity,
+              max_quantity: value.max_quantity,
+            },
             quantity: 1,
-            option_group: group.name,
-            option_value: value.option_name,
-            option_price: value.option_price,
           };
         }
       }
@@ -206,10 +222,18 @@ export function CustomizationModal({ product, establishmentId, initialSelections
         delete next.options[value.id];
       } else {
         next.options[value.id] = {
+          option: {
+            id: value.id,
+            option_group: group.name,
+            option_value: value.option_name,
+            option_price: value.option_price,
+            selection_type: group.selection_type,
+            allow_quantity: group.allow_quantity,
+            is_required: group.is_required,
+            min_quantity: value.min_quantity,
+            max_quantity: value.max_quantity,
+          },
           quantity: newQty,
-          option_group: group.name,
-          option_value: value.option_name,
-          option_price: value.option_price,
         };
       }
       return next;
@@ -217,7 +241,6 @@ export function CustomizationModal({ product, establishmentId, initialSelections
   }
 
   function handleCompositionQty(comp: ModifierComposition, delta: number) {
-    const suppPrice = data ? (data.componentPrices[comp.component_product_id] ?? 0) : 0;
     setSelections((prev) => {
       const next = { ...prev, compositions: { ...prev.compositions } };
       const current = next.compositions[comp.component_product_id]?.quantity ?? 0;
@@ -227,9 +250,14 @@ export function CustomizationModal({ product, establishmentId, initialSelections
         delete next.compositions[comp.component_product_id];
       } else {
         next.compositions[comp.component_product_id] = {
+          composition: {
+            id: comp.id,
+            component_product_id: comp.component_product_id,
+            composition_kind: "modifier",
+            unit_supplement_price: comp.unit_supplement_price,
+            price_multiplier: comp.price_multiplier,
+          },
           quantity: newQty,
-          component_product_id: comp.component_product_id,
-          supplement_price: suppPrice,
         };
       }
       return next;
