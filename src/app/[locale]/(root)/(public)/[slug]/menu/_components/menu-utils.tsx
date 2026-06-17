@@ -16,6 +16,8 @@ export type PublicProduct = {
   portionUnit: string | null;
   isAvailable: boolean;
   isOutOfStock: boolean;
+  isCustomizable: boolean;
+  menusId: string;
 };
 
 export type PublicSection = {
@@ -69,7 +71,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     .select(
       `id, section_id, note,
       menus_product:menus_products(
-        id, price,
+        id, menus_id, price,
         product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available, vat_rate_entry:vat_rate_id(value))
       )`,
     )
@@ -96,7 +98,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     id: string;
     section_id: string;
     note: string | null;
-    menus_product: { id: string; price: number | null; product: RawProduct | null } | null;
+    menus_product: { id: string; menus_id: string; price: number | null; product: RawProduct | null } | null;
   };
 
   const itemsBySection = new Map<string, PublicProduct[]>();
@@ -122,6 +124,8 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       portionUnit: mp.product.portion_unit,
       isAvailable: mp.product.is_available ?? true,
       isOutOfStock: false,
+      isCustomizable: false,
+      menusId: mp.menus_id,
     });
     itemsBySection.set(raw.section_id, list);
   }
@@ -136,18 +140,24 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
 export async function getPublicCarteSectionsWithStock(establishmentId: string): Promise<PublicSection[]> {
   type StockMap = Partial<Record<string, { current_stock: number }>>;
-  const [sections, stockRes] = await Promise.all([
+  type CustomizableSet = Set<string>;
+  const [sections, stockRes, customizableRes] = await Promise.all([
     getPublicCarteSections(establishmentId),
     fetch(`/api/table-order/stock?est=${establishmentId}`)
       .then((r) => r.json())
       .then((d) => d as StockMap)
       .catch((): StockMap => ({})),
+    fetch(`/api/table-order/customizable?est=${establishmentId}`)
+      .then((r) => r.json())
+      .then((d) => new Set<string>((d as { ids: string[] }).ids))
+      .catch((): CustomizableSet => new Set()),
   ]);
   return sections.map((section) => ({
     ...section,
     items: section.items.map((item) => ({
       ...item,
       isOutOfStock: (stockRes[item.productId]?.current_stock ?? 1) <= 0,
+      isCustomizable: customizableRes.has(item.productId),
     })),
   }));
 }

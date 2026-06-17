@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { Loader2, Minus, Plus, XCircle } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,10 @@ import {
   getPublicCarteSectionsWithStock,
 } from "../../menu/_components/menu-utils";
 
+import { CustomizationModal } from "./customization-modal";
+import { type CartItemSelections, buildOrderItem } from "./customization-utils";
 import { TableView } from "./table-view";
+import { WaitingScreen } from "./waiting-screen";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
@@ -31,15 +34,18 @@ async function fetchOpenOrder(tableId: string, establishmentId: string): Promise
 }
 
 type CartItem = {
+  id: string;
   menuProductId: string;
   productId: string;
   name: string;
-  quantity: number;
   unitPrice: number;
   vatRate: number | null;
+  menusId: string;
+  selections: CartItemSelections;
 };
 
 type Step = "browse" | "checkout" | "waiting" | "table-view" | "name-pick";
+type ModalState = { product: PublicProduct; cartItemId?: string };
 
 interface Props {
   establishment: { id: string; name: string; slug: string };
@@ -67,11 +73,12 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [roundRequestId, setRoundRequestId] = useState<string | null>(null);
   const [roundError, setRoundError] = useState<string | null>(null);
   const [pendingGuestName, setPendingGuestName] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<ModalState | null>(null);
 
   useEffect(() => {
     void getPublicCarteSectionsWithStock(establishmentId).then(setSections);
   }, [establishmentId]);
-  // Rescan + status : parallèles, isLoading = false quand les deux sont faits
+
   useEffect(() => {
     const statusPromise = fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
       .then((r) => r.json() as Promise<{ enabled: boolean; reason?: string }>)
@@ -83,7 +90,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         setOrderEnabled(false);
         setDisabledReason("Impossible de vérifier la disponibilité.");
       });
-
     const openPromise = fetchOpenOrder(tableId, establishmentId).then((result) => {
       if (!result.ordersId) return;
       setOrdersId(result.ordersId);
@@ -95,15 +101,12 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         setStep("name-pick");
       }
     });
-
     void Promise.all([statusPromise, openPromise]).finally(() => setIsLoading(false));
   }, [tableId, establishmentId]);
-  // Realtime: attente de validation première commande
+
   useEffect(() => {
     if (!orderId) return;
-
     const timeout = setTimeout(() => setTimedOut(true), 5 * 60 * 1000);
-
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
@@ -123,17 +126,16 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           }
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") setRealtimeStatus("connected");
-        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) setRealtimeStatus("lost");
+      .subscribe((s) => {
+        if (s === "SUBSCRIBED") setRealtimeStatus("connected");
+        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(s)) setRealtimeStatus("lost");
       });
-
     return () => {
       clearTimeout(timeout);
       void supabase.removeChannel(channel);
     };
   }, [orderId]);
-  // Realtime: rejet d'un ajout d'articles (round background)
+
   useEffect(() => {
     if (!roundRequestId) return;
     const channel = supabase
@@ -153,36 +155,61 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       void supabase.removeChannel(channel);
     };
   }, [roundRequestId]);
-  function addToCart(item: PublicProduct) {
-    if (item.price === null) return;
-    setCart((prev) => {
-      const existing = prev.find((c) => c.menuProductId === item.menuProductId);
-      if (existing)
-        return prev.map((c) => (c.menuProductId === item.menuProductId ? { ...c, quantity: c.quantity + 1 } : c));
-      return [
+
+  function handleAddProduct(item: PublicProduct) {
+    if (item.price === null || item.isOutOfStock) return;
+    if (item.isCustomizable) {
+      setModalState({ product: item });
+      return;
+    }
+    setCart((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        menuProductId: item.menuProductId,
+        productId: item.productId,
+        name: item.name,
+        unitPrice: item.price!,
+        vatRate: item.vatRate,
+        menusId: item.menusId,
+        selections: { options: {}, compositions: {} },
+      },
+    ]);
+  }
+
+  function handleModalConfirm(selections: CartItemSelections, unitPrice: number) {
+    if (!modalState) return;
+    const { product, cartItemId } = modalState;
+    if (cartItemId) {
+      setCart((prev) => prev.map((c) => (c.id === cartItemId ? { ...c, selections, unitPrice } : c)));
+    } else {
+      setCart((prev) => [
         ...prev,
         {
-          menuProductId: item.menuProductId,
-          productId: item.productId,
-          name: item.name,
-          quantity: 1,
-          unitPrice: item.price!,
-          vatRate: item.vatRate,
+          id: crypto.randomUUID(),
+          menuProductId: product.menuProductId,
+          productId: product.productId,
+          name: product.name,
+          unitPrice,
+          vatRate: product.vatRate,
+          menusId: product.menusId,
+          selections,
         },
-      ];
-    });
+      ]);
+    }
+    setModalState(null);
   }
-  function removeFromCart(menuProductId: string) {
-    setCart((prev) => {
-      const existing = prev.find((c) => c.menuProductId === menuProductId);
-      if (!existing) return prev;
-      if (existing.quantity === 1) return prev.filter((c) => c.menuProductId !== menuProductId);
-      return prev.map((c) => (c.menuProductId === menuProductId ? { ...c, quantity: c.quantity - 1 } : c));
-    });
+
+  function editCartItem(cartItemId: string) {
+    const item = cart.find((c) => c.id === cartItemId);
+    const section = sections.flatMap((s) => s.items).find((p) => p.menuProductId === (item?.menuProductId ?? ""));
+    if (!item || !section) return;
+    setModalState({ product: section, cartItemId });
   }
-  const getQty = (menuProductId: string) => cart.find((c) => c.menuProductId === menuProductId)?.quantity ?? 0;
-  const totalItems = cart.reduce((s, c) => s + c.quantity, 0);
-  const totalPrice = cart.reduce((s, c) => s + c.quantity * c.unitPrice, 0);
+
+  const removeCartItem = (id: string) => setCart((prev) => prev.filter((c) => c.id !== id));
+  const totalPrice = cart.reduce((s, c) => s + c.unitPrice, 0);
+
   async function handleSubmit() {
     if (!guestName.trim() || cart.length === 0) return;
     setIsSubmitting(true);
@@ -195,13 +222,15 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           establishment_id: establishmentId,
           table_id: tableId,
           guest_name: guestName.trim(),
-          items: cart.map((c) => ({
-            product_id: c.productId,
-            name: c.name,
-            quantity: c.quantity,
-            unit_price: c.unitPrice,
-            vat_rate: c.vatRate,
-          })),
+          items: cart.map((c) =>
+            buildOrderItem({
+              productId: c.productId,
+              name: c.name,
+              unitPrice: c.unitPrice,
+              vatRate: c.vatRate,
+              selections: c.selections,
+            }),
+          ),
         }),
       });
       const json = (await res.json()) as { id?: string; error?: string };
@@ -223,6 +252,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       setIsSubmitting(false);
     }
   }
+
   function handleSelectGuest(name: string) {
     setGuestName(name);
     setCart([]);
@@ -230,6 +260,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     setRoundError(null);
     setStep("browse");
   }
+
   function handleNewGuest() {
     setGuestName("");
     setCart([]);
@@ -237,11 +268,13 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     setRoundError(null);
     setStep("checkout");
   }
+
   function handleNamePick(name: string) {
     setGuestName(name);
     localStorage.setItem(`table_guest_${tableId}`, name);
     setStep("table-view");
   }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -249,7 +282,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       </div>
     );
   }
-
   if (!orderEnabled) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -259,7 +291,6 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       </div>
     );
   }
-
   if (step === "name-pick") {
     return (
       <div className="min-h-screen">
@@ -305,196 +336,179 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     );
   }
   if (step === "waiting") {
-    if (timedOut) {
-      return (
-        <div className="min-h-screen p-6">
-          <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <XCircle className="h-14 w-14 text-orange-400" />
-            <p className="text-lg font-semibold">Commande non confirmée</p>
-            <p className="text-muted-foreground text-sm">
-              Montrez cette page à un serveur pour valider votre commande.
-            </p>
-          </div>
-          <div className="bg-muted rounded-lg p-4">
-            <p className="mb-2 text-sm font-semibold">Votre commande — {tableName}</p>
-            <div className="space-y-1">
-              {cart.map((item) => (
-                <div key={item.menuProductId} className="flex justify-between text-sm">
-                  <span>
-                    {item.quantity}× {item.name}
-                  </span>
-                  <span className="font-medium">{formatPrice(item.quantity * item.unitPrice)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 flex justify-between border-t pt-2 font-semibold">
-              <span>Total</span>
-              <span>{formatPrice(totalPrice)}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setTimedOut(false);
-              setStep("checkout");
-            }}
-            className="text-primary mt-6 w-full text-center text-sm underline"
-          >
-            Retenter l&apos;envoi
-          </button>
-        </div>
-      );
-    }
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-        <Loader2 className="text-primary h-12 w-12 animate-spin" />
-        <p className="text-lg font-medium">Commande envoyée…</p>
-        <p className="text-muted-foreground text-sm">En attente de confirmation par l&apos;équipe</p>
-        {realtimeStatus === "lost" && (
-          <p className="mt-2 text-xs text-orange-500">Connexion perdue — tentative de reconnexion…</p>
-        )}
-      </div>
+      <WaitingScreen
+        cart={cart}
+        tableName={tableName}
+        totalPrice={totalPrice}
+        timedOut={timedOut}
+        realtimeStatus={realtimeStatus}
+        onRetry={() => {
+          setTimedOut(false);
+          setStep("checkout");
+        }}
+      />
     );
   }
+
   const backToTable = () => setStep("table-view");
   return (
-    <div className="min-h-screen pb-28">
-      <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
-        <p className="text-muted-foreground text-xs">{establishment.name}</p>
-        <h1 className="font-bold">{tableName}</h1>
-        <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
-          ← Commande en cours
-        </button>
-      </header>
-      {step === "browse" && (
-        <>
-          {isAddingItems && (
-            <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
-              Ajout d&apos;articles pour <strong>{guestName}</strong>
-            </div>
-          )}
-          {sections.length === 0 && (
-            <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
-              Menu non disponible
-            </div>
-          )}
-          {sections.map((section: PublicSection) => (
-            <div key={section.id} className="px-4 py-5">
-              <h2 className="mb-3 text-base font-semibold">{section.name}</h2>
-              <div className="space-y-4">
-                {section.items.map((item: PublicProduct) => {
-                  const qty = getQty(item.menuProductId);
-                  return (
-                    <div
-                      key={item.menuProductId}
-                      className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{item.name}</p>
-                        {item.description && (
-                          <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>
-                        )}
+    <>
+      {modalState && (
+        <CustomizationModal
+          product={modalState.product}
+          establishmentId={establishmentId}
+          initialSelections={
+            modalState.cartItemId ? cart.find((c) => c.id === modalState.cartItemId)?.selections : undefined
+          }
+          onConfirm={handleModalConfirm}
+          onClose={() => setModalState(null)}
+        />
+      )}
+      <div className="min-h-screen pb-28">
+        <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
+          <p className="text-muted-foreground text-xs">{establishment.name}</p>
+          <h1 className="font-bold">{tableName}</h1>
+          <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
+            ← Commande en cours
+          </button>
+        </header>
+        {step === "browse" && (
+          <>
+            {isAddingItems && (
+              <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
+                Ajout d&apos;articles pour <strong>{guestName}</strong>
+              </div>
+            )}
+            {sections.length === 0 && (
+              <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
+                Menu non disponible
+              </div>
+            )}
+            {sections.map((section: PublicSection) => (
+              <div key={section.id} className="px-4 py-5">
+                <h2 className="mb-3 text-base font-semibold">{section.name}</h2>
+                <div className="space-y-4">
+                  {section.items.map((item: PublicProduct) => {
+                    const count = cart.filter((c) => c.menuProductId === item.menuProductId).length;
+                    return (
+                      <div
+                        key={item.menuProductId}
+                        className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{item.name}</p>
+                          {item.description && (
+                            <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>
+                          )}
+                          {item.price !== null && (
+                            <p className="mt-0.5 text-sm font-semibold">
+                              {item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}
+                            </p>
+                          )}
+                        </div>
                         {item.price !== null && (
-                          <p className="mt-0.5 text-sm font-semibold">
-                            {item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}
-                          </p>
+                          <div className="relative shrink-0">
+                            <button
+                              onClick={() => handleAddProduct(item)}
+                              disabled={item.isOutOfStock}
+                              className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-40"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                            {count > 0 && (
+                              <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
+                                {count}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {item.price !== null && (
-                        <div className="flex shrink-0 items-center gap-2">
-                          {qty > 0 && (
-                            <>
-                              <button
-                                onClick={() => removeFromCart(item.menuProductId)}
-                                className="bg-muted flex h-7 w-7 items-center justify-center rounded-full"
-                              >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="w-4 text-center text-sm font-semibold">{qty}</span>
-                            </>
-                          )}
-                          <button
-                            onClick={() => addToCart(item)}
-                            disabled={item.isOutOfStock}
-                            className="bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-full disabled:opacity-40"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {cart.length > 0 && (
+              <div className="fixed right-0 bottom-0 left-0 border-t bg-white p-4 shadow-lg">
+                <Button className="w-full" onClick={() => setStep("checkout")}>
+                  Commander ({cart.length} article{cart.length > 1 ? "s" : ""}) — {formatPrice(totalPrice)}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+        {step === "checkout" && (
+          <div className="space-y-5 p-4">
+            <div hidden={cart.length === 0}>
+              <h2 className="mb-3 font-semibold">Votre commande</h2>
+              <div className="space-y-2">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground min-w-0 flex-1 truncate">{item.name}</span>
+                    <span className="font-medium">{formatPrice(item.unitPrice)}</span>
+                    <button
+                      onClick={() => editCartItem(item.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                      hidden={
+                        !sections.flatMap((s) => s.items).find((p) => p.menuProductId === item.menuProductId)
+                          ?.isCustomizable
+                      }
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => removeCartItem(item.id)} className="text-red-400 hover:text-red-600">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Separator className="my-3" />
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span>{formatPrice(totalPrice)}</span>
               </div>
             </div>
-          ))}
-          {cart.length > 0 && (
-            <div className="fixed right-0 bottom-0 left-0 border-t bg-white p-4 shadow-lg">
-              <Button className="w-full" onClick={() => setStep("checkout")}>
-                Commander ({totalItems} article{totalItems > 1 ? "s" : ""}) — {formatPrice(totalPrice)}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-      {step === "checkout" && (
-        <div className="space-y-5 p-4">
-          <div hidden={cart.length === 0}>
-            <h2 className="mb-3 font-semibold">Votre commande</h2>
-            <div className="space-y-1">
-              {cart.map((item) => (
-                <div key={item.menuProductId} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {item.quantity}× {item.name}
-                  </span>
-                  <span className="font-medium">{formatPrice(item.quantity * item.unitPrice)}</span>
-                </div>
-              ))}
-            </div>
-            <Separator className="my-3" />
-            <div className="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>{formatPrice(totalPrice)}</span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Votre prénom *</label>
-            <Input
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Entrez votre prénom"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleSubmit();
-              }}
-            />
-          </div>
-          <p hidden={!error} className="text-destructive text-sm">
-            {error}
-          </p>
-          <div className="flex flex-col gap-2">
-            <Button onClick={() => void handleSubmit()} disabled={!guestName.trim() || isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Envoyer ma commande
-            </Button>
-            {isAddingItems ? (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setIsAddingItems(false);
-                  setCart([]);
-                  setStep("table-view");
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Votre prénom *</label>
+              <Input
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Entrez votre prénom"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleSubmit();
                 }}
-              >
-                ← Annuler
+              />
+            </div>
+            <p hidden={!error} className="text-destructive text-sm">
+              {error}
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => void handleSubmit()} disabled={!guestName.trim() || isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Envoyer ma commande
               </Button>
-            ) : (
-              <Button variant="ghost" onClick={() => setStep("browse")}>
-                <span hidden={cart.length === 0}>← Modifier la commande</span>
-                <span hidden={cart.length > 0}>Choisir des produits →</span>
-              </Button>
-            )}
+              {isAddingItems ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsAddingItems(false);
+                    setCart([]);
+                    setStep("table-view");
+                  }}
+                >
+                  ← Annuler
+                </Button>
+              ) : (
+                <Button variant="ghost" onClick={() => setStep("browse")}>
+                  <span hidden={cart.length === 0}>← Modifier la commande</span>
+                  <span hidden={cart.length > 0}>Choisir des produits →</span>
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

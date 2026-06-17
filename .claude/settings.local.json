@@ -114,7 +114,8 @@
       "Bash(mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\lib\\\\pennylane\" && mkdir -p \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\api\\\\quotes\\\\[id]\\\\send\")",
       "Bash(xargs grep -l \"public_menu\")",
       "Bash(Select-String -Pattern \"order-page|table-view|open-order|table-order\")",
-      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(public\\)\\\\[slug]\\\\commander\\\\_components\\\\order-page.tsx\"\\).Count)"
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\\\\src\\\\app\\\\[locale]\\\\\\(root\\)\\\\\\(public\\)\\\\[slug]\\\\commander\\\\_components\\\\order-page.tsx\"\\).Count)",
+      "WebSearch"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",
