@@ -15,11 +15,24 @@ export type TableViewGuest = {
   subtotal: number;
 };
 
+export type PendingItem = {
+  name: string;
+  quantity: number;
+};
+
+export type PendingRequest = {
+  guest_name: string;
+  items: PendingItem[];
+};
+
 export type TableViewResponse = {
   guests: TableViewGuest[];
+  pending: PendingRequest[];
   grand_total: number;
   orders_id: string;
 };
+
+type PendingItemRaw = { name: string; quantity: number };
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -32,16 +45,23 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // 1. Notes (convives) pour cette commande
-  const { data: payments, error: paymentsErr } = await service
-    .from("order_payments")
-    .select("id, name")
-    .eq("orders_id", ordersId)
-    .neq("deleted", true);
+  // 1 + 4 en parallèle : notes confirmées + rounds en attente
+  const [paymentsRes, pendingRes] = await Promise.all([
+    service.from("order_payments").select("id, name").eq("orders_id", ordersId).neq("deleted", true),
+    service.from("table_order_requests").select("guest_name, items").eq("order_id", ordersId).eq("status", "pending"),
+  ]);
 
-  if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
+  if (paymentsRes.error) return NextResponse.json({ error: paymentsRes.error.message }, { status: 500 });
+
+  const pending: PendingRequest[] = (pendingRes.data ?? []).map((req) => ({
+    guest_name: req.guest_name,
+    items: ((req.items ?? []) as PendingItemRaw[]).map((item) => ({ name: item.name, quantity: item.quantity })),
+  }));
+
+  const payments = paymentsRes.data;
+
   if (!payments.length) {
-    return NextResponse.json({ guests: [], grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
+    return NextResponse.json({ guests: [], pending, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
   }
 
   const paymentIds = payments.map((p) => p.id);
@@ -59,7 +79,7 @@ export async function GET(request: NextRequest) {
 
   if (!activeProductIds.length) {
     const guests = payments.map((p) => ({ name: p.name, products: [], subtotal: 0 }));
-    return NextResponse.json({ guests, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
+    return NextResponse.json({ guests, pending, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
   }
 
   // 3. Produits actifs (cancelled = false)
@@ -73,13 +93,12 @@ export async function GET(request: NextRequest) {
 
   const productMap = new Map(productRows.map((p) => [p.id, p.product_name]));
   const paymentMap = new Map(payments.map((p) => [p.id, p.name]));
-
   const byGuest = new Map<string, TableViewProduct[]>(payments.map((p) => [p.name, []]));
 
   for (const row of rows) {
     if (!row.order_products_id || !row.orders_payments_id) continue;
     const productName = productMap.get(row.order_products_id);
-    if (!productName) continue; // produit annulé → ignoré
+    if (!productName) continue;
     const guestName = paymentMap.get(row.orders_payments_id);
     if (!guestName) continue;
     byGuest.get(guestName)?.push({ product_name: productName, amount: row.amount ?? 0 });
@@ -93,5 +112,5 @@ export async function GET(request: NextRequest) {
 
   const grand_total = guests.reduce((s, g) => s + g.subtotal, 0);
 
-  return NextResponse.json({ guests, grand_total, orders_id: ordersId } satisfies TableViewResponse);
+  return NextResponse.json({ guests, pending, grand_total, orders_id: ordersId } satisfies TableViewResponse);
 }

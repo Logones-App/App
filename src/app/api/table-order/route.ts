@@ -20,6 +20,7 @@ interface OrderBody {
   table_id: string;
   guest_name: string;
   menu_id?: string | null;
+  orders_id?: string | null;
   items: OrderItem[];
 }
 
@@ -81,7 +82,7 @@ async function checkProductExists(service: SupabaseClient, item: OrderItem): Pro
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as OrderBody;
-    const { establishment_id, table_id, guest_name, menu_id, items } = body;
+    const { establishment_id, table_id, guest_name, menu_id, orders_id, items } = body;
 
     if (!establishment_id || !table_id || !guest_name.trim() || !items.length) {
       return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
         table_label: table.name,
         guest_name: guest_name.trim(),
         menu_id: menu_id ?? null,
+        order_id: orders_id ?? null,
         items: items as unknown as import("@/lib/supabase/database.types").Json,
         status: "pending",
       })

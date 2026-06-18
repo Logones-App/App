@@ -223,6 +223,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           table_id: tableId,
           guest_name: guestName.trim(),
           menu_id: cart[0].menusId,
+          ...(isAddingItems && ordersId ? { orders_id: ordersId } : {}),
           items: cart.map((c) =>
             buildOrderItem({
               productId: c.productId,

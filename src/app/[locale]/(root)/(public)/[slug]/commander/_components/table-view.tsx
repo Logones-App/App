@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle2, Loader2, User } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, User } from "lucide-react";
 
-import type { TableViewGuest, TableViewResponse } from "@/app/api/table-order/table-view/route";
+import type { PendingRequest, TableViewGuest, TableViewResponse } from "@/app/api/table-order/table-view/route";
 import { Button } from "@/components/ui/button";
 
 import { formatPrice } from "../../menu/_components/menu-utils";
@@ -29,6 +29,36 @@ async function fetchTableView(ordersId: string, establishmentId: string): Promis
   if (!res.ok) return null;
   return res.json() as Promise<TableViewResponse>;
 }
+
+// ─── Section en cours de validation ──────────────────────────────────────────
+
+function PendingSection({ pending }: { pending: PendingRequest[] }) {
+  if (!pending.length) return null;
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Clock className="h-4 w-4 text-amber-600" />
+        <span className="text-sm font-bold text-amber-800">En cours de validation</span>
+      </div>
+      <div className="space-y-3">
+        {pending.map((req, i) => (
+          <div key={i}>
+            <p className="mb-1 text-xs font-semibold text-amber-700">{req.guest_name}</p>
+            <div className="space-y-0.5">
+              {req.items.map((item, j) => (
+                <p key={j} className="text-sm text-amber-800">
+                  {item.quantity}× {item.name}
+                </p>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
 
 export function TableView({
   ordersId,
@@ -58,6 +88,16 @@ export function TableView({
         });
       }, 300);
     };
+
+    // Rounds en attente / acceptés / refusés
+    const pendingChannel = supabase
+      .channel(`pending-requests-${ordersId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "table_order_requests", filter: `order_id=eq.${ordersId}` },
+        refresh,
+      )
+      .subscribe();
 
     // Produits ajoutés / annulés par le POS
     const productsChannel = supabase
@@ -107,6 +147,7 @@ export function TableView({
       .subscribe();
 
     return () => {
+      void supabase.removeChannel(pendingChannel);
       void supabase.removeChannel(productsChannel);
       void supabase.removeChannel(paymentsChannel);
       void supabase.removeChannel(rowsChannel);
@@ -151,6 +192,8 @@ export function TableView({
       )}
 
       <div className="space-y-3 p-4">
+        <PendingSection pending={data.pending} />
+
         {data.guests.map((guest: TableViewGuest) => (
           <button
             key={guest.name}
