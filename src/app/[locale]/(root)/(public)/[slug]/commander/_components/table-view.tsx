@@ -59,15 +59,38 @@ export function TableView({
       }, 300);
     };
 
-    // Nouveau round accepté par le POS → re-fetch
-    const requestsChannel = supabase
-      .channel(`table-requests-${ordersId}`)
+    // Produits ajoutés / annulés par le POS
+    const productsChannel = supabase
+      .channel(`order-products-${ordersId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `order_id=eq.${ordersId}` },
-        (payload) => {
-          if ((payload.new as { status: string }).status === "accepted") refresh();
+        { event: "*", schema: "public", table: "order_products", filter: `order_id=eq.${ordersId}` },
+        refresh,
+      )
+      .subscribe();
+
+    // Nouvelles notes (convives) créées par le POS
+    const paymentsChannel = supabase
+      .channel(`order-payments-${ordersId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_payments", filter: `orders_id=eq.${ordersId}` },
+        refresh,
+      )
+      .subscribe();
+
+    // Attributions produit ↔ note modifiées
+    const rowsChannel = supabase
+      .channel(`order-payments-rows-${establishmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_payments_rows",
+          filter: `establishment_id=eq.${establishmentId}`,
         },
+        refresh,
       )
       .subscribe();
 
@@ -84,14 +107,16 @@ export function TableView({
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(requestsChannel);
+      void supabase.removeChannel(productsChannel);
+      void supabase.removeChannel(paymentsChannel);
+      void supabase.removeChannel(rowsChannel);
       void supabase.removeChannel(ordersChannel);
     };
   }, [ordersId, establishmentId]);
 
   if (!data) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-100">
         <Loader2 className="text-primary h-8 w-8 animate-spin" />
       </div>
     );
@@ -99,25 +124,25 @@ export function TableView({
 
   if (tableClosed) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-100 p-6 text-center">
         <CheckCircle2 className="h-20 w-20 text-green-500" />
-        <h1 className="text-2xl font-bold">Table réglée</h1>
-        <p className="text-muted-foreground text-sm">Merci et à bientôt !</p>
+        <h1 className="text-2xl font-bold text-gray-900">Table réglée</h1>
+        <p className="text-sm text-gray-600">Merci et à bientôt !</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-10">
-      <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
-        <p className="text-muted-foreground text-xs">Commandes — {tableName}</p>
-        <h1 className="font-bold">
+    <div className="min-h-screen bg-gray-100 pb-10">
+      <header className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 px-4 py-3">
+        <p className="text-xs text-gray-400">Commandes — {tableName}</p>
+        <h1 className="font-bold text-white">
           {data.guests.length} convive{data.guests.length > 1 ? "s" : ""}
         </h1>
       </header>
 
       {roundError && (
-        <div className="mx-4 mt-4 flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+        <div className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
           <p className="text-sm text-orange-700">{roundError}</p>
           <button onClick={onClearRoundError} className="ml-3 text-xs text-orange-500 underline">
             OK
@@ -125,22 +150,22 @@ export function TableView({
         </div>
       )}
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-3 p-4">
         {data.guests.map((guest: TableViewGuest) => (
           <button
             key={guest.name}
             type="button"
             onClick={() => onSelectGuest(guest.name)}
-            className="w-full rounded-lg border p-4 text-left transition-colors hover:bg-gray-50 active:bg-gray-100"
+            className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50 active:bg-gray-100"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <User className="text-muted-foreground h-4 w-4 shrink-0" />
-              <span className="font-semibold">
+            <div className="mb-3 flex items-center gap-2">
+              <User className="h-4 w-4 shrink-0 text-gray-400" />
+              <span className="font-bold text-gray-900">
                 {guest.name}
-                {guest.name === guestName && <span className="text-primary ml-1 text-xs">(vous)</span>}
+                {guest.name === guestName && <span className="text-primary ml-1 text-xs font-semibold">(vous)</span>}
               </span>
               {pendingGuestName === guest.name && (
-                <span className="ml-auto rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-600">
+                <span className="ml-auto rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">
                   en attente
                 </span>
               )}
@@ -149,27 +174,29 @@ export function TableView({
             <div className="space-y-1">
               {guest.products.map((p, i) => (
                 <div key={i} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {p.quantity}× {p.product_name}
-                  </span>
-                  <span>{formatPrice(p.total_price)}</span>
+                  <span className="text-gray-600">{p.product_name}</span>
+                  <span className="font-medium text-gray-900">{formatPrice(p.amount)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-2 flex justify-between border-t pt-2 text-sm font-medium">
+            <div className="mt-3 flex justify-between border-t border-gray-100 pt-2 text-sm font-semibold text-gray-900">
               <span>Sous-total</span>
               <span>{formatPrice(guest.subtotal)}</span>
             </div>
           </button>
         ))}
 
-        <div className="flex justify-between rounded-lg bg-black px-4 py-3 text-white">
+        <div className="flex justify-between rounded-xl bg-gray-900 px-4 py-3 text-white">
           <span className="font-bold">Total table</span>
           <span className="font-bold">{formatPrice(data.grand_total)}</span>
         </div>
 
-        <Button variant="outline" className="w-full" onClick={onNewGuest}>
+        <Button
+          variant="outline"
+          className="w-full border-gray-300 bg-white font-semibold text-gray-800 hover:bg-gray-50"
+          onClick={onNewGuest}
+        >
           + Nouveau convive
         </Button>
       </div>

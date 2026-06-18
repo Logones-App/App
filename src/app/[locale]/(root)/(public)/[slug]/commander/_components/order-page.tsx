@@ -222,6 +222,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           establishment_id: establishmentId,
           table_id: tableId,
           guest_name: guestName.trim(),
+          menu_id: cart[0].menusId,
           items: cart.map((c) =>
             buildOrderItem({
               productId: c.productId,
@@ -444,7 +445,10 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               <h2 className="mb-3 font-semibold">Votre commande</h2>
               <div className="space-y-2">
                 {cart.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 text-sm">
+                  <div
+                    key={item.id}
+                    className="hover:bg-muted/50 -mx-2 flex items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors"
+                  >
                     <span className="text-muted-foreground min-w-0 flex-1 truncate">{item.name}</span>
                     <span className="font-medium">{formatPrice(item.unitPrice)}</span>
                     <button

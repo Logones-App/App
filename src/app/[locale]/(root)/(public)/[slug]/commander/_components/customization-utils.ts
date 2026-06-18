@@ -134,24 +134,8 @@ export function validateSelections(data: CustomizationData, selections: CartItem
 
 // ─── Sélections initiales ─────────────────────────────────────────────────────
 
-export function buildInitialSelections(data: CustomizationData): CartItemSelections {
-  const compositions: Partial<Record<string, CompositionSelection>> = {};
-  for (const comp of data.compositions) {
-    const qty = comp.default_quantity ?? 0;
-    if (qty > 0) {
-      compositions[comp.component_product_id] = {
-        composition: {
-          id: comp.id,
-          component_product_id: comp.component_product_id,
-          composition_kind: "modifier",
-          unit_supplement_price: comp.unit_supplement_price,
-          price_multiplier: comp.price_multiplier,
-        },
-        quantity: qty,
-      };
-    }
-  }
-  return { options: {}, compositions };
+export function buildInitialSelections(): CartItemSelections {
+  return { options: {}, compositions: {} };
 }
 
 // ─── Payload JSONB pour table_order_requests.items ────────────────────────────

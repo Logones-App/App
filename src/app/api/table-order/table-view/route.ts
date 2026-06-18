@@ -4,15 +4,14 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
+export type TableViewProduct = {
+  product_name: string;
+  amount: number;
+};
+
 export type TableViewGuest = {
   name: string;
-  products: {
-    product_name: string;
-    quantity: number;
-    unit_price: number;
-    total_price: number;
-    vat_rate: number | null;
-  }[];
+  products: TableViewProduct[];
   subtotal: number;
 };
 
@@ -20,15 +19,6 @@ export type TableViewResponse = {
   guests: TableViewGuest[];
   grand_total: number;
   orders_id: string;
-};
-
-type RequestItem = { name: string; quantity: number; unit_price: number; vat_rate?: number | null };
-type AggProduct = {
-  product_name: string;
-  unit_price: number;
-  vat_rate: number | null;
-  quantity: number;
-  total: number;
 };
 
 export async function GET(request: NextRequest) {
@@ -42,49 +32,64 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
 
-  const { data: requests, error } = await service
-    .from("table_order_requests")
-    .select("guest_name, items")
-    .eq("order_id", ordersId)
-    .eq("establishment_id", establishmentId)
-    .eq("status", "accepted");
+  // 1. Notes (convives) pour cette commande
+  const { data: payments, error: paymentsErr } = await service
+    .from("order_payments")
+    .select("id, name")
+    .eq("orders_id", ordersId)
+    .neq("deleted", true);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const byGuest = new Map<string, Map<string, AggProduct>>();
-
-  for (const req of requests) {
-    const items = (req.items ?? []) as RequestItem[];
-    const agg = byGuest.get(req.guest_name) ?? new Map<string, AggProduct>();
-    for (const item of items) {
-      const key = `${item.name}||${item.unit_price}||${item.vat_rate ?? ""}`;
-      const existing = agg.get(key);
-      if (existing) {
-        existing.quantity += item.quantity;
-        existing.total += item.quantity * item.unit_price;
-      } else {
-        agg.set(key, {
-          product_name: item.name,
-          unit_price: item.unit_price,
-          vat_rate: item.vat_rate ?? null,
-          quantity: item.quantity,
-          total: item.quantity * item.unit_price,
-        });
-      }
-    }
-    byGuest.set(req.guest_name, agg);
+  if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
+  if (!payments.length) {
+    return NextResponse.json({ guests: [], grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
   }
 
-  const guests: TableViewGuest[] = Array.from(byGuest.entries()).map(([name, agg]) => {
-    const products = Array.from(agg.values()).map((a) => ({
-      product_name: a.product_name,
-      quantity: a.quantity,
-      unit_price: a.unit_price,
-      total_price: a.total,
-      vat_rate: a.vat_rate,
-    }));
-    return { name, products, subtotal: products.reduce((s, p) => s + p.total_price, 0) };
-  });
+  const paymentIds = payments.map((p) => p.id);
+
+  // 2. Attributions produit → note (deleted = false)
+  const { data: rows, error: rowsErr } = await service
+    .from("order_payments_rows")
+    .select("order_products_id, orders_payments_id, amount")
+    .in("orders_payments_id", paymentIds)
+    .eq("deleted", false);
+
+  if (rowsErr) return NextResponse.json({ error: rowsErr.message }, { status: 500 });
+
+  const activeProductIds = rows.map((r) => r.order_products_id).filter((id): id is string => id !== null);
+
+  if (!activeProductIds.length) {
+    const guests = payments.map((p) => ({ name: p.name, products: [], subtotal: 0 }));
+    return NextResponse.json({ guests, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
+  }
+
+  // 3. Produits actifs (cancelled = false)
+  const { data: productRows, error: productsErr } = await service
+    .from("order_products")
+    .select("id, product_name")
+    .in("id", activeProductIds)
+    .eq("cancelled", false);
+
+  if (productsErr) return NextResponse.json({ error: productsErr.message }, { status: 500 });
+
+  const productMap = new Map(productRows.map((p) => [p.id, p.product_name]));
+  const paymentMap = new Map(payments.map((p) => [p.id, p.name]));
+
+  const byGuest = new Map<string, TableViewProduct[]>(payments.map((p) => [p.name, []]));
+
+  for (const row of rows) {
+    if (!row.order_products_id || !row.orders_payments_id) continue;
+    const productName = productMap.get(row.order_products_id);
+    if (!productName) continue; // produit annulé → ignoré
+    const guestName = paymentMap.get(row.orders_payments_id);
+    if (!guestName) continue;
+    byGuest.get(guestName)?.push({ product_name: productName, amount: row.amount ?? 0 });
+  }
+
+  const guests: TableViewGuest[] = Array.from(byGuest.entries()).map(([name, products]) => ({
+    name,
+    products,
+    subtotal: products.reduce((s, p) => s + p.amount, 0),
+  }));
 
   const grand_total = guests.reduce((s, g) => s + g.subtotal, 0);
 

@@ -5891,6 +5891,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "stock_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_movements_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
@@ -6127,12 +6134,14 @@ export type Database = {
           guest_name: string
           id: string
           items: Json
+          menu_id: string | null
           order_id: string | null
           organization_id: string
           rejection_reason: string | null
           status: string
           table_id: string
           table_label: string
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -6141,12 +6150,14 @@ export type Database = {
           guest_name: string
           id?: string
           items?: Json
+          menu_id?: string | null
           order_id?: string | null
           organization_id: string
           rejection_reason?: string | null
           status?: string
           table_id: string
           table_label: string
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -6155,12 +6166,14 @@ export type Database = {
           guest_name?: string
           id?: string
           items?: Json
+          menu_id?: string | null
           order_id?: string | null
           organization_id?: string
           rejection_reason?: string | null
           status?: string
           table_id?: string
           table_label?: string
+          type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6169,6 +6182,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_order_requests_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "menus"
             referencedColumns: ["id"]
           },
           {

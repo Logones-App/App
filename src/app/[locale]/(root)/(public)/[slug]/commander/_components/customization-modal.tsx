@@ -39,19 +39,25 @@ function OptionTile({
 }) {
   const selected = qty > 0;
   const price = value.option_price === 0 ? "Inclus" : `+${value.option_price.toFixed(2).replace(".", ",")}€`;
+  const tileCls = selected
+    ? "border-primary bg-primary text-primary-foreground"
+    : "border-gray-200 bg-white text-gray-900";
+  const disabledCls = disabled && !selected ? " opacity-40" : "";
   return (
     <div className="flex flex-col gap-1">
       <button
         type="button"
         onClick={onToggle}
         disabled={disabled && !selected}
-        className={`relative rounded-lg border p-3 text-left transition-colors ${selected ? "border-primary bg-primary/5" : "border-gray-200"} ${disabled && !selected ? "opacity-40" : ""}`}
+        className={`relative rounded-xl border-2 p-3 text-left transition-all ${tileCls}${disabledCls}`}
       >
         {group.is_required && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
-        <p className="text-sm font-medium">{value.option_name}</p>
-        <p className="text-muted-foreground text-xs">{price}</p>
+        <p className="text-sm leading-snug font-semibold">{value.option_value}</p>
+        <p className={`mt-0.5 text-xs font-medium ${selected ? "text-primary-foreground/80" : "text-gray-500"}`}>
+          {price}
+        </p>
         {selected && qty > 0 && (
-          <span className="bg-primary text-primary-foreground absolute right-2 bottom-2 rounded-full px-1.5 py-0.5 text-xs">
+          <span className="bg-primary-foreground text-primary absolute right-2 bottom-2 rounded-full px-1.5 py-0.5 text-xs font-bold">
             {qty}
           </span>
         )}
@@ -62,16 +68,16 @@ function OptionTile({
             type="button"
             onClick={() => onQty(-1)}
             disabled={(value.min_quantity ?? 0) >= qty}
-            className="bg-muted flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-800 disabled:opacity-40"
           >
             <Minus className="h-3 w-3" />
           </button>
-          <span className="w-4 text-center text-sm font-semibold">{qty}</span>
+          <span className="w-5 text-center text-sm font-bold text-gray-900">{qty}</span>
           <button
             type="button"
             onClick={() => onQty(1)}
             disabled={value.max_quantity !== null && qty >= value.max_quantity}
-            className="bg-muted flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-800 disabled:opacity-40"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -100,13 +106,17 @@ function CompositionTile({
   const minQty = comp.is_required ? 1 : 0;
   return (
     <div
-      className={`relative rounded-lg border p-3 transition-colors ${selected ? "border-primary bg-primary/5" : "border-gray-200"}`}
+      className={`relative rounded-xl border-2 p-3 transition-all ${
+        selected ? "border-primary bg-primary text-primary-foreground" : "border-gray-200 bg-white text-gray-900"
+      }`}
     >
       {comp.is_required && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
-      <p className="text-sm font-medium">{name}</p>
-      <p className="text-muted-foreground text-xs">{price}</p>
+      <p className="text-sm leading-snug font-semibold">{name}</p>
+      <p className={`mt-0.5 text-xs font-medium ${selected ? "text-primary-foreground/80" : "text-gray-500"}`}>
+        {price}
+      </p>
       {selected && (
-        <span className="bg-primary text-primary-foreground absolute right-2 bottom-2 rounded-full px-1.5 py-0.5 text-xs">
+        <span className="bg-primary-foreground text-primary absolute right-2 bottom-2 rounded-full px-1.5 py-0.5 text-xs font-bold">
           {qty}
         </span>
       )}
@@ -115,16 +125,22 @@ function CompositionTile({
           type="button"
           onClick={() => onQty(-1)}
           disabled={qty <= minQty}
-          className="bg-muted flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+          className={`flex h-7 w-7 items-center justify-center rounded-full disabled:opacity-40 ${
+            selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-gray-200 text-gray-800"
+          }`}
         >
           <Minus className="h-3 w-3" />
         </button>
-        <span className="w-4 text-center text-sm font-semibold">{qty}</span>
+        <span className={`w-5 text-center text-sm font-bold ${selected ? "text-primary-foreground" : "text-gray-900"}`}>
+          {qty}
+        </span>
         <button
           type="button"
           onClick={() => onQty(1)}
           disabled={comp.max_quantity !== null && qty >= comp.max_quantity}
-          className="bg-muted flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+          className={`flex h-7 w-7 items-center justify-center rounded-full disabled:opacity-40 ${
+            selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-gray-200 text-gray-800"
+          }`}
         >
           <Plus className="h-3 w-3" />
         </button>
@@ -157,7 +173,7 @@ export function CustomizationModal({ product, establishmentId, initialSelections
       .then((d) => {
         const parsed = d as CustomizationData;
         setData(parsed);
-        if (!initialSelections) setSelections(buildInitialSelections(parsed));
+        if (!initialSelections) setSelections(buildInitialSelections());
       })
       .catch(() =>
         setData({ optionGroups: [], optionValues: [], compositions: [], componentNames: {}, componentPrices: {} }),
@@ -277,31 +293,31 @@ export function CustomizationModal({ product, establishmentId, initialSelections
 
   function handleReset() {
     setErrors([]);
-    setSelections(data ? buildInitialSelections(data) : { options: {}, compositions: {} });
+    setSelections(buildInitialSelections());
   }
 
   const unitPrice = data ? computeUnitPrice(product.price ?? 0, selections, data) : (product.price ?? 0);
   const extrasPrice = unitPrice - (product.price ?? 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
-      <header className="flex items-center justify-between border-b px-4 py-3">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-100">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <div>
-          <p className="font-semibold">{product.name}</p>
-          <p className="text-muted-foreground text-sm">{formatPrice(unitPrice)}</p>
+          <p className="font-bold text-gray-900">{product.name}</p>
+          <p className="text-sm font-semibold text-gray-600">{formatPrice(unitPrice)}</p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
-          <X className="h-5 w-5" />
+        <button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-gray-100">
+          <X className="h-5 w-5 text-gray-700" />
         </button>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 pb-32">
-        {!data && <p className="text-muted-foreground text-center text-sm">Chargement…</p>}
+        {!data && <p className="text-center text-sm text-gray-500">Chargement…</p>}
 
         {data && errors.length > 0 && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3">
             {errors.map((e) => (
-              <p key={e} className="text-sm text-red-600">
+              <p key={e} className="text-sm font-medium text-red-700">
                 {e}
               </p>
             ))}
@@ -318,10 +334,14 @@ export function CustomizationModal({ product, establishmentId, initialSelections
           return (
             <div key={group.id} className="mb-6">
               <div className="mb-2 flex items-center gap-2">
-                <h3 className="font-semibold">{group.name}</h3>
-                {group.is_required && <span className="text-xs text-red-500">Obligatoire</span>}
+                <h3 className="font-bold text-gray-900">{group.name}</h3>
+                {group.is_required && (
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
+                    Obligatoire
+                  </span>
+                )}
                 {group.selection_type === "limited" && group.max_selections !== null && (
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-xs font-medium text-gray-500">
                     ({selectedCount}/{group.max_selections})
                   </span>
                 )}
@@ -345,7 +365,7 @@ export function CustomizationModal({ product, establishmentId, initialSelections
 
         {data && data.compositions.length > 0 && (
           <div className="mb-6">
-            <h3 className="mb-2 font-semibold">Suppléments</h3>
+            <h3 className="mb-2 font-bold text-gray-900">Suppléments</h3>
             <div className="grid grid-cols-2 gap-2">
               {data.compositions.map((comp) => (
                 <CompositionTile
@@ -362,19 +382,19 @@ export function CustomizationModal({ product, establishmentId, initialSelections
         )}
 
         {data && (
-          <div className="rounded-lg bg-gray-50 p-3 text-sm">
-            <p className="mb-1 font-semibold text-gray-700">Récapitulatif</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
+            <p className="mb-2 font-bold text-gray-900">Récapitulatif</p>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Prix de base</span>
-              <span>{formatPrice(product.price ?? 0)}</span>
+              <span className="text-gray-600">Prix de base</span>
+              <span className="font-medium text-gray-900">{formatPrice(product.price ?? 0)}</span>
             </div>
             {extrasPrice > 0 && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Options & suppléments</span>
-                <span>+{formatPrice(extrasPrice)}</span>
+                <span className="text-gray-600">Options & suppléments</span>
+                <span className="font-medium text-gray-900">+{formatPrice(extrasPrice)}</span>
               </div>
             )}
-            <div className="mt-1 flex justify-between border-t pt-1 font-semibold">
+            <div className="mt-2 flex justify-between border-t border-gray-200 pt-2 font-bold text-gray-900">
               <span>Total unitaire</span>
               <span>{formatPrice(unitPrice)}</span>
             </div>
@@ -382,7 +402,7 @@ export function CustomizationModal({ product, establishmentId, initialSelections
         )}
       </div>
 
-      <footer className="fixed right-0 bottom-0 left-0 border-t bg-white px-4 py-3">
+      <footer className="fixed right-0 bottom-0 left-0 border-t border-gray-200 bg-white px-4 py-3">
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Annuler
@@ -391,11 +411,7 @@ export function CustomizationModal({ product, establishmentId, initialSelections
             Confirmer →
           </Button>
         </div>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="text-muted-foreground mt-2 w-full text-center text-xs underline"
-        >
+        <button type="button" onClick={handleReset} className="mt-2 w-full text-center text-xs text-gray-500 underline">
           Réinitialiser les choix
         </button>
       </footer>
