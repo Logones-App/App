@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { Loader2, Pencil, Plus, Trash2, XCircle } from "lucide-react";
+import { Loader2, Plus, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 
 import {
   type PublicProduct,
@@ -16,6 +14,7 @@ import {
   getPublicCarteSectionsWithStock,
 } from "../../menu/_components/menu-utils";
 
+import { CheckoutStep } from "./checkout-step";
 import { CustomizationModal } from "./customization-modal";
 import { type CartItemSelections, buildOrderItem } from "./customization-utils";
 import { TableView } from "./table-view";
@@ -40,6 +39,7 @@ type CartItem = {
   name: string;
   unitPrice: number;
   vatRate: number | null;
+  note: string;
   menusId: string;
   selections: CartItemSelections;
 };
@@ -171,6 +171,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         name: item.name,
         unitPrice: item.price!,
         vatRate: item.vatRate,
+        note: "",
         menusId: item.menusId,
         selections: { options: {}, compositions: {} },
       },
@@ -192,6 +193,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           name: product.name,
           unitPrice,
           vatRate: product.vatRate,
+          note: "",
           menusId: product.menusId,
           selections,
         },
@@ -208,6 +210,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   }
 
   const removeCartItem = (id: string) => setCart((prev) => prev.filter((c) => c.id !== id));
+  const handleNoteChange = (id: string, note: string) =>
+    setCart((prev) => prev.map((c) => (c.id === id ? { ...c, note } : c)));
   const totalPrice = cart.reduce((s, c) => s + c.unitPrice, 0);
 
   async function handleSubmit() {
@@ -230,6 +234,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
               name: c.name,
               unitPrice: c.unitPrice,
               vatRate: c.vatRate,
+              note: c.note,
               selections: c.selections,
             }),
           ),
@@ -441,77 +446,28 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           </>
         )}
         {step === "checkout" && (
-          <div className="space-y-5 p-4">
-            <div hidden={cart.length === 0}>
-              <h2 className="mb-3 font-semibold">Votre commande</h2>
-              <div className="space-y-2">
-                {cart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="hover:bg-muted/50 -mx-2 flex items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors"
-                  >
-                    <span className="text-muted-foreground min-w-0 flex-1 truncate">{item.name}</span>
-                    <span className="font-medium">{formatPrice(item.unitPrice)}</span>
-                    <button
-                      onClick={() => editCartItem(item.id)}
-                      className="text-muted-foreground hover:text-foreground"
-                      hidden={
-                        !sections.flatMap((s) => s.items).find((p) => p.menuProductId === item.menuProductId)
-                          ?.isCustomizable
-                      }
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => removeCartItem(item.id)} className="text-red-400 hover:text-red-600">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span>{formatPrice(totalPrice)}</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Votre prénom *</label>
-              <Input
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Entrez votre prénom"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleSubmit();
-                }}
-              />
-            </div>
-            <p hidden={!error} className="text-destructive text-sm">
-              {error}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => void handleSubmit()} disabled={!guestName.trim() || isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Envoyer ma commande
-              </Button>
-              {isAddingItems ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsAddingItems(false);
-                    setCart([]);
-                    setStep("table-view");
-                  }}
-                >
-                  ← Annuler
-                </Button>
-              ) : (
-                <Button variant="ghost" onClick={() => setStep("browse")}>
-                  <span hidden={cart.length === 0}>← Modifier la commande</span>
-                  <span hidden={cart.length > 0}>Choisir des produits →</span>
-                </Button>
-              )}
-            </div>
-          </div>
+          <CheckoutStep
+            cart={cart}
+            totalPrice={totalPrice}
+            guestName={guestName}
+            isAddingItems={isAddingItems}
+            isSubmitting={isSubmitting}
+            error={error}
+            isItemCustomizable={(id) =>
+              sections.flatMap((s) => s.items).some((p) => p.menuProductId === id && p.isCustomizable)
+            }
+            onGuestNameChange={setGuestName}
+            onNoteChange={handleNoteChange}
+            onEditItem={editCartItem}
+            onRemoveItem={removeCartItem}
+            onSubmit={() => void handleSubmit()}
+            onBack={() => setStep("browse")}
+            onCancel={() => {
+              setIsAddingItems(false);
+              setCart([]);
+              setStep("table-view");
+            }}
+          />
         )}
       </div>
     </>

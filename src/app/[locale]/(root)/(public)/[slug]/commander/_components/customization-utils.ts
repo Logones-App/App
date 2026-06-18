@@ -146,6 +146,7 @@ export type OrderItem = {
   quantity: 1;
   unit_price: number;
   vat_rate: number | null;
+  note?: string | null;
   options?: Partial<Record<string, OptionSelection>>;
   compositions?: Partial<Record<string, CompositionSelection>>;
 };
@@ -155,6 +156,7 @@ export function buildOrderItem(params: {
   name: string;
   unitPrice: number;
   vatRate: number | null;
+  note?: string;
   selections: CartItemSelections;
 }): OrderItem {
   const hasOptions = Object.keys(params.selections.options).length > 0;
@@ -165,6 +167,7 @@ export function buildOrderItem(params: {
     quantity: 1,
     unit_price: params.unitPrice,
     vat_rate: params.vatRate,
+    ...(params.note ? { note: params.note } : {}),
     ...(hasOptions && { options: params.selections.options }),
     ...(hasCompositions && { compositions: params.selections.compositions }),
   };
