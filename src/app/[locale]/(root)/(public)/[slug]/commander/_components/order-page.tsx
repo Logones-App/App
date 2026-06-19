@@ -3,20 +3,22 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
-import { Loader2, Plus, XCircle } from "lucide-react";
+import { Loader2, XCircle } from "lucide-react";
 
+import type { Formula, FormulaProduct } from "@/app/api/table-order/formulas/route";
 import { Button } from "@/components/ui/button";
 
 import {
   type PublicProduct,
   type PublicSection,
-  formatPrice,
   getPublicCarteSectionsWithStock,
 } from "../../menu/_components/menu-utils";
 
+import { BrowseSection } from "./browse-section";
 import { CheckoutStep } from "./checkout-step";
 import { CustomizationModal } from "./customization-modal";
 import { type CartItemSelections, buildOrderItem } from "./customization-utils";
+import { FormulaPicker } from "./formula-picker";
 import { TableView } from "./table-view";
 import { WaitingScreen } from "./waiting-screen";
 
@@ -42,6 +44,9 @@ type CartItem = {
   note: string;
   menusId: string;
   selections: CartItemSelections;
+  formulaInstanceId?: string;
+  formulaId?: string;
+  formulaName?: string;
 };
 
 type Step = "browse" | "checkout" | "waiting" | "table-view" | "name-pick";
@@ -74,10 +79,21 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [roundError, setRoundError] = useState<string | null>(null);
   const [pendingGuestName, setPendingGuestName] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState | null>(null);
+  const [formulas, setFormulas] = useState<Formula[]>([]);
+  const [formulaModal, setFormulaModal] = useState<Formula | null>(null);
 
   useEffect(() => {
     void getPublicCarteSectionsWithStock(establishmentId).then(setSections);
   }, [establishmentId]);
+
+  useEffect(() => {
+    const menuId = sections.flatMap((s) => s.items).find((i) => i.menusId)?.menusId;
+    if (!menuId) return;
+    fetch(`/api/table-order/formulas?menu_id=${menuId}&est=${establishmentId}`)
+      .then((r) => r.json() as Promise<Formula[]>)
+      .then(setFormulas)
+      .catch(() => {});
+  }, [sections, establishmentId]);
 
   useEffect(() => {
     const statusPromise = fetch(`/api/table-order/status?est=${establishmentId}&table=${tableId}`)
@@ -210,8 +226,37 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   }
 
   const removeCartItem = (id: string) => setCart((prev) => prev.filter((c) => c.id !== id));
+  const removeFormulaGroup = (groupId: string) =>
+    setCart((prev) => prev.filter((c) => c.formulaInstanceId !== groupId));
   const handleNoteChange = (id: string, note: string) =>
     setCart((prev) => prev.map((c) => (c.id === id ? { ...c, note } : c)));
+  const handleFormulaGroupNoteChange = (groupId: string, note: string) =>
+    setCart((prev) => prev.map((c) => (c.formulaInstanceId === groupId ? { ...c, note } : c)));
+
+  function handleFormulaConfirm(formula: Formula, sels: Partial<Record<string, FormulaProduct>>) {
+    const groupId = crypto.randomUUID();
+    const supplementTotal = formula.slots.reduce((s, sl) => s + (sels[sl.id]?.supplement_price ?? 0), 0);
+    const groupPrice = formula.price + supplementTotal;
+    const items: CartItem[] = formula.slots
+      .slice()
+      .sort((a, b) => a.slot_order - b.slot_order)
+      .map((sl, i) => ({
+        id: crypto.randomUUID(),
+        menuProductId: "",
+        productId: sels[sl.id]?.product_id ?? "",
+        name: sels[sl.id]?.product_name ?? "",
+        unitPrice: i === 0 ? groupPrice : 0,
+        vatRate: null,
+        note: "",
+        menusId: formula.menu_id,
+        selections: { options: {}, compositions: {} },
+        formulaInstanceId: groupId,
+        formulaId: formula.id,
+        formulaName: formula.name,
+      }));
+    setCart((prev) => [...prev, ...items]);
+    setFormulaModal(null);
+  }
   const totalPrice = cart.reduce((s, c) => s + c.unitPrice, 0);
 
   async function handleSubmit() {
@@ -232,9 +277,11 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
             buildOrderItem({
               productId: c.productId,
               name: c.name,
-              unitPrice: c.unitPrice,
+              unitPrice: c.formulaInstanceId ? 0 : c.unitPrice,
               vatRate: c.vatRate,
               note: c.note,
+              formulaId: c.formulaId,
+              formulaInstanceId: c.formulaInstanceId,
               selections: c.selections,
             }),
           ),
@@ -361,6 +408,13 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const backToTable = () => setStep("table-view");
   return (
     <>
+      {formulaModal && (
+        <FormulaPicker
+          formula={formulaModal}
+          onConfirm={(sels) => handleFormulaConfirm(formulaModal, sels)}
+          onClose={() => setFormulaModal(null)}
+        />
+      )}
       {modalState && (
         <CustomizationModal
           product={modalState.product}
@@ -381,69 +435,18 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           </button>
         </header>
         {step === "browse" && (
-          <>
-            {isAddingItems && (
-              <div className="bg-primary/10 border-primary/20 border-b px-4 py-2 text-sm">
-                Ajout d&apos;articles pour <strong>{guestName}</strong>
-              </div>
-            )}
-            {sections.length === 0 && (
-              <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
-                Menu non disponible
-              </div>
-            )}
-            {sections.map((section: PublicSection) => (
-              <div key={section.id} className="px-4 py-5">
-                <h2 className="mb-3 text-base font-semibold">{section.name}</h2>
-                <div className="space-y-4">
-                  {section.items.map((item: PublicProduct) => {
-                    const count = cart.filter((c) => c.menuProductId === item.menuProductId).length;
-                    return (
-                      <div
-                        key={item.menuProductId}
-                        className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{item.name}</p>
-                          {item.description && (
-                            <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>
-                          )}
-                          {item.price !== null && (
-                            <p className="mt-0.5 text-sm font-semibold">
-                              {item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}
-                            </p>
-                          )}
-                        </div>
-                        {item.price !== null && (
-                          <div className="relative shrink-0">
-                            <button
-                              onClick={() => handleAddProduct(item)}
-                              disabled={item.isOutOfStock}
-                              className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-40"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                            {count > 0 && (
-                              <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
-                                {count}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            {cart.length > 0 && (
-              <div className="fixed right-0 bottom-0 left-0 border-t bg-white p-4 shadow-lg">
-                <Button className="w-full" onClick={() => setStep("checkout")}>
-                  Commander ({cart.length} article{cart.length > 1 ? "s" : ""}) — {formatPrice(totalPrice)}
-                </Button>
-              </div>
-            )}
-          </>
+          <BrowseSection
+            sections={sections}
+            formulas={formulas}
+            cartLength={cart.length}
+            totalPrice={totalPrice}
+            isAddingItems={isAddingItems}
+            guestName={guestName}
+            getProductCount={(id) => cart.filter((c) => c.menuProductId === id).length}
+            onAddProduct={handleAddProduct}
+            onOpenFormula={setFormulaModal}
+            onGoToCheckout={() => setStep("checkout")}
+          />
         )}
         {step === "checkout" && (
           <CheckoutStep
@@ -458,8 +461,10 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
             }
             onGuestNameChange={setGuestName}
             onNoteChange={handleNoteChange}
+            onFormulaGroupNoteChange={handleFormulaGroupNoteChange}
             onEditItem={editCartItem}
             onRemoveItem={removeCartItem}
+            onRemoveFormulaGroup={removeFormulaGroup}
             onSubmit={() => void handleSubmit()}
             onBack={() => setStep("browse")}
             onCancel={() => {
