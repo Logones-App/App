@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, Clock, Loader2, User } from "lucide-react";
 
-import type { PendingRequest, TableViewGuest, TableViewResponse } from "@/app/api/table-order/table-view/route";
+import type {
+  PendingRequest,
+  TableViewGuest,
+  TableViewItem,
+  TableViewResponse,
+} from "@/app/api/table-order/table-view/route";
 import { Button } from "@/components/ui/button";
 
 import { formatPrice } from "../../menu/_components/menu-utils";
@@ -58,6 +63,34 @@ function PendingSection({ pending }: { pending: PendingRequest[] }) {
   );
 }
 
+// ─── Rendu d'un item (produit ou formule) ─────────────────────────────────────
+
+function GuestItem({ item }: { item: TableViewItem }) {
+  if (item.kind === "product") {
+    return (
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">{item.product_name}</span>
+        <span className="font-medium text-gray-900">{formatPrice(item.amount)}</span>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="flex justify-between text-sm">
+        <span className="font-semibold text-gray-800">{item.formula_name}</span>
+        <span className="font-medium text-gray-900">{formatPrice(item.amount)}</span>
+      </div>
+      <div className="mt-0.5 ml-2 space-y-0.5">
+        {item.products.map((name, i) => (
+          <p key={i} className="text-xs text-gray-500">
+            {name}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export function TableView({
@@ -89,7 +122,6 @@ export function TableView({
       }, 300);
     };
 
-    // Rounds en attente / acceptés / refusés
     const pendingChannel = supabase
       .channel(`pending-requests-${ordersId}`)
       .on(
@@ -99,7 +131,6 @@ export function TableView({
       )
       .subscribe();
 
-    // Produits ajoutés / annulés par le POS
     const productsChannel = supabase
       .channel(`order-products-${ordersId}`)
       .on(
@@ -109,7 +140,6 @@ export function TableView({
       )
       .subscribe();
 
-    // Nouvelles notes (convives) créées par le POS
     const paymentsChannel = supabase
       .channel(`order-payments-${ordersId}`)
       .on(
@@ -119,7 +149,6 @@ export function TableView({
       )
       .subscribe();
 
-    // Attributions produit ↔ note modifiées
     const rowsChannel = supabase
       .channel(`order-payments-rows-${establishmentId}`)
       .on(
@@ -134,7 +163,15 @@ export function TableView({
       )
       .subscribe();
 
-    // Table fermée côté POS
+    const formulasChannel = supabase
+      .channel(`order-formulas-${ordersId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_formulas", filter: `order_id=eq.${ordersId}` },
+        refresh,
+      )
+      .subscribe();
+
     const ordersChannel = supabase
       .channel(`table-orders-${ordersId}`)
       .on(
@@ -151,6 +188,7 @@ export function TableView({
       void supabase.removeChannel(productsChannel);
       void supabase.removeChannel(paymentsChannel);
       void supabase.removeChannel(rowsChannel);
+      void supabase.removeChannel(formulasChannel);
       void supabase.removeChannel(ordersChannel);
     };
   }, [ordersId, establishmentId]);
@@ -214,12 +252,9 @@ export function TableView({
               )}
             </div>
 
-            <div className="space-y-1">
-              {guest.products.map((p, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-gray-600">{p.product_name}</span>
-                  <span className="font-medium text-gray-900">{formatPrice(p.amount)}</span>
-                </div>
+            <div className="space-y-1.5">
+              {guest.items.map((item, i) => (
+                <GuestItem key={i} item={item} />
               ))}
             </div>
 

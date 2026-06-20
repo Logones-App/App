@@ -5,13 +5,23 @@ import { createServiceClient } from "@/lib/supabase/service";
 export const dynamic = "force-dynamic";
 
 export type TableViewProduct = {
+  kind: "product";
   product_name: string;
   amount: number;
 };
 
+export type TableViewFormulaGroup = {
+  kind: "formula";
+  formula_name: string;
+  products: string[];
+  amount: number;
+};
+
+export type TableViewItem = TableViewProduct | TableViewFormulaGroup;
+
 export type TableViewGuest = {
   name: string;
-  products: TableViewProduct[];
+  items: TableViewItem[];
   subtotal: number;
 };
 
@@ -33,6 +43,66 @@ export type TableViewResponse = {
 };
 
 type PendingItemRaw = { name: string; quantity: number };
+type OrderProductRow = { id: string; product_name: string; order_formulas_id: string | null };
+
+async function resolveFormulaGroups(
+  service: ReturnType<typeof import("@/lib/supabase/service").createServiceClient>,
+  formulaInstanceIds: string[],
+): Promise<{ nameMap: Map<string, string>; subProductsMap: Map<string, string[]> }> {
+  const [formulaRes, subRes] = await Promise.all([
+    service.from("order_formulas").select("id, formula_name").in("id", formulaInstanceIds).eq("deleted", false),
+    service
+      .from("order_products")
+      .select("product_name, order_formulas_id")
+      .in("order_formulas_id", formulaInstanceIds)
+      .eq("cancelled", false),
+  ]);
+
+  const nameMap = new Map<string, string>();
+  for (const f of formulaRes.data ?? []) nameMap.set(f.id, f.formula_name);
+
+  const subProductsMap = new Map<string, string[]>();
+  for (const p of subRes.data ?? []) {
+    if (!p.order_formulas_id) continue;
+    const list = subProductsMap.get(p.order_formulas_id) ?? [];
+    list.push(p.product_name);
+    subProductsMap.set(p.order_formulas_id, list);
+  }
+
+  return { nameMap, subProductsMap };
+}
+
+function buildItems(
+  rows: { order_products_id: string | null; orders_payments_id: string | null; amount: number | null }[],
+  productMap: Map<string, OrderProductRow>,
+  paymentMap: Map<string, string>,
+  formulaNameMap: Map<string, string>,
+  formulaSubProductsMap: Map<string, string[]>,
+): Map<string, TableViewItem[]> {
+  const byGuest = new Map<string, TableViewItem[]>();
+  for (const name of paymentMap.values()) byGuest.set(name, []);
+
+  for (const row of rows) {
+    if (!row.order_products_id || !row.orders_payments_id) continue;
+    const product = productMap.get(row.order_products_id);
+    if (!product) continue;
+    const guestName = paymentMap.get(row.orders_payments_id);
+    if (!guestName) continue;
+
+    const items = byGuest.get(guestName)!;
+    if (product.order_formulas_id) {
+      items.push({
+        kind: "formula",
+        formula_name: formulaNameMap.get(product.order_formulas_id) ?? "Formule",
+        products: formulaSubProductsMap.get(product.order_formulas_id) ?? [product.product_name],
+        amount: row.amount ?? 0,
+      });
+    } else {
+      items.push({ kind: "product", product_name: product.product_name, amount: row.amount ?? 0 });
+    }
+  }
+  return byGuest;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -45,7 +115,6 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // 1 + 4 en parallèle : notes confirmées + rounds en attente
   const [paymentsRes, pendingRes] = await Promise.all([
     service.from("order_payments").select("id, name").eq("orders_id", ordersId).neq("deleted", true),
     service.from("table_order_requests").select("guest_name, items").eq("order_id", ordersId).eq("status", "pending"),
@@ -66,7 +135,6 @@ export async function GET(request: NextRequest) {
 
   const paymentIds = payments.map((p) => p.id);
 
-  // 2. Attributions produit → note (deleted = false)
   const { data: rows, error: rowsErr } = await service
     .from("order_payments_rows")
     .select("order_products_id, orders_payments_id, amount")
@@ -78,36 +146,36 @@ export async function GET(request: NextRequest) {
   const activeProductIds = rows.map((r) => r.order_products_id).filter((id): id is string => id !== null);
 
   if (!activeProductIds.length) {
-    const guests = payments.map((p) => ({ name: p.name, products: [], subtotal: 0 }));
+    const guests = payments.map((p) => ({ name: p.name, items: [] as TableViewItem[], subtotal: 0 }));
     return NextResponse.json({ guests, pending, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
   }
 
-  // 3. Produits actifs (cancelled = false)
   const { data: productRows, error: productsErr } = await service
     .from("order_products")
-    .select("id, product_name")
+    .select("id, product_name, order_formulas_id")
     .in("id", activeProductIds)
     .eq("cancelled", false);
 
   if (productsErr) return NextResponse.json({ error: productsErr.message }, { status: 500 });
 
-  const productMap = new Map(productRows.map((p) => [p.id, p.product_name]));
+  const productMap = new Map<string, OrderProductRow>(productRows.map((p) => [p.id, p]));
+
+  const formulaInstanceIds = [
+    ...new Set(productRows.map((p) => p.order_formulas_id).filter((id): id is string => id !== null)),
+  ];
+
+  const { nameMap: formulaNameMap, subProductsMap: formulaSubProductsMap } =
+    formulaInstanceIds.length > 0
+      ? await resolveFormulaGroups(service, formulaInstanceIds)
+      : { nameMap: new Map<string, string>(), subProductsMap: new Map<string, string[]>() };
+
   const paymentMap = new Map(payments.map((p) => [p.id, p.name]));
-  const byGuest = new Map<string, TableViewProduct[]>(payments.map((p) => [p.name, []]));
+  const byGuest = buildItems(rows, productMap, paymentMap, formulaNameMap, formulaSubProductsMap);
 
-  for (const row of rows) {
-    if (!row.order_products_id || !row.orders_payments_id) continue;
-    const productName = productMap.get(row.order_products_id);
-    if (!productName) continue;
-    const guestName = paymentMap.get(row.orders_payments_id);
-    if (!guestName) continue;
-    byGuest.get(guestName)?.push({ product_name: productName, amount: row.amount ?? 0 });
-  }
-
-  const guests: TableViewGuest[] = Array.from(byGuest.entries()).map(([name, products]) => ({
+  const guests: TableViewGuest[] = Array.from(byGuest.entries()).map(([name, items]) => ({
     name,
-    products,
-    subtotal: products.reduce((s, p) => s + p.amount, 0),
+    items,
+    subtotal: items.reduce((s, item) => s + item.amount, 0),
   }));
 
   const grand_total = guests.reduce((s, g) => s + g.subtotal, 0);
