@@ -6,8 +6,9 @@ import { useParams } from "next/navigation";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowLeft, Building2, Calendar, Edit, Globe, LayoutGrid, Trash2 } from "lucide-react";
+import { ArrowLeft, Building, Building2, Calendar, Edit, Globe, LayoutGrid, Trash2 } from "lucide-react";
 
+import { OrgAdminCard } from "@/app/[locale]/(root)/(dashboard)/admin/organizations/_components/org-admin-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -220,6 +221,12 @@ export default function OrganizationManagementPage() {
 
       {/* Onglets pour différentes sections */}
       <div className="mt-6 flex flex-wrap gap-2">
+        <Link href={`/admin/organizations/${organizationId}/establishments`}>
+          <Button variant="outline">
+            <Building className="mr-2 h-4 w-4" />
+            Établissements
+          </Button>
+        </Link>
         <Link href={`/admin/organizations/${organizationId}/modules`}>
           <Button variant="outline">
             <LayoutGrid className="mr-2 h-4 w-4" />
@@ -242,6 +249,8 @@ export default function OrganizationManagementPage() {
           <Button variant="outline">Paramètres</Button>
         </Link>
       </div>
+
+      <OrgAdminCard organizationId={organizationId} />
     </div>
   );
 }

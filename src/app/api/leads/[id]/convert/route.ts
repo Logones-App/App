@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { generateSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -87,6 +88,21 @@ async function createEstablishment(
   return { id: data.id, slug };
 }
 
+function generateSigningKey(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString("base64");
+}
+
+async function createNf525Key(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const { error } = await svc.from("nf525_signing_keys").insert({
+    establishment_id: estId,
+    organization_id: orgId,
+    signing_key_base64: generateSigningKey(),
+  });
+  if (error) throw error;
+}
+
 async function createVatRates(svc: Svc, rates: VatPayload[], estId: string, orgId: string): Promise<void> {
   if (rates.length === 0) return;
   const rows = rates.map((r) => ({ establishment_id: estId, organization_id: orgId, name: r.name, value: r.value }));
@@ -128,6 +144,35 @@ async function createOrgaUser(
   return { email, password };
 }
 
+async function createOrgAdmin(svc: Svc, email: string, name: string, orgId: string): Promise<void> {
+  const { data: created, error } = await svc.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+    app_metadata: { role: "org_admin" },
+  });
+  if (error) throw error;
+
+  const userId = created.user.id;
+  const { error: uoError } = await svc.from("users_organizations").insert({
+    user_id: userId,
+    organization_id: orgId,
+    role: "org_admin",
+  });
+  if (uoError) {
+    await svc.auth.admin.deleteUser(userId).catch(() => {});
+    throw uoError;
+  }
+
+  const { data: linkData } = await svc.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: INVITATION_REDIRECT_URL },
+  });
+  const actionLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+  if (actionLink) await sendInvitationEmail(email, name, actionLink);
+}
+
 async function assignCommercial(svc: Svc, userId: string, orgId: string, role: string): Promise<void> {
   const { data: existing } = await svc
     .from("users_organizations")
@@ -167,6 +212,7 @@ async function resolveOrg(
   let tabletError: string | null = null;
   if (body.establishment?.name) {
     const { id: estId, slug } = await createEstablishment(svc, body.establishment, orgId, userId);
+    await createNf525Key(svc, estId, orgId);
     await createVatRates(svc, body.vat_rates ?? [], estId, orgId);
     try {
       tabletCredentials = await createOrgaUser(svc, estId, orgId, slug);
@@ -195,10 +241,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = (await request.json()) as ConvertBody;
     const svc = createServiceClient();
 
-    const { data: lead, error: leadErr } = await svc.from("leads").select("assigned_to").eq("id", leadId).single();
+    const { data: lead, error: leadErr } = await svc
+      .from("leads")
+      .select("assigned_to, contact_email, contact_name")
+      .eq("id", leadId)
+      .single();
     if (leadErr ?? !lead) return NextResponse.json({ error: "Lead introuvable" }, { status: 404 });
 
     const { orgId, tabletCredentials, tabletError } = await resolveOrg(svc, body, user.id);
+
+    if (body.mode === "new") {
+      const typedLead = lead as {
+        assigned_to: string | null;
+        contact_email?: string | null;
+        contact_name?: string | null;
+      };
+      if (typedLead.contact_email) {
+        try {
+          await createOrgAdmin(svc, typedLead.contact_email, typedLead.contact_name ?? "", orgId);
+        } catch (err) {
+          console.error("createOrgAdmin failed in convert:", err);
+        }
+      }
+    }
 
     await svc
       .from("leads")

@@ -127,7 +127,9 @@
       "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"error TS\" } | Select-Object -First 10)",
       "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\"; npx next lint --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/haccp/planning/_components/haccp-week-calendar.tsx\" --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/haccp/planning/_components/haccp-time-grid.tsx\" --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/haccp/temperatures/page.tsx\" --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/haccp/tracabilite/page.tsx\" --file \"src/navigation/sidebar/org-admin-items.ts\" 2>&1 | Where-Object { $_ -match \"Error|error\" })",
       "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/api/admin/establishments/[id]/pos-account\")",
-      "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/api/admin/establishments/[id]/orga-user\")"
+      "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/api/admin/establishments/[id]/orga-user\")",
+      "Bash(xargs grep -l \"sendInvite\\\\|sendEmail.*employee\\\\|inviteEmployee\")",
+      "Bash(xargs grep -l \"resend\\\\|sendEmail\\\\|invitation\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

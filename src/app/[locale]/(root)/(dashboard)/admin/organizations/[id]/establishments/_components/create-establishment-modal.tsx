@@ -82,7 +82,35 @@ function WizardStepper({ step }: { step: number }) {
   );
 }
 
-function FormEst({ form, set }: { form: EstFields; set: (k: keyof EstFields, v: string) => void }) {
+function FormEst({
+  form,
+  set,
+  touch,
+  touched,
+}: {
+  form: EstFields;
+  set: (k: keyof EstFields, v: string) => void;
+  touch: (k: keyof EstFields) => void;
+  touched: Set<keyof EstFields>;
+}) {
+  const err = (k: keyof EstFields) => touched.has(k) && !form[k].trim();
+  const siretRaw = form.siret.replace(/\s/g, "");
+  const siretErr = touched.has("siret")
+    ? !form.siret.trim()
+      ? "Champ requis"
+      : !/^\d{14}$/.test(siretRaw)
+        ? "14 chiffres requis"
+        : null
+    : null;
+  const inputCls = (k: keyof EstFields) =>
+    k === "siret"
+      ? siretErr
+        ? "border-destructive focus-visible:ring-destructive"
+        : ""
+      : err(k)
+        ? "border-destructive focus-visible:ring-destructive"
+        : "";
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5 sm:col-span-2">
@@ -92,28 +120,53 @@ function FormEst({ form, set }: { form: EstFields; set: (k: keyof EstFields, v: 
         <Input
           value={form.name}
           onChange={(e) => set("name", e.target.value)}
+          onBlur={() => touch("name")}
           placeholder="Nom de l'établissement"
           autoFocus
+          className={inputCls("name")}
         />
+        {err("name") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5 sm:col-span-2">
         <Label>
-          Adresse <span className="text-muted-foreground text-xs">(NF525)</span>
+          Adresse <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
         </Label>
-        <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Rue, numéro…" />
+        <Input
+          value={form.address}
+          onChange={(e) => set("address", e.target.value)}
+          onBlur={() => touch("address")}
+          placeholder="Rue, numéro…"
+          className={inputCls("address")}
+        />
+        {err("address") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>Code postal</Label>
+        <Label>
+          Code postal <span className="text-destructive">*</span>
+        </Label>
         <Input
           type="number"
           value={form.postal_code}
           onChange={(e) => set("postal_code", e.target.value)}
+          onBlur={() => touch("postal_code")}
           placeholder="69000"
+          className={inputCls("postal_code")}
         />
+        {err("postal_code") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>Ville</Label>
-        <Input value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Lyon" />
+        <Label>
+          Ville <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          value={form.city}
+          onChange={(e) => set("city", e.target.value)}
+          onBlur={() => touch("city")}
+          placeholder="Lyon"
+          className={inputCls("city")}
+        />
+        {err("city") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
         <Label>Pays</Label>
@@ -138,9 +191,17 @@ function FormEst({ form, set }: { form: EstFields; set: (k: keyof EstFields, v: 
       </div>
       <div className="space-y-1.5">
         <Label>
-          SIRET <span className="text-muted-foreground text-xs">(NF525)</span>
+          SIRET <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
         </Label>
-        <Input value={form.siret} onChange={(e) => set("siret", e.target.value)} placeholder="123 456 789 00012" />
+        <Input
+          value={form.siret}
+          onChange={(e) => set("siret", e.target.value)}
+          onBlur={() => touch("siret")}
+          placeholder="123 456 789 00012"
+          className={inputCls("siret")}
+        />
+        {siretErr && <p className="text-destructive mt-0.5 text-xs">{siretErr}</p>}
       </div>
       <div className="space-y-1.5">
         <Label>N° TVA intracomm.</Label>
@@ -300,23 +361,31 @@ interface Props {
   onSuccess: () => void;
 }
 
+const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret"];
+
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<EstFields>(EMPTY_FORM);
   const [vatRates, setVatRates] = useState<VatRow[]>(DEFAULT_VAT);
+  const [touched, setTouched] = useState<Set<keyof EstFields>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+
+  const siretDigits = form.siret.replace(/\s/g, "");
+  const isStep0Valid = STEP0_REQUIRED.every((k) => form[k].trim() !== "") && /^\d{14}$/.test(siretDigits);
 
   function handleClose() {
     if (isSubmitting) return;
     setStep(0);
     setForm(EMPTY_FORM);
     setVatRates(DEFAULT_VAT);
+    setTouched(new Set());
     setCredentials(null);
     onClose();
   }
 
   const set = (k: keyof EstFields, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  const touch = (k: keyof EstFields) => setTouched((prev) => new Set([...prev, k]));
   const toggleVat = (i: number) =>
     setVatRates((p) => p.map((r, idx) => (idx === i ? { ...r, checked: !r.checked } : r)));
   const updateVat = (i: number, field: "name" | "value", val: string) =>
@@ -324,16 +393,8 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
   const addVat = () => setVatRates((p) => [...p, { name: "", value: "", checked: true }]);
   const removeVat = (i: number) => setVatRates((p) => p.filter((_, idx) => idx !== i));
 
-  function validateStep(): boolean {
-    if (step === 0 && !form.name.trim()) {
-      toast.error("Le nom du restaurant est requis");
-      return false;
-    }
-    return true;
-  }
-
   function next() {
-    if (validateStep()) setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
   async function handleSubmit() {
@@ -418,7 +479,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
           <>
             <WizardStepper step={step} />
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-              {step === 0 && <FormEst form={form} set={set} />}
+              {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} />}
               {step === 1 && (
                 <FormVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
               )}
@@ -434,7 +495,11 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
                     Précédent
                   </Button>
                 )}
-                {!isLastStep && <Button onClick={next}>Suivant</Button>}
+                {!isLastStep && (
+                  <Button onClick={next} disabled={step === 0 && !isStep0Valid}>
+                    Suivant
+                  </Button>
+                )}
                 {isLastStep && (
                   <Button onClick={() => void handleSubmit()} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

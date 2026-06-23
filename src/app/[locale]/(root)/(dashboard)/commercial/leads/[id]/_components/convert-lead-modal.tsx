@@ -329,7 +329,14 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
                     <StepVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
                   )}
                   {step === 3 && (
-                    <StepRecap orgForm={orgForm} estForm={estForm} activeVat={activeVat} activePlan={activePlan} />
+                    <StepRecap
+                      orgForm={orgForm}
+                      estForm={estForm}
+                      activeVat={activeVat}
+                      activePlan={activePlan}
+                      contactEmail={lead.contact_email}
+                      contactName={lead.contact_name}
+                    />
                   )}
                 </div>
               </>

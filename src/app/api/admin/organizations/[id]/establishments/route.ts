@@ -92,6 +92,21 @@ function buildEstData(est: EstBody, orgId: string, userId: string, slug: string)
   };
 }
 
+function generateSigningKey(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString("base64");
+}
+
+async function insertNf525Key(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const { error } = await svc.from("nf525_signing_keys").insert({
+    establishment_id: estId,
+    organization_id: orgId,
+    signing_key_base64: generateSigningKey(),
+  });
+  if (error) throw error;
+}
+
 async function insertVatRates(svc: Svc, rates: VatBody[], estId: string, orgId: string): Promise<void> {
   const filtered = rates.filter((r) => r.value > 0);
   if (filtered.length === 0) return;
@@ -135,6 +150,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (estError) throw estError;
 
+    await insertNf525Key(svc, newEst.id, orgId);
     await insertVatRates(svc, body.vat_rates ?? [], newEst.id, orgId);
 
     let tabletCredentials: { email: string; password: string } | null = null;

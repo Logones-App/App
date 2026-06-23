@@ -24,6 +24,7 @@ export interface VatRow {
 
 export interface LeadInfo {
   company_name: string;
+  contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
   city: string | null;

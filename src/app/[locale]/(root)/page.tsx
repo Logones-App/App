@@ -1,8 +1,11 @@
 import Link from "next/link";
 
+import { AuthHashRedirect } from "./_components/auth-hash-redirect";
+
 export default function HomePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
+      <AuthHashRedirect />
       <div className="rounded bg-white p-8 text-center shadow">
         <h1 className="mb-4 text-4xl font-bold">Bienvenue sur Next Shadcn Admin Dashboard</h1>
         <p className="mb-6 text-lg text-gray-600">

@@ -188,11 +188,15 @@ export function StepRecap({
   estForm,
   activeVat,
   activePlan,
+  contactEmail,
+  contactName,
 }: {
   orgForm: OrgForm;
   estForm: EstForm;
   activeVat: VatRow[];
   activePlan: string;
+  contactEmail?: string | null;
+  contactName?: string | null;
 }) {
   const addressLine = [estForm.address, estForm.postal_code, estForm.city].filter(Boolean).join(", ");
   return (
@@ -228,6 +232,16 @@ export function StepRecap({
           </div>
         )}
       </div>
+      {contactEmail && (
+        <div className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+          <p className="text-[10px] font-medium tracking-wide text-blue-600 uppercase dark:text-blue-400">
+            Accès SaaS (org_admin)
+          </p>
+          {contactName && <p className="text-xs font-medium">{contactName}</p>}
+          <p className="font-mono text-xs">{contactEmail}</p>
+          <p className="text-muted-foreground text-xs">Une invitation sera envoyée à cette adresse</p>
+        </div>
+      )}
     </div>
   );
 }

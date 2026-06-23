@@ -1,10 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { generateSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
+
+type Svc = ReturnType<typeof createServiceClient>;
+
+async function createOrgAdmin(svc: Svc, email: string, name: string, orgId: string): Promise<void> {
+  const { data: created, error } = await svc.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+    app_metadata: { role: "org_admin" },
+  });
+  if (error) throw error;
+
+  const userId = created.user.id;
+  const { error: uoError } = await svc.from("users_organizations").insert({
+    user_id: userId,
+    organization_id: orgId,
+    role: "org_admin",
+  });
+  if (uoError) {
+    await svc.auth.admin.deleteUser(userId).catch(() => {});
+    throw uoError;
+  }
+
+  const { data: linkData } = await svc.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: INVITATION_REDIRECT_URL },
+  });
+  const actionLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+  if (actionLink) await sendInvitationEmail(email, name, actionLink);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +53,8 @@ export async function POST(req: NextRequest) {
       name?: string | null;
       description?: string | null;
       subscription_plan?: string | null;
+      org_admin_email?: string | null;
+      org_admin_name?: string | null;
     };
     if (!body.name?.trim()) return NextResponse.json({ error: "Nom requis" }, { status: 400 });
 
@@ -39,7 +73,18 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ orgId: data.id }, { status: 201 });
+
+    let orgAdminError: string | null = null;
+    if (body.org_admin_email?.trim()) {
+      try {
+        await createOrgAdmin(svc, body.org_admin_email.trim(), body.org_admin_name?.trim() ?? "", data.id);
+      } catch (err) {
+        orgAdminError = err instanceof Error ? err.message : "Erreur création compte admin";
+        console.error("createOrgAdmin failed:", err);
+      }
+    }
+
+    return NextResponse.json({ orgId: data.id, orgAdminError }, { status: 201 });
   } catch (err) {
     console.error("POST /api/admin/organizations error:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur inattendue" }, { status: 500 });

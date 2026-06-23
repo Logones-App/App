@@ -49,6 +49,36 @@ async function buildOrgaUser(svc: Svc, establishmentId: string): Promise<{ email
   return { email, password };
 }
 
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+    const role = (user.app_metadata.role ?? user.user_metadata.role) as string | undefined;
+    if (role !== "system_admin") return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { id: establishmentId } = await params;
+    const svc = createServiceClient();
+
+    const { data: existing } = await svc
+      .from("users_organizations")
+      .select("user_id")
+      .eq("establishment_id", establishmentId)
+      .maybeSingle();
+
+    if (!existing) return NextResponse.json({ email: null });
+
+    const { data: authUser } = await svc.auth.admin.getUserById(existing.user_id);
+    return NextResponse.json({ email: authUser.user?.email ?? null });
+  } catch (err) {
+    console.error("GET /api/admin/establishments/[id]/orga-user error:", err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur inattendue" }, { status: 500 });
+  }
+}
+
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();

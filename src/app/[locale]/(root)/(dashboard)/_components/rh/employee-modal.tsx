@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { Loader2, Mail } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -183,13 +186,60 @@ function TabContract({ form, set }: { form: Partial<EmployeeInsert>; set: SetFn 
 
 // ─── Onglet Accès app ─────────────────────────────────────────────────────────
 
-function TabAccess({ form, set }: { form: Partial<EmployeeInsert>; set: SetFn }) {
+function TabAccess({
+  form,
+  set,
+  employeeId,
+  employeeEmail,
+  authUserId,
+}: {
+  form: Partial<EmployeeInsert>;
+  set: SetFn;
+  employeeId?: string | null;
+  employeeEmail?: string | null;
+  authUserId?: string | null;
+}) {
+  const [isWorking, setIsWorking] = useState(false);
+
+  async function handleInvite() {
+    if (!employeeId) return;
+    setIsWorking(true);
+    try {
+      const res = await fetch(`/api/admin/employees/${employeeId}/invite`, { method: "POST" });
+      const data = (await res.json()) as { emailSent?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      toast.success(data.emailSent ? "Invitation envoyée" : "Compte créé (email non envoyé)");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur inattendue");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!employeeId) return;
+    setIsWorking(true);
+    try {
+      const res = await fetch(`/api/admin/employees/${employeeId}/resend-invite`, { method: "POST" });
+      const data = (await res.json()) as { emailSent?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      toast.success(data.emailSent ? "Invitation renvoyée" : "Lien généré (email non envoyé)");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur inattendue");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  const hasAccount = !!authUserId;
+  const canInvite = !!employeeId && !!employeeEmail && !hasAccount;
+
   return (
     <div className="space-y-4">
       <label className="flex cursor-pointer items-center justify-between rounded-lg border p-4">
         <div>
-          <p className="font-medium">Accès application mobile</p>
-          <p className="text-muted-foreground text-sm">Cet employé peut se connecter sur les devices avec un PIN</p>
+          <p className="font-medium">Accès caisse (PIN)</p>
+          <p className="text-muted-foreground text-sm">Identification sur le POS avec un code PIN</p>
         </div>
         <Switch checked={form.has_mobile_access ?? false} onCheckedChange={(v) => set("has_mobile_access", v)} />
       </label>
@@ -209,17 +259,54 @@ function TabAccess({ form, set }: { form: Partial<EmployeeInsert>; set: SetFn })
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Code PIN">
+          <Field label="Code PIN (4 à 6 chiffres)">
             <Input
               type="password"
               value={form.pin_code ?? ""}
               onChange={(e) => set("pin_code", e.target.value || null)}
-              placeholder="4 à 6 chiffres"
+              placeholder="••••"
               maxLength={6}
+              inputMode="numeric"
             />
           </Field>
         </>
       )}
+
+      {employeeId && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <p className="font-medium">Espace personnel</p>
+            <p className="text-muted-foreground text-sm">Planning, pointage et documents depuis l&apos;app</p>
+          </div>
+          {hasAccount ? (
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-xs">Compte actif · {employeeEmail}</p>
+              <Button size="sm" variant="outline" onClick={() => void handleResend()} disabled={isWorking}>
+                {isWorking ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 h-3.5 w-3.5" />
+                )}
+                Renvoyer l&apos;invitation
+              </Button>
+            </div>
+          ) : canInvite ? (
+            <Button size="sm" variant="outline" onClick={() => void handleInvite()} disabled={isWorking}>
+              {isWorking ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-3.5 w-3.5" />
+              )}
+              Activer l&apos;espace personnel
+            </Button>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Renseignez un email dans l&apos;onglet Identité pour activer l&apos;espace personnel.
+            </p>
+          )}
+        </div>
+      )}
+
       <label className="flex cursor-pointer items-center justify-between rounded-lg border p-4">
         <div>
           <p className="font-medium">Actif</p>
@@ -324,7 +411,7 @@ export function EmployeeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{initial ? "Modifier l&apos;employé" : "Nouvel employé"}</DialogTitle>
+          <DialogTitle>{initial ? "Modifier l'employé" : "Nouvel employé"}</DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="identity" className="w-full">
           <TabsList className="grid w-full grid-cols-4 text-xs">
@@ -340,7 +427,13 @@ export function EmployeeModal({
             <TabContract form={form} set={set} />
           </TabsContent>
           <TabsContent value="access" className="mt-4">
-            <TabAccess form={form} set={set} />
+            <TabAccess
+              form={form}
+              set={set}
+              employeeId={initial?.id ?? null}
+              employeeEmail={initial?.email ?? null}
+              authUserId={(initial as (Employee & { auth_user_id?: string | null }) | null)?.auth_user_id ?? null}
+            />
           </TabsContent>
           <TabsContent value="other" className="mt-4">
             <TabOther form={form} set={set} />

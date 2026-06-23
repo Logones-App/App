@@ -433,6 +433,7 @@ export function LeadDetail({ id, locale }: Props) {
         lead={{
           company_name: lead.company_name,
           contact_email: lead.contact_email,
+          contact_name: lead.contact_name ?? null,
           contact_phone: lead.contact_phone,
           city: lead.city,
           website: lead.website,

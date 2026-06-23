@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { AlertTriangle, Check, CheckCircle2, Copy, Loader2, Tablet } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Copy, Loader2, RefreshCw, Tablet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,22 +19,15 @@ function TabletCredentialsDisplay({ email, password }: { email: string; password
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const qrContent = JSON.stringify({ email, password });
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrContent)}&margin=10`;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-green-700 dark:bg-green-950/30 dark:text-green-300">
         <CheckCircle2 className="h-5 w-5 shrink-0" />
-        <p className="text-sm font-medium">Compte tablette créé avec succès</p>
+        <p className="text-sm font-medium">Mot de passe réinitialisé avec succès</p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Identifiants tablette</p>
-        <div className="flex justify-center rounded-lg border bg-white p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrUrl} alt="QR code identifiants tablette" width={200} height={200} />
-        </div>
+        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Nouveaux identifiants</p>
 
         <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
           <span className="text-muted-foreground min-w-14 text-xs font-medium">Email</span>
@@ -55,34 +48,55 @@ function TabletCredentialsDisplay({ email, password }: { email: string; password
 
       <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <p>Ces identifiants ne seront plus affichés après fermeture. Scannez le QR code ou notez-les maintenant.</p>
+        <p>Ces identifiants ne seront plus affichés après fermeture. Notez-les maintenant.</p>
       </div>
     </div>
   );
 }
 
 export function TabletAccountCard({ establishmentId }: { establishmentId: string }) {
-  const [isCreating, setIsCreating] = useState(false);
+  const [loadingAccount, setLoadingAccount] = useState(true);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  useEffect(() => {
+    fetch(`/api/admin/establishments/${establishmentId}/orga-user`)
+      .then((r) => r.json())
+      .then((data: { email?: string | null }) => setAccountEmail(data.email ?? null))
+      .catch(() => setAccountEmail(null))
+      .finally(() => setLoadingAccount(false));
+  }, [establishmentId]);
+
   async function handleCreate() {
-    setIsCreating(true);
+    setIsWorking(true);
     try {
-      const res = await fetch(`/api/admin/establishments/${establishmentId}/orga-user`, {
-        method: "POST",
-      });
-      const data = (await res.json()) as {
-        tabletCredentials?: { email: string; password: string };
-        error?: string;
-      };
+      const res = await fetch(`/api/admin/establishments/${establishmentId}/orga-user`, { method: "POST" });
+      const data = (await res.json()) as { tabletCredentials?: { email: string; password: string }; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      setAccountEmail(data.tabletCredentials?.email ?? null);
+      setCredentials(data.tabletCredentials ?? null);
+      setDialogOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur inattendue");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function handleReset() {
+    setIsWorking(true);
+    try {
+      const res = await fetch(`/api/admin/establishments/${establishmentId}/orga-user/reset`, { method: "POST" });
+      const data = (await res.json()) as { tabletCredentials?: { email: string; password: string }; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Erreur");
       setCredentials(data.tabletCredentials ?? null);
       setDialogOpen(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur inattendue");
     } finally {
-      setIsCreating(false);
+      setIsWorking(false);
     }
   }
 
@@ -96,14 +110,38 @@ export function TabletAccountCard({ establishmentId }: { establishmentId: string
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 py-4">
-          <p className="text-muted-foreground mb-3 text-xs">
-            Crée un compte Supabase partagé entre toutes les tablettes de cet établissement (rôle{" "}
-            <code className="font-mono">orga_user</code>).
-          </p>
-          <Button size="sm" onClick={handleCreate} disabled={isCreating}>
-            {isCreating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-            Créer compte tablette
-          </Button>
+          {loadingAccount ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+              <span className="text-muted-foreground text-xs">Chargement…</span>
+            </div>
+          ) : accountEmail ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
+                <span className="text-muted-foreground min-w-14 text-xs font-medium">Email</span>
+                <span className="flex-1 font-mono text-xs break-all">{accountEmail}</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => void handleReset()} disabled={isWorking}>
+                {isWorking ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                )}
+                Réinitialiser le mot de passe
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-muted-foreground text-xs">
+                Crée un compte Supabase partagé entre toutes les tablettes de cet établissement (rôle{" "}
+                <code className="font-mono">orga_user</code>).
+              </p>
+              <Button size="sm" onClick={() => void handleCreate()} disabled={isWorking}>
+                {isWorking && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Créer compte tablette
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

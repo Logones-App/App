@@ -29,6 +29,8 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [plan, setPlan] = useState("starter");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminName, setAdminName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleClose() {
@@ -36,6 +38,8 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
     setName("");
     setDescription("");
     setPlan("starter");
+    setAdminEmail("");
+    setAdminName("");
     onClose();
   }
 
@@ -53,11 +57,17 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim() || null,
           subscription_plan: plan,
+          org_admin_email: adminEmail.trim() || null,
+          org_admin_name: adminName.trim() || null,
         }),
       });
-      const data = (await res.json()) as { orgId?: string; error?: string };
+      const data = (await res.json()) as { orgId?: string; error?: string; orgAdminError?: string | null };
       if (!res.ok) throw new Error(data.error ?? "Erreur");
-      toast.success("Organisation créée avec succès");
+      if (data.orgAdminError) {
+        toast.warning(`Organisation créée, mais le compte admin n'a pas pu être configuré : ${data.orgAdminError}`);
+      } else {
+        toast.success(adminEmail.trim() ? "Organisation et compte admin créés" : "Organisation créée avec succès");
+      }
       onSuccess(data.orgId ?? "");
       handleClose();
     } catch (err) {
@@ -119,6 +129,28 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
               rows={2}
               placeholder="Description courte (optionnel)"
             />
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Compte administrateur (optionnel)
+            </p>
+            <div className="space-y-1.5">
+              <Label>Nom du responsable</Label>
+              <Input value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Prénom Nom" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email du responsable</Label>
+              <Input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="responsable@entreprise.fr"
+              />
+              <p className="text-muted-foreground text-xs">
+                Un compte org_admin sera créé et une invitation envoyée à cet email.
+              </p>
+            </div>
           </div>
         </div>
 
