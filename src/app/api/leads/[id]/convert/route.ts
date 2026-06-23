@@ -7,14 +7,27 @@ export const dynamic = "force-dynamic";
 
 type Svc = ReturnType<typeof createServiceClient>;
 
+class ValidationError extends Error {}
+
 function generateSlug(name: string): string {
-  const base = name
+  return name
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function generateSecurePassword(): string {
+  return (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 24);
+}
+
+async function generateEstablishmentSlug(svc: Svc, name: string): Promise<string> {
+  const base = generateSlug(name);
+  const candidates = [base, ...Array.from({ length: 9 }, (_, i) => `${base}-${i + 1}`)];
+  const { data } = await svc.from("establishments").select("slug").in("slug", candidates);
+  const taken = new Set((data ?? []).map((r) => r.slug).filter(Boolean));
+  return candidates.find((c) => !taken.has(c)) ?? `${base}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 interface OrgPayload {
@@ -43,7 +56,7 @@ async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
     .from("organizations")
     .insert({
       name: org.name,
-      slug: generateSlug(org.name),
+      slug: `${generateSlug(org.name)}-${Math.random().toString(36).slice(2, 7)}`,
       description: org.description ?? null,
       subscription_plan: org.subscription_plan ?? null,
     })
@@ -53,13 +66,20 @@ async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
   return data.id;
 }
 
-async function createEstablishment(svc: Svc, est: EstPayload, orgId: string, userId: string): Promise<string> {
+async function createEstablishment(
+  svc: Svc,
+  est: EstPayload,
+  orgId: string,
+  userId: string,
+): Promise<{ id: string; slug: string }> {
+  const slug = await generateEstablishmentSlug(svc, est.name);
   const { data, error } = await svc
     .from("establishments")
     .insert({
       name: est.name,
       organization_id: orgId,
       created_by: userId,
+      slug,
       address: est.address ?? null,
       postal_code: est.postal_code ?? null,
       city: est.city ?? null,
@@ -72,7 +92,7 @@ async function createEstablishment(svc: Svc, est: EstPayload, orgId: string, use
     .select("id")
     .single();
   if (error) throw error;
-  return data.id;
+  return { id: data.id, slug };
 }
 
 async function createVatRates(svc: Svc, rates: VatPayload[], estId: string, orgId: string): Promise<void> {
@@ -80,6 +100,40 @@ async function createVatRates(svc: Svc, rates: VatPayload[], estId: string, orgI
   const rows = rates.map((r) => ({ establishment_id: estId, organization_id: orgId, name: r.name, value: r.value }));
   const { error } = await svc.from("vat_rate").insert(rows);
   if (error) throw error;
+}
+
+async function createOrgaUser(
+  svc: Svc,
+  establishmentId: string,
+  organizationId: string,
+  slug: string,
+): Promise<{ email: string; password: string }> {
+  const email = `${slug}@logones.internal`;
+  const password = generateSecurePassword();
+  let userId: string | null = null;
+
+  const { data: newUser, error: authError } = await svc.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    app_metadata: { role: "orga_user" },
+  });
+  if (authError) throw authError;
+  userId = newUser.user.id;
+
+  const { error: uoError } = await svc.from("users_organizations").insert({
+    user_id: userId,
+    organization_id: organizationId,
+    role: "manager",
+    establishment_id: establishmentId,
+  });
+
+  if (uoError) {
+    await svc.auth.admin.deleteUser(userId).catch(() => {});
+    throw uoError;
+  }
+
+  return { email, password };
 }
 
 async function assignCommercial(svc: Svc, userId: string, orgId: string, role: string): Promise<void> {
@@ -102,6 +156,36 @@ interface ConvertBody {
   vat_rates?: VatPayload[];
 }
 
+async function resolveOrg(
+  svc: Svc,
+  body: ConvertBody,
+  userId: string,
+): Promise<{
+  orgId: string;
+  tabletCredentials: { email: string; password: string } | null;
+  tabletError: string | null;
+}> {
+  if (body.mode === "existing") {
+    if (!body.org_id) throw new ValidationError("org_id requis");
+    return { orgId: body.org_id, tabletCredentials: null, tabletError: null };
+  }
+  if (!body.org?.name) throw new ValidationError("org.name requis");
+  const orgId = await createOrg(svc, body.org);
+  let tabletCredentials: { email: string; password: string } | null = null;
+  let tabletError: string | null = null;
+  if (body.establishment?.name) {
+    const { id: estId, slug } = await createEstablishment(svc, body.establishment, orgId, userId);
+    await createVatRates(svc, body.vat_rates ?? [], estId, orgId);
+    try {
+      tabletCredentials = await createOrgaUser(svc, estId, orgId, slug);
+    } catch (err) {
+      tabletError = err instanceof Error ? err.message : "Erreur création compte tablette";
+      console.error("Orga user creation failed:", err);
+    }
+  }
+  return { orgId, tabletCredentials, tabletError };
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
@@ -122,19 +206,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { data: lead, error: leadErr } = await svc.from("leads").select("assigned_to").eq("id", leadId).single();
     if (leadErr ?? !lead) return NextResponse.json({ error: "Lead introuvable" }, { status: 404 });
 
-    let orgId: string;
-
-    if (body.mode === "existing") {
-      if (!body.org_id) return NextResponse.json({ error: "org_id requis" }, { status: 400 });
-      orgId = body.org_id;
-    } else {
-      if (!body.org?.name) return NextResponse.json({ error: "org.name requis" }, { status: 400 });
-      orgId = await createOrg(svc, body.org);
-      if (body.establishment?.name) {
-        const estId = await createEstablishment(svc, body.establishment, orgId, user.id);
-        await createVatRates(svc, body.vat_rates ?? [], estId, orgId);
-      }
-    }
+    const { orgId, tabletCredentials, tabletError } = await resolveOrg(svc, body, user.id);
 
     await svc
       .from("leads")
@@ -157,9 +229,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       created_by: user.id,
     });
 
-    return NextResponse.json({ ok: true, orgId });
+    return NextResponse.json({ ok: true, orgId, tabletCredentials, tabletError });
   } catch (err) {
     console.error("POST /api/leads/[id]/convert error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur inattendue" }, { status: 500 });
+    const status = err instanceof ValidationError ? 400 : 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur inattendue" }, { status });
   }
 }

@@ -33,6 +33,7 @@ import { Link } from "@/i18n/navigation";
 import { useEstablishment } from "@/lib/queries/establishments";
 import { cn } from "@/lib/utils";
 
+import { TabletAccountCard } from "./pos-account-card";
 import { TableQrSection } from "./table-qr-section";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -287,6 +288,9 @@ export function EstablishmentDetailsShared({
       {establishment.slug && (
         <TableQrSection establishmentId={establishmentId} establishmentSlug={establishment.slug} />
       )}
+
+      {/* ── Compte POS (system admin uniquement) ── */}
+      {isSystemAdmin && <TabletAccountCard establishmentId={establishmentId} />}
     </div>
   );
 }

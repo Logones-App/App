@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
-import { PLANS, StepEst, StepOrg, StepRecap, StepVat } from "./convert-lead-steps";
+import { PLANS, StepEst, StepOrg, StepRecap, StepTabletCredentials, StepVat } from "./convert-lead-steps";
 import { type EstForm, type LeadInfo, type OrgForm, type VatRow } from "./convert-lead-types";
 
 export type { LeadInfo };
@@ -76,6 +76,8 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
   const [isLoadingOrgs, setIsLoadingOrgs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tabletCredentials, setPosCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [pendingOrgId, setPendingOrgId] = useState<string | null>(null);
   const [orgForm, setOrgForm] = useState<OrgForm>({ name: "", description: "", subscription_plan: "starter" });
   const [estForm, setEstForm] = useState<EstForm>({
     name: "",
@@ -95,6 +97,8 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
     setMode("new");
     setStep(0);
     setExistingOrgId("");
+    setPosCredentials(null);
+    setPendingOrgId(null);
     setVatRates(DEFAULT_VAT);
     setOrgForm({ name: lead.company_name, description: "", subscription_plan: "starter" });
     setEstForm({
@@ -189,10 +193,22 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
             .map((r) => ({ name: r.name || `${r.value}%`, value: parseFloat(r.value) })),
         }),
       });
-      const data = (await res.json()) as { ok?: boolean; orgId?: string; error?: string };
+      const data = (await res.json()) as {
+        ok?: boolean;
+        orgId?: string;
+        error?: string;
+        tabletCredentials?: { email: string; password: string } | null;
+        tabletError?: string | null;
+      };
       if (!res.ok) throw new Error(data.error ?? "Erreur lors de la conversion");
-      toast.success("Organisation et restaurant créés avec succès");
-      onSuccess(data.orgId ?? "");
+      if (data.tabletCredentials) {
+        setPendingOrgId(data.orgId ?? "");
+        setPosCredentials(data.tabletCredentials);
+      } else {
+        if (data.tabletError) toast.warning("Organisation créée, mais le compte tablette n'a pas pu être configuré");
+        else toast.success("Organisation et restaurant créés avec succès");
+        onSuccess(data.orgId ?? "");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur inattendue");
     } finally {
@@ -226,6 +242,7 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
   const isLastStep = step === STEPS.length - 1;
   const activePlan = PLANS.find((p) => p.value === orgForm.subscription_plan)?.label ?? orgForm.subscription_plan;
   const activeVat = vatRates.filter((r) => r.checked && r.value);
+  const spinner = isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null;
 
   return (
     <Dialog
@@ -239,97 +256,112 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
           <DialogTitle>Convertir le lead en organisation</DialogTitle>
         </DialogHeader>
 
-        <RadioGroup
-          value={mode}
-          onValueChange={(v) => {
-            setMode(v as WizardMode);
-            setStep(0);
-          }}
-          className="flex gap-6"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="new" id="m-new" />
-            <Label htmlFor="m-new" className="cursor-pointer font-normal">
-              Nouvelle organisation
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="existing" id="m-existing" />
-            <Label htmlFor="m-existing" className="flex cursor-pointer items-center gap-1.5 font-normal">
-              <Search className="h-3.5 w-3.5" />
-              Lier à une existante
-            </Label>
-          </div>
-        </RadioGroup>
-
-        <Separator />
-
-        {mode === "existing" && (
-          <div className="space-y-2 py-2">
-            <Label>Organisation</Label>
-            {isLoadingOrgs ? (
-              <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Chargement…
-              </div>
-            ) : (
-              <Select value={existingOrgId} onValueChange={setExistingOrgId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une organisation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        )}
-
-        {mode === "new" && (
+        {tabletCredentials ? (
           <>
-            <WizardStepper step={step} />
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-              {step === 0 && <StepOrg form={orgForm} setOrg={setOrg} />}
-              {step === 1 && <StepEst form={estForm} setEst={setEst} />}
-              {step === 2 && (
-                <StepVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
-              )}
-              {step === 3 && (
-                <StepRecap orgForm={orgForm} estForm={estForm} activeVat={activeVat} activePlan={activePlan} />
-              )}
+            <div className="flex-1 overflow-y-auto pr-1">
+              <StepTabletCredentials email={tabletCredentials.email} password={tabletCredentials.password} />
             </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={() => onSuccess(pendingOrgId ?? "")}>
+                Fermer et accéder à l&apos;organisation
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <RadioGroup
+              value={mode}
+              onValueChange={(v) => {
+                setMode(v as WizardMode);
+                setStep(0);
+              }}
+              className="flex gap-6"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="new" id="m-new" />
+                <Label htmlFor="m-new" className="cursor-pointer font-normal">
+                  Nouvelle organisation
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="existing" id="m-existing" />
+                <Label htmlFor="m-existing" className="flex cursor-pointer items-center gap-1.5 font-normal">
+                  <Search className="h-3.5 w-3.5" />
+                  Lier à une existante
+                </Label>
+              </div>
+            </RadioGroup>
+
+            <Separator />
+
+            {mode === "existing" && (
+              <div className="space-y-2 py-2">
+                <Label>Organisation</Label>
+                {isLoadingOrgs ? (
+                  <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Chargement…
+                  </div>
+                ) : (
+                  <Select value={existingOrgId} onValueChange={setExistingOrgId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une organisation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orgs.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            {mode === "new" && (
+              <>
+                <WizardStepper step={step} />
+                <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+                  {step === 0 && <StepOrg form={orgForm} setOrg={setOrg} />}
+                  {step === 1 && <StepEst form={estForm} setEst={setEst} />}
+                  {step === 2 && (
+                    <StepVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
+                  )}
+                  {step === 3 && (
+                    <StepRecap orgForm={orgForm} estForm={estForm} activeVat={activeVat} activePlan={activePlan} />
+                  )}
+                </div>
+              </>
+            )}
+
+            <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
+              <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+                Annuler
+              </Button>
+              <div className="flex gap-2">
+                {mode === "new" && step > 0 && (
+                  <Button variant="outline" onClick={back} disabled={isSubmitting}>
+                    Précédent
+                  </Button>
+                )}
+                {mode === "new" && !isLastStep && <Button onClick={next}>Suivant</Button>}
+                {mode === "new" && isLastStep && (
+                  <Button onClick={handleSubmitNew} disabled={isSubmitting}>
+                    {spinner}
+                    Créer l&apos;organisation
+                  </Button>
+                )}
+                {mode === "existing" && (
+                  <Button onClick={handleSubmitExisting} disabled={isSubmitting || !existingOrgId}>
+                    {spinner}
+                    Lier
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
           </>
         )}
-
-        <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
-            Annuler
-          </Button>
-          <div className="flex gap-2">
-            {mode === "new" && step > 0 && (
-              <Button variant="outline" onClick={back} disabled={isSubmitting}>
-                Précédent
-              </Button>
-            )}
-            {mode === "new" && !isLastStep && <Button onClick={next}>Suivant</Button>}
-            {mode === "new" && isLastStep && (
-              <Button onClick={handleSubmitNew} disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Créer l&apos;organisation
-              </Button>
-            )}
-            {mode === "existing" && (
-              <Button onClick={handleSubmitExisting} disabled={isSubmitting || !existingOrgId}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Lier
-              </Button>
-            )}
-          </div>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
