@@ -18,10 +18,11 @@ import {
   useCreateEmployee,
   useDeleteEmployee,
   useEmployees,
+  useEstablishmentEmployees,
   useUpdateEmployee,
 } from "@/lib/queries/employees-queries";
 
-import { EmployeeModal } from "./employee-modal";
+import { type EstablishmentOption, EmployeeModal } from "./employee-modal";
 
 const CONTRACT_LABELS: Record<string, string> = {
   cdi: "CDI",
@@ -39,15 +40,30 @@ const ROLE_LABELS: Record<string, string> = {
   hr_manager: "Resp. RH",
 };
 
-export function EmployeesPage({ organizationId }: { organizationId: string }) {
+export function EmployeesPage({
+  organizationId,
+  establishmentId,
+  establishments,
+}: {
+  organizationId: string;
+  establishmentId?: string | null;
+  establishments?: EstablishmentOption[];
+}) {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
-  const { data: employees = [], isLoading } = useEmployees(organizationId);
-  const createMutation = useCreateEmployee(organizationId);
-  const updateMutation = useUpdateEmployee(organizationId);
-  const deleteMutation = useDeleteEmployee(organizationId);
+  const { data: allEmployees = [], isLoading: loadingAll } = useEmployees(organizationId);
+  const { data: estEmployees = [], isLoading: loadingEst } = useEstablishmentEmployees(
+    establishmentId ?? "",
+    organizationId,
+  );
+  const employees = establishmentId ? estEmployees : allEmployees;
+  const isLoading = establishmentId ? loadingEst : loadingAll;
+
+  const createMutation = useCreateEmployee(organizationId, establishmentId);
+  const updateMutation = useUpdateEmployee(organizationId, establishmentId);
+  const deleteMutation = useDeleteEmployee(organizationId, establishmentId);
 
   const filtered = employees.filter((e) => {
     const q = search.toLowerCase();
@@ -95,7 +111,9 @@ export function EmployeesPage({ organizationId }: { organizationId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Employés</h1>
-          <p className="text-muted-foreground text-sm">Registre du personnel de votre organisation.</p>
+          <p className="text-muted-foreground text-sm">
+            {establishmentId ? "Employés de cet établissement." : "Registre du personnel de votre organisation."}
+          </p>
         </div>
         <Button
           onClick={() => {
@@ -224,6 +242,8 @@ export function EmployeesPage({ organizationId }: { organizationId: string }) {
         }}
         initial={editingEmployee}
         organizationId={organizationId}
+        establishmentId={establishmentId}
+        establishments={establishments}
         onSave={handleSave}
         pending={createMutation.isPending || updateMutation.isPending}
       />

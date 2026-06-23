@@ -1,12 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { Loader2 } from "lucide-react";
 
+import type { EstablishmentOption } from "@/app/[locale]/(root)/(dashboard)/_components/rh/employee-modal";
 import { EmployeesPage } from "@/app/[locale]/(root)/(dashboard)/_components/rh/employees-page";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import { createClient } from "@/lib/supabase/client";
 
 export function EmployeesClient() {
   const organizationId = useOrgaUserOrganizationId();
+  const [establishments, setEstablishments] = useState<EstablishmentOption[]>([]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const supabase = createClient();
+    supabase
+      .from("establishments")
+      .select("id, name")
+      .eq("organization_id", organizationId)
+      .eq("deleted", false)
+      .order("name")
+      .then(({ data }) => setEstablishments(data ?? []));
+  }, [organizationId]);
 
   if (!organizationId) {
     return (
@@ -17,5 +34,5 @@ export function EmployeesClient() {
     );
   }
 
-  return <EmployeesPage organizationId={organizationId} />;
+  return <EmployeesPage organizationId={organizationId} establishments={establishments} />;
 }

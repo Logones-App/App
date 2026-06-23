@@ -38,6 +38,8 @@ const GENDERS = [
 
 type SetFn = (k: keyof EmployeeInsert, v: unknown) => void;
 
+export type EstablishmentOption = { id: string; name: string };
+
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div className="space-y-1.5">
@@ -52,9 +54,33 @@ function Field({ label, children, required }: { label: string; children: React.R
 
 // ─── Onglet Identité ──────────────────────────────────────────────────────────
 
-function TabIdentity({ form, set }: { form: Partial<EmployeeInsert>; set: SetFn }) {
+function TabIdentity({
+  form,
+  set,
+  establishments,
+}: {
+  form: Partial<EmployeeInsert>;
+  set: SetFn;
+  establishments?: EstablishmentOption[];
+}) {
   return (
     <div className="space-y-4">
+      {establishments && establishments.length > 0 && (
+        <Field label="Établissement">
+          <Select value={form.establishment_id ?? ""} onValueChange={(v) => set("establishment_id", v || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="— Aucun —" />
+            </SelectTrigger>
+            <SelectContent>
+              {establishments.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nom" required>
           <Input value={form.lastname ?? ""} onChange={(e) => set("lastname", e.target.value)} />
@@ -375,6 +401,8 @@ export function EmployeeModal({
   onOpenChange,
   initial,
   organizationId,
+  establishmentId,
+  establishments,
   onSave,
   pending,
 }: {
@@ -382,6 +410,8 @@ export function EmployeeModal({
   onOpenChange: (o: boolean) => void;
   initial: Employee | null;
   organizationId: string;
+  establishmentId?: string | null;
+  establishments?: EstablishmentOption[];
   onSave: (p: EmployeeInsert | (EmployeeUpdate & { id: string })) => void;
   pending: boolean;
 }) {
@@ -392,9 +422,15 @@ export function EmployeeModal({
     setForm(
       initial
         ? { ...initial }
-        : { organization_id: organizationId, is_active: true, has_mobile_access: false, deleted: false },
+        : {
+            organization_id: organizationId,
+            establishment_id: establishmentId ?? null,
+            is_active: true,
+            has_mobile_access: false,
+            deleted: false,
+          },
     );
-  }, [open, initial, organizationId]);
+  }, [open, initial, organizationId, establishmentId]);
 
   const set: SetFn = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -421,7 +457,7 @@ export function EmployeeModal({
             <TabsTrigger value="other">Divers</TabsTrigger>
           </TabsList>
           <TabsContent value="identity" className="mt-4">
-            <TabIdentity form={form} set={set} />
+            <TabIdentity form={form} set={set} establishments={establishmentId ? undefined : establishments} />
           </TabsContent>
           <TabsContent value="contract" className="mt-4">
             <TabContract form={form} set={set} />

@@ -52,7 +52,18 @@ export function useEstablishmentEmployees(establishmentId: string, organizationI
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export function useCreateEmployee(organizationId: string) {
+function invalidateEmployees(
+  queryClient: ReturnType<typeof useQueryClient>,
+  organizationId: string,
+  establishmentId?: string | null,
+) {
+  void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, organizationId] });
+  if (establishmentId) {
+    void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "establishment", establishmentId, organizationId] });
+  }
+}
+
+export function useCreateEmployee(organizationId: string, establishmentId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: EmployeeInsert) => {
@@ -61,13 +72,11 @@ export function useCreateEmployee(organizationId: string) {
       if (error) throw error;
       return data as Employee;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, organizationId] });
-    },
+    onSuccess: () => invalidateEmployees(queryClient, organizationId, establishmentId),
   });
 }
 
-export function useUpdateEmployee(organizationId: string) {
+export function useUpdateEmployee(organizationId: string, establishmentId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...payload }: EmployeeUpdate & { id: string }) => {
@@ -76,13 +85,11 @@ export function useUpdateEmployee(organizationId: string) {
       if (error) throw error;
       return data as Employee;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, organizationId] });
-    },
+    onSuccess: () => invalidateEmployees(queryClient, organizationId, establishmentId),
   });
 }
 
-export function useDeleteEmployee(organizationId: string) {
+export function useDeleteEmployee(organizationId: string, establishmentId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -90,8 +97,6 @@ export function useDeleteEmployee(organizationId: string) {
       const { error } = await supabase.from("employees").update({ deleted: true }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, organizationId] });
-    },
+    onSuccess: () => invalidateEmployees(queryClient, organizationId, establishmentId),
   });
 }

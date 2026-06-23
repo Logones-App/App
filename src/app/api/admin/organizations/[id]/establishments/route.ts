@@ -107,6 +107,28 @@ async function insertNf525Key(svc: Svc, estId: string, orgId: string): Promise<v
   if (error) throw error;
 }
 
+async function insertDefaultPaymentMethods(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const { error } = await svc.from("payment_methods").insert([
+    {
+      establishment_id: estId,
+      organization_id: orgId,
+      payment_method_name: "Carte",
+      payment_method_type: "card",
+      deleted: false,
+      is_active: true,
+    },
+    {
+      establishment_id: estId,
+      organization_id: orgId,
+      payment_method_name: "Espèces",
+      payment_method_type: "cash",
+      deleted: false,
+      is_active: true,
+    },
+  ]);
+  if (error) throw error;
+}
+
 async function insertVatRates(svc: Svc, rates: VatBody[], estId: string, orgId: string): Promise<void> {
   const filtered = rates.filter((r) => r.value > 0);
   if (filtered.length === 0) return;
@@ -151,6 +173,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (estError) throw estError;
 
     await insertNf525Key(svc, newEst.id, orgId);
+    await insertDefaultPaymentMethods(svc, newEst.id, orgId);
     await insertVatRates(svc, body.vat_rates ?? [], newEst.id, orgId);
 
     let tabletCredentials: { email: string; password: string } | null = null;
