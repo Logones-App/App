@@ -67,7 +67,13 @@ export async function POST(request: NextRequest) {
         email: establishment.email,
         address: establishment.address,
         phone: establishment.phone,
-        // Propriétés manquantes avec des valeurs par défaut
+        city: null,
+        code_naf: null,
+        country: null,
+        no_tva: null,
+        postal_code: null,
+        printer_id: null,
+        siret: null,
         cover_image_url: null,
         created_at: null,
         created_by: null,
@@ -77,7 +83,6 @@ export async function POST(request: NextRequest) {
         slug: null,
         updated_at: null,
         website: null,
-        // Propriétés supplémentaires manquantes
         is_public: true,
         logo_url: null,
         seo_description: null,
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
 
       const emailData = {
         booking,
-        establishment: fullEstablishment as Tables<"establishments">,
+        establishment: fullEstablishment as unknown as Tables<"establishments">,
         customerName,
         customerEmail: booking.customer_email,
         reservationDate: booking.date,

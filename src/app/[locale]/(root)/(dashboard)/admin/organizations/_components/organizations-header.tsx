@@ -1,12 +1,20 @@
 "use client";
 
-import { Building, Plus, Users, Calendar, Bell, Activity } from "lucide-react";
+import { useState } from "react";
+
+import { useRouter } from "next/navigation";
+
+import { Activity, Bell, Building, Calendar, Plus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRealtimeNotifications, useRealtimeUserActions } from "@/hooks/use-realtime";
 
+import { CreateOrgModal } from "./create-org-modal";
+
 export function OrganizationsHeader() {
+  const router = useRouter();
+  const [showCreate, setShowCreate] = useState(false);
   const { sendNotification } = useRealtimeNotifications();
   const { sendUserAction } = useRealtimeUserActions();
 
@@ -55,7 +63,7 @@ export function OrganizationsHeader() {
             <Building className="mr-2 h-4 w-4" />
             Test Data Update
           </Button>
-          <Button>
+          <Button onClick={() => setShowCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle organisation
           </Button>
@@ -108,6 +116,15 @@ export function OrganizationsHeader() {
           </CardContent>
         </Card>
       </div>
+
+      <CreateOrgModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSuccess={() => {
+          setShowCreate(false);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

@@ -2686,7 +2686,7 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           siret: string | null
-          slug: string | null
+          slug: string
           updated_at: string | null
           website: string | null
         }
@@ -2713,7 +2713,7 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
-          slug?: string | null
+          slug: string
           updated_at?: string | null
           website?: string | null
         }
@@ -2740,7 +2740,7 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
-          slug?: string | null
+          slug?: string
           updated_at?: string | null
           website?: string | null
         }
@@ -3593,6 +3593,93 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_order_refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          device_id: string | null
+          establishment_id: string
+          id: string
+          organization_id: string
+          original_nf525_piece_signature: string | null
+          original_order_id: string
+          original_payment_id: string
+          reason: string | null
+          refund_method: string
+          refunded_at: string
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          device_id?: string | null
+          establishment_id: string
+          id?: string
+          organization_id: string
+          original_nf525_piece_signature?: string | null
+          original_order_id: string
+          original_payment_id: string
+          reason?: string | null
+          refund_method?: string
+          refunded_at?: string
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          device_id?: string | null
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          original_nf525_piece_signature?: string | null
+          original_order_id?: string
+          original_payment_id?: string
+          reason?: string | null
+          refund_method?: string
+          refunded_at?: string
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_refunds_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_original_payment_id_fkey"
+            columns: ["original_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
         ]
@@ -4537,93 +4624,6 @@ export type Database = {
           },
         ]
       }
-      order_refunds: {
-        Row: {
-          amount: number
-          created_at: string
-          device_id: string | null
-          establishment_id: string
-          id: string
-          organization_id: string
-          original_nf525_piece_signature: string | null
-          original_order_id: string
-          original_payment_id: string
-          reason: string | null
-          refund_method: string
-          refunded_at: string
-          updated_at: string
-          vat_rate: number | null
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          device_id?: string | null
-          establishment_id: string
-          id?: string
-          organization_id: string
-          original_nf525_piece_signature?: string | null
-          original_order_id: string
-          original_payment_id: string
-          reason?: string | null
-          refund_method?: string
-          refunded_at?: string
-          updated_at?: string
-          vat_rate?: number | null
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          device_id?: string | null
-          establishment_id?: string
-          id?: string
-          organization_id?: string
-          original_nf525_piece_signature?: string | null
-          original_order_id?: string
-          original_payment_id?: string
-          reason?: string | null
-          refund_method?: string
-          refunded_at?: string
-          updated_at?: string
-          vat_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_refunds_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_refunds_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_refunds_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_refunds_original_order_id_fkey"
-            columns: ["original_order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_refunds_original_payment_id_fkey"
-            columns: ["original_payment_id"]
-            isOneToOne: false
-            referencedRelation: "order_payments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_suites: {
         Row: {
           created_at: string | null
@@ -4919,6 +4919,54 @@ export type Database = {
           },
           {
             foreignKeyName: "payment_methods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_device_accounts: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          deleted: boolean
+          establishment_id: string
+          id: string
+          label: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          label?: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_device_accounts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_device_accounts_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

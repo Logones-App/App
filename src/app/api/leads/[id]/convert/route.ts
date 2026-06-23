@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { generateSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -8,15 +9,6 @@ export const dynamic = "force-dynamic";
 type Svc = ReturnType<typeof createServiceClient>;
 
 class ValidationError extends Error {}
-
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function generateSecurePassword(): string {
   return (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 24);
