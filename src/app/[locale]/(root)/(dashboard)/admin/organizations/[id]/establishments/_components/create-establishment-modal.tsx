@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { AlertTriangle, Check, CheckCircle2, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+import { CompanySearch, type CompanyPrefill } from "./company-search";
+import { CredentialsDisplay } from "./credentials-display";
 
 interface EstFields {
   name: string;
@@ -47,9 +50,9 @@ const EMPTY_FORM: EstFields = {
 };
 
 const DEFAULT_VAT: VatRow[] = [
-  { name: "Taux réduit", value: "5.5", checked: true },
-  { name: "Taux intermédiaire", value: "10", checked: true },
-  { name: "Taux normal", value: "20", checked: true },
+  { name: "TVA 5.5%", value: "5.5", checked: true },
+  { name: "TVA 10%", value: "10", checked: true },
+  { name: "TVA 20%", value: "20", checked: true },
 ];
 
 const STEPS = ["Établissement", "Taux TVA", "Récapitulatif"];
@@ -87,11 +90,13 @@ function FormEst({
   set,
   touch,
   touched,
+  prefill,
 }: {
   form: EstFields;
   set: (k: keyof EstFields, v: string) => void;
   touch: (k: keyof EstFields) => void;
   touched: Set<keyof EstFields>;
+  prefill: (fields: CompanyPrefill) => void;
 }) {
   const err = (k: keyof EstFields) => touched.has(k) && !form[k].trim();
   const siretRaw = form.siret.replace(/\s/g, "");
@@ -113,6 +118,8 @@ function FormEst({
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
+      <CompanySearch onSelect={prefill} />
+
       <div className="space-y-1.5 sm:col-span-2">
         <Label>
           Nom du restaurant <span className="text-destructive">*</span>
@@ -204,12 +211,24 @@ function FormEst({
         {siretErr && <p className="text-destructive mt-0.5 text-xs">{siretErr}</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>N° TVA intracomm.</Label>
-        <Input value={form.no_tva} onChange={(e) => set("no_tva", e.target.value)} placeholder="FR12345678901" />
+        <Label>
+          N° TVA intracomm. <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
+        </Label>
+        <Input
+          value={form.no_tva}
+          onChange={(e) => set("no_tva", e.target.value)}
+          onBlur={() => touch("no_tva")}
+          placeholder="FR12345678901"
+          className={inputCls("no_tva")}
+        />
+        {err("no_tva") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>Code NAF</Label>
-        <Input value={form.code_naf} onChange={(e) => set("code_naf", e.target.value)} placeholder="56.10A" />
+        <Label>
+          Code NAF <span className="text-muted-foreground text-xs">(recommandé)</span>
+        </Label>
+        <Input value={form.code_naf} onChange={(e) => set("code_naf", e.target.value)} placeholder="5610A" />
       </div>
     </div>
   );
@@ -306,54 +325,6 @@ function FormRecap({ form, rates }: { form: EstFields; rates: VatRow[] }) {
   );
 }
 
-function CredentialsDisplay({ email, password }: { email: string; password: string }) {
-  const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedPwd, setCopiedPwd] = useState(false);
-
-  function copy(text: string, setCopied: (v: boolean) => void) {
-    void navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  const qrContent = JSON.stringify({ email, password });
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrContent)}&margin=10`;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-green-700 dark:bg-green-950/30 dark:text-green-300">
-        <CheckCircle2 className="h-5 w-5 shrink-0" />
-        <p className="text-sm font-medium">Établissement créé avec succès</p>
-      </div>
-      <div className="space-y-2">
-        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Identifiants tablette</p>
-        <div className="flex justify-center rounded-lg border bg-white p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrUrl} alt="QR code identifiants tablette" width={200} height={200} />
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
-          <span className="text-muted-foreground min-w-14 text-xs font-medium">Email</span>
-          <span className="flex-1 font-mono text-xs break-all">{email}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copy(email, setCopiedEmail)}>
-            {copiedEmail ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-          </Button>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
-          <span className="text-muted-foreground min-w-14 text-xs font-medium">Password</span>
-          <span className="flex-1 font-mono text-xs break-all">{password}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copy(password, setCopiedPwd)}>
-            {copiedPwd ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-          </Button>
-        </div>
-      </div>
-      <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <p>Ces identifiants ne seront plus affichés après fermeture. Scannez le QR code ou notez-les maintenant.</p>
-      </div>
-    </div>
-  );
-}
-
 interface Props {
   open: boolean;
   organizationId: string;
@@ -361,7 +332,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret"];
+const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva"];
 
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
   const [step, setStep] = useState(0);
@@ -386,6 +357,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
 
   const set = (k: keyof EstFields, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const touch = (k: keyof EstFields) => setTouched((prev) => new Set([...prev, k]));
+  const prefill = (fields: CompanyPrefill) => setForm((p) => ({ ...p, ...fields }));
   const toggleVat = (i: number) =>
     setVatRates((p) => p.map((r, idx) => (idx === i ? { ...r, checked: !r.checked } : r)));
   const updateVat = (i: number, field: "name" | "value", val: string) =>
@@ -479,7 +451,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
           <>
             <WizardStepper step={step} />
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-              {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} />}
+              {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} prefill={prefill} />}
               {step === 1 && (
                 <FormVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
               )}

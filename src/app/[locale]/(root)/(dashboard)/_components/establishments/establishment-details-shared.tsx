@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { usePathname } from "next/navigation";
 
 import {
@@ -14,10 +16,12 @@ import {
   FileText,
   Image,
   KeyRound,
+  LayoutDashboard,
   LayoutGrid,
   MapPin,
   Monitor,
   Package,
+  Pencil,
   Settings,
   ShoppingBag,
   SlidersHorizontal,
@@ -27,12 +31,14 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QrCodeDialog } from "@/components/ui/qr-code-dialog";
 import { Link } from "@/i18n/navigation";
 import { useEstablishment } from "@/lib/queries/establishments";
 import { cn } from "@/lib/utils";
 
+import { EstablishmentEditModal } from "./establishment-edit-modal";
 import { TabletAccountCard } from "./pos-account-card";
 import { TableQrSection } from "./table-qr-section";
 
@@ -82,10 +88,24 @@ const SECTION_GROUPS: SectionGroup[] = [
     ],
   },
   {
+    key: "caisse",
+    label: "Caisse",
+    icon: LayoutDashboard,
+    items: [
+      {
+        label: "Salles & Tables",
+        section: "caisse/salles",
+        icon: LayoutDashboard,
+        description: "Plan de salle et tables",
+      },
+    ],
+  },
+  {
     key: "equipe",
     label: "Équipe",
     icon: Users,
     items: [
+      { label: "Employés", section: "employees", icon: Users, description: "Gestion des employés" },
       { label: "Planning", section: "planning", icon: CalendarDays, description: "Shifts et créneaux équipe" },
       { label: "Appareils", section: "devices", icon: Monitor, description: "Terminaux POS et postes" },
       { label: "Modules", section: "modules", icon: LayoutGrid, description: "Activation des fonctions" },
@@ -172,7 +192,7 @@ function GroupCard({
             key={item.section}
             item={item}
             href={getLink(item.section)}
-            active={activeSection === item.section}
+            active={activeSection === item.section || activeSection.startsWith(item.section + "/")}
           />
         ))}
       </CardContent>
@@ -190,6 +210,7 @@ export function EstablishmentDetailsShared({
   organizationId: string;
 }) {
   const { data: establishment, isLoading, error } = useEstablishment(establishmentId);
+  const [editOpen, setEditOpen] = useState(false);
   const pathname = usePathname();
 
   const isSystemAdmin = pathname.includes("/admin/organizations/");
@@ -203,7 +224,7 @@ export function EstablishmentDetailsShared({
     ? `/admin/organizations/${organizationId}/establishments`
     : `/dashboard/establishments`;
 
-  const activeSection = pathname.split(`/${establishmentId}/`)[1]?.split("/")[0] ?? "";
+  const activeSection = pathname.split(`/${establishmentId}/`)[1] ?? "";
 
   if (isLoading) {
     return (
@@ -231,6 +252,8 @@ export function EstablishmentDetailsShared({
 
   return (
     <div className="space-y-5">
+      <EstablishmentEditModal establishment={establishment} open={editOpen} onOpenChange={setEditOpen} />
+
       {/* ── Breadcrumb ── */}
       <nav className="text-muted-foreground flex items-center gap-1.5 text-sm">
         <Link href={backHref} className="hover:text-foreground transition-colors">
@@ -265,15 +288,19 @@ export function EstablishmentDetailsShared({
             </div>
           </div>
 
-          {establishment.slug && (
-            <div className="shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Modifier
+            </Button>
+            {establishment.slug && (
               <QrCodeDialog
                 url={`${typeof window !== "undefined" ? window.location.origin : ""}/fr/${establishment.slug}/menu`}
                 label="QR Code"
                 description={`Carte numérique de ${establishment.name}`}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </Card>
 

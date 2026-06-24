@@ -66,7 +66,7 @@ function TabIdentity({
   return (
     <div className="space-y-4">
       {establishments && establishments.length > 0 && (
-        <Field label="Établissement">
+        <Field label="Établissement" required>
           <Select value={form.establishment_id ?? ""} onValueChange={(v) => set("establishment_id", v || null)}>
             <SelectTrigger>
               <SelectValue placeholder="— Aucun —" />
@@ -434,8 +434,11 @@ export function EmployeeModal({
 
   const set: SetFn = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
+  const estRequired = !establishmentId && !!establishments?.length;
+  const canSave = !!form.firstname?.trim() && !!form.lastname?.trim() && (!estRequired || !!form.establishment_id);
+
   const handleSave = () => {
-    if (!form.firstname?.trim() || !form.lastname?.trim()) return;
+    if (!canSave) return;
     if (initial) {
       onSave({ ...form, id: initial.id });
     } else {
@@ -479,7 +482,7 @@ export function EmployeeModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button onClick={handleSave} disabled={pending || !form.firstname?.trim() || !form.lastname?.trim()}>
+          <Button onClick={handleSave} disabled={pending || !canSave}>
             {initial ? "Enregistrer" : "Créer"}
           </Button>
         </DialogFooter>

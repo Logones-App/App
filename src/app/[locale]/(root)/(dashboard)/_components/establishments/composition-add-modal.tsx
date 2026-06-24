@@ -75,7 +75,6 @@ async function createIngredientProduct(
       organization_id: organizationId,
       name: name.trim(),
       category_id: null,
-      price: 0,
       vat_rate_id: vatRateId,
       product_type: ["ingredient"],
       portion_weight: supplierMode !== "none" ? priceQtyNum : null,

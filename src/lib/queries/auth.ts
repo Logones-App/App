@@ -1,11 +1,7 @@
-import type { User, Session } from "@supabase/supabase-js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { createClient, createServiceClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/database.types";
-
-type Organization = Database["public"]["Tables"]["organizations"]["Row"];
+import { createClient } from "@/lib/supabase/client";
 
 // Query pour récupérer l'utilisateur
 export const useUser = () => {
@@ -178,17 +174,18 @@ export const useLogout = () => {
       // 4. Nettoyer le cache TanStack Query
       queryClient.clear();
 
-      // 5. Redirection unifiée
+      // 5. Nettoyer le localStorage (établissement sélectionné)
       if (typeof window !== "undefined") {
+        localStorage.removeItem("current-establishment");
         window.location.href = "/fr/auth/login";
       }
     },
     onError: (error) => {
       console.error("Erreur lors de la déconnexion:", error);
-      // Même en cas d'erreur, nettoyer l'état local
       logout();
       queryClient.clear();
       if (typeof window !== "undefined") {
+        localStorage.removeItem("current-establishment");
         window.location.href = "/fr/auth/login";
       }
     },

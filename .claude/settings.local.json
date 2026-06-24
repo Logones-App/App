@@ -129,7 +129,8 @@
       "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/api/admin/establishments/[id]/pos-account\")",
       "Bash(mkdir -p \"c:/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/next-shadcn-admin-dashboard-main/src/app/api/admin/establishments/[id]/orga-user\")",
       "Bash(xargs grep -l \"sendInvite\\\\|sendEmail.*employee\\\\|inviteEmployee\")",
-      "Bash(xargs grep -l \"resend\\\\|sendEmail\\\\|invitation\")"
+      "Bash(xargs grep -l \"resend\\\\|sendEmail\\\\|invitation\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Administrateur\\\\Documents\\\\www\\\\APP-13.07.25\\\\next-shadcn-admin-dashboard-main\\\\next-shadcn-admin-dashboard-main\"; npx next lint 2>&1 | Select-Object -First 80 | Where-Object { $_ -match \"Error|error\" })"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

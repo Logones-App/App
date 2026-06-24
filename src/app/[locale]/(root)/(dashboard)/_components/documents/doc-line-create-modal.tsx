@@ -106,7 +106,6 @@ async function createOrFindProduct(
       organization_id: organizationId,
       name: ingredientName.trim(),
       product_type: ["ingredient"],
-      price: 0,
       vat_rate_id: vatRateId || null,
       portion_unit: portionUnit,
       portion_weight: Number.isFinite(portionWeightNum) && portionWeightNum > 0 ? portionWeightNum : null,

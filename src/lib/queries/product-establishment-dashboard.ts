@@ -48,10 +48,10 @@ const MAX_COMPOSITION_STOCK_NEST_DEPTH = 2;
 
 export type MenuProductPricingJoin = {
   menuProduct: Tables<"menus_products">;
-  menu: Pick<Tables<"menus">, "id" | "name" | "pricing_strategy" | "deleted"> | null;
+  menu: Pick<Tables<"menus">, "id" | "name" | "deleted"> | null;
 };
 
-type MenuEmbedForFilter = Pick<Tables<"menus">, "id" | "name" | "pricing_strategy" | "deleted"> & {
+type MenuEmbedForFilter = Pick<Tables<"menus">, "id" | "name" | "deleted"> & {
   establishment_id: string | null;
 };
 
@@ -86,7 +86,6 @@ function collectMenuProductPricing(
       menu: {
         id: m.id,
         name: m.name,
-        pricing_strategy: m.pricing_strategy,
         deleted: m.deleted,
       },
     });
@@ -266,7 +265,7 @@ export function useProductEstablishmentDashboard(
           .select(
             `
             *,
-            menu:menus(id, name, pricing_strategy, deleted, establishment_id)
+            menu:menus(id, name, deleted, establishment_id)
           `,
           )
           .eq("products_id", pid)

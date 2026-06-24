@@ -33,9 +33,10 @@ export function useMenusManagement({ establishmentId, organizationId, menus }: U
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      void queryClient.invalidateQueries({ queryKey: ["establishment-menus"] });
       setShowMenuForm(false);
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la création du menu."),
   });
 
   const editMenuMutation = useMutation({

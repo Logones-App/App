@@ -68,7 +68,6 @@ export function ProductNewWizard({
           name: draft.name.trim(),
           description: draft.description.trim() || null,
           category_id: null,
-          price: 0,
           is_available: draft.is_available,
           printer_id: draft.printer_id === "__none__" ? null : draft.printer_id,
           vat_rate_id: draft.vat_rate_id,

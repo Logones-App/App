@@ -20,11 +20,25 @@ const LS_KEY = "current-establishment";
 export function EstablishmentSwitcher() {
   const organizationId = useOrgaUserOrganizationId() ?? "";
   const { data: establishments = [], isLoading } = useOrganizationEstablishments(organizationId);
-  const { establishmentId, setEstablishment } = useCurrentEstablishmentStore();
+  const { establishmentId, setEstablishment, clearEstablishment } = useCurrentEstablishmentStore();
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1] ?? "fr";
+
+  // Valide que l'établissement en store appartient bien à cette org
+  useEffect(() => {
+    if (isLoading || establishments.length === 0 || !establishmentId) return;
+    const belongs = establishments.some((e) => e.id === establishmentId);
+    if (!belongs) {
+      clearEstablishment();
+      try {
+        localStorage.removeItem(LS_KEY);
+      } catch {
+        /* */
+      }
+    }
+  }, [isLoading, establishments, establishmentId, clearEstablishment]);
 
   // Auto-sélection si un seul établissement
   useEffect(() => {

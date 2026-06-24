@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -8,51 +7,39 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
+
+type MenuFormValues = Pick<Tables<"menus">, "name" | "description" | "is_active">;
 
 interface MenuFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: Tables<"menus">) => void;
+  onSubmit: (values: MenuFormValues) => void;
+  isPending?: boolean;
   initialValues?: Tables<"menus">;
 }
 
-export function MenuFormModal({ open, onOpenChange, onSubmit, initialValues }: MenuFormModalProps) {
-  const queryClient = useQueryClient();
-
-  const form = useForm<Tables<"menus">>({
-    defaultValues: initialValues ?? {
-      name: "",
-      description: "",
-      is_active: true,
+export function MenuFormModal({ open, onOpenChange, onSubmit, isPending, initialValues }: MenuFormModalProps) {
+  const form = useForm<MenuFormValues>({
+    defaultValues: {
+      name: initialValues?.name ?? "",
+      description: initialValues?.description ?? "",
+      is_active: initialValues?.is_active ?? true,
     },
   });
 
-  const mutation = useMutation({
-    mutationFn: async (values: Tables<"menus">) => {
-      const supabase = createClient();
-      if (initialValues) {
-        const { error } = await supabase.from("menus").update(values).eq("id", initialValues.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("menus").insert(values);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-      form.reset();
-      onOpenChange(false);
-    },
-  });
-
-  const handleSubmit = (values: Tables<"menus">) => {
-    mutation.mutate(values);
+  const handleSubmit = (values: MenuFormValues) => {
+    onSubmit(values);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) form.reset();
+        onOpenChange(v);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{initialValues ? "Modifier le menu" : "Créer un nouveau menu"}</DialogTitle>
@@ -94,8 +81,8 @@ export function MenuFormModal({ open, onOpenChange, onSubmit, initialValues }: M
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Annuler
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Enregistrement..." : initialValues ? "Modifier" : "Créer"}
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Enregistrement..." : initialValues ? "Modifier" : "Créer"}
               </Button>
             </div>
           </form>

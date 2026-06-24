@@ -187,7 +187,8 @@ export function MenusDisplay({
       <MenuFormModal
         open={showMenuForm}
         onOpenChange={setShowMenuForm}
-        onSubmit={addMenuMutation.mutate as (values: Tables<"menus">) => void}
+        onSubmit={addMenuMutation.mutate as (values: unknown) => void}
+        isPending={addMenuMutation.isPending}
       />
 
       {!menus?.length ? (

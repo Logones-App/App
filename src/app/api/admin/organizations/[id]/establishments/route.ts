@@ -129,6 +129,18 @@ async function insertDefaultPaymentMethods(svc: Svc, estId: string, orgId: strin
   if (error) throw error;
 }
 
+async function insertDefaultMenu(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const { error } = await svc.from("menus").insert({
+    name: "Carte principale",
+    establishment_id: estId,
+    organization_id: orgId,
+    is_active: true,
+    deleted: false,
+    display_order: 1,
+  });
+  if (error) throw error;
+}
+
 async function insertVatRates(svc: Svc, rates: VatBody[], estId: string, orgId: string): Promise<void> {
   const filtered = rates.filter((r) => r.value > 0);
   if (filtered.length === 0) return;
@@ -159,6 +171,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!body.establishment?.name.trim()) {
       return NextResponse.json({ error: "Nom de l'établissement requis" }, { status: 400 });
     }
+    if (!body.establishment.siret?.trim()) {
+      return NextResponse.json({ error: "SIRET requis (NF525)" }, { status: 400 });
+    }
+    if (!body.establishment.no_tva?.trim()) {
+      return NextResponse.json({ error: "N° TVA requis (NF525)" }, { status: 400 });
+    }
 
     const svc = createServiceClient();
 
@@ -174,6 +192,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     await insertNf525Key(svc, newEst.id, orgId);
     await insertDefaultPaymentMethods(svc, newEst.id, orgId);
+    await insertDefaultMenu(svc, newEst.id, orgId);
     await insertVatRates(svc, body.vat_rates ?? [], newEst.id, orgId);
 
     let tabletCredentials: { email: string; password: string } | null = null;
