@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type PortionUnit } from "@/lib/constants/product-attributes";
 import { useOrganizationProducts } from "@/lib/queries/establishments";
+import { useEstablishmentMenus } from "@/lib/queries/establishments-menu-queries";
 import { useComponentFifoCosts } from "@/lib/queries/fifo-cost-queries";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
@@ -143,6 +144,7 @@ export function ProductFicheTechniquePanel({
   const compositionQueryKey = [PRODUCT_DASHBOARD_QUERY_KEY, product.id, establishmentId, organizationId];
 
   const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
+  const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
   const ingredientList = allProducts.filter(
     (p) => p.id !== product.id && (p.product_type as string[] | null)?.includes("ingredient"),
   );
@@ -344,14 +346,18 @@ export function ProductFicheTechniquePanel({
               </Table>
             </div>
 
-            {menuProductPricing.length > 0 && (
-              <ProductMargePanel
-                product={product}
-                compositions={compositions}
-                menuProductPricing={menuProductPricing}
-                organizationId={organizationId}
-                establishmentId={establishmentId}
-              />
+            {allMenus.length > 0 && (
+              <>
+                <p className="text-sm font-medium">Prix de vente par menu</p>
+                <ProductMargePanel
+                  product={product}
+                  compositions={compositions}
+                  menuProductPricing={menuProductPricing}
+                  allMenus={allMenus}
+                  organizationId={organizationId}
+                  establishmentId={establishmentId}
+                />
+              </>
             )}
           </CardContent>
         </Card>

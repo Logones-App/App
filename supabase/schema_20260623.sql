@@ -75,40 +75,6 @@ $$;
 ALTER FUNCTION "public"."cleanup_expired_device_sessions"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."cleanup_old_cache"() RETURNS integer
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  deleted_count INTEGER := 0;
-  temp_count INTEGER;
-BEGIN
-  -- Supprimer les créneaux de plus de 7 jours non consultés
-  DELETE FROM available_slots_cache 
-  WHERE last_accessed_at < NOW() - INTERVAL '7 days'
-    AND date < CURRENT_DATE;
-  
-  GET DIAGNOSTICS temp_count = ROW_COUNT;
-  deleted_count := deleted_count + temp_count;
-  
-  -- Supprimer les créneaux de plus de 30 jours (même consultés)
-  DELETE FROM available_slots_cache 
-  WHERE date < CURRENT_DATE - INTERVAL '30 days';
-  
-  GET DIAGNOSTICS temp_count = ROW_COUNT;
-  deleted_count := deleted_count + temp_count;
-  
-  RETURN deleted_count;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."cleanup_old_cache"() OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."cleanup_old_cache"() IS 'Nettoie automatiquement l''ancien cache';
-
-
-
 CREATE OR REPLACE FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer DEFAULT 90) RETURNS integer
     LANGUAGE "plpgsql"
     AS $$
@@ -130,466 +96,6 @@ ALTER FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) OWNER T
 
 COMMENT ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) IS 'Fonction pour nettoyer les anciens logs d''emails';
 
-
-
-CREATE OR REPLACE FUNCTION "public"."cleanup_orphaned_gallery_images"() RETURNS integer
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-  deleted_count INTEGER := 0;
-BEGIN
-  -- Supprimer les images qui n'ont plus d'établissement associé
-  DELETE FROM storage.objects 
-  WHERE bucket_id = 'gallery' 
-    AND NOT EXISTS (
-      SELECT 1 FROM establishments e 
-      WHERE e.id::text = (storage.foldername(name))[2]
-        AND e.organization_id::text = (storage.foldername(name))[1]
-        AND e.deleted = false
-    );
-  
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
-  RETURN deleted_count;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."cleanup_orphaned_gallery_images"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."create_default_payment_methods_for_establishment"("p_establishment_id" "uuid", "p_organization_id" "uuid") RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-  -- Carte (type stable 'card')
-  INSERT INTO payment_methods (
-    establishment_id,
-    organization_id,
-    payment_method_name,
-    payment_method_type,
-    deleted,
-    is_active
-  )
-  SELECT p_establishment_id, p_organization_id, 'Carte', 'card', false, true
-  WHERE NOT EXISTS (
-    SELECT 1 FROM payment_methods
-    WHERE establishment_id = p_establishment_id
-      AND payment_method_type = 'card'
-      AND deleted = false
-  );
-
-  -- Espèces (type stable 'cash')
-  INSERT INTO payment_methods (
-    establishment_id,
-    organization_id,
-    payment_method_name,
-    payment_method_type,
-    deleted,
-    is_active
-  )
-  SELECT p_establishment_id, p_organization_id, 'Espèces', 'cash', false, true
-  WHERE NOT EXISTS (
-    SELECT 1 FROM payment_methods
-    WHERE establishment_id = p_establishment_id
-      AND payment_method_type = 'cash'
-      AND deleted = false
-  );
-END;
-$$;
-
-
-ALTER FUNCTION "public"."create_default_payment_methods_for_establishment"("p_establishment_id" "uuid", "p_organization_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."enforce_booking_slots_org_consistency"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  IF NEW.organization_id IS DISTINCT FROM (
-    SELECT e.organization_id FROM public.establishments e WHERE e.id = NEW.establishment_id
-  ) THEN
-    RAISE EXCEPTION 'booking_slots.organization_id doit correspondre à establishments.organization_id';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."enforce_booking_slots_org_consistency"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."ensure_self_product_composition"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_organization_id" "uuid") RETURNS "uuid"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_id uuid;
-BEGIN
-  SELECT pc.id INTO v_id
-  FROM public.product_compositions pc
-  WHERE pc.establishment_id = p_establishment_id
-    AND pc.organization_id = p_organization_id
-    AND pc.main_product_id = p_product_id
-    AND pc.component_product_id = p_product_id
-    AND COALESCE(pc.deleted, false) = false
-  LIMIT 1;
-
-  IF v_id IS NOT NULL THEN
-    RETURN v_id;
-  END IF;
-
-  INSERT INTO public.product_compositions (
-    id,
-    main_product_id,
-    component_product_id,
-    establishment_id,
-    organization_id,
-    deleted,
-    default_quantity,
-    is_required,
-    display_order,
-    created_at,
-    updated_at
-  ) VALUES (
-    gen_random_uuid(),
-    p_product_id,
-    p_product_id,
-    p_establishment_id,
-    p_organization_id,
-    false,
-    1,
-    true,
-    0,
-    now(),
-    now()
-  )
-  RETURNING id INTO v_id;
-
-  RETURN v_id;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."ensure_self_product_composition"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_organization_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."generate_15min_slots"("p_establishment_id" "uuid", "p_date" "date") RETURNS TABLE("slot_time" time without time zone, "service_name" "text", "is_available" boolean, "available_capacity" integer, "max_capacity" integer)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-    v_day_of_week INTEGER;
-    v_slot_time TIME;
-    v_service_name TEXT;
-    v_is_available BOOLEAN;
-    v_max_capacity INTEGER := 20; -- Capacité par défaut
-BEGIN
-    -- Récupérer le jour de la semaine (0 = Dimanche, 1 = Lundi, etc.)
-    v_day_of_week := EXTRACT(DOW FROM p_date);
-    
-    -- Générer les créneaux de 15 minutes pour les horaires d'ouverture
-    FOR v_slot_time IN 
-        SELECT generate_series(
-            '11:00'::TIME, 
-            '13:45'::TIME, 
-            '15 minutes'::INTERVAL
-        )::TIME
-        UNION
-        SELECT generate_series(
-            '18:00'::TIME, 
-            '21:45'::TIME, 
-            '15 minutes'::INTERVAL
-        )::TIME
-    LOOP
-        -- Déterminer le service selon l'heure
-        IF v_slot_time >= '11:00'::TIME AND v_slot_time < '14:00'::TIME THEN
-            v_service_name := 'Déjeuner';
-        ELSIF v_slot_time >= '18:00'::TIME AND v_slot_time < '22:00'::TIME THEN
-            v_service_name := 'Dîner';
-        ELSE
-            v_service_name := 'Service standard';
-        END IF;
-        
-        -- Vérifier si le créneau est ouvert selon les horaires d'ouverture
-        SELECT EXISTS(
-            SELECT 1 FROM opening_hours
-            WHERE establishment_id = p_establishment_id
-            AND day_of_week = v_day_of_week
-            AND name = v_service_name
-            AND is_active = true
-            AND v_slot_time >= open_time
-            AND v_slot_time < close_time
-            AND (valid_from IS NULL OR valid_from <= p_date)
-            AND (valid_until IS NULL OR valid_until >= p_date)
-        ) INTO v_is_available;
-        
-        -- Retourner le créneau
-        RETURN QUERY SELECT 
-            v_slot_time,
-            v_service_name,
-            v_is_available,
-            CASE WHEN v_is_available THEN v_max_capacity ELSE 0 END,
-            v_max_capacity;
-    END LOOP;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."generate_15min_slots"("p_establishment_id" "uuid", "p_date" "date") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."generate_slots_for_date"("p_establishment_id" "uuid", "p_date" "date") RETURNS "void"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  loop_time TIME;
-  oh RECORD;
-BEGIN
-  -- Supprimer les anciens créneaux pour cette date (si ils existent)
-  DELETE FROM available_slots_cache 
-  WHERE establishment_id = p_establishment_id 
-    AND date = p_date;
-  
-  -- Récupérer les horaires d'ouverture pour ce jour
-  FOR oh IN 
-    SELECT * FROM opening_hours 
-    WHERE establishment_id = p_establishment_id 
-    AND day_of_week = EXTRACT(DOW FROM p_date)
-    AND is_active = true
-    AND (valid_until IS NULL OR valid_until >= p_date)
-    AND valid_from <= p_date
-  LOOP
-    
-    -- Générer les créneaux de 15 minutes
-    loop_time := oh.open_time;
-    WHILE loop_time < oh.close_time LOOP
-      
-      -- Insérer le créneau
-      INSERT INTO available_slots_cache (
-        establishment_id, date, time, service_name, 
-        is_available, max_capacity, current_bookings
-      ) VALUES (
-        p_establishment_id, p_date, loop_time, 
-        COALESCE(oh.name, 'Service'), true, 10, 0
-      );
-      
-      -- Passer au créneau suivant (15 minutes)
-      loop_time := loop_time + INTERVAL '15 minutes';
-    END LOOP;
-    
-  END LOOP;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."generate_slots_for_date"("p_establishment_id" "uuid", "p_date" "date") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_active_exceptions_for_date"("p_establishment_id" "uuid", "p_date" "date") RETURNS TABLE("id" "uuid", "exception_type" "text", "booking_slot_id" "uuid", "closed_slots" integer[], "reason" "text", "description" "text")
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        be.id,
-        be.exception_type,
-        be.booking_slot_id,
-        be.closed_slots,
-        be.reason,
-        be.description
-    FROM booking_exceptions be
-    WHERE be.establishment_id = p_establishment_id
-      AND be.deleted = FALSE
-      AND be.status = 'active'
-      AND (
-          -- Exception de période
-          (be.exception_type = 'period' AND p_date BETWEEN be.start_date AND be.end_date) OR
-          -- Exception de jour unique
-          (be.exception_type = 'single_day' AND be.date = p_date) OR
-          -- Exception de service (valide pour tous les jours)
-          (be.exception_type = 'service') OR
-          -- Exception de créneaux spécifiques
-          (be.exception_type = 'time_slots' AND be.date = p_date)
-      );
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_active_exceptions_for_date"("p_establishment_id" "uuid", "p_date" "date") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_active_menus_by_time"("p_organization_id" "uuid", "p_current_time" time without time zone DEFAULT CURRENT_TIME, "p_establishment_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("menu_id" "uuid", "menu_name" "text", "menu_description" "text", "menu_type" character varying, "start_time" time without time zone, "end_time" time without time zone, "is_public" boolean, "display_order" integer, "image_url" "text")
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        m.id,
-        m.name,
-        m.description,
-        m.type,
-        m.start_time,
-        m.end_time,
-        m.is_public,
-        m.display_order,
-        m.image_url
-    FROM menus m
-    WHERE m.deleted IS NULL 
-    AND m.is_active = true
-    AND m.organization_id = p_organization_id
-    AND (p_establishment_id IS NULL OR m.establishments_id = p_establishment_id)
-    AND (
-        m.start_time IS NULL 
-        OR m.end_time IS NULL 
-        OR (p_current_time >= m.start_time AND p_current_time <= m.end_time)
-    )
-    ORDER BY m.display_order, m.name;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_active_menus_by_time"("p_organization_id" "uuid", "p_current_time" time without time zone, "p_establishment_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_available_slots_simple"("p_establishment_id" "uuid", "p_date" "date") RETURNS TABLE("slot_id" "uuid", "start_time" time without time zone, "end_time" time without time zone, "is_available" boolean, "establishment_id" "uuid", "date" "date")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-    RETURN QUERY
-    WITH time_slots AS (
-        SELECT 
-            (generate_series(0, 17, 1) * 30)::integer as minutes_from_start
-    ),
-    generated_slots AS (
-        SELECT 
-            gen_random_uuid() as slot_id,
-            ('09:00'::time + (minutes_from_start || ' minutes')::interval)::time as start_time,
-            ('09:00'::time + ((minutes_from_start + 30) || ' minutes')::interval)::time as end_time,
-            true as is_available,
-            p_establishment_id as establishment_id,
-            p_date as date
-        FROM time_slots
-        WHERE minutes_from_start >= 0 
-        AND minutes_from_start < 540  -- 18h - 9h = 9h = 540 minutes
-    )
-    SELECT 
-        gs.slot_id,
-        gs.start_time,
-        gs.end_time,
-        gs.is_available,
-        gs.establishment_id,
-        gs.date
-    FROM generated_slots gs
-    WHERE EXISTS (
-        SELECT 1 
-        FROM establishments e 
-        WHERE e.id = p_establishment_id 
-        AND e.is_public = true 
-        AND e.deleted = false
-    )
-    ORDER BY gs.start_time;
-    
-    IF NOT FOUND THEN
-        RETURN;
-    END IF;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_available_slots_simple"("p_establishment_id" "uuid", "p_date" "date") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_establishment_gallery_section_images"("p_establishment_id" "uuid", "p_section" character varying) RETURNS TABLE("id" "uuid", "establishment_id" "uuid", "organization_id" "uuid", "image_id" "uuid", "section" character varying, "display_order" integer, "image_url" "text", "image_name" character varying, "image_description" "text", "alt_text" character varying, "file_size" integer, "mime_type" character varying, "dimensions" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone)
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    gs.id,
-    gs.establishment_id,
-    gs.organization_id,
-    gs.image_id,
-    gs.section,
-    gs.display_order,
-    g.image_url,
-    g.image_name,
-    g.image_description,
-    g.alt_text,
-    g.file_size,
-    g.mime_type,
-    g.dimensions,
-    gs.created_at,
-    gs.updated_at
-  FROM establishment_gallery_sections gs
-  INNER JOIN establishment_gallery g ON g.id = gs.image_id
-  WHERE gs.establishment_id = p_establishment_id
-    AND gs.section = p_section
-    AND gs.deleted = false
-    AND g.deleted = false
-  ORDER BY gs.display_order ASC, gs.created_at ASC;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_establishment_gallery_section_images"("p_establishment_id" "uuid", "p_section" character varying) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_gallery_image_url"("p_organization_id" "uuid", "p_establishment_id" "uuid", "p_image_name" "text") RETURNS "text"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-  RETURN storage.url('gallery', p_organization_id::text || '/' || p_establishment_id::text || '/' || p_image_name);
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_gallery_image_url"("p_organization_id" "uuid", "p_establishment_id" "uuid", "p_image_name" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid" DEFAULT NULL::"uuid") RETURNS bigint
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_next bigint;
-BEGIN
-  IF p_piece_type IS NULL OR p_piece_type NOT IN ('ticket', 'note', 'justificatif') THEN
-    RAISE EXCEPTION 'piece_type doit être ticket, note ou justificatif';
-  END IF;
-
-  INSERT INTO nf525_sequences (establishment_id, device_id, piece_type, organization_id, last_number)
-  VALUES (p_establishment_id, p_device_id, p_piece_type, p_organization_id, 1)
-  ON CONFLICT (establishment_id, device_id, piece_type)
-  DO UPDATE SET
-    last_number = nf525_sequences.last_number + 1,
-    updated_at = now()
-  RETURNING last_number INTO v_next;
-
-  RETURN v_next;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid") OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid") IS 'NF525 R13 : retourne le prochain numéro de pièce (ticket/note/justificatif) pour establishment+device et incrémente la séquence.';
-
-
-
-CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO ''
-    AS $$
-begin
-  insert into public.profiles (id, full_name, avatar_url)
-  values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
-  return new;
-end;
-$$;
-
-
-ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."handle_times"() RETURNS "trigger"
@@ -622,57 +128,6 @@ $$;
 
 
 ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer DEFAULT 500) RETURNS boolean
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-  current_count integer;
-BEGIN
-  INSERT INTO doc_import_usage (organization_id, month, doc_count)
-  VALUES (p_organization_id, p_month, 1)
-  ON CONFLICT (organization_id, month)
-  DO UPDATE SET doc_count = doc_import_usage.doc_count + 1
-  RETURNING doc_count INTO current_count;
-
-  RETURN current_count <= p_limit;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."is_slot_closed_by_exception"("p_establishment_id" "uuid", "p_date" "date", "p_slot_number" integer, "p_booking_slot_id" "uuid" DEFAULT NULL::"uuid") RETURNS boolean
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    exception_count INTEGER;
-BEGIN
-    SELECT COUNT(*)
-    INTO exception_count
-    FROM booking_exceptions
-    WHERE establishment_id = p_establishment_id
-      AND deleted = FALSE
-      AND status = 'active'
-      AND (
-          -- Exception de période
-          (exception_type = 'period' AND p_date BETWEEN start_date AND end_date) OR
-          -- Exception de jour unique
-          (exception_type = 'single_day' AND date = p_date) OR
-          -- Exception de service
-          (exception_type = 'service' AND booking_slot_id = p_booking_slot_id) OR
-          -- Exception de créneaux spécifiques
-          (exception_type = 'time_slots' AND date = p_date AND p_slot_number = ANY(closed_slots))
-      );
-    
-    RETURN exception_count > 0;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."is_slot_closed_by_exception"("p_establishment_id" "uuid", "p_date" "date", "p_slot_number" integer, "p_booking_slot_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" "uuid", "title" "text", "content" "text", "category" "text", "similarity" double precision)
@@ -757,103 +212,6 @@ END; $$;
 ALTER FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer DEFAULT 100, "p_organization_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("range_start" bigint, "range_end" bigint)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_old_last bigint;
-  v_new_last bigint;
-BEGIN
-  IF p_piece_type IS NULL OR p_piece_type NOT IN ('ticket', 'note', 'justificatif') THEN
-    RAISE EXCEPTION 'piece_type doit être ticket, note ou justificatif';
-  END IF;
-  IF p_count IS NULL OR p_count < 1 OR p_count > 1000 THEN
-    RAISE EXCEPTION 'p_count doit être entre 1 et 1000';
-  END IF;
-
-  INSERT INTO nf525_sequences (establishment_id, device_id, piece_type, organization_id, last_number)
-  VALUES (p_establishment_id, p_device_id, p_piece_type, p_organization_id, p_count)
-  ON CONFLICT (establishment_id, device_id, piece_type)
-  DO UPDATE SET
-    last_number = nf525_sequences.last_number + p_count,
-    updated_at = now()
-  RETURNING last_number INTO v_new_last;
-
-  range_start := v_new_last - p_count + 1;
-  range_end   := v_new_last;
-  RETURN NEXT;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer, "p_organization_id" "uuid") OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer, "p_organization_id" "uuid") IS 'NF525 offline-first : réserve une plage de numéros pour (établissement, caisse, type). Le client consomme la plage localement.';
-
-
-
-CREATE OR REPLACE FUNCTION "public"."reserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") RETURNS boolean
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_available_stock numeric;
-  v_ps_id uuid;
-BEGIN
-  SELECT public.get_available_stock(p_product_id, p_organization_id)
-  INTO v_available_stock;
-
-  IF v_available_stock < p_quantity THEN
-    RETURN FALSE;
-  END IF;
-
-  SELECT ps.id INTO v_ps_id
-  FROM public.product_stocks ps
-  INNER JOIN public.product_compositions pc ON pc.id = ps.product_composition_id
-  WHERE pc.component_product_id = p_product_id
-    AND ps.organization_id = p_organization_id
-    AND COALESCE(ps.deleted, false) = false
-  ORDER BY CASE WHEN pc.main_product_id = pc.component_product_id THEN 0 ELSE 1 END, ps.created_at NULLS LAST
-  LIMIT 1;
-
-  IF v_ps_id IS NULL THEN
-    RETURN FALSE;
-  END IF;
-
-  UPDATE public.product_stocks
-  SET reserved_stock = reserved_stock + p_quantity
-  WHERE id = v_ps_id;
-
-  PERFORM public.add_stock_movement(
-    p_product_id,
-    p_organization_id,
-    'reservation',
-    p_quantity,
-    p_reference_type,
-    p_reference_id,
-    'Réservation automatique'
-  );
-
-  RETURN TRUE;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."reserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."set_updated_at"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$;
-
-
-ALTER FUNCTION "public"."set_updated_at"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -881,81 +239,6 @@ END; $$;
 
 
 ALTER FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."trigger_fn_create_default_payment_methods"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-  PERFORM create_default_payment_methods_for_establishment(NEW.id, NEW.organization_id);
-  RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."trigger_fn_create_default_payment_methods"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."unreserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") RETURNS boolean
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_ps_id uuid;
-BEGIN
-  SELECT ps.id INTO v_ps_id
-  FROM public.product_stocks ps
-  INNER JOIN public.product_compositions pc ON pc.id = ps.product_composition_id
-  WHERE pc.component_product_id = p_product_id
-    AND ps.organization_id = p_organization_id
-    AND COALESCE(ps.deleted, false) = false
-  ORDER BY CASE WHEN pc.main_product_id = pc.component_product_id THEN 0 ELSE 1 END, ps.created_at NULLS LAST
-  LIMIT 1;
-
-  IF v_ps_id IS NULL THEN
-    RETURN FALSE;
-  END IF;
-
-  UPDATE public.product_stocks
-  SET reserved_stock = GREATEST(0, reserved_stock - p_quantity)
-  WHERE id = v_ps_id;
-
-  PERFORM public.add_stock_movement(
-    p_product_id,
-    p_organization_id,
-    'unreservation',
-    -p_quantity,
-    p_reference_type,
-    p_reference_id,
-    'Libération de réservation'
-  );
-
-  RETURN TRUE;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."unreserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."validate_booking_exception_slots"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-    -- Valider les créneaux fermés si présents
-    IF NEW.closed_slots IS NOT NULL AND array_length(NEW.closed_slots, 1) > 0 THEN
-        IF NOT validate_closed_slots(NEW.closed_slots) THEN
-            RAISE EXCEPTION 'Créneaux fermés invalides. Doivent être entre 0 et 95.';
-        END IF;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."validate_booking_exception_slots"() OWNER TO "postgres";
 
 SET default_tablespace = '';
 
@@ -2374,10 +1657,7 @@ CREATE TABLE IF NOT EXISTS "public"."menus" (
     "display_order" integer DEFAULT 0,
     "description" "text",
     "image_url" "text",
-    "type" character varying(50) DEFAULT 'lunch'::character varying,
-    "created_by" "uuid",
-    "pricing_strategy" "text" DEFAULT 'menu_price_fallback_catalog'::"text" NOT NULL,
-    CONSTRAINT "menus_pricing_strategy_check" CHECK (("pricing_strategy" = ANY (ARRAY['catalog_only'::"text", 'menu_price_fallback_catalog'::"text", 'menu_price_required'::"text"])))
+    "created_by" "uuid"
 );
 
 
@@ -2405,14 +1685,6 @@ COMMENT ON COLUMN "public"."menus"."description" IS 'Description de la carte';
 
 
 COMMENT ON COLUMN "public"."menus"."image_url" IS 'URL de l''image de la carte';
-
-
-
-COMMENT ON COLUMN "public"."menus"."type" IS 'Type de carte: lunch, dinner, happy_hour, breakfast, special, web';
-
-
-
-COMMENT ON COLUMN "public"."menus"."pricing_strategy" IS 'catalog_only: toujours le prix produit. menu_price_fallback_catalog: prix ligne menu si non null, sinon catalogue. menu_price_required: prix ligne menu obligatoire (sinon repli catalogue côté appli en attendant correction).';
 
 
 
@@ -3688,7 +2960,7 @@ CREATE TABLE IF NOT EXISTS "public"."tables" (
     "color" "text" DEFAULT '#4169E1'::"text" NOT NULL,
     "shape" "text" DEFAULT 'circle'::"text" NOT NULL,
     "rotation" numeric DEFAULT '0'::numeric NOT NULL,
-    "room_id" "uuid" DEFAULT "gen_random_uuid"(),
+    "room_id" "uuid" NOT NULL,
     "x" numeric DEFAULT '50'::numeric NOT NULL,
     "y" numeric DEFAULT '100'::numeric NOT NULL,
     "width" numeric DEFAULT '80'::numeric NOT NULL,
@@ -5035,10 +4307,6 @@ CREATE INDEX "idx_menus_establishment" ON "public"."menus" USING "btree" ("estab
 
 
 
-CREATE INDEX "idx_menus_org_type" ON "public"."menus" USING "btree" ("organization_id", "type", "is_active") WHERE ("deleted" IS NULL);
-
-
-
 CREATE INDEX "idx_menus_organization_id" ON "public"."menus" USING "btree" ("organization_id");
 
 
@@ -5607,263 +4875,251 @@ CREATE UNIQUE INDEX "uq_product_suppliers_unique" ON "public"."product_suppliers
 
 
 
-CREATE OR REPLACE TRIGGER "KEEP_trigger_create_default_payment_methods" AFTER INSERT ON "public"."establishments" FOR EACH ROW EXECUTE FUNCTION "public"."trigger_fn_create_default_payment_methods"();
+CREATE OR REPLACE TRIGGER "handle_times_categories" BEFORE INSERT OR UPDATE ON "public"."categories" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_opening_hours_exceptions_times" BEFORE UPDATE ON "public"."opening_hours_exceptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_daily_found" BEFORE INSERT OR UPDATE ON "public"."daily_found" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_opening_hours_times" BEFORE UPDATE ON "public"."opening_hours" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_device_sessions" BEFORE INSERT OR UPDATE ON "public"."device_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_order_suites_updated_at" BEFORE UPDATE ON "public"."order_suites" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+CREATE OR REPLACE TRIGGER "handle_times_formulas" BEFORE INSERT OR UPDATE ON "public"."formulas" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."categories" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_messages" BEFORE INSERT OR UPDATE ON "public"."messages" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."daily_found" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_opening_hours" BEFORE UPDATE ON "public"."opening_hours" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."device_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_opening_hours_exceptions" BEFORE UPDATE ON "public"."opening_hours_exceptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."formulas" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_order_payments" BEFORE INSERT OR UPDATE ON "public"."order_payments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."messages" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_order_payments_rows" BEFORE INSERT OR UPDATE ON "public"."order_payments_rows" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."order_payments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_orders" BEFORE INSERT OR UPDATE ON "public"."orders" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."order_payments_rows" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_printers" BEFORE INSERT OR UPDATE ON "public"."printers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."orders" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_products" BEFORE INSERT OR UPDATE ON "public"."products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."printers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_rooms" BEFORE INSERT OR UPDATE ON "public"."rooms" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_tables" BEFORE INSERT OR UPDATE ON "public"."tables" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."rooms" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_tables_connections" BEFORE INSERT OR UPDATE ON "public"."tables_connections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."tables" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_times_vat_rate" BEFORE INSERT OR UPDATE ON "public"."vat_rate" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."tables_connections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_updated_at_actions" BEFORE UPDATE ON "public"."actions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
-CREATE OR REPLACE TRIGGER "handle_times" BEFORE INSERT OR UPDATE ON "public"."vat_rate" FOR EACH ROW EXECUTE FUNCTION "public"."handle_times"();
+CREATE OR REPLACE TRIGGER "handle_updated_at_booking_exceptions" BEFORE UPDATE ON "public"."booking_exceptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
-CREATE OR REPLACE TRIGGER "leads_updated_at" BEFORE UPDATE ON "public"."leads" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+CREATE OR REPLACE TRIGGER "handle_updated_at_booking_slots" BEFORE UPDATE ON "public"."booking_slots" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_booking_table_allocations" BEFORE UPDATE ON "public"."booking_table_allocations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_bookings" BEFORE UPDATE ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_cash_withdrawals" BEFORE UPDATE ON "public"."cash_withdrawals" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_category_grid_items" BEFORE UPDATE ON "public"."category_grid_items" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_custom_domains" BEFORE UPDATE ON "public"."custom_domains" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_devices" BEFORE UPDATE ON "public"."devices" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_email_logs" BEFORE UPDATE ON "public"."email_logs" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_employee_permissions" BEFORE UPDATE ON "public"."employee_permissions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_employee_shift_overrides" BEFORE UPDATE ON "public"."employee_shift_overrides" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_employee_shift_templates" BEFORE UPDATE ON "public"."employee_shift_templates" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_employee_shifts" BEFORE UPDATE ON "public"."employee_shifts" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_employees" BEFORE UPDATE ON "public"."employees" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_establishment_gallery" BEFORE UPDATE ON "public"."establishment_gallery" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_establishment_gallery_sections" BEFORE UPDATE ON "public"."establishment_gallery_sections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_establishments" BEFORE UPDATE ON "public"."establishments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_formula_products" BEFORE UPDATE ON "public"."formula_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_formula_slots" BEFORE UPDATE ON "public"."formula_slots" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_leads" BEFORE UPDATE ON "public"."leads" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_menu_schedules" BEFORE UPDATE ON "public"."menu_schedules" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_menus" BEFORE UPDATE ON "public"."menus" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_menus_products" BEFORE UPDATE ON "public"."menus_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_nf525_config" BEFORE UPDATE ON "public"."nf525_config" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_nf525_order_refunds" BEFORE UPDATE ON "public"."nf525_order_refunds" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_nf525_restitutions" BEFORE UPDATE ON "public"."nf525_restitutions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_nf525_sequences" BEFORE UPDATE ON "public"."nf525_sequences" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_nf525_signing_keys" BEFORE UPDATE ON "public"."nf525_signing_keys" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_order_formulas" BEFORE UPDATE ON "public"."order_formulas" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_order_payment_settlements" BEFORE UPDATE ON "public"."order_payment_settlements" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_order_products" BEFORE UPDATE ON "public"."order_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_order_suites" BEFORE UPDATE ON "public"."order_suites" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_organizations" BEFORE UPDATE ON "public"."organizations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_payment_methods" BEFORE UPDATE ON "public"."payment_methods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_pos_device_accounts" BEFORE UPDATE ON "public"."pos_device_accounts" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_product_compositions" BEFORE UPDATE ON "public"."product_compositions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_product_stocks" BEFORE UPDATE ON "public"."product_stocks" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_product_suppliers" BEFORE UPDATE ON "public"."product_suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_profiles" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_public_menu_items" BEFORE UPDATE ON "public"."public_menu_items" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_public_menu_sections" BEFORE UPDATE ON "public"."public_menu_sections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_suppliers" BEFORE UPDATE ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_users_organizations" BEFORE UPDATE ON "public"."users_organizations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_updated_at_work_sessions" BEFORE UPDATE ON "public"."work_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
 CREATE OR REPLACE TRIGGER "nf525_after_piece_insert" AFTER INSERT ON "public"."nf525_pieces" FOR EACH ROW EXECUTE FUNCTION "public"."nf525_sync_sequence_on_piece_insert"();
-
-
-
-CREATE OR REPLACE TRIGGER "set_updated_at_public_menu_items" BEFORE UPDATE ON "public"."public_menu_items" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "set_updated_at_public_menu_sections" BEFORE UPDATE ON "public"."public_menu_sections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trg_booking_slots_org_check" BEFORE INSERT OR UPDATE ON "public"."booking_slots" FOR EACH ROW EXECUTE FUNCTION "public"."enforce_booking_slots_org_consistency"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_order_products_updated_at" BEFORE UPDATE ON "public"."order_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_booking_exceptions_updated_at" BEFORE UPDATE ON "public"."booking_exceptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_custom_domains_updated_at" BEFORE UPDATE ON "public"."custom_domains" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_employee_shift_overrides_updated_at" BEFORE UPDATE ON "public"."employee_shift_overrides" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_establishment_gallery_updated_at" BEFORE UPDATE ON "public"."establishment_gallery" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_gallery_sections_updated_at" BEFORE UPDATE ON "public"."establishment_gallery_sections" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_profiles_updated_at" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_update_users_organizations_updated_at" BEFORE UPDATE ON "public"."users_organizations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "trigger_validate_booking_exception_slots" BEFORE INSERT OR UPDATE ON "public"."booking_exceptions" FOR EACH ROW EXECUTE FUNCTION "public"."validate_booking_exception_slots"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_actions_updated_at" BEFORE UPDATE ON "public"."actions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_booking_slots_updated_at" BEFORE UPDATE ON "public"."booking_slots" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_booking_table_allocations_updated_at" BEFORE UPDATE ON "public"."booking_table_allocations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_bookings_updated_at" BEFORE UPDATE ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_cash_withdrawals_updated_at" BEFORE UPDATE ON "public"."cash_withdrawals" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_category_grid_items_updated_at" BEFORE UPDATE ON "public"."category_grid_items" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_devices_updated_at" BEFORE UPDATE ON "public"."devices" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_email_logs_updated_at" BEFORE UPDATE ON "public"."email_logs" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_employee_shift_templates_updated_at" BEFORE UPDATE ON "public"."employee_shift_templates" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_employee_shifts_updated_at" BEFORE UPDATE ON "public"."employee_shifts" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_establishments_updated_at" BEFORE UPDATE ON "public"."establishments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_formula_products_updated_at" BEFORE UPDATE ON "public"."formula_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_formula_slots_updated_at" BEFORE UPDATE ON "public"."formula_slots" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_menu_schedules_updated_at" BEFORE UPDATE ON "public"."menu_schedules" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_menus_products_updated_at" BEFORE UPDATE ON "public"."menus_products" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_menus_updated_at" BEFORE UPDATE ON "public"."menus" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_mobile_user_permissions_updated_at" BEFORE UPDATE ON "public"."employee_permissions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_mobile_users_updated_at" BEFORE UPDATE ON "public"."employees" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_nf525_config_updated_at" BEFORE UPDATE ON "public"."nf525_config" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_nf525_order_refunds_updated_at" BEFORE UPDATE ON "public"."nf525_order_refunds" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_nf525_restitutions_updated_at" BEFORE UPDATE ON "public"."nf525_restitutions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_nf525_sequences_updated_at" BEFORE UPDATE ON "public"."nf525_sequences" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_nf525_signing_keys_updated_at" BEFORE UPDATE ON "public"."nf525_signing_keys" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_order_formulas_updated_at" BEFORE UPDATE ON "public"."order_formulas" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_order_payment_settlements_updated_at" BEFORE UPDATE ON "public"."order_payment_settlements" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_organizations_updated_at" BEFORE UPDATE ON "public"."organizations" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_payment_methods_updated_at" BEFORE UPDATE ON "public"."payment_methods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_pos_device_accounts_updated_at" BEFORE UPDATE ON "public"."pos_device_accounts" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_product_compositions_updated_at" BEFORE UPDATE ON "public"."product_compositions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_product_stocks_updated_at" BEFORE UPDATE ON "public"."product_stocks" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_product_suppliers_updated_at" BEFORE UPDATE ON "public"."product_suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_suppliers_updated_at" BEFORE UPDATE ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "update_work_sessions_updated_at" BEFORE UPDATE ON "public"."work_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
@@ -7154,6 +6410,11 @@ ALTER TABLE ONLY "public"."public_menu_sections"
 
 ALTER TABLE ONLY "public"."rooms"
     ADD CONSTRAINT "rooms_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."rooms"
+    ADD CONSTRAINT "rooms_establishment_id_fkey" FOREIGN KEY ("establishment_id") REFERENCES "public"."establishments"("id") ON DELETE CASCADE;
 
 
 
@@ -9721,93 +8982,9 @@ GRANT ALL ON FUNCTION "public"."cleanup_expired_device_sessions"() TO "service_r
 
 
 
-GRANT ALL ON FUNCTION "public"."cleanup_old_cache"() TO "anon";
-GRANT ALL ON FUNCTION "public"."cleanup_old_cache"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."cleanup_old_cache"() TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."cleanup_orphaned_gallery_images"() TO "anon";
-GRANT ALL ON FUNCTION "public"."cleanup_orphaned_gallery_images"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."cleanup_orphaned_gallery_images"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."create_default_payment_methods_for_establishment"("p_establishment_id" "uuid", "p_organization_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."create_default_payment_methods_for_establishment"("p_establishment_id" "uuid", "p_organization_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."create_default_payment_methods_for_establishment"("p_establishment_id" "uuid", "p_organization_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."enforce_booking_slots_org_consistency"() TO "anon";
-GRANT ALL ON FUNCTION "public"."enforce_booking_slots_org_consistency"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."enforce_booking_slots_org_consistency"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."ensure_self_product_composition"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."ensure_self_product_composition"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."ensure_self_product_composition"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."generate_15min_slots"("p_establishment_id" "uuid", "p_date" "date") TO "anon";
-GRANT ALL ON FUNCTION "public"."generate_15min_slots"("p_establishment_id" "uuid", "p_date" "date") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."generate_15min_slots"("p_establishment_id" "uuid", "p_date" "date") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."generate_slots_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "anon";
-GRANT ALL ON FUNCTION "public"."generate_slots_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."generate_slots_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_active_exceptions_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_active_exceptions_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_active_exceptions_for_date"("p_establishment_id" "uuid", "p_date" "date") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_active_menus_by_time"("p_organization_id" "uuid", "p_current_time" time without time zone, "p_establishment_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_active_menus_by_time"("p_organization_id" "uuid", "p_current_time" time without time zone, "p_establishment_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_active_menus_by_time"("p_organization_id" "uuid", "p_current_time" time without time zone, "p_establishment_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_available_slots_simple"("p_establishment_id" "uuid", "p_date" "date") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_available_slots_simple"("p_establishment_id" "uuid", "p_date" "date") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_available_slots_simple"("p_establishment_id" "uuid", "p_date" "date") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_establishment_gallery_section_images"("p_establishment_id" "uuid", "p_section" character varying) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_establishment_gallery_section_images"("p_establishment_id" "uuid", "p_section" character varying) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_establishment_gallery_section_images"("p_establishment_id" "uuid", "p_section" character varying) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_gallery_image_url"("p_organization_id" "uuid", "p_establishment_id" "uuid", "p_image_name" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_gallery_image_url"("p_organization_id" "uuid", "p_establishment_id" "uuid", "p_image_name" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_gallery_image_url"("p_organization_id" "uuid", "p_establishment_id" "uuid", "p_image_name" "text") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_next_nf525_piece_number"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_organization_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
 
 
 
@@ -9820,18 +8997,6 @@ GRANT ALL ON FUNCTION "public"."handle_times"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."is_slot_closed_by_exception"("p_establishment_id" "uuid", "p_date" "date", "p_slot_number" integer, "p_booking_slot_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."is_slot_closed_by_exception"("p_establishment_id" "uuid", "p_date" "date", "p_slot_number" integer, "p_booking_slot_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."is_slot_closed_by_exception"("p_establishment_id" "uuid", "p_date" "date", "p_slot_number" integer, "p_booking_slot_id" "uuid") TO "service_role";
 
 
 
@@ -9853,45 +9018,9 @@ GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_es
 
 
 
-GRANT ALL ON FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer, "p_organization_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer, "p_organization_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."reserve_nf525_piece_number_range"("p_establishment_id" "uuid", "p_device_id" "uuid", "p_piece_type" "text", "p_count" integer, "p_organization_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."reserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."reserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."reserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "anon";
-GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."trigger_fn_create_default_payment_methods"() TO "anon";
-GRANT ALL ON FUNCTION "public"."trigger_fn_create_default_payment_methods"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."trigger_fn_create_default_payment_methods"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."unreserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."unreserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."unreserve_stock"("p_product_id" "uuid", "p_organization_id" "uuid", "p_quantity" numeric, "p_reference_type" character varying, "p_reference_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."validate_booking_exception_slots"() TO "anon";
-GRANT ALL ON FUNCTION "public"."validate_booking_exception_slots"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."validate_booking_exception_slots"() TO "service_role";
 
 
 
