@@ -43,6 +43,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 
 import { ArchiveProductDialog } from "./archive-product-dialog";
+import { OriginPicker } from "./product-origin-picker";
 
 type ProductProprieteDraft = {
   name: string;
@@ -103,6 +104,7 @@ export function ProductProprieteForm({
   const [foodCostTarget, setFoodCostTarget] = useState(() =>
     product.food_cost_target != null ? String(Math.round(product.food_cost_target * 100)) : "",
   );
+  const [origins, setOrigins] = useState<string[]>(() => (product.origins as string[] | null) ?? []);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
@@ -147,6 +149,7 @@ export function ProductProprieteForm({
         .update({
           allergens,
           labels,
+          origins,
           product_type: productTypes,
           portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
           portion_unit: portionUnit || null,
@@ -429,6 +432,13 @@ export function ProductProprieteForm({
               Allergènes <span className="text-muted-foreground text-xs font-normal">(actifs en rouge)</span>
             </label>
             <AllergenPicker value={allergens} onChange={setAllergens} />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Origine <span className="text-muted-foreground text-xs font-normal">(pays de production)</span>
+            </label>
+            <OriginPicker value={origins} onChange={setOrigins} />
           </div>
 
           <div className="space-y-2">

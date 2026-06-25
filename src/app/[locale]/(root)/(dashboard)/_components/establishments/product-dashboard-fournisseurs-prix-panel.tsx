@@ -474,8 +474,6 @@ export function ProductFournisseursPrixPanel({
   const { data: links = [], isLoading } = useProductSuppliers(productId);
   const { data: history = [] } = useProductPurchasePriceHistory(productId, organizationId);
 
-  const usedIds = new Set(links.map((l) => l.supplier_id));
-
   return (
     <div className="space-y-6">
       <Card>
@@ -513,7 +511,6 @@ export function ProductFournisseursPrixPanel({
           productId={productId}
           organizationId={organizationId}
           portionUnit={portionUnit}
-          usedSupplierIds={usedIds}
           onClose={() => setShowAdd(false)}
         />
       )}

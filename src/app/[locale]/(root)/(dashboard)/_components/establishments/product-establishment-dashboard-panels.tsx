@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import type {
   CompositionStockRow,
   MenuProductPricingJoin,
@@ -52,8 +53,19 @@ export function ProductEstablishmentDashboardTabs({
   );
   const persoCount = persoStockRows.length;
 
+  const validTabs = [
+    "propriete",
+    "stock",
+    ...(isForSale ? ["prix-menus", "personnalisation"] : []),
+    ...(hasFicheTechnique ? ["recette"] : []),
+    ...(hasFournisseursTab ? ["achats"] : []),
+  ];
+
+  const [savedTab, setSavedTab] = useLocalStorage("product-dashboard-active-tab", "propriete");
+  const activeTab = validTabs.includes(savedTab) ? savedTab : "propriete";
+
   return (
-    <Tabs defaultValue="propriete" className="w-full gap-4">
+    <Tabs value={activeTab} onValueChange={setSavedTab} className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
         {isForSale && <TabsTrigger value="prix-menus">Prix &amp; Menus</TabsTrigger>}

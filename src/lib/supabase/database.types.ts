@@ -5584,6 +5584,7 @@ export type Database = {
           labels: Json
           name: string
           organization_id: string | null
+          origins: Json
           portion_unit: string | null
           portion_weight: number | null
           printer_id: string | null
@@ -5607,6 +5608,7 @@ export type Database = {
           labels?: Json
           name: string
           organization_id?: string | null
+          origins?: Json
           portion_unit?: string | null
           portion_weight?: number | null
           printer_id?: string | null
@@ -5630,6 +5632,7 @@ export type Database = {
           labels?: Json
           name?: string
           organization_id?: string | null
+          origins?: Json
           portion_unit?: string | null
           portion_weight?: number | null
           printer_id?: string | null

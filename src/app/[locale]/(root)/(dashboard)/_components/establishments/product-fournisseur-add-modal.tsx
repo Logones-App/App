@@ -28,11 +28,10 @@ type Props = {
   productId: string;
   organizationId: string;
   portionUnit: string | null;
-  usedSupplierIds: Set<string>;
   onClose: () => void;
 };
 
-export function AddSupplierModal({ productId, organizationId, portionUnit, usedSupplierIds, onClose }: Props) {
+export function AddSupplierModal({ productId, organizationId, portionUnit, onClose }: Props) {
   const t = useTranslations("units");
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("existing");
   const [selectedId, setSelectedId] = useState("");
@@ -47,7 +46,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, usedS
   const [notes, setNotes] = useState("");
 
   const { data: suppliers = [] } = useActiveSuppliers(organizationId);
-  const available = suppliers.filter((s) => !usedSupplierIds.has(s.id));
+  const available = suppliers;
 
   const linkMutation = useCreateProductSupplier(productId);
   const createSupplierMutation = useCreateSupplier(organizationId);
