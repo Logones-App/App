@@ -8,6 +8,7 @@ import { Check, ChevronDown, ChevronRight, Pencil, RotateCcw, X } from "lucide-r
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Input } from "@/components/ui/input";
 import { AllergenBadges, LabelBadges } from "@/components/ui/product-attribute-pickers";
 import { Switch } from "@/components/ui/switch";
@@ -29,8 +30,6 @@ function labelForType(key: string): { label: string; emoji: string } {
   const found = PRODUCT_TYPES.find((t) => t.key === key);
   return found ? { label: found.label, emoji: found.emoji } : { label: key, emoji: "📦" };
 }
-
-// ─── Cellule texte éditable ──────────────────────────────────────────────────
 
 function InlineTextCell({
   value,
@@ -107,8 +106,6 @@ function InlineTextCell({
   );
 }
 
-// ─── Section produits archivés ────────────────────────────────────────────────
-
 function ArchivedProductsSection({
   products,
   organizationId,
@@ -172,8 +169,6 @@ function ArchivedProductsSection({
   );
 }
 
-// ─── Props et composant principal ────────────────────────────────────────────
-
 type Props = {
   products: ProductRow[];
   archivedProducts: ProductRow[];
@@ -183,14 +178,13 @@ type Props = {
 
 export function ProductsListTable({ products, archivedProducts, organizationId, basePath }: Props) {
   const [q, setQ] = useState("");
-  const LS_GROUPS_KEY = "products-list-expanded-groups";
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(TYPE_ORDER));
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(LS_GROUPS_KEY);
+      const raw = localStorage.getItem("products-list-expanded-groups");
       if (raw != null) setExpandedIds(new Set(JSON.parse(raw) as string[]));
     } catch {
       // localStorage indisponible
@@ -206,7 +200,7 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
       if (next.has(key)) next.delete(key);
       else next.add(key);
       try {
-        localStorage.setItem(LS_GROUPS_KEY, JSON.stringify([...next]));
+        localStorage.setItem("products-list-expanded-groups", JSON.stringify([...next]));
       } catch {
         // localStorage indisponible
       }
@@ -339,9 +333,17 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
           {(() => {
             const allergens = p.allergens as string[] | null;
             const lbls = p.labels as string[] | null;
-            if (!allergens?.length && !lbls?.length) return null;
+            const origs = p.origins as string[] | null;
+            if (!allergens?.length && !lbls?.length && !origs?.length) return null;
             return (
               <div className="mt-1 space-y-1">
+                {!!origs?.length && (
+                  <div className="flex flex-wrap gap-1">
+                    {origs.map((code) => (
+                      <CountryFlag key={code} code={code} className="h-3.5 w-auto rounded-sm" />
+                    ))}
+                  </div>
+                )}
                 <AllergenBadges allergens={allergens ?? []} />
                 <LabelBadges labels={lbls ?? []} />
               </div>

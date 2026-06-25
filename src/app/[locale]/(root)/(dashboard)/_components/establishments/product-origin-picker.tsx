@@ -7,13 +7,10 @@ import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { COUNTRIES } from "@/lib/constants/countries";
 import { cn } from "@/lib/utils";
-
-function countryFlag(code: string): string {
-  return [...code.toUpperCase()].map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65)).join("");
-}
 
 export function OriginPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [open, setOpen] = useState(false);
@@ -57,7 +54,7 @@ export function OriginPicker({ value, onChange }: { value: string[]; onChange: (
                         value.includes(country.code) ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <span className="mr-1.5">{countryFlag(country.code)}</span>
+                    <CountryFlag code={country.code} className="mr-1.5 h-4 w-auto rounded-sm" />
                     {country.name}
                     <span className="text-muted-foreground ml-auto text-xs">{country.code}</span>
                   </CommandItem>
@@ -71,8 +68,8 @@ export function OriginPicker({ value, onChange }: { value: string[]; onChange: (
       {selectedCountries.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedCountries.map((country) => (
-            <Badge key={country.code} variant="secondary" className="gap-1 pr-1.5">
-              <span>{countryFlag(country.code)}</span>
+            <Badge key={country.code} variant="secondary" className="gap-1.5 pr-1.5">
+              <CountryFlag code={country.code} className="h-3.5 w-auto rounded-sm" />
               {country.name}
               <button
                 type="button"

@@ -1,5 +1,6 @@
 export const COUNTRIES = [
   { code: "FR", name: "France" },
+  { code: "EU", name: "Union européenne" },
   { code: "AF", name: "Afghanistan" },
   { code: "ZA", name: "Afrique du Sud" },
   { code: "AL", name: "Albanie" },
