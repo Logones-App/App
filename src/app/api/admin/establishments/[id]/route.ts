@@ -37,6 +37,27 @@ function buildPatch(body: PatchBody) {
   };
 }
 
+const NF525_SENSITIVE_FIELDS = [
+  "name",
+  "address",
+  "city",
+  "postal_code",
+  "country",
+  "siret",
+  "no_tva",
+  "code_naf",
+] as const;
+
+type SensitiveField = (typeof NF525_SENSITIVE_FIELDS)[number];
+type PatchResult = ReturnType<typeof buildPatch>;
+
+function detectChangedFields(
+  current: Record<SensitiveField, string | number | null>,
+  patch: PatchResult,
+): SensitiveField[] {
+  return NF525_SENSITIVE_FIELDS.filter((f) => String(current[f] ?? "") !== String(patch[f] ?? ""));
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
@@ -57,8 +78,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
     }
 
-    const { error } = await supabase.from("establishments").update(buildPatch(body)).eq("id", id);
+    // Lire les valeurs actuelles pour détecter les champs NF525 modifiés
+    const { data: current, error: fetchErr } = await supabase
+      .from("establishments")
+      .select("organization_id, name, address, city, postal_code, country, siret, no_tva, code_naf")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr ?? !current) {
+      return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 });
+    }
+
+    const patch = buildPatch(body);
+    const changedFields = detectChangedFields(current as Record<SensitiveField, string | number | null>, patch);
+
+    const { error } = await supabase.from("establishments").update(patch).eq("id", id);
     if (error) throw error;
+
+    // JET 410 si au moins un champ sensible NF525 a changé
+    if (changedFields.length > 0 && current.organization_id) {
+      type UntypedRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+      const { error: jetErr } = await (supabase.rpc as unknown as UntypedRpc)("nf525_jet_410_saas", {
+        p_establishment_id: id,
+        p_organization_id: current.organization_id,
+        p_changed_fields: changedFields.join(", "),
+      });
+      if (jetErr) {
+        console.error("[NF525] JET 410 failed:", jetErr);
+        return NextResponse.json(
+          { error: `Mise à jour effectuée mais JET 410 non créé : ${jetErr.message}` },
+          { status: 500 },
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

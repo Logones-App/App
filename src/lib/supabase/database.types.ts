@@ -1146,7 +1146,7 @@ export type Database = {
       }
       daily_found: {
         Row: {
-          closed_at_at: string | null
+          closed_at: string | null
           closing_cash_count: number | null
           closing_cash_to_keep: number | null
           created_at: string | null
@@ -1161,7 +1161,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          closed_at_at?: string | null
+          closed_at?: string | null
           closing_cash_count?: number | null
           closing_cash_to_keep?: number | null
           created_at?: string | null
@@ -1176,7 +1176,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          closed_at_at?: string | null
+          closed_at?: string | null
           closing_cash_count?: number | null
           closing_cash_to_keep?: number | null
           created_at?: string | null
@@ -3292,8 +3292,6 @@ export type Database = {
           is_public: boolean | null
           name: string | null
           organization_id: string
-          pricing_strategy: string
-          type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -3309,8 +3307,6 @@ export type Database = {
           is_public?: boolean | null
           name?: string | null
           organization_id: string
-          pricing_strategy?: string
-          type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -3326,8 +3322,6 @@ export type Database = {
           is_public?: boolean | null
           name?: string | null
           organization_id?: string
-          pricing_strategy?: string
-          type?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -3836,6 +3830,7 @@ export type Database = {
           print_index: number
           printed_at: string
           updated_at: string
+          vat_details: Json | null
         }
         Insert: {
           amount_ttc: number
@@ -3854,6 +3849,7 @@ export type Database = {
           print_index?: number
           printed_at?: string
           updated_at?: string
+          vat_details?: Json | null
         }
         Update: {
           amount_ttc?: number
@@ -3872,6 +3868,7 @@ export type Database = {
           print_index?: number
           printed_at?: string
           updated_at?: string
+          vat_details?: Json | null
         }
         Relationships: [
           {
@@ -5865,6 +5862,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "rooms_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "rooms_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -6267,7 +6271,7 @@ export type Database = {
           is_primary: boolean | null
           name: string
           organization_id: string | null
-          room_id: string | null
+          room_id: string
           rotation: number
           seats: number | null
           shape: string
@@ -6288,7 +6292,7 @@ export type Database = {
           is_primary?: boolean | null
           name: string
           organization_id?: string | null
-          room_id?: string | null
+          room_id: string
           rotation?: number
           seats?: number | null
           shape?: string
@@ -6309,7 +6313,7 @@ export type Database = {
           is_primary?: boolean | null
           name?: string
           organization_id?: string | null
-          room_id?: string | null
+          room_id?: string
           rotation?: number
           seats?: number | null
           shape?: string
@@ -6560,127 +6564,9 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_device_sessions: { Args: never; Returns: undefined }
-      cleanup_old_cache: { Args: never; Returns: number }
       cleanup_old_email_logs: {
         Args: { days_to_keep?: number }
         Returns: number
-      }
-      cleanup_orphaned_gallery_images: { Args: never; Returns: number }
-      create_default_payment_methods_for_establishment: {
-        Args: { p_establishment_id: string; p_organization_id: string }
-        Returns: undefined
-      }
-      ensure_self_product_composition: {
-        Args: {
-          p_establishment_id: string
-          p_organization_id: string
-          p_product_id: string
-        }
-        Returns: string
-      }
-      generate_15min_slots: {
-        Args: { p_date: string; p_establishment_id: string }
-        Returns: {
-          available_capacity: number
-          is_available: boolean
-          max_capacity: number
-          service_name: string
-          slot_time: string
-        }[]
-      }
-      generate_slots_for_date: {
-        Args: { p_date: string; p_establishment_id: string }
-        Returns: undefined
-      }
-      get_active_exceptions_for_date: {
-        Args: { p_date: string; p_establishment_id: string }
-        Returns: {
-          booking_slot_id: string
-          closed_slots: number[]
-          description: string
-          exception_type: string
-          id: string
-          reason: string
-        }[]
-      }
-      get_active_menus_by_time: {
-        Args: {
-          p_current_time?: string
-          p_establishment_id?: string
-          p_organization_id: string
-        }
-        Returns: {
-          display_order: number
-          end_time: string
-          image_url: string
-          is_public: boolean
-          menu_description: string
-          menu_id: string
-          menu_name: string
-          menu_type: string
-          start_time: string
-        }[]
-      }
-      get_available_slots_simple: {
-        Args: { p_date: string; p_establishment_id: string }
-        Returns: {
-          date: string
-          end_time: string
-          establishment_id: string
-          is_available: boolean
-          slot_id: string
-          start_time: string
-        }[]
-      }
-      get_establishment_gallery_section_images: {
-        Args: { p_establishment_id: string; p_section: string }
-        Returns: {
-          alt_text: string
-          created_at: string
-          dimensions: Json
-          display_order: number
-          establishment_id: string
-          file_size: number
-          id: string
-          image_description: string
-          image_id: string
-          image_name: string
-          image_url: string
-          mime_type: string
-          organization_id: string
-          section: string
-          updated_at: string
-        }[]
-      }
-      get_gallery_image_url: {
-        Args: {
-          p_establishment_id: string
-          p_image_name: string
-          p_organization_id: string
-        }
-        Returns: string
-      }
-      get_next_nf525_piece_number: {
-        Args: {
-          p_device_id: string
-          p_establishment_id: string
-          p_organization_id?: string
-          p_piece_type: string
-        }
-        Returns: number
-      }
-      increment_doc_usage: {
-        Args: { p_limit?: number; p_month: string; p_organization_id: string }
-        Returns: boolean
-      }
-      is_slot_closed_by_exception: {
-        Args: {
-          p_booking_slot_id?: string
-          p_date: string
-          p_establishment_id: string
-          p_slot_number: number
-        }
-        Returns: boolean
       }
       match_knowledge_base: {
         Args: {
@@ -6696,38 +6582,33 @@ export type Database = {
           title: string
         }[]
       }
-      reserve_nf525_piece_number_range: {
+      nf525_jet_410_saas: {
         Args: {
-          p_count?: number
-          p_device_id: string
+          p_changed_fields: string
           p_establishment_id: string
-          p_organization_id?: string
-          p_piece_type: string
-        }
-        Returns: {
-          range_end: number
-          range_start: number
-        }[]
-      }
-      reserve_stock: {
-        Args: {
           p_organization_id: string
-          p_product_id: string
-          p_quantity: number
-          p_reference_id: string
-          p_reference_type: string
         }
-        Returns: boolean
+        Returns: undefined
       }
-      unreserve_stock: {
+      register_device: {
         Args: {
+          p_device_info?: Json
+          p_device_role?: string
+          p_display?: string
+          p_establishment_id: string
+          p_mods?: string[]
           p_organization_id: string
-          p_product_id: string
-          p_quantity: number
-          p_reference_id: string
-          p_reference_type: string
+          p_serial_number: string
         }
-        Returns: boolean
+        Returns: Json
+      }
+      transfer_device: {
+        Args: {
+          p_establishment_id: string
+          p_organization_id: string
+          p_serial_number: string
+        }
+        Returns: Json
       }
     }
     Enums: {

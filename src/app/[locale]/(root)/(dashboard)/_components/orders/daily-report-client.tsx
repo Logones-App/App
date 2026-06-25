@@ -159,7 +159,7 @@ export function DailyReportClient({
                       <div className="text-sm">
                         <p className="font-medium">
                           {s.opened_at ? format(parseISO(s.opened_at), "HH:mm", { locale: fr }) : "—"} →{" "}
-                          {s.closed_at_at ? format(parseISO(s.closed_at_at), "HH:mm", { locale: fr }) : "En cours"}
+                          {s.closed_at ? format(parseISO(s.closed_at), "HH:mm", { locale: fr }) : "En cours"}
                         </p>
                         {s.opening_cash_amount != null && (
                           <p className="text-muted-foreground text-xs">
