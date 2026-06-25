@@ -183,9 +183,19 @@ type Props = {
 
 export function ProductsListTable({ products, archivedProducts, organizationId, basePath }: Props) {
   const [q, setQ] = useState("");
+  const LS_GROUPS_KEY = "products-list-expanded-groups";
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(TYPE_ORDER));
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_GROUPS_KEY);
+      if (raw != null) setExpandedIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // localStorage indisponible
+    }
+  }, []);
 
   const edit = useProductInlineEdit(organizationId);
   const normalizedBase = basePath.replace(/\/$/, "");
@@ -195,6 +205,11 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      try {
+        localStorage.setItem(LS_GROUPS_KEY, JSON.stringify([...next]));
+      } catch {
+        // localStorage indisponible
+      }
       return next;
     });
   };

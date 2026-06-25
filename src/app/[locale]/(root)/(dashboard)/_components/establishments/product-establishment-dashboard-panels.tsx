@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import type {
   CompositionStockRow,
   MenuProductPricingJoin,
@@ -61,11 +62,30 @@ export function ProductEstablishmentDashboardTabs({
     ...(hasFournisseursTab ? ["achats"] : []),
   ];
 
-  const [savedTab, setSavedTab] = useLocalStorage("product-dashboard-active-tab", "propriete");
-  const activeTab = validTabs.includes(savedTab) ? savedTab : "propriete";
+  const LS_KEY = "product-dashboard-active-tab";
+  const [activeTab, setActiveTab] = useState("propriete");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved && validTabs.includes(saved)) setActiveTab(saved);
+    } catch {
+      // localStorage indisponible
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem(LS_KEY, tab);
+    } catch {
+      // localStorage indisponible
+    }
+  };
 
   return (
-    <Tabs value={activeTab} onValueChange={setSavedTab} className="w-full gap-4">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full gap-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
         <TabsTrigger value="propriete">Propriété</TabsTrigger>
         {isForSale && <TabsTrigger value="prix-menus">Prix &amp; Menus</TabsTrigger>}

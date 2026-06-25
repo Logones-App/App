@@ -11,6 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { COUNTRIES } from "@/lib/constants/countries";
 import { cn } from "@/lib/utils";
 
+function countryFlag(code: string): string {
+  return [...code.toUpperCase()].map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65)).join("");
+}
+
 export function OriginPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [open, setOpen] = useState(false);
 
@@ -53,6 +57,7 @@ export function OriginPicker({ value, onChange }: { value: string[]; onChange: (
                         value.includes(country.code) ? "opacity-100" : "opacity-0",
                       )}
                     />
+                    <span className="mr-1.5">{countryFlag(country.code)}</span>
                     {country.name}
                     <span className="text-muted-foreground ml-auto text-xs">{country.code}</span>
                   </CommandItem>
@@ -67,6 +72,7 @@ export function OriginPicker({ value, onChange }: { value: string[]; onChange: (
         <div className="flex flex-wrap gap-1.5">
           {selectedCountries.map((country) => (
             <Badge key={country.code} variant="secondary" className="gap-1 pr-1.5">
+              <span>{countryFlag(country.code)}</span>
               {country.name}
               <button
                 type="button"
