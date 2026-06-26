@@ -22,11 +22,241 @@ import {
   useAddStockMovement,
   useProductStockMovements,
 } from "@/lib/queries/stock-movement-queries";
+import { useProductSuppliers } from "@/lib/queries/supplier-queries";
 
 function applySign(qty: number, sign: "positive" | "negative" | "both"): number {
   if (sign === "negative") return -Math.abs(qty);
   if (sign === "positive") return Math.abs(qty);
   return qty;
+}
+
+function computeEffectiveQty(
+  rawQty: number,
+  needsConversion: boolean,
+  unitsPerPackage: number | null,
+  sign: "positive" | "negative" | "both",
+): number | null {
+  if (!Number.isFinite(rawQty)) return null;
+  if (needsConversion && unitsPerPackage != null) {
+    return Math.round(Math.abs(rawQty) * unitsPerPackage * 1000) / 1000;
+  }
+  return applySign(rawQty, sign);
+}
+
+function validateMovement(
+  movementType: MovementType,
+  effectiveQty: number | null,
+  totalPrice: number | undefined,
+  productSupplierId: string,
+): string | null {
+  if (effectiveQty == null) return "Quantité invalide";
+  if (movementType === "purchase" && (totalPrice == null || !Number.isFinite(totalPrice) || totalPrice <= 0)) {
+    return "Le prix total HT est requis pour une réception fournisseur";
+  }
+  if (movementType === "purchase" && !productSupplierId) return "Sélectionnez un fournisseur pour cette réception";
+  return null;
+}
+
+type ProductSupplierOption = {
+  id: string;
+  supplier_product_name: string | null;
+  supplier_product_ref: string | null;
+  order_unit: string | null;
+  units_per_package: number | null;
+  unit_price: number | null;
+  supplier: { name: string } | null;
+};
+
+function deriveConversionInfo(
+  movementType: MovementType,
+  selectedSupplier: ProductSupplierOption | null,
+  unit: string | null,
+) {
+  const isPurchase = movementType === "purchase";
+  const orderUnit = isPurchase ? (selectedSupplier?.order_unit ?? null) : null;
+  const unitsPerPackage = isPurchase ? (selectedSupplier?.units_per_package ?? null) : null;
+  const needsConversion = orderUnit != null && orderUnit !== unit && unitsPerPackage != null;
+  const missingConversionFactor = orderUnit != null && orderUnit !== unit && unitsPerPackage == null;
+  const catalogPricePerOrderUnit = isPurchase ? (selectedSupplier?.unit_price ?? null) : null;
+  return { orderUnit, unitsPerPackage, needsConversion, missingConversionFactor, catalogPricePerOrderUnit };
+}
+
+function computePriceHints(
+  totalPrice: number | undefined,
+  effectiveQty: number | null,
+  catalogPricePerOrderUnit: number | null,
+  rawQty: number,
+) {
+  const unitCostPreview =
+    totalPrice != null && effectiveQty != null && effectiveQty !== 0
+      ? Math.round((totalPrice / Math.abs(effectiveQty)) * 100000) / 100000
+      : null;
+  const catalogPriceSuggestion =
+    catalogPricePerOrderUnit != null && Number.isFinite(rawQty) ? rawQty * catalogPricePerOrderUnit : null;
+  return { unitCostPreview, catalogPriceSuggestion };
+}
+
+function SupplierField({
+  productSuppliers,
+  value,
+  onChange,
+}: {
+  productSuppliers: ProductSupplierOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>
+        Fournisseur / référence <span className="text-destructive text-xs font-normal">*</span>
+      </Label>
+      {productSuppliers.length === 0 ? (
+        <p className="text-muted-foreground text-xs">
+          Aucun fournisseur lié à ce produit. Ajoutez-en un dans l&apos;onglet Achats.
+        </p>
+      ) : (
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner un fournisseur…" />
+          </SelectTrigger>
+          <SelectContent>
+            {productSuppliers.map((ps) => (
+              <SelectItem key={ps.id} value={ps.id}>
+                {ps.supplier?.name ?? "—"}
+                {ps.supplier_product_name ? ` — ${ps.supplier_product_name}` : ""}
+                {ps.supplier_product_ref ? ` (${ps.supplier_product_ref})` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
+
+function QuantityField({
+  unit,
+  typeConfig,
+  quantityStr,
+  onQuantityChange,
+  needsConversion,
+  missingConversionFactor,
+  orderUnit,
+  unitsPerPackage,
+  effectiveQty,
+  quantityAfterPreview,
+}: {
+  unit: string | null;
+  typeConfig: (typeof MOVEMENT_TYPES)[number];
+  quantityStr: string;
+  onQuantityChange: (v: string) => void;
+  needsConversion: boolean;
+  missingConversionFactor: boolean;
+  orderUnit: string | null;
+  unitsPerPackage: number | null;
+  effectiveQty: number | null;
+  quantityAfterPreview: number | null;
+}) {
+  const labelHint = needsConversion
+    ? `1 ${orderUnit} = ${unitsPerPackage} ${unit ?? "unités"}`
+    : typeConfig.sign === "negative"
+      ? "(sortie — toujours négatif)"
+      : typeConfig.sign === "positive"
+        ? "(entrée — toujours positif)"
+        : "(positif = entrée, négatif = sortie)";
+
+  const placeholder = needsConversion ? `ex: 2 ${orderUnit}` : typeConfig.sign === "both" ? "ex: 5 ou -3" : "0";
+
+  return (
+    <div className="space-y-2">
+      <Label>
+        {needsConversion ? `Quantité reçue (en ${orderUnit})` : `Quantité${unit ? ` (${unit})` : ""}`}{" "}
+        <span className="text-muted-foreground text-xs font-normal">{labelHint}</span>
+      </Label>
+      <Input
+        value={quantityStr}
+        onChange={(e) => onQuantityChange(e.target.value)}
+        inputMode="decimal"
+        placeholder={placeholder}
+        className="tabular-nums"
+      />
+      {missingConversionFactor && (
+        <p className="text-xs text-amber-600">
+          ⚠️ Facteur de conversion manquant pour {orderUnit} → {unit}. Renseignez-le dans l&apos;onglet Achats.
+        </p>
+      )}
+      {needsConversion && effectiveQty != null && (
+        <p className="text-muted-foreground text-xs">
+          →{" "}
+          <strong>
+            {effectiveQty} {unit}
+          </strong>{" "}
+          en stock
+        </p>
+      )}
+      {quantityAfterPreview != null && (
+        <p className="text-muted-foreground text-xs">
+          Stock après :{" "}
+          <strong className={quantityAfterPreview < 0 ? "text-red-600" : ""}>{quantityAfterPreview}</strong>
+          {quantityAfterPreview < 0 && " ⚠️ stock négatif"}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PriceField({
+  totalPriceStr,
+  onPriceChange,
+  unitCostPreview,
+  catalogPricePerOrderUnit,
+  catalogPriceSuggestion,
+  orderUnit,
+  unit,
+}: {
+  totalPriceStr: string;
+  onPriceChange: (v: string) => void;
+  unitCostPreview: number | null;
+  catalogPricePerOrderUnit: number | null;
+  catalogPriceSuggestion: number | null;
+  orderUnit: string | null;
+  unit: string | null;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>
+        Prix total HT (€) <span className="text-muted-foreground text-xs font-normal">total de la ligne sur le BL</span>
+      </Label>
+      <Input
+        value={totalPriceStr}
+        onChange={(e) => onPriceChange(e.target.value)}
+        inputMode="decimal"
+        placeholder="ex: 7.50"
+        className="tabular-nums"
+      />
+      {catalogPricePerOrderUnit != null && (
+        <p className="text-muted-foreground text-xs">
+          Prix catalogue :{" "}
+          <strong>
+            {catalogPricePerOrderUnit} €/{orderUnit}
+          </strong>
+          {catalogPriceSuggestion != null && (
+            <span className="ml-2 text-blue-600">
+              → suggestion : <strong>{Math.round(catalogPriceSuggestion * 100) / 100} €</strong>
+            </span>
+          )}
+        </p>
+      )}
+      {unitCostPreview != null && unit && (
+        <p className="text-muted-foreground text-xs">
+          → coût unitaire FIFO :{" "}
+          <strong>
+            {unitCostPreview} €/{unit}
+          </strong>
+        </p>
+      )}
+    </div>
+  );
 }
 
 function StockMovementForm({
@@ -50,30 +280,44 @@ function StockMovementForm({
   const [quantityStr, setQuantityStr] = useState("");
   const [totalPriceStr, setTotalPriceStr] = useState("");
   const [notes, setNotes] = useState("");
+  const [productSupplierId, setProductSupplierId] = useState<string>("");
 
+  const { data: productSuppliers = [] } = useProductSuppliers(productId);
   const addMutation = useAddStockMovement(productId, organizationId, establishmentId, productStockId, unit);
 
   const typeConfig = MOVEMENT_TYPES.find((t) => t.key === movementType)!;
   const rawQty = parseFloat(quantityStr.replace(",", "."));
-  const effectiveQty = Number.isFinite(rawQty) ? applySign(rawQty, typeConfig.sign) : null;
+
+  const selectedSupplier = productSuppliers.find((ps) => ps.id === productSupplierId) ?? null;
+  const { orderUnit, unitsPerPackage, needsConversion, missingConversionFactor, catalogPricePerOrderUnit } =
+    deriveConversionInfo(movementType, selectedSupplier, unit);
+
+  const effectiveQty = computeEffectiveQty(rawQty, needsConversion, unitsPerPackage, typeConfig.sign);
   const quantityAfterPreview = effectiveQty != null ? currentStock + effectiveQty : null;
   const totalPrice = totalPriceStr ? parseFloat(totalPriceStr.replace(",", ".")) : undefined;
-  const unitCostPreview =
-    totalPrice != null && effectiveQty != null && effectiveQty !== 0
-      ? Math.round((totalPrice / Math.abs(effectiveQty)) * 100000) / 100000
-      : null;
+  const { unitCostPreview, catalogPriceSuggestion } = computePriceHints(
+    totalPrice,
+    effectiveQty,
+    catalogPricePerOrderUnit,
+    rawQty,
+  );
 
   const handleSubmit = () => {
-    if (effectiveQty == null) {
-      toast.error("Quantité invalide");
-      return;
-    }
-    if (movementType === "purchase" && (totalPrice == null || !Number.isFinite(totalPrice) || totalPrice <= 0)) {
-      toast.error("Le prix total HT est requis pour une réception fournisseur");
+    const errorMsg = validateMovement(movementType, effectiveQty, totalPrice, productSupplierId);
+    if (errorMsg) {
+      toast.error(errorMsg);
       return;
     }
     addMutation.mutate(
-      { movementType, quantity: effectiveQty, notes, currentStock, totalPrice },
+      {
+        movementType,
+        quantity: effectiveQty!,
+        notes,
+        currentStock,
+        totalPrice,
+        productSupplierId: productSupplierId || undefined,
+        unitsPerPackage: unitsPerPackage ?? undefined,
+      },
       { onSuccess: onClose },
     );
   };
@@ -96,54 +340,35 @@ function StockMovementForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>
-            Quantité{unit ? ` (${unit})` : ""}{" "}
-            <span className="text-muted-foreground text-xs font-normal">
-              {typeConfig.sign === "negative"
-                ? "(sortie — toujours négatif)"
-                : typeConfig.sign === "positive"
-                  ? "(entrée — toujours positif)"
-                  : "(positif = entrée, négatif = sortie)"}
-            </span>
-          </Label>
-          <Input
-            value={quantityStr}
-            onChange={(e) => setQuantityStr(e.target.value)}
-            inputMode="decimal"
-            placeholder={typeConfig.sign === "both" ? "ex: 5 ou -3" : "0"}
-            className="tabular-nums"
-          />
-          {quantityAfterPreview != null && (
-            <p className="text-muted-foreground text-xs">
-              Stock après :{" "}
-              <strong className={quantityAfterPreview < 0 ? "text-red-600" : ""}>{quantityAfterPreview}</strong>
-              {quantityAfterPreview < 0 && " ⚠️ stock négatif"}
-            </p>
-          )}
-        </div>
         {movementType === "purchase" && (
-          <div className="space-y-2">
-            <Label>
-              Prix total HT (€){" "}
-              <span className="text-muted-foreground text-xs font-normal">total de la ligne sur le BL</span>
-            </Label>
-            <Input
-              value={totalPriceStr}
-              onChange={(e) => setTotalPriceStr(e.target.value)}
-              inputMode="decimal"
-              placeholder="ex: 7.50"
-              className="tabular-nums"
-            />
-            {unitCostPreview != null && unit && (
-              <p className="text-muted-foreground text-xs">
-                → coût unitaire FIFO :{" "}
-                <strong>
-                  {unitCostPreview} €/{unit}
-                </strong>
-              </p>
-            )}
-          </div>
+          <SupplierField
+            productSuppliers={productSuppliers}
+            value={productSupplierId}
+            onChange={setProductSupplierId}
+          />
+        )}
+        <QuantityField
+          unit={unit}
+          typeConfig={typeConfig}
+          quantityStr={quantityStr}
+          onQuantityChange={setQuantityStr}
+          needsConversion={needsConversion}
+          missingConversionFactor={missingConversionFactor}
+          orderUnit={orderUnit}
+          unitsPerPackage={unitsPerPackage}
+          effectiveQty={effectiveQty}
+          quantityAfterPreview={quantityAfterPreview}
+        />
+        {movementType === "purchase" && (
+          <PriceField
+            totalPriceStr={totalPriceStr}
+            onPriceChange={setTotalPriceStr}
+            unitCostPreview={unitCostPreview}
+            catalogPricePerOrderUnit={catalogPricePerOrderUnit}
+            catalogPriceSuggestion={catalogPriceSuggestion}
+            orderUnit={orderUnit}
+            unit={unit}
+          />
         )}
         <div className="space-y-2 sm:col-span-2">
           <Label>Notes (optionnel)</Label>
@@ -183,7 +408,6 @@ export function StockMovementsSection({
   unit: string | null;
 }) {
   const [showForm, setShowForm] = useState(false);
-
   const { data: movements = [], isLoading } = useProductStockMovements(productId, organizationId, establishmentId);
 
   return (
@@ -220,14 +444,14 @@ export function StockMovementsSection({
         ) : movements.length === 0 ? (
           <p className="text-muted-foreground py-4 text-center text-sm">Aucun mouvement enregistré.</p>
         ) : (
-          <MovementsTable movements={movements} unit={unit} />
+          <MovementsTable movements={movements} />
         )}
       </CardContent>
     </Card>
   );
 }
 
-function MovementsTable({ movements, unit }: { movements: StockMovementRow[]; unit: string | null }) {
+function MovementsTable({ movements }: { movements: StockMovementRow[] }) {
   return (
     <div className="rounded-md border">
       <Table>

@@ -120,6 +120,7 @@ export function useAddStockMovement(
       currentStock,
       totalPrice,
       productSupplierId,
+      unitsPerPackage,
       referenceType,
       referenceId,
     }: {
@@ -129,6 +130,7 @@ export function useAddStockMovement(
       currentStock: number;
       totalPrice?: number;
       productSupplierId?: string;
+      unitsPerPackage?: number;
       referenceType?: string;
       referenceId?: string;
     }) => {
@@ -165,6 +167,26 @@ export function useAddStockMovement(
         .update({ current_stock: quantityAfter })
         .eq("id", productStockId);
       if (stockErr) throw new Error(`Stock update: ${stockErr.message}`);
+
+      // Mise à jour du cache prix fournisseur + historique après chaque réception
+      if (movementType === "purchase" && unitCost != null && productSupplierId) {
+        const unitPricePerOrderUnit =
+          unitsPerPackage != null && unitsPerPackage > 0
+            ? Math.round(unitCost * unitsPerPackage * 100000) / 100000
+            : unitCost;
+
+        await Promise.all([
+          supabase.from("product_suppliers").update({ unit_price: unitPricePerOrderUnit }).eq("id", productSupplierId),
+          supabase.from("product_purchase_price_history").insert({
+            product_id: productId,
+            organization_id: organizationId,
+            unit_cost: unitCost,
+            supplier_id: null,
+            effective_from: new Date().toISOString().slice(0, 10),
+            currency: "EUR",
+          }),
+        ]);
+      }
 
       return quantityAfter;
     },
@@ -215,6 +237,21 @@ export function useChangeProductStockUnit(productId: string, organizationId: str
       conversionFactor: number;
     }) => {
       const supabase = createClient();
+
+      const { count, error: lotsErr } = await supabase
+        .from("stock_movements")
+        .select("id", { count: "exact", head: true })
+        .eq("product_stock_id", productStockId)
+        .eq("movement_type", "purchase")
+        .gt("remaining_quantity", 0)
+        .eq("deleted", false);
+      if (lotsErr) throw lotsErr;
+      if (count && count > 0) {
+        throw new Error(
+          `Impossible de changer l'unité : ${count} lot${count > 1 ? "s" : ""} FIFO actif${count > 1 ? "s" : ""} en stock. Soldez le stock avant de changer d'unité.`,
+        );
+      }
+
       const newQty = currentQty * conversionFactor;
       const { error: stockErr } = await supabase
         .from("product_stocks")
@@ -249,6 +286,25 @@ export function useChangeProductStockUnit(productId: string, organizationId: str
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la conversion"),
+  });
+}
+
+export function useActiveFifoLotsCount(productStockId: string | null) {
+  return useQuery({
+    queryKey: ["active-fifo-lots", productStockId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("stock_movements")
+        .select("id", { count: "exact", head: true })
+        .eq("product_stock_id", productStockId!)
+        .eq("movement_type", "purchase")
+        .gt("remaining_quantity", 0)
+        .eq("deleted", false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!productStockId,
   });
 }
 
