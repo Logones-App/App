@@ -10,6 +10,7 @@ import type {
   ProductWithCategoryName,
 } from "@/lib/queries/product-establishment-dashboard";
 
+import { AchatsGuidance } from "./product-dashboard-achats-guidance";
 import { ProductFicheTechniquePanel } from "./product-dashboard-fiche-technique-panel";
 import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
 import { ProductOptionsAndCompositionsPanel } from "./product-dashboard-options-compositions-panel";
@@ -173,6 +174,7 @@ export function ProductEstablishmentDashboardTabs({
       {hasFournisseursTab && (
         <TabsContent value="achats">
           <div className="space-y-6">
+            <AchatsGuidance productId={product.id} hasStock={lineStock != null} />
             <PurchaseReceptionCard
               productId={product.id}
               organizationId={organizationId}
