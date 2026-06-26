@@ -225,14 +225,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>
-              Contenance
-              {portionUnit ? (
-                <span className="text-muted-foreground ml-1 text-xs font-normal">
-                  ({t(portionUnit as PortionUnit)} / unité d&apos;achat)
-                </span>
-              ) : null}
-            </Label>
+            <Label>Contenance</Label>
             <Input
               value={contenanceStr}
               onChange={(e) => setContenanceStr(e.target.value)}
@@ -240,6 +233,12 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
               placeholder="1"
               className="tabular-nums"
             />
+            <p className="text-muted-foreground text-xs">
+              1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
+              <strong>
+                {factor} {portionUnit ? t(portionUnit as PortionUnit) : "u. de stock"}
+              </strong>
+            </p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

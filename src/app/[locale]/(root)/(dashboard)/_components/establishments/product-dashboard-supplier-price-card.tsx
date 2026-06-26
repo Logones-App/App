@@ -351,7 +351,9 @@ export function SupplierPriceCard({
             <div className="space-y-1">
               <ContenanceLabel portionUnit={portionUnit} t={t} />
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground text-sm">×</span>
+                <span className="text-muted-foreground text-sm">
+                  1 {unitInput !== "" ? unitInput : "unité d'achat"} =
+                </span>
                 <Input
                   value={qtyInput}
                   onChange={(e) => setQtyInput(e.target.value)}
