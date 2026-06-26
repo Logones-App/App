@@ -51,17 +51,6 @@ export function gatherIngredientStockIdsToDisableWhenSelfTracks(rows: Compositio
   return [...new Set(ids)];
 }
 
-/** @deprecated Préférer gatherIngredientStockIdsToDisableWhenSelfTracks pour l’activation du self. */
-export function gatherIngredientStockIds(rows: CompositionStockRow[]): string[] {
-  const ids: string[] = [];
-  for (const r of rows) {
-    if (r.isSelfComposition) continue;
-    if (r.lineStock?.id) ids.push(r.lineStock.id);
-    if (r.componentIdentityStock?.id) ids.push(r.componentIdentityStock.id);
-  }
-  return ids;
-}
-
 export function anyIngredientStockTracked(rows: CompositionStockRow[]): boolean {
   for (const r of rows) {
     if (r.isSelfComposition) continue;

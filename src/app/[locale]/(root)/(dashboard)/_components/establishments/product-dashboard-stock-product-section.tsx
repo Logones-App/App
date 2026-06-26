@@ -7,12 +7,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { type CompositionStockRow } from "@/lib/queries/product-establishment-dashboard";
-import { defaultProductStockInsert, insertInitialMovement } from "@/lib/queries/stock-movement-queries";
+import { defaultProductStockInsert } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
 
 import { ChangeStockUnitSection } from "./product-dashboard-change-unit";
@@ -33,11 +32,10 @@ export function ProductSection({
   organizationId: string;
   invalidate: () => void;
 }) {
-  const [initQty, setInitQty] = useState("0");
   const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
 
   const initMutation = useMutation({
-    mutationFn: async ({ qty, unit }: { qty: number; unit: string }) => {
+    mutationFn: async (unit: string) => {
       const supabase = createClient();
 
       let compId: string;
@@ -75,28 +73,21 @@ export function ProductSection({
         compId = selfRow.composition.id;
       }
 
-      if (selfRow?.lineStock) {
-        await insertInitialMovement(productId, organizationId, establishmentId, selfRow.lineStock.id, qty, unit);
-      } else {
-        const { data: st, error } = await supabase
-          .from("product_stocks")
-          .insert({
-            ...defaultProductStockInsert(compId, establishmentId, organizationId),
-            current_stock: qty,
-            unit,
-            inventory_tracked: true,
-          })
-          .select("id")
-          .single();
+      if (!selfRow?.lineStock) {
+        const { error } = await supabase.from("product_stocks").insert({
+          ...defaultProductStockInsert(compId, establishmentId, organizationId),
+          current_stock: 0,
+          unit,
+          inventory_tracked: true,
+        });
         if (error) throw error;
-        await insertInitialMovement(productId, organizationId, establishmentId, st.id, qty, unit);
       }
     },
     onSuccess: () => {
-      toast.success("Stock initialisé.");
+      toast.success("Unité configurée. Faites une réception dans l'onglet Achats pour approvisionner le stock.");
       invalidate();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'initialisation."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la configuration."),
   });
 
   const lineStock = selfRow?.lineStock ?? null;
@@ -107,22 +98,15 @@ export function ProductSection({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Initialiser le stock</CardTitle>
-          <CardDescription>Définissez la quantité initiale de produits finis en stock.</CardDescription>
+          <CardTitle className="text-base">Configurer le suivi de stock</CardTitle>
+          <CardDescription>
+            Choisissez l&apos;unité de mesure. Les réceptions se font ensuite dans l&apos;onglet Achats.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <Label>Quantité initiale</Label>
-              <Input
-                value={initQty}
-                onChange={(e) => setInitQty(e.target.value)}
-                inputMode="decimal"
-                className="w-24 tabular-nums"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Unité</Label>
+              <Label>Unité de stock</Label>
               <Select value={initUnit} onValueChange={setInitUnit}>
                 <SelectTrigger className="w-36">
                   <SelectValue />
@@ -136,18 +120,8 @@ export function ProductSection({
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              disabled={initMutation.isPending}
-              onClick={() => {
-                const qty = parseFloat(initQty.replace(",", "."));
-                if (!Number.isFinite(qty) || qty < 0) {
-                  toast.error("Quantité invalide.");
-                  return;
-                }
-                initMutation.mutate({ qty, unit: initUnit });
-              }}
-            >
-              {initMutation.isPending ? "Initialisation…" : "Initialiser le stock"}
+            <Button disabled={initMutation.isPending} onClick={() => initMutation.mutate(initUnit)}>
+              {initMutation.isPending ? "Configuration…" : "Configurer le stock"}
             </Button>
           </div>
         </CardContent>

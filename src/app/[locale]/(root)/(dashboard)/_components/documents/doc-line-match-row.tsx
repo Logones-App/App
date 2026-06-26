@@ -18,7 +18,6 @@ import {
   useSkipDocLine,
   useUpdateDocLineOptions,
 } from "@/lib/queries/doc-import-lines-queries";
-import { areUnitsCompatible, normalizeUnitPrice } from "@/lib/utils/unit-conversion";
 
 import { DocLineCreateModal } from "./doc-line-create-modal";
 import { type MatchedProductSupplier, ProductSupplierCombobox } from "./product-supplier-combobox";
@@ -78,15 +77,15 @@ type BuildPayloadArgs = {
 
 function buildApplyPayload(args: BuildPayloadArgs): ApplyDocLinePayload | null {
   const { line, supplierId, organizationId, establishmentId, docId } = args;
-  if (!line.product_supplier_id || !line.product_id) return null;
-  const ps = line.product_supplier;
+  if (!line.supplier_reference_id || !line.product_id) return null;
+  const ps = line.supplier_reference;
   const orderUnit = ps?.order_unit ?? line.unite ?? null;
   const portionUnit = line.product?.portion_unit ?? null;
   const shouldConvert =
     args.doConvertUnit && args.suggestConversion && line.contenance_unitaire != null && line.unite_contenance != null;
   return {
     lineId: line.id,
-    productSupplierId: line.product_supplier_id,
+    supplierRefId: line.supplier_reference_id,
     productId: line.product_id,
     supplierId: ps?.supplier?.id ?? supplierId ?? "",
     organizationId,
@@ -95,7 +94,7 @@ function buildApplyPayload(args: BuildPayloadArgs): ApplyDocLinePayload | null {
     applyStock: line.apply_stock,
     quantity: args.effectiveQty,
     unitPrice: args.effectivePrice,
-    unitCost: computeUnitCost(args.effectivePrice, args.effectiveConversion, orderUnit, portionUnit),
+    unitCost: computeUnitCost(args.effectivePrice, args.effectiveConversion),
     orderUnit,
     portionUnit,
     supplierRef: ps?.supplier_product_ref ?? line.reference ?? null,
@@ -119,13 +118,13 @@ const STATUS_CFG: Record<DocLineStatus, { label: string; className: string }> = 
 };
 
 type LineData = DocImportLineRow & {
-  product_supplier?: {
+  supplier_reference?: {
     id: string;
     supplier_product_ref: string | null;
     supplier_product_name: string | null;
     unit_price: number | null;
     order_unit: string | null;
-    units_per_package: number | null;
+    conversion_factor: number | null;
     supplier: { id: string; name: string } | null;
   } | null;
   product?: { id: string; name: string; portion_unit: string | null } | null;
@@ -257,7 +256,7 @@ function ApplyOptionsSection({
               <Input
                 value={contenanceOverride}
                 onChange={(e) => setContenanceOverride(e.target.value)}
-                placeholder={String(line.contenance_unitaire ?? line.product_supplier?.units_per_package ?? 1)}
+                placeholder={String(line.contenance_unitaire ?? line.supplier_reference?.conversion_factor ?? 1)}
                 className="h-7 w-16 text-xs tabular-nums"
                 inputMode="decimal"
               />
@@ -329,16 +328,11 @@ function LineActions({
   );
 }
 
-function computeUnitCost(
-  effectivePrice: number | null,
-  effectiveConversion: number,
-  orderUnit: string | null,
-  portionUnit: string | null,
-): number | null {
+// Modèle unique : conversion = nb d'unités de stock par unité d'achat → coût = prix ÷ conversion.
+function computeUnitCost(effectivePrice: number | null, effectiveConversion: number): number | null {
   if (effectivePrice == null) return null;
-  if (!areUnitsCompatible(orderUnit, portionUnit) && effectiveConversion > 1)
-    return Math.round((effectivePrice / effectiveConversion) * 10000) / 10000;
-  return normalizeUnitPrice(effectivePrice, orderUnit, portionUnit);
+  const f = effectiveConversion > 0 ? effectiveConversion : 1;
+  return Math.round((effectivePrice / f) * 10000) / 10000;
 }
 
 export function DocLineMatchRow({ line, docId, organizationId, establishmentId, supplierId }: Props) {
@@ -365,7 +359,7 @@ export function DocLineMatchRow({ line, docId, organizationId, establishmentId, 
   const effectiveConversion = computeEffectiveConversion(
     contenanceOverride,
     line.contenance_unitaire,
-    line.product_supplier?.units_per_package ?? null,
+    line.supplier_reference?.conversion_factor ?? null,
   );
   const stockQtyPreview = effectiveQty * effectiveConversion;
   const suggestConversion = computeSuggestConversion(
@@ -376,7 +370,7 @@ export function DocLineMatchRow({ line, docId, organizationId, establishmentId, 
 
   const handleSelect = (ps: MatchedProductSupplier) => {
     setContenanceOverride(ps.unitsPerPackage != null ? String(ps.unitsPerPackage) : "");
-    matchMutation.mutate({ lineId: line.id, productSupplierId: ps.id, productId: ps.productId });
+    matchMutation.mutate({ lineId: line.id, supplierRefId: ps.id, productId: ps.productId });
   };
 
   const handleApply = () => {
@@ -408,18 +402,18 @@ export function DocLineMatchRow({ line, docId, organizationId, establishmentId, 
             <Link2 className="text-muted-foreground h-4 w-4 shrink-0" />
             <ProductSupplierCombobox
               organizationId={organizationId}
-              value={line.product_supplier_id}
+              value={line.supplier_reference_id}
               onSelect={handleSelect}
               onCreateRequest={() => setShowCreate(true)}
             />
-            {line.product_supplier_id && (
+            {line.supplier_reference_id && (
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-7 w-7 p-0 text-gray-400"
                 onClick={() => {
                   setContenanceOverride("");
-                  matchMutation.mutate({ lineId: line.id, productSupplierId: null, productId: null });
+                  matchMutation.mutate({ lineId: line.id, supplierRefId: null, productId: null });
                 }}
               >
                 <X className="h-3 w-3" />

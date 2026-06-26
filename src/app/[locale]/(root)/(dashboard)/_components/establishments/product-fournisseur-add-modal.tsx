@@ -17,134 +17,134 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { Textarea } from "@/components/ui/textarea";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
-import { useActiveSuppliers, useCreateProductSupplier, useCreateSupplier } from "@/lib/queries/supplier-queries";
-import { areUnitsCompatible, normalizeUnitPrice } from "@/lib/utils/unit-conversion";
+import { useActiveSuppliers, useCreateSupplierReference, useCreateSupplier } from "@/lib/queries/supplier-queries";
+import { suggestConversionFactor, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 type SupplierMode = "none" | "existing" | "new";
 
 type Props = {
   productId: string;
   organizationId: string;
+  /** Unité de stock (fixe) du produit — sert de base à la contenance. */
   portionUnit: string | null;
   onClose: () => void;
 };
 
 export function AddSupplierModal({ productId, organizationId, portionUnit, onClose }: Props) {
   const t = useTranslations("units");
+
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("existing");
   const [selectedId, setSelectedId] = useState("");
   const [newSupplierName, setNewSupplierName] = useState("");
-  const [price, setPrice] = useState("");
   const [orderUnit, setOrderUnit] = useState("");
-  const [qtyPerOrder, setQtyPerOrder] = useState("1");
+  const [contenanceStr, setContenanceStr] = useState("1");
   const [supplierRef, setSupplierRef] = useState("");
   const [supplierProductName, setSupplierProductName] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
   const [leadTimeDays, setLeadTimeDays] = useState("");
   const [notes, setNotes] = useState("");
+  const [price, setPrice] = useState("");
 
   const { data: suppliers = [] } = useActiveSuppliers(organizationId);
-  const available = suppliers;
-
-  const linkMutation = useCreateProductSupplier(productId);
+  const linkMutation = useCreateSupplierReference(productId);
   const createSupplierMutation = useCreateSupplier(organizationId);
   const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
+
   const busy = linkMutation.isPending || createSupplierMutation.isPending || addHistoryMutation.isPending;
 
-  const parseQty = (s: string) => {
+  const parsePositive = (s: string): number | null => {
     const n = parseFloat(s.replace(",", "."));
-    return Number.isFinite(n) && n > 0 ? n : 1;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  // Contenance = nb d'unités de stock par unité de commande (conversion_factor).
+  const factor = parsePositive(contenanceStr) ?? 1;
+  const unitPrice = parsePositive(price); // prix par unité de commande
+  // Coût normalisé par unité de stock (modèle unique : prix ÷ contenance).
+  const unitCost = unitPrice != null ? Math.round((unitPrice / factor) * 10000) / 10000 : null;
+  const friendly = unitCost != null ? toFriendlyUnitCost(unitCost, portionUnit) : null;
+
+  const onOrderUnitChange = (value: string) => {
+    const next = value === "__none__" ? "" : value;
+    setOrderUnit(next);
+    // Pré-remplit la contenance si une conversion dimensionnelle existe (kg→g = 1000).
+    if (contenanceStr === "" || contenanceStr === "1") {
+      const suggested = suggestConversionFactor(next, portionUnit);
+      if (suggested != null) setContenanceStr(String(suggested));
+    }
+  };
+
+  const buildLinkPayload = (supplierId: string) => {
+    const minQty = parsePositive(orderQuantity);
+    const ltd = parseInt(leadTimeDays, 10);
+    return {
+      supplier_id: supplierId,
+      organization_id: organizationId,
+      unit_price: unitPrice,
+      order_unit: orderUnit !== "" ? orderUnit : null,
+      conversion_factor: factor,
+      supplier_product_ref: supplierRef.trim() !== "" ? supplierRef.trim() : null,
+      supplier_product_name: supplierProductName.trim() !== "" ? supplierProductName.trim() : null,
+      min_order_qty: minQty,
+      lead_time_days: Number.isFinite(ltd) && ltd >= 0 ? ltd : null,
+      notes: notes.trim() !== "" ? notes.trim() : null,
+    };
+  };
+
+  const journalizeSnapshot = (supplierReferenceId: string | null, supplierId: string | null) => {
+    if (unitCost == null) return;
+    addHistoryMutation.mutate(
+      {
+        unit_cost: unitCost,
+        effective_from: new Date().toISOString().slice(0, 10),
+        supplier_reference_id: supplierReferenceId ?? undefined,
+        supplier_id: supplierId ?? undefined,
+        supplier_ref: supplierRef.trim() !== "" ? supplierRef.trim() : undefined,
+      },
+      { onError: () => toast.error("Prix enregistré mais historique non journalisé.") },
+    );
   };
 
   const submitWithSupplier = (supplierId: string | null) => {
-    const cost = parseFloat(price.replace(",", "."));
-    const unitPrice = Number.isFinite(cost) && cost > 0 ? Math.round(cost * 10000) / 10000 : null;
-    const qtyNum = parseQty(qtyPerOrder);
-    const incompatible = !areUnitsCompatible(orderUnit || null, portionUnit);
-    const normalizedCost =
-      unitPrice != null
-        ? incompatible && qtyNum > 1
-          ? Math.round((unitPrice / qtyNum) * 10000) / 10000
-          : normalizeUnitPrice(unitPrice, orderUnit || null, portionUnit)
-        : null;
-    const effectiveCost = normalizedCost ?? unitPrice;
-
-    const oq = parseFloat(orderQuantity.replace(",", "."));
-    const ltd = parseInt(leadTimeDays, 10);
-
     if (supplierId) {
-      linkMutation.mutate(
-        {
-          supplier_id: supplierId,
-          organization_id: organizationId,
-          unit_price: unitPrice,
-          order_unit: orderUnit || null,
-          units_per_package: qtyNum > 1 ? qtyNum : null,
-          supplier_product_ref: supplierRef.trim() || null,
-          supplier_product_name: supplierProductName.trim() || null,
-          order_quantity: Number.isFinite(oq) && oq > 0 ? oq : null,
-          lead_time_days: Number.isFinite(ltd) && ltd > 0 ? ltd : null,
-          notes: notes.trim() || null,
+      linkMutation.mutate(buildLinkPayload(supplierId), {
+        onSuccess: (newRefId) => {
+          journalizeSnapshot(newRefId, supplierId);
+          onClose();
         },
-        {
-          onSuccess: (newProductSupplierId) => {
-            if (effectiveCost) {
-              addHistoryMutation.mutate({
-                unit_cost: effectiveCost,
-                effective_from: new Date().toISOString().slice(0, 10),
-                product_supplier_id: newProductSupplierId,
-                supplier_id: supplierId,
-                supplier_ref: supplierRef.trim() || undefined,
-              });
-            }
-            onClose();
-          },
-        },
-      );
-    } else if (effectiveCost) {
-      addHistoryMutation.mutate(
-        { unit_cost: effectiveCost, effective_from: new Date().toISOString().slice(0, 10) },
-        { onSuccess: onClose },
-      );
+      });
+    } else if (unitCost != null) {
+      journalizeSnapshot(null, null);
+      onClose();
     } else {
       onClose();
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (supplierMode === "existing" && !selectedId) {
+      toast.error("Sélectionnez un fournisseur.");
+      return;
+    }
+    if (supplierMode === "new" && !newSupplierName.trim()) {
+      toast.error("Le nom du fournisseur est requis.");
+      return;
+    }
+
     if (supplierMode === "new") {
-      if (!newSupplierName.trim()) {
-        toast.error("Le nom du fournisseur est requis.");
-        return;
+      try {
+        const sid = await createSupplierMutation.mutateAsync({ name: newSupplierName.trim(), is_active: true });
+        submitWithSupplier(sid);
+      } catch {
+        /* erreur gérée par la mutation */
       }
-      createSupplierMutation.mutate(
-        { name: newSupplierName.trim(), is_active: true },
-        { onSuccess: (sid) => submitWithSupplier(sid) },
-      );
     } else {
       submitWithSupplier(supplierMode === "existing" ? selectedId || null : null);
     }
   };
-
-  const unitSelect = (
-    <Select value={orderUnit || "__none__"} onValueChange={(v) => setOrderUnit(v === "__none__" ? "" : v)}>
-      <SelectTrigger>
-        <SelectValue placeholder="— Unité" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">— Aucune</SelectItem>
-        {PORTION_UNITS.map((u) => (
-          <SelectItem key={u} value={u}>
-            {t(u)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const priceLabel = `Prix HT${orderUnit ? ` / ${orderUnit}` : portionUnit ? ` / ${portionUnit}` : ""}`;
 
   return (
     <Dialog
@@ -183,10 +183,10 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
                   <SelectValue placeholder="Choisir un fournisseur…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {available.length === 0 ? (
-                    <div className="text-muted-foreground p-2 text-sm">Tous les fournisseurs sont déjà associés.</div>
+                  {suppliers.length === 0 ? (
+                    <div className="text-muted-foreground p-2 text-sm">Aucun fournisseur disponible.</div>
                   ) : (
-                    available.map((s) => (
+                    suppliers.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
                       </SelectItem>
@@ -209,7 +209,41 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
           )}
 
           <div className="space-y-2">
-            <Label>{priceLabel}</Label>
+            <Label>Unité de commande</Label>
+            <Select value={orderUnit || "__none__"} onValueChange={onOrderUnitChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="— Unité" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Aucune</SelectItem>
+                {PORTION_UNITS.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {t(u)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>
+              Contenance
+              {portionUnit ? (
+                <span className="text-muted-foreground ml-1 text-xs font-normal">
+                  ({t(portionUnit as PortionUnit)} / unité d&apos;achat)
+                </span>
+              ) : null}
+            </Label>
+            <Input
+              value={contenanceStr}
+              onChange={(e) => setContenanceStr(e.target.value)}
+              inputMode="decimal"
+              placeholder="1"
+              className="tabular-nums"
+            />
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Prix HT{orderUnit ? ` / ${orderUnit}` : portionUnit ? ` / ${portionUnit}` : ""}</Label>
             <div className="relative">
               <Input
                 value={price}
@@ -220,60 +254,22 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
               />
               <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Unité de commande</Label>
-            {unitSelect}
+            {friendly != null && (
+              <p className="text-muted-foreground text-xs">
+                → coût normalisé :{" "}
+                <strong>
+                  {friendly.value} €/{friendly.displayUnit}
+                </strong>
+              </p>
+            )}
           </div>
 
           {supplierMode !== "none" && (
             <>
               <div className="space-y-2 sm:col-span-2">
                 <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                  Références & conditions
+                  Références &amp; conditions
                 </p>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Contenance
-                  {portionUnit ? (
-                    <span className="text-muted-foreground ml-1 text-xs font-normal">
-                      ({t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)} par unité
-                      d&apos;achat)
-                    </span>
-                  ) : null}
-                </Label>
-                <p className="text-muted-foreground text-xs">
-                  {portionUnit
-                    ? `Ex : 250 si une pièce contient 250 ${t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)}`
-                    : "Quantité de stock reçue par unité d'achat"}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={qtyPerOrder}
-                    onChange={(e) => setQtyPerOrder(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="1"
-                    className="tabular-nums"
-                  />
-                  {portionUnit && (
-                    <span className="text-muted-foreground shrink-0 text-sm">
-                      {t(portionUnit as import("@/lib/constants/product-attributes").PortionUnit)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Qté min commande</Label>
-                <p className="text-muted-foreground text-xs">Minimum imposé par le fournisseur</p>
-                <Input
-                  value={orderQuantity}
-                  onChange={(e) => setOrderQuantity(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="—"
-                  className="tabular-nums"
-                />
               </div>
               <div className="space-y-2">
                 <Label>Réf. article</Label>
@@ -288,6 +284,16 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
                 />
               </div>
               <div className="space-y-2">
+                <Label>Qté min commande</Label>
+                <Input
+                  value={orderQuantity}
+                  onChange={(e) => setOrderQuantity(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="—"
+                  className="tabular-nums"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Délai livraison (j)</Label>
                 <Input
                   value={leadTimeDays}
@@ -299,10 +305,12 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Notes</Label>
-                <Input
+                <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
                   placeholder="Conditions particulières, remarques…"
+                  className="text-sm"
                 />
               </div>
             </>
@@ -313,7 +321,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
           <Button type="button" variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="button" disabled={busy} onClick={handleSubmit}>
+          <Button type="button" disabled={busy} onClick={() => void handleSubmit()}>
             {busy ? "Enregistrement…" : "Enregistrer"}
           </Button>
         </DialogFooter>

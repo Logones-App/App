@@ -8,9 +8,9 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database
 
 export type SupplierRow = Tables<"suppliers">;
 export type SupplierWithCount = SupplierRow & { productCount: number };
-export type ProductSupplierRow = Tables<"product_suppliers">;
+export type SupplierReferenceRow = Tables<"supplier_references">;
+export type SupplierReferenceInsert = TablesInsert<"supplier_references">;
 export type SupplierInsert = TablesInsert<"suppliers">;
-export type ProductSupplierInsert = TablesInsert<"product_suppliers">;
 
 export function supplierQueryKey(organizationId: string) {
   return ["suppliers", organizationId] as const;
@@ -20,8 +20,8 @@ export function supplierDetailQueryKey(supplierId: string) {
   return ["supplier", supplierId] as const;
 }
 
-export function productSupplierQueryKey(productId: string) {
-  return ["product-suppliers", productId] as const;
+export function supplierReferenceQueryKey(productId: string) {
+  return ["supplier-references", productId] as const;
 }
 
 export function supplierProductsQueryKey(supplierId: string) {
@@ -37,15 +37,15 @@ export function useSuppliers(organizationId: string) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("suppliers")
-        .select("*, product_suppliers(count)")
+        .select("*, supplier_references(count)")
         .eq("organization_id", organizationId)
         .eq("deleted", false)
-        .eq("product_suppliers.deleted", false)
+        .eq("supplier_references.deleted", false)
         .order("name", { ascending: true });
       if (error) throw error;
       return (data ?? []).map((s) => ({
         ...s,
-        productCount: (s.product_suppliers as unknown as { count: number }[])[0]?.count ?? 0,
+        productCount: (s.supplier_references as unknown as { count: number }[])[0]?.count ?? 0,
       })) as SupplierWithCount[];
     },
     enabled: !!organizationId,
@@ -99,12 +99,12 @@ export function useDeleteSupplier(organizationId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error: psErr } = await supabase
-        .from("product_suppliers")
+      const { error: refErr } = await supabase
+        .from("supplier_references")
         .update({ deleted: true })
         .eq("supplier_id", id)
         .eq("deleted", false);
-      if (psErr) throw psErr;
+      if (refErr) throw refErr;
       const { error } = await supabase.from("suppliers").update({ deleted: true }).eq("id", id);
       if (error) throw error;
     },
@@ -116,22 +116,22 @@ export function useDeleteSupplier(organizationId: string) {
   });
 }
 
-// ─── Liaisons produit ↔ fournisseur ──────────────────────────────────────────
+// ─── Références fournisseur par produit ──────────────────────────────────────
 
-export function useProductSuppliers(productId: string) {
+export function useSupplierReferences(productId: string) {
   return useQuery({
-    queryKey: productSupplierQueryKey(productId),
+    queryKey: supplierReferenceQueryKey(productId),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .select("*, supplier:suppliers(id, name, is_active)")
         .eq("product_id", productId)
         .eq("deleted", false)
         .order("is_preferred", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as (ProductSupplierRow & {
+      return (data ?? []) as (SupplierReferenceRow & {
         supplier: { id: string; name: string; is_active: boolean } | null;
       })[];
     },
@@ -139,13 +139,13 @@ export function useProductSuppliers(productId: string) {
   });
 }
 
-export function useCreateProductSupplier(productId: string) {
+export function useCreateSupplierReference(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (values: Omit<ProductSupplierInsert, "product_id">) => {
+    mutationFn: async (values: Omit<SupplierReferenceInsert, "product_id">) => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .insert({ ...values, product_id: productId })
         .select("id")
         .single();
@@ -154,67 +154,67 @@ export function useCreateProductSupplier(productId: string) {
     },
     onSuccess: () => {
       toast.success("Fournisseur associé");
-      void queryClient.invalidateQueries({ queryKey: productSupplierQueryKey(productId) });
+      void queryClient.invalidateQueries({ queryKey: supplierReferenceQueryKey(productId) });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'association"),
   });
 }
 
-export function useUpdateProductSupplier(productId: string) {
+export function useUpdateSupplierReference(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"product_suppliers"> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"supplier_references"> }) => {
       const supabase = createClient();
-      const { error } = await supabase.from("product_suppliers").update(patch).eq("id", id);
+      const { error } = await supabase.from("supplier_references").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: productSupplierQueryKey(productId) });
+      void queryClient.invalidateQueries({ queryKey: supplierReferenceQueryKey(productId) });
     },
     onError: () => toast.error("Erreur lors de la mise à jour"),
   });
 }
 
-export function useDeleteProductSupplier(productId: string) {
+export function useDeleteSupplierReference(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error } = await supabase.from("product_suppliers").update({ deleted: true }).eq("id", id);
+      const { error } = await supabase.from("supplier_references").update({ deleted: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Association supprimée");
-      void queryClient.invalidateQueries({ queryKey: productSupplierQueryKey(productId) });
+      void queryClient.invalidateQueries({ queryKey: supplierReferenceQueryKey(productId) });
     },
     onError: () => toast.error("Erreur lors de la suppression"),
   });
 }
 
-// ─── Catalogue achats (tous les liens produit × fournisseur d'une org) ────────
+// ─── Catalogue achats (toutes les références d'une org) ──────────────────────
 
-export type CatalogSupplierRow = ProductSupplierRow & {
+export type CatalogReferenceRow = SupplierReferenceRow & {
   product: { id: string; name: string } | null;
   supplier: { id: string; name: string; is_active: boolean } | null;
 };
 
-export function allProductSuppliersQueryKey(organizationId: string) {
-  return ["all-product-suppliers", organizationId] as const;
+export function allSupplierReferencesQueryKey(organizationId: string) {
+  return ["all-supplier-references", organizationId] as const;
 }
 
-export function useAllProductSuppliers(organizationId: string) {
+export function useAllSupplierReferences(organizationId: string) {
   return useQuery({
-    queryKey: allProductSuppliersQueryKey(organizationId),
+    queryKey: allSupplierReferencesQueryKey(organizationId),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .select("*, product:products(id, name), supplier:suppliers(id, name, is_active)")
         .eq("organization_id", organizationId)
         .eq("deleted", false)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as CatalogSupplierRow[];
+      return (data ?? []) as CatalogReferenceRow[];
     },
     enabled: !!organizationId,
   });
@@ -235,12 +235,12 @@ export function useSupplier(supplierId: string) {
   });
 }
 
-export type SupplierProductRow = ProductSupplierRow & {
+export type SupplierProductRow = SupplierReferenceRow & {
   product: {
     id: string;
     name: string;
     description: string | null;
-    category_id: string;
+    category_id: string | null;
   } | null;
 };
 
@@ -250,7 +250,7 @@ export function useSupplierProducts(supplierId: string) {
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .select("*, product:products(id, name, description, category_id)")
         .eq("supplier_id", supplierId)
         .eq("deleted", false)

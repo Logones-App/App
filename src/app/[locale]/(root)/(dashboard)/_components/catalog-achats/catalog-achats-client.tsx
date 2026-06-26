@@ -14,20 +14,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import {
-  allProductSuppliersQueryKey,
-  type CatalogSupplierRow,
-  useAllProductSuppliers,
-  useUpdateProductSupplier,
+  allSupplierReferencesQueryKey,
+  type CatalogReferenceRow,
+  useAllSupplierReferences,
+  useUpdateSupplierReference,
 } from "@/lib/queries/supplier-queries";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
-function formatPrice(row: CatalogSupplierRow): string {
+function formatPrice(row: CatalogReferenceRow): string {
   if (row.unit_price == null) return "—";
   return `${eur.format(row.unit_price)}${row.order_unit ? ` / ${row.order_unit}` : ""}`;
 }
 
-function filterRow(r: CatalogSupplierRow, search: string, supplierFilter: string): boolean {
+function filterRow(r: CatalogReferenceRow, search: string, supplierFilter: string): boolean {
   if (search) {
     const s = search.toLowerCase();
     const productMatch = r.product?.name.toLowerCase().includes(s) ?? false;
@@ -46,14 +46,14 @@ function RowEdit({
   organizationId,
   onDone,
 }: {
-  row: CatalogSupplierRow;
+  row: CatalogReferenceRow;
   organizationId: string;
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
   const [refInput, setRefInput] = useState(row.supplier_product_ref ?? "");
   const [nameInput, setNameInput] = useState(row.supplier_product_name ?? "");
-  const updateMutation = useUpdateProductSupplier(row.product_id);
+  const updateMutation = useUpdateSupplierReference(row.product_id);
 
   const handleSave = () => {
     updateMutation.mutate(
@@ -67,7 +67,7 @@ function RowEdit({
       {
         onSuccess: () => {
           toast.success("Référence mise à jour.");
-          void queryClient.invalidateQueries({ queryKey: allProductSuppliersQueryKey(organizationId) });
+          void queryClient.invalidateQueries({ queryKey: allSupplierReferencesQueryKey(organizationId) });
           onDone();
         },
       },
@@ -124,7 +124,7 @@ function RowEdit({
 
 // ─── Ligne en mode lecture ─────────────────────────────────────────────────────
 
-function RowView({ row, onEdit }: { row: CatalogSupplierRow; onEdit: () => void }) {
+function RowView({ row, onEdit }: { row: CatalogReferenceRow; onEdit: () => void }) {
   return (
     <TableRow>
       <TableCell className="font-medium">{row.product?.name ?? "—"}</TableCell>
@@ -165,7 +165,7 @@ export function CatalogAchatsClient() {
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("__all__");
 
-  const { data: rows = [], isLoading } = useAllProductSuppliers(organizationId ?? "");
+  const { data: rows = [], isLoading } = useAllSupplierReferences(organizationId ?? "");
 
   const suppliers = [
     ...new Map(rows.filter((r) => r.supplier).map((r) => [r.supplier!.id, r.supplier!])).values(),

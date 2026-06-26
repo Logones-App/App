@@ -77,6 +77,40 @@ export function convertUnit(
   return factor != null ? value * factor : null;
 }
 
+// ─── Réception (modèle unique : conversion_factor = unités de stock par unité de commande) ──
+
+/**
+ * Convertit une quantité commandée (order_unit) en quantité de stock.
+ * `conversion_factor` = nb d'unités de stock contenues dans 1 unité de commande
+ * (ex : 1 sac = 5 kg → 5). Source de vérité unique pour toute réception.
+ */
+export function orderQtyToStockQty(orderQty: number, conversionFactor: number | null | undefined): number {
+  const f = conversionFactor != null && conversionFactor > 0 ? conversionFactor : 1;
+  return Math.round(orderQty * f * 1000) / 1000;
+}
+
+/**
+ * Coût FIFO par unité de stock à partir du prix total HT d'une ligne de réception.
+ * Retourne `null` si la quantité de stock est nulle ou négative.
+ */
+export function unitCostFromTotal(totalHT: number, stockQty: number): number | null {
+  if (!(stockQty > 0)) return null;
+  return Math.round((totalHT / stockQty) * 100000) / 100000;
+}
+
+/**
+ * Suggestion de contenance (unités de stock par unité de commande) pour pré-remplir
+ * le formulaire catalogue quand les unités sont dimensionnellement liées (kg→g = 1000).
+ * Retourne `null` si aucune conversion dimensionnelle n'existe.
+ */
+export function suggestConversionFactor(
+  orderUnit: string | null | undefined,
+  stockUnit: string | null | undefined,
+): number | null {
+  const dim = convertUnit(1, orderUnit, stockUnit);
+  return dim != null && dim > 0 ? dim : null;
+}
+
 /**
  * Calcule le coût HT d'une ligne de composition.
  * - `qty` : quantité utilisée dans la recette (avec son unité `qtyUnit`)

@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
 
-export type PurchasePriceRow = Tables<"product_purchase_price_history">;
-export type PurchasePriceInsert = TablesInsert<"product_purchase_price_history">;
+export type SupplierPriceSnapshotRow = Tables<"supplier_price_snapshots">;
+export type SupplierPriceSnapshotInsert = TablesInsert<"supplier_price_snapshots">;
 
 export function purchasePriceQueryKey(productId: string, organizationId: string) {
   return ["purchase-price-history", productId, organizationId] as const;
@@ -20,25 +20,25 @@ export function useProductPurchasePriceHistory(productId: string, organizationId
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_purchase_price_history")
+        .from("supplier_price_snapshots")
         .select("*")
         .eq("product_id", productId)
         .eq("organization_id", organizationId)
         .order("effective_from", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as PurchasePriceRow[];
+      return (data ?? []) as SupplierPriceSnapshotRow[];
     },
     enabled: !!productId && !!organizationId,
   });
 }
 
-/** Prix courant = entrée la plus récente par effective_from (premier élément, trié desc). */
-export function getCurrentPurchasePrice(history: PurchasePriceRow[]): PurchasePriceRow | null {
+/** Prix courant = entrée la plus récente par effective_from. */
+export function getCurrentPurchasePrice(history: SupplierPriceSnapshotRow[]): SupplierPriceSnapshotRow | null {
   return history[0] ?? null;
 }
 
-/** Prix courant par product_id : dernière entrée de l'historique (effective_from puis created_at desc). */
+/** Prix courant par product_id (dernière entrée par effective_from puis created_at desc). */
 export function useComponentCurrentPurchasePrices(componentProductIds: string[], organizationId: string) {
   return useQuery({
     queryKey: ["component-purchase-prices", componentProductIds.sort().join(","), organizationId],
@@ -46,7 +46,7 @@ export function useComponentCurrentPurchasePrices(componentProductIds: string[],
       if (componentProductIds.length === 0) return new Map<string, number>();
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("product_purchase_price_history")
+        .from("supplier_price_snapshots")
         .select("product_id, unit_cost, effective_from, created_at")
         .in("product_id", componentProductIds)
         .eq("organization_id", organizationId)
@@ -63,7 +63,7 @@ export function useComponentCurrentPurchasePrices(componentProductIds: string[],
   });
 }
 
-/** Ajouter une entrée d'historique. */
+/** Ajouter un snapshot de prix d'achat. */
 export function useAddPurchasePrice(productId: string, organizationId: string) {
   const queryClient = useQueryClient();
   const qk = purchasePriceQueryKey(productId, organizationId);
@@ -71,22 +71,22 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
     mutationFn: async (values: {
       unit_cost: number;
       effective_from: string;
-      product_supplier_id?: string;
+      supplier_reference_id?: string;
       supplier_id?: string;
       supplier_ref?: string;
       notes?: string;
       currency?: string;
     }) => {
       const supabase = createClient();
-      const { error } = await supabase.from("product_purchase_price_history").insert({
+      const { error } = await supabase.from("supplier_price_snapshots").insert({
         product_id: productId,
         organization_id: organizationId,
         unit_cost: values.unit_cost,
         effective_from: values.effective_from,
-        product_supplier_id: values.product_supplier_id ?? null,
+        supplier_reference_id: values.supplier_reference_id ?? null,
         supplier_id: values.supplier_id ?? null,
-        supplier_ref: values.supplier_ref?.trim() ?? null,
-        notes: values.notes?.trim() ?? null,
+        supplier_ref: values.supplier_ref?.trim() !== "" ? values.supplier_ref?.trim() : null,
+        notes: values.notes?.trim() !== "" ? values.notes?.trim() : null,
         currency: values.currency ?? "EUR",
       });
       if (error) throw error;
@@ -99,14 +99,14 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
   });
 }
 
-/** Supprimer une entrée (hard delete — c'est de l'historique, pas de soft delete). */
+/** Supprimer un snapshot (hard delete — historique). */
 export function useDeletePurchasePrice(productId: string, organizationId: string) {
   const queryClient = useQueryClient();
   const qk = purchasePriceQueryKey(productId, organizationId);
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error } = await supabase.from("product_purchase_price_history").delete().eq("id", id);
+      const { error } = await supabase.from("supplier_price_snapshots").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

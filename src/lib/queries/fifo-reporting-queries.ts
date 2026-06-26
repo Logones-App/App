@@ -259,3 +259,76 @@ export function useFifoStockValuation(establishmentId: string) {
     enabled: !!establishmentId,
   });
 }
+
+// ── Hook 5 : Réconciliation current_stock vs SUM(remaining_quantity) FIFO ──
+export type ReconciliationRow = {
+  stockId: string;
+  productId: string;
+  productName: string;
+  unit: string;
+  currentStock: number;
+  fifoSum: number;
+  delta: number;
+};
+
+export function useFifoReconciliation(establishmentId: string) {
+  return useQuery({
+    queryKey: ["fifo-reconciliation", establishmentId],
+    queryFn: async () => {
+      const supabase = createClient();
+
+      const { data: stocks, error: sErr } = await supabase
+        .from("product_stocks")
+        .select(
+          `id, current_stock, unit,
+           product_compositions!inner(
+             main_product_id,
+             products:products!product_compositions_main_product_id_fkey(id, name)
+           )`,
+        )
+        .eq("establishment_id", establishmentId)
+        .eq("inventory_tracked", true)
+        .eq("deleted", false);
+      if (sErr) throw sErr;
+      if (!stocks?.length) return [] as ReconciliationRow[];
+
+      const stockIds = stocks.map((s) => s.id);
+
+      const { data: movements, error: mErr } = await supabase
+        .from("stock_movements")
+        .select("product_stock_id, remaining_quantity")
+        .in("product_stock_id", stockIds)
+        .eq("movement_type", "purchase")
+        .gt("remaining_quantity", 0)
+        .eq("deleted", false);
+      if (mErr) throw mErr;
+
+      const fifoByStock = new Map<string, number>();
+      for (const m of movements ?? []) {
+        if (!m.product_stock_id) continue;
+        fifoByStock.set(
+          m.product_stock_id,
+          (fifoByStock.get(m.product_stock_id) ?? 0) + ((m.remaining_quantity as number) ?? 0),
+        );
+      }
+
+      return stocks.map((s) => {
+        const comp = Array.isArray(s.product_compositions) ? s.product_compositions[0] : s.product_compositions;
+        const product = comp ? (Array.isArray(comp.products) ? comp.products[0] : comp.products) : null;
+        const productId = comp?.main_product_id ?? s.id;
+        const fifoSum = Math.round((fifoByStock.get(s.id) ?? 0) * 1000) / 1000;
+        const currentStock = Math.round((s.current_stock ?? 0) * 1000) / 1000;
+        return {
+          stockId: s.id,
+          productId,
+          productName: (product as { name: string } | null)?.name ?? productId,
+          unit: s.unit ?? "",
+          currentStock,
+          fifoSum,
+          delta: Math.round((currentStock - fifoSum) * 1000) / 1000,
+        } satisfies ReconciliationRow;
+      });
+    },
+    enabled: !!establishmentId,
+  });
+}

@@ -256,7 +256,7 @@ export function useArchiveProduct(organizationId: string, onSuccess?: () => void
           .eq("organization_id", organizationId)
           .eq("deleted", false),
         supabase
-          .from("product_suppliers")
+          .from("supplier_references")
           .update({ deleted: true })
           .eq("product_id", productId)
           .eq("organization_id", organizationId),
@@ -291,7 +291,7 @@ export function useRestoreProduct(organizationId: string, onSuccess?: () => void
       const [productRes, suppliersRes] = await Promise.all([
         supabase.from("products").update({ deleted: false }).eq("id", productId).eq("organization_id", organizationId),
         supabase
-          .from("product_suppliers")
+          .from("supplier_references")
           .update({ deleted: false })
           .eq("product_id", productId)
           .eq("organization_id", organizationId),

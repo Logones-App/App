@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink, GitCompareArrows } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstablishmentProductsWithStocks } from "@/lib/queries/establishments";
+import { useNeedsReviewMovements } from "@/lib/queries/stock-movement-queries";
 import type { Tables } from "@/lib/supabase/database.types";
 import type { ProductWithStock } from "@/lib/types/database-extensions";
 
 import { StockQuantities } from "../product-composition-dashboard-blocks";
 import { ProductStockQuickAdjust } from "../product-stock-quick-adjust";
+
+import { StockReconciliationModal } from "./stock-reconciliation-modal";
 
 interface StocksTabProps {
   establishmentId: string;
@@ -161,7 +165,9 @@ function StockProductItem({
 
 export function StocksTab({ establishmentId, organizationId }: StocksTabProps) {
   const { data: productsWithStocks, isLoading } = useEstablishmentProductsWithStocks(establishmentId, organizationId);
+  const { data: needsReview = [] } = useNeedsReviewMovements(establishmentId);
   const hrefForProduct = useProductDashboardHref(establishmentId);
+  const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
   if (isLoading) return <Skeleton className="h-8 w-full" />;
   if (!productsWithStocks || productsWithStocks.length === 0) {
@@ -189,6 +195,32 @@ export function StocksTab({ establishmentId, organizationId }: StocksTabProps) {
 
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setReconciliationOpen(true)}>
+          <GitCompareArrows className="h-3.5 w-3.5" />
+          Réconciliation FIFO
+        </Button>
+      </div>
+
+      <StockReconciliationModal
+        open={reconciliationOpen}
+        onOpenChange={setReconciliationOpen}
+        establishmentId={establishmentId}
+      />
+
+      {needsReview.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>
+              {needsReview.length} mouvement{needsReview.length > 1 ? "s" : ""} à revoir
+            </strong>{" "}
+            (valorisation FIFO incertaine : lots épuisés ou retour avant vente) :{" "}
+            {[...new Set(needsReview.map((m) => m.product?.name ?? "—"))].slice(0, 8).join(", ")}.
+          </span>
+        </div>
+      )}
+
       {criticalLines.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

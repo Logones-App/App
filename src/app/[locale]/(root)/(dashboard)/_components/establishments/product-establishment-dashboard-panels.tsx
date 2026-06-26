@@ -15,6 +15,7 @@ import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-p
 import { ProductOptionsAndCompositionsPanel } from "./product-dashboard-options-compositions-panel";
 import { PrixPanel } from "./product-dashboard-prix-panel";
 import { ProductProprieteForm } from "./product-dashboard-propriete-form";
+import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
 import { ProductStockPanel } from "./product-dashboard-stock-panel";
 
 type TabsProps = {
@@ -27,6 +28,43 @@ type TabsProps = {
   menuProductPricing: MenuProductPricingJoin[];
 };
 
+type TabFlags = {
+  isForSale: boolean;
+  hasFicheTechnique: boolean;
+  hasFournisseursTab: boolean;
+  portionUnit: string | null;
+  persoStockRows: CompositionStockRow[];
+};
+
+function computeTabFlags(product: ProductWithCategoryName, compositionStockRows: CompositionStockRow[]): TabFlags {
+  const types = (product.product_type as string[] | null) ?? [];
+  const isRecipe = types.includes("recipe");
+  const isPurchased = types.includes("purchased");
+  const isIngredient = types.includes("ingredient");
+  const isForSale = isRecipe || isPurchased;
+  return {
+    isForSale,
+    hasFicheTechnique: isRecipe || isPurchased || isIngredient,
+    hasFournisseursTab: isIngredient && !isForSale,
+    portionUnit: product.portion_unit ?? null,
+    persoStockRows: compositionStockRows.filter(
+      (r) => r.isSelfComposition || r.composition.composition_kind === "modifier",
+    ),
+  };
+}
+
+function buildValidTabs(flags: TabFlags): string[] {
+  return [
+    "propriete",
+    "stock",
+    ...(flags.isForSale ? ["prix-menus", "personnalisation"] : []),
+    ...(flags.hasFicheTechnique ? ["recette"] : []),
+    ...(flags.hasFournisseursTab ? ["achats"] : []),
+  ];
+}
+
+const LS_KEY = "product-dashboard-active-tab";
+
 export function ProductEstablishmentDashboardTabs({
   product,
   establishmentId,
@@ -36,33 +74,14 @@ export function ProductEstablishmentDashboardTabs({
   compositionStockRows,
   menuProductPricing,
 }: TabsProps) {
-  const types = (product.product_type as string[] | null) ?? [];
-  const isRecipe = types.includes("recipe");
-  const isPurchased = types.includes("purchased");
-  const isIngredient = types.includes("ingredient");
-  // Produit vendu au client (peut avoir un prix dans les menus)
-  const isForSale = isRecipe || isPurchased;
-  // Affiche la fiche technique : recette, achat direct, ou ingrédient avec sous-recette
-  const hasFicheTechnique = isRecipe || isPurchased || isIngredient;
-  // Fournisseurs & Prix tab : seulement pour les ingrédients purs (jamais vendus)
-  const hasFournisseursTab = isIngredient && !isForSale;
-  const portionUnit = product.portion_unit ?? null;
-
-  // Compositions pertinentes pour Personnalisation : self + modifier uniquement (pas recette)
-  const persoStockRows = compositionStockRows.filter(
-    (r) => r.isSelfComposition || r.composition.composition_kind === "modifier",
-  );
+  const flags = computeTabFlags(product, compositionStockRows);
+  const { isForSale, hasFicheTechnique, hasFournisseursTab, portionUnit, persoStockRows } = flags;
+  const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;
 
-  const validTabs = [
-    "propriete",
-    "stock",
-    ...(isForSale ? ["prix-menus", "personnalisation"] : []),
-    ...(hasFicheTechnique ? ["recette"] : []),
-    ...(hasFournisseursTab ? ["achats"] : []),
-  ];
+  const selfStockRow = compositionStockRows.find((r) => r.isSelfComposition);
+  const lineStock = selfStockRow?.lineStock ?? null;
 
-  const LS_KEY = "product-dashboard-active-tab";
   const [activeTab, setActiveTab] = useState("propriete");
 
   useEffect(() => {
@@ -129,7 +148,7 @@ export function ProductEstablishmentDashboardTabs({
           productId={product.id}
           establishmentId={establishmentId}
           organizationId={organizationId}
-          isIngredient={isIngredient}
+          isIngredient={flags.hasFournisseursTab}
         />
       </TabsContent>
 
@@ -147,11 +166,23 @@ export function ProductEstablishmentDashboardTabs({
 
       {hasFournisseursTab && (
         <TabsContent value="achats">
-          <ProductFournisseursPrixPanel
-            productId={product.id}
-            organizationId={organizationId}
-            portionUnit={portionUnit}
-          />
+          <div className="space-y-6">
+            <PurchaseReceptionCard
+              productId={product.id}
+              organizationId={organizationId}
+              establishmentId={establishmentId}
+              productStockId={lineStock?.id ?? null}
+              unit={lineStock?.unit ?? null}
+              currentStock={lineStock?.current_stock ?? 0}
+            />
+            <ProductFournisseursPrixPanel
+              productId={product.id}
+              organizationId={organizationId}
+              portionUnit={portionUnit}
+              title="Paramètres fournisseurs"
+              description="Unités de commande, références, délais et prix catalogue."
+            />
+          </div>
         </TabsContent>
       )}
     </Tabs>

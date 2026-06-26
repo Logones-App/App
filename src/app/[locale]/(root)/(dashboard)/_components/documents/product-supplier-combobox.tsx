@@ -7,7 +7,7 @@ import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useAllProductSuppliers } from "@/lib/queries/supplier-queries";
+import { useAllSupplierReferences } from "@/lib/queries/supplier-queries";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -37,7 +37,7 @@ export function ProductSupplierCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const { data: allPs = [] } = useAllProductSuppliers(organizationId);
+  const { data: allPs = [] } = useAllSupplierReferences(organizationId);
 
   const filtered = allPs.filter((ps) => {
     if (!search) return true;
@@ -101,7 +101,7 @@ export function ProductSupplierCombobox({
                       supplierName: ps.supplier?.name ?? null,
                       unitPrice: ps.unit_price,
                       orderUnit: ps.order_unit,
-                      unitsPerPackage: ps.units_per_package,
+                      unitsPerPackage: ps.conversion_factor,
                     });
                     setOpen(false);
                   }}

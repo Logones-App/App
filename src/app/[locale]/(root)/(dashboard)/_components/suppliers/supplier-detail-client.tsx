@@ -195,8 +195,8 @@ export function SupplierDetailClient() {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {row.order_unit
-                              ? `${row.order_quantity ?? 1} ${row.order_unit}`
-                              : (row.order_quantity ?? "—")}
+                              ? `${row.min_order_qty ?? 1} ${row.order_unit}`
+                              : (row.min_order_qty ?? "—")}
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             {row.lead_time_days != null ? `${row.lead_time_days} j` : "—"}

@@ -81,6 +81,35 @@ export function stockMovementsQueryKey(productId: string, organizationId: string
   return ["stock-movements", productId, organizationId, establishmentId] as const;
 }
 
+export type NeedsReviewMovement = Pick<
+  StockMovementRow,
+  "id" | "product_id" | "movement_type" | "quantity" | "unit" | "created_at"
+> & { product: { id: string; name: string } | null };
+
+/**
+ * Mouvements signalés par le trigger FIFO comme nécessitant une revue manuelle
+ * (lots épuisés au moment d'une vente, ou restore arrivé avant sa vente en offline).
+ */
+export function useNeedsReviewMovements(establishmentId: string) {
+  return useQuery({
+    queryKey: ["stock-movements-needs-review", establishmentId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("id, product_id, movement_type, quantity, unit, created_at, product:products(id, name)")
+        .eq("establishment_id", establishmentId)
+        .eq("needs_review", true)
+        .eq("deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as NeedsReviewMovement[];
+    },
+    enabled: !!establishmentId,
+  });
+}
+
 export function useProductStockMovements(productId: string, organizationId: string, establishmentId: string) {
   return useQuery({
     queryKey: stockMovementsQueryKey(productId, organizationId, establishmentId),
@@ -119,8 +148,9 @@ export function useAddStockMovement(
       notes,
       currentStock,
       totalPrice,
-      productSupplierId,
-      unitsPerPackage,
+      supplierRefId,
+      conversionFactor,
+      supplierId,
       referenceType,
       referenceId,
     }: {
@@ -129,8 +159,9 @@ export function useAddStockMovement(
       notes: string;
       currentStock: number;
       totalPrice?: number;
-      productSupplierId?: string;
-      unitsPerPackage?: number;
+      supplierRefId?: string;
+      conversionFactor?: number;
+      supplierId?: string;
       referenceType?: string;
       referenceId?: string;
     }) => {
@@ -147,14 +178,14 @@ export function useAddStockMovement(
         organization_id: organizationId,
         establishment_id: establishmentId,
         product_stock_id: productStockId,
-        product_supplier_id: productSupplierId ?? null,
+        supplier_reference_id: supplierRefId ?? null,
         movement_type: movementType,
         quantity,
         quantity_before: currentStock,
         quantity_after: quantityAfter,
         unit: unit ?? null,
         unit_cost: unitCost,
-        notes: notes.trim() || null,
+        notes: notes.trim() !== "" ? notes.trim() : null,
         reference_type: referenceType ?? null,
         reference_id: referenceId ?? null,
         created_by: null,
@@ -168,20 +199,21 @@ export function useAddStockMovement(
         .eq("id", productStockId);
       if (stockErr) throw new Error(`Stock update: ${stockErr.message}`);
 
-      // Mise à jour du cache prix fournisseur + historique après chaque réception
-      if (movementType === "purchase" && unitCost != null && productSupplierId) {
+      // Mettre à jour le prix catalogue + journaliser un snapshot après chaque réception
+      if (movementType === "purchase" && unitCost != null && supplierRefId) {
         const unitPricePerOrderUnit =
-          unitsPerPackage != null && unitsPerPackage > 0
-            ? Math.round(unitCost * unitsPerPackage * 100000) / 100000
+          conversionFactor != null && conversionFactor > 0
+            ? Math.round(unitCost * conversionFactor * 100000) / 100000
             : unitCost;
 
         await Promise.all([
-          supabase.from("product_suppliers").update({ unit_price: unitPricePerOrderUnit }).eq("id", productSupplierId),
-          supabase.from("product_purchase_price_history").insert({
+          supabase.from("supplier_references").update({ unit_price: unitPricePerOrderUnit }).eq("id", supplierRefId),
+          supabase.from("supplier_price_snapshots").insert({
             product_id: productId,
             organization_id: organizationId,
             unit_cost: unitCost,
-            supplier_id: null,
+            supplier_reference_id: supplierRefId,
+            supplier_id: supplierId ?? null,
             effective_from: new Date().toISOString().slice(0, 10),
             currency: "EUR",
           }),

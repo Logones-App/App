@@ -179,7 +179,7 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
       const safeUnitPrice = Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null;
       const safeUnitsPerPkg = Number.isFinite(unitsPerPackageNum) && unitsPerPackageNum > 0 ? unitsPerPackageNum : null;
       const { data: newPs, error: psError } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .insert({
           product_id: product.id,
           supplier_id: supplier.id,
@@ -188,7 +188,7 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
           supplier_product_name: designation.trim() || null,
           unit_price: safeUnitPrice,
           order_unit: unit.trim() || null,
-          units_per_package: safeUnitsPerPkg,
+          conversion_factor: safeUnitsPerPkg ?? undefined,
           is_preferred: false,
           deleted: false,
         })

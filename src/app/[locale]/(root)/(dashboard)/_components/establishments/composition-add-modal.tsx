@@ -154,20 +154,25 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         createSupplierMutation,
       );
       if (resolvedSupplierId && validated.unitCost) {
-        const { error: psErr } = await supabase.from("product_suppliers").insert({
-          product_id: productId2,
-          supplier_id: resolvedSupplierId,
-          organization_id: organizationId,
-          unit_price: validated.unitCost,
-          order_unit: newPriceUnit,
-          is_preferred: true,
-          deleted: false,
-        });
+        const { data: newRef, error: psErr } = await supabase
+          .from("supplier_references")
+          .insert({
+            product_id: productId2,
+            supplier_id: resolvedSupplierId,
+            organization_id: organizationId,
+            unit_price: validated.unitCost,
+            order_unit: newPriceUnit,
+            is_preferred: true,
+            deleted: false,
+          })
+          .select("id")
+          .single();
         if (psErr) throw psErr;
-        await supabase.from("product_purchase_price_history").insert({
+        await supabase.from("supplier_price_snapshots").insert({
           product_id: productId2,
           organization_id: organizationId,
           unit_cost: validated.unitCost,
+          supplier_reference_id: newRef.id,
           supplier_id: resolvedSupplierId,
           effective_from: new Date().toISOString().slice(0, 10),
           currency: "EUR",

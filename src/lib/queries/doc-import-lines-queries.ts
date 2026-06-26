@@ -26,7 +26,7 @@ export function useDocImportLines(importId: string) {
       const { data, error } = await supabase
         .from("doc_import_lines")
         .select(
-          "*, product_supplier:product_suppliers(id, supplier_product_ref, supplier_product_name, unit_price, order_unit, units_per_package, supplier:suppliers(id, name)), product:products(id, name, portion_unit)",
+          "*, supplier_reference:supplier_references(id, supplier_product_ref, supplier_product_name, unit_price, order_unit, conversion_factor, supplier:suppliers(id, name)), product:products(id, name, portion_unit)",
         )
         .eq("import_id", importId)
         .order("id");
@@ -71,25 +71,25 @@ export function useMatchDocLine(importId: string, organizationId: string) {
   return useMutation({
     mutationFn: async ({
       lineId,
-      productSupplierId,
+      supplierRefId,
       productId,
     }: {
       lineId: string;
-      productSupplierId: string | null;
+      supplierRefId: string | null;
       productId: string | null;
     }) => {
       const supabase = createClient();
       const patch: TablesUpdate<"doc_import_lines"> = {
-        product_supplier_id: productSupplierId,
+        supplier_reference_id: supplierRefId,
         product_id: productId,
-        automation_status: productSupplierId ? "matched" : "pending",
+        automation_status: supplierRefId ? "matched" : "pending",
       };
       const { error } = await supabase.from("doc_import_lines").update(patch).eq("id", lineId);
       if (error) throw error;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: docImportLinesQueryKey(importId) });
-      void queryClient.invalidateQueries({ queryKey: ["all-product-suppliers", organizationId] });
+      void queryClient.invalidateQueries({ queryKey: ["all-supplier-references", organizationId] });
     },
     onError: (e) => toast.error((e as { message?: string }).message ?? "Erreur lors du matching"),
   });
@@ -127,7 +127,7 @@ export function useUpdateDocLineOptions(importId: string) {
 
 export type ApplyDocLinePayload = {
   lineId: string;
-  productSupplierId: string;
+  supplierRefId: string;
   productId: string;
   supplierId: string;
   organizationId: string;
@@ -232,17 +232,15 @@ export function useApplyDocLine(importId: string) {
       const today = new Date().toISOString().slice(0, 10);
 
       if (payload.applyPrice && payload.unitCost != null) {
-        const { error } = await supabase.from("product_purchase_price_history").insert({
+        const { error } = await supabase.from("supplier_price_snapshots").insert({
           product_id: payload.productId,
           organization_id: payload.organizationId,
-          product_supplier_id: payload.productSupplierId,
+          supplier_reference_id: payload.supplierRefId,
           supplier_id: payload.supplierId,
-          supplier_ref: payload.supplierRef,
           unit_price: payload.unitPrice,
           unit_cost: payload.unitCost,
-          order_unit: payload.orderUnit,
           effective_from: today,
-          source_doc_import_id: payload.importId,
+          currency: "EUR",
         });
         if (error) throw error;
       }
@@ -296,7 +294,7 @@ export function useApplyDocLine(importId: string) {
           organization_id: payload.organizationId,
           establishment_id: payload.establishmentId,
           product_stock_id: resolved.productStockId,
-          product_supplier_id: payload.productSupplierId,
+          supplier_reference_id: payload.supplierRefId,
           movement_type: "purchase",
           quantity: stockQty,
           quantity_before: currentStock,
@@ -316,9 +314,9 @@ export function useApplyDocLine(importId: string) {
         if (stockError) throw stockError;
         if (payload.contenanceUnitaire !== 1) {
           const { error: psError } = await supabase
-            .from("product_suppliers")
-            .update({ units_per_package: payload.contenanceUnitaire })
-            .eq("id", payload.productSupplierId);
+            .from("supplier_references")
+            .update({ conversion_factor: payload.contenanceUnitaire })
+            .eq("id", payload.supplierRefId);
           if (psError) throw psError;
         }
       }
@@ -364,7 +362,7 @@ export function useSkipDocLine(importId: string) {
 
 export type AutoMatchResult = {
   lineId: string;
-  productSupplierId: string;
+  supplierRefId: string;
   productId: string;
   confidence: "exact" | "normalized" | "designation";
 };
@@ -380,7 +378,7 @@ export function useAutoMatchDocLines(importId: string, organizationId: string) {
       if (refs.length === 0) return [];
 
       const { data: candidates, error } = await supabase
-        .from("product_suppliers")
+        .from("supplier_references")
         .select("id, supplier_product_ref, supplier_product_name, product_id")
         .eq("organization_id", organizationId)
         .eq("deleted", false)
@@ -395,7 +393,7 @@ export function useAutoMatchDocLines(importId: string, organizationId: string) {
         if (exactMatch?.product_id) {
           results.push({
             lineId: line.id,
-            productSupplierId: exactMatch.id,
+            supplierRefId: exactMatch.id,
             productId: exactMatch.product_id,
             confidence: "exact",
           });
@@ -408,7 +406,7 @@ export function useAutoMatchDocLines(importId: string, organizationId: string) {
         if (normalizedMatch?.product_id) {
           results.push({
             lineId: line.id,
-            productSupplierId: normalizedMatch.id,
+            supplierRefId: normalizedMatch.id,
             productId: normalizedMatch.product_id,
             confidence: "normalized",
           });
@@ -423,7 +421,7 @@ export function useAutoMatchDocLines(importId: string, organizationId: string) {
         matches.map((m) =>
           supabase
             .from("doc_import_lines")
-            .update({ product_supplier_id: m.productSupplierId, product_id: m.productId, automation_status: "matched" })
+            .update({ supplier_reference_id: m.supplierRefId, product_id: m.productId, automation_status: "matched" })
             .eq("id", m.lineId),
         ),
       );

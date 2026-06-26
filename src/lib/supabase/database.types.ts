@@ -1413,9 +1413,9 @@ export type Database = {
           import_id: string
           prix_unitaire: number | null
           product_id: string | null
-          product_supplier_id: string | null
           quantite: number | null
           reference: string | null
+          supplier_reference_id: string | null
           total_ht: number | null
           unite: string | null
           unite_contenance: string | null
@@ -1432,9 +1432,9 @@ export type Database = {
           import_id: string
           prix_unitaire?: number | null
           product_id?: string | null
-          product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
+          supplier_reference_id?: string | null
           total_ht?: number | null
           unite?: string | null
           unite_contenance?: string | null
@@ -1451,9 +1451,9 @@ export type Database = {
           import_id?: string
           prix_unitaire?: number | null
           product_id?: string | null
-          product_supplier_id?: string | null
           quantite?: number | null
           reference?: string | null
+          supplier_reference_id?: string | null
           total_ht?: number | null
           unite?: string | null
           unite_contenance?: string | null
@@ -1474,10 +1474,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "doc_import_lines_product_supplier_id_fkey"
-            columns: ["product_supplier_id"]
+            foreignKeyName: "doc_import_lines_supplier_reference_id_fkey"
+            columns: ["supplier_reference_id"]
             isOneToOne: false
-            referencedRelation: "product_suppliers"
+            referencedRelation: "supplier_references"
             referencedColumns: ["id"]
           },
         ]
@@ -5305,106 +5305,6 @@ export type Database = {
           },
         ]
       }
-      product_purchase_price_history: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          currency: string
-          effective_from: string
-          establishment_id: string | null
-          id: string
-          notes: string | null
-          order_unit: string | null
-          organization_id: string
-          product_id: string
-          product_supplier_id: string | null
-          source_doc_import_id: string | null
-          supplier_id: string | null
-          supplier_ref: string | null
-          unit_cost: number
-          unit_price: number | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          effective_from?: string
-          establishment_id?: string | null
-          id?: string
-          notes?: string | null
-          order_unit?: string | null
-          organization_id: string
-          product_id: string
-          product_supplier_id?: string | null
-          source_doc_import_id?: string | null
-          supplier_id?: string | null
-          supplier_ref?: string | null
-          unit_cost: number
-          unit_price?: number | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          effective_from?: string
-          establishment_id?: string | null
-          id?: string
-          notes?: string | null
-          order_unit?: string | null
-          organization_id?: string
-          product_id?: string
-          product_supplier_id?: string | null
-          source_doc_import_id?: string | null
-          supplier_id?: string | null
-          supplier_ref?: string | null
-          unit_cost?: number
-          unit_price?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_purchase_price_history_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_purchase_price_history_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_purchase_price_history_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_purchase_price_history_product_supplier_id_fkey"
-            columns: ["product_supplier_id"]
-            isOneToOne: false
-            referencedRelation: "product_suppliers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_purchase_price_history_source_doc_import_id_fkey"
-            columns: ["source_doc_import_id"]
-            isOneToOne: false
-            referencedRelation: "doc_imports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_purchase_price_history_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       product_stocks: {
         Row: {
           created_at: string | null
@@ -5483,88 +5383,6 @@ export type Database = {
             columns: ["product_composition_id"]
             isOneToOne: false
             referencedRelation: "product_compositions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      product_suppliers: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          deleted: boolean
-          id: string
-          is_preferred: boolean
-          lead_time_days: number | null
-          notes: string | null
-          order_quantity: number | null
-          order_unit: string | null
-          organization_id: string
-          product_id: string
-          supplier_id: string
-          supplier_product_name: string | null
-          supplier_product_ref: string | null
-          unit_price: number | null
-          units_per_package: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          deleted?: boolean
-          id?: string
-          is_preferred?: boolean
-          lead_time_days?: number | null
-          notes?: string | null
-          order_quantity?: number | null
-          order_unit?: string | null
-          organization_id: string
-          product_id: string
-          supplier_id: string
-          supplier_product_name?: string | null
-          supplier_product_ref?: string | null
-          unit_price?: number | null
-          units_per_package?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          deleted?: boolean
-          id?: string
-          is_preferred?: boolean
-          lead_time_days?: number | null
-          notes?: string | null
-          order_quantity?: number | null
-          order_unit?: string | null
-          organization_id?: string
-          product_id?: string
-          supplier_id?: string
-          supplier_product_name?: string | null
-          supplier_product_ref?: string | null
-          unit_price?: number | null
-          units_per_package?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_suppliers_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_suppliers_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_suppliers_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -5887,17 +5705,21 @@ export type Database = {
           deleted: boolean | null
           establishment_id: string | null
           id: string
+          lot_allocations: Json | null
           movement_type: string
+          needs_review: boolean
           notes: string | null
           organization_id: string
           product_id: string
           product_stock_id: string
-          product_supplier_id: string | null
           quantity: number
           quantity_after: number
           quantity_before: number
+          recipe_product_id: string | null
           reference_id: string | null
           reference_type: string | null
+          remaining_quantity: number | null
+          supplier_reference_id: string | null
           unit: string | null
           unit_cost: number | null
           work_session_id: string | null
@@ -5908,17 +5730,21 @@ export type Database = {
           deleted?: boolean | null
           establishment_id?: string | null
           id?: string
+          lot_allocations?: Json | null
           movement_type: string
+          needs_review?: boolean
           notes?: string | null
           organization_id: string
           product_id: string
           product_stock_id: string
-          product_supplier_id?: string | null
           quantity: number
           quantity_after: number
           quantity_before: number
+          recipe_product_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          remaining_quantity?: number | null
+          supplier_reference_id?: string | null
           unit?: string | null
           unit_cost?: number | null
           work_session_id?: string | null
@@ -5929,17 +5755,21 @@ export type Database = {
           deleted?: boolean | null
           establishment_id?: string | null
           id?: string
+          lot_allocations?: Json | null
           movement_type?: string
+          needs_review?: boolean
           notes?: string | null
           organization_id?: string
           product_id?: string
           product_stock_id?: string
-          product_supplier_id?: string | null
           quantity?: number
           quantity_after?: number
           quantity_before?: number
+          recipe_product_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          remaining_quantity?: number | null
+          supplier_reference_id?: string | null
           unit?: string | null
           unit_cost?: number | null
           work_session_id?: string | null
@@ -5981,10 +5811,189 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "stock_movements_product_supplier_id_fkey"
-            columns: ["product_supplier_id"]
+            foreignKeyName: "stock_movements_product_stock_id_fkey"
+            columns: ["product_stock_id"]
             isOneToOne: false
-            referencedRelation: "product_suppliers"
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_stock_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_supplier_reference_id_fkey"
+            columns: ["supplier_reference_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_price_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_from: string
+          id: string
+          notes: string | null
+          order_unit: string | null
+          organization_id: string
+          product_id: string
+          source_doc_import_id: string | null
+          supplier_id: string | null
+          supplier_ref: string | null
+          supplier_reference_id: string | null
+          unit_cost: number
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          id?: string
+          notes?: string | null
+          order_unit?: string | null
+          organization_id: string
+          product_id: string
+          source_doc_import_id?: string | null
+          supplier_id?: string | null
+          supplier_ref?: string | null
+          supplier_reference_id?: string | null
+          unit_cost: number
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          id?: string
+          notes?: string | null
+          order_unit?: string | null
+          organization_id?: string
+          product_id?: string
+          source_doc_import_id?: string | null
+          supplier_id?: string | null
+          supplier_ref?: string | null
+          supplier_reference_id?: string | null
+          unit_cost?: number
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_snapshots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_snapshots_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_snapshots_source_doc_import_id_fkey"
+            columns: ["source_doc_import_id"]
+            isOneToOne: false
+            referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_snapshots_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_snapshots_supplier_reference_id_fkey"
+            columns: ["supplier_reference_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_references: {
+        Row: {
+          conversion_factor: number
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          is_preferred: boolean
+          lead_time_days: number | null
+          min_order_qty: number | null
+          notes: string | null
+          order_unit: string | null
+          organization_id: string
+          product_id: string
+          supplier_id: string
+          supplier_product_name: string | null
+          supplier_product_ref: string | null
+          unit_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          conversion_factor?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          is_preferred?: boolean
+          lead_time_days?: number | null
+          min_order_qty?: number | null
+          notes?: string | null
+          order_unit?: string | null
+          organization_id: string
+          product_id: string
+          supplier_id: string
+          supplier_product_name?: string | null
+          supplier_product_ref?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          conversion_factor?: number
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          is_preferred?: boolean
+          lead_time_days?: number | null
+          min_order_qty?: number | null
+          notes?: string | null
+          order_unit?: string | null
+          organization_id?: string
+          product_id?: string
+          supplier_id?: string
+          supplier_product_name?: string | null
+          supplier_product_ref?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_references_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_references_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_references_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -6559,7 +6568,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_stock_reconciliation: {
+        Row: {
+          current_stock: number | null
+          drift: number | null
+          establishment_id: string | null
+          fifo_remaining_total: number | null
+          has_drift: boolean | null
+          organization_id: string | null
+          product_composition_id: string | null
+          product_stock_id: string | null
+          unit: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stocks_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stocks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stocks_product_composition_id_fkey"
+            columns: ["product_composition_id"]
+            isOneToOne: false
+            referencedRelation: "product_compositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auth_can_access_establishment: {

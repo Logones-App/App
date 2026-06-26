@@ -238,6 +238,34 @@ $$;
 ALTER FUNCTION "public"."fn_fifo_valorize"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."fn_lock_stock_unit"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Trigger uniquement si l'unité change réellement
+  IF OLD.unit IS NOT DISTINCT FROM NEW.unit THEN
+    RETURN NEW;
+  END IF;
+
+  -- Vérifier qu'aucun lot actif n'existe
+  IF EXISTS (
+    SELECT 1 FROM stock_movements
+    WHERE product_stock_id = NEW.id
+      AND movement_type = 'purchase'
+      AND remaining_quantity > 0
+      AND deleted = FALSE
+  ) THEN
+    RAISE EXCEPTION 'Impossible de changer l''unité : des lots FIFO actifs existent (remaining_quantity > 0). Soldez le stock avant de changer d''unité.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."fn_lock_stock_unit"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."handle_times"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -1190,7 +1218,7 @@ CREATE TABLE IF NOT EXISTS "public"."doc_import_lines" (
     "prix_unitaire" numeric,
     "total_ht" numeric,
     "reference" "text",
-    "product_supplier_id" "uuid",
+    "supplier_reference_id" "uuid",
     "automation_status" "text",
     "automation_note" "text",
     "product_id" "uuid",
@@ -2770,42 +2798,6 @@ COMMENT ON TABLE "public"."product_option_groups" IS 'Groupes d''options réutil
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."product_purchase_price_history" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "product_id" "uuid" NOT NULL,
-    "organization_id" "uuid" NOT NULL,
-    "establishment_id" "uuid",
-    "unit_cost" numeric(14,4) NOT NULL,
-    "currency" "text" DEFAULT 'EUR'::"text" NOT NULL,
-    "effective_from" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "supplier_ref" "text",
-    "notes" "text",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "created_by" "uuid",
-    "supplier_id" "uuid",
-    "product_supplier_id" "uuid",
-    "unit_price" numeric,
-    "order_unit" "text",
-    "source_doc_import_id" "uuid",
-    CONSTRAINT "product_purchase_price_history_unit_cost_check" CHECK (("unit_cost" >= (0)::numeric))
-);
-
-
-ALTER TABLE "public"."product_purchase_price_history" OWNER TO "postgres";
-
-
-COMMENT ON TABLE "public"."product_purchase_price_history" IS 'Snapshots du coût d''achat unitaire par produit. establishment_id null = coût au niveau organisation.';
-
-
-
-COMMENT ON COLUMN "public"."product_purchase_price_history"."unit_cost" IS 'Coût pour une unité alignée avec le produit / stock (ex. product_stocks.unit).';
-
-
-
-COMMENT ON COLUMN "public"."product_purchase_price_history"."supplier_id" IS 'FK fournisseur. Prioritaire sur supplier_ref textuel.';
-
-
-
 CREATE TABLE IF NOT EXISTS "public"."product_stocks" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "organization_id" "uuid" NOT NULL,
@@ -2846,44 +2838,6 @@ COMMENT ON COLUMN "public"."product_stocks"."unit" IS 'Unité de mesure: piece, 
 
 
 COMMENT ON COLUMN "public"."product_stocks"."inventory_tracked" IS 'true = décrémentations / contrôles de stock actifs ; false = ligne conservée mais pas de gestion de stock sur cette ligne.';
-
-
-
-CREATE TABLE IF NOT EXISTS "public"."product_suppliers" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "product_id" "uuid" NOT NULL,
-    "supplier_id" "uuid" NOT NULL,
-    "organization_id" "uuid" NOT NULL,
-    "supplier_product_ref" "text",
-    "supplier_product_name" "text",
-    "order_unit" "text",
-    "order_quantity" numeric,
-    "lead_time_days" integer,
-    "is_preferred" boolean DEFAULT false NOT NULL,
-    "notes" "text",
-    "deleted" boolean DEFAULT false NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone,
-    "created_by" "uuid",
-    "unit_price" numeric(14,4),
-    "units_per_package" numeric DEFAULT 1,
-    CONSTRAINT "product_suppliers_lead_time_days_check" CHECK (("lead_time_days" >= 0)),
-    CONSTRAINT "product_suppliers_order_quantity_check" CHECK (("order_quantity" > (0)::numeric))
-);
-
-
-ALTER TABLE "public"."product_suppliers" OWNER TO "postgres";
-
-
-COMMENT ON TABLE "public"."product_suppliers" IS 'Liaison produit ↔ fournisseur avec conditions d''approvisionnement.';
-
-
-
-COMMENT ON COLUMN "public"."product_suppliers"."order_unit" IS 'Unité de commande (ex: kg, caisse 6x, carton 12x).';
-
-
-
-COMMENT ON COLUMN "public"."product_suppliers"."is_preferred" IS 'Fournisseur principal pour ce produit.';
 
 
 
@@ -3051,12 +3005,12 @@ CREATE TABLE IF NOT EXISTS "public"."stock_movements" (
     "establishment_id" "uuid",
     "unit" "text",
     "product_stock_id" "uuid" NOT NULL,
-    "product_supplier_id" "uuid",
     "unit_cost" numeric(12,6),
     "remaining_quantity" numeric,
     "lot_allocations" "jsonb",
     "needs_review" boolean DEFAULT false NOT NULL,
     "recipe_product_id" "uuid",
+    "supplier_reference_id" "uuid",
     CONSTRAINT "stock_movements_calculation_check" CHECK (("quantity_after" = ("quantity_before" + "quantity"))),
     CONSTRAINT "stock_movements_movement_type_check" CHECK ((("movement_type")::"text" = ANY (ARRAY['purchase'::"text", 'sale'::"text", 'adjustment'::"text", 'transfer'::"text", 'waste'::"text", 'production'::"text", 'reservation'::"text", 'unreservation'::"text", 'restore'::"text"]))),
     CONSTRAINT "stock_movements_quantity_check" CHECK (("quantity" <> (0)::numeric))
@@ -3079,6 +3033,68 @@ COMMENT ON COLUMN "public"."stock_movements"."reference_id" IS 'ID de référenc
 
 
 COMMENT ON COLUMN "public"."stock_movements"."unit_cost" IS 'Coût unitaire HT au moment du mouvement (renseigné sur les entrées purchase, null sur les consommations POS)';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."supplier_price_snapshots" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "organization_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
+    "supplier_reference_id" "uuid",
+    "supplier_id" "uuid",
+    "supplier_ref" "text",
+    "unit_cost" numeric(14,4) NOT NULL,
+    "currency" "text" DEFAULT 'EUR'::"text" NOT NULL,
+    "unit_price" numeric,
+    "order_unit" "text",
+    "effective_from" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "notes" "text",
+    "source_doc_import_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    CONSTRAINT "supplier_price_snapshots_unit_cost_check" CHECK (("unit_cost" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."supplier_price_snapshots" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."supplier_price_snapshots" IS 'Snapshots du coût d''achat unitaire par produit. Remplace product_purchase_price_history. supplier_reference_id nullable = scans HACCP non rapprochés.';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."supplier_references" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "organization_id" "uuid" NOT NULL,
+    "supplier_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
+    "supplier_product_ref" "text",
+    "supplier_product_name" "text",
+    "order_unit" "text",
+    "conversion_factor" numeric DEFAULT 1 NOT NULL,
+    "min_order_qty" numeric,
+    "lead_time_days" integer,
+    "is_preferred" boolean DEFAULT false NOT NULL,
+    "unit_price" numeric(14,4),
+    "notes" "text",
+    "deleted" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone,
+    "created_by" "uuid",
+    CONSTRAINT "supplier_references_conversion_check" CHECK (("conversion_factor" > (0)::numeric)),
+    CONSTRAINT "supplier_references_lead_time_check" CHECK (("lead_time_days" >= 0)),
+    CONSTRAINT "supplier_references_min_order_check" CHECK (("min_order_qty" > (0)::numeric))
+);
+
+
+ALTER TABLE "public"."supplier_references" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."supplier_references" IS 'Références fournisseur par produit. N références par couple produit/fournisseur. Remplace product_suppliers.';
+
+
+
+COMMENT ON COLUMN "public"."supplier_references"."conversion_factor" IS 'Nombre de portions (portion_unit) par unité de commande (order_unit).';
 
 
 
@@ -3251,6 +3267,22 @@ ALTER TABLE "public"."users_organizations" OWNER TO "postgres";
 
 COMMENT ON TABLE "public"."users_organizations" IS 'Table de liaison entre utilisateurs et organisations. Les rôles sont maintenant dans users_roles';
 
+
+
+CREATE OR REPLACE VIEW "public"."v_stock_reconciliation" AS
+SELECT
+    NULL::"uuid" AS "product_stock_id",
+    NULL::"uuid" AS "product_composition_id",
+    NULL::"uuid" AS "establishment_id",
+    NULL::"uuid" AS "organization_id",
+    NULL::character varying(50) AS "unit",
+    NULL::numeric(10,2) AS "current_stock",
+    NULL::numeric AS "fifo_remaining_total",
+    NULL::numeric AS "drift",
+    NULL::boolean AS "has_drift";
+
+
+ALTER VIEW "public"."v_stock_reconciliation" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."vat_rate" (
@@ -3830,11 +3862,6 @@ ALTER TABLE ONLY "public"."product_option_groups"
 
 
 
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_pkey" PRIMARY KEY ("id");
-
-
-
 ALTER TABLE ONLY "public"."product_stocks"
     ADD CONSTRAINT "product_stocks_pkey" PRIMARY KEY ("id");
 
@@ -3842,11 +3869,6 @@ ALTER TABLE ONLY "public"."product_stocks"
 
 ALTER TABLE ONLY "public"."product_stocks"
     ADD CONSTRAINT "product_stocks_product_composition_establishment_unique" UNIQUE ("product_composition_id", "establishment_id");
-
-
-
-ALTER TABLE ONLY "public"."product_suppliers"
-    ADD CONSTRAINT "product_suppliers_pkey" PRIMARY KEY ("id");
 
 
 
@@ -3882,6 +3904,21 @@ ALTER TABLE ONLY "public"."rooms"
 
 ALTER TABLE ONLY "public"."stock_movements"
     ADD CONSTRAINT "stock_movements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE "public"."stock_movements"
+    ADD CONSTRAINT "stock_movements_purchase_requires_ref" CHECK (((("movement_type")::"text" <> 'purchase'::"text") OR ("supplier_reference_id" IS NOT NULL))) NOT VALID;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_references"
+    ADD CONSTRAINT "supplier_references_pkey" PRIMARY KEY ("id");
 
 
 
@@ -4292,7 +4329,7 @@ CREATE INDEX "idx_doc_import_lines_import" ON "public"."doc_import_lines" USING 
 
 
 
-CREATE INDEX "idx_doc_import_lines_ps" ON "public"."doc_import_lines" USING "btree" ("product_supplier_id") WHERE ("product_supplier_id" IS NOT NULL);
+CREATE INDEX "idx_doc_import_lines_ps" ON "public"."doc_import_lines" USING "btree" ("supplier_reference_id") WHERE ("supplier_reference_id" IS NOT NULL);
 
 
 
@@ -4852,18 +4889,6 @@ CREATE INDEX "idx_product_option_groups_organization" ON "public"."product_optio
 
 
 
-CREATE INDEX "idx_product_purchase_price_history_establishment" ON "public"."product_purchase_price_history" USING "btree" ("establishment_id") WHERE ("establishment_id" IS NOT NULL);
-
-
-
-CREATE INDEX "idx_product_purchase_price_history_org_product" ON "public"."product_purchase_price_history" USING "btree" ("organization_id", "product_id");
-
-
-
-CREATE INDEX "idx_product_purchase_price_history_product_effective" ON "public"."product_purchase_price_history" USING "btree" ("product_id", "effective_from" DESC);
-
-
-
 CREATE INDEX "idx_product_stocks_establishment_id" ON "public"."product_stocks" USING "btree" ("establishment_id");
 
 
@@ -4877,22 +4902,6 @@ CREATE INDEX "idx_product_stocks_org" ON "public"."product_stocks" USING "btree"
 
 
 CREATE INDEX "idx_product_stocks_product_composition" ON "public"."product_stocks" USING "btree" ("product_composition_id");
-
-
-
-CREATE INDEX "idx_product_suppliers_organization_id" ON "public"."product_suppliers" USING "btree" ("organization_id") WHERE ("deleted" = false);
-
-
-
-CREATE INDEX "idx_product_suppliers_product_id" ON "public"."product_suppliers" USING "btree" ("product_id") WHERE ("deleted" = false);
-
-
-
-CREATE INDEX "idx_product_suppliers_supplier_id" ON "public"."product_suppliers" USING "btree" ("supplier_id") WHERE ("deleted" = false);
-
-
-
-CREATE INDEX "idx_product_suppliers_supplier_ref" ON "public"."product_suppliers" USING "btree" ("supplier_id", "supplier_product_ref") WHERE ("deleted" = false);
 
 
 
@@ -4948,18 +4957,6 @@ CREATE INDEX "idx_public_menu_sections_organization" ON "public"."public_menu_se
 
 
 
-CREATE INDEX "idx_purchase_history_date" ON "public"."product_purchase_price_history" USING "btree" ("product_id", "effective_from" DESC);
-
-
-
-CREATE INDEX "idx_purchase_history_ps" ON "public"."product_purchase_price_history" USING "btree" ("product_supplier_id") WHERE ("product_supplier_id" IS NOT NULL);
-
-
-
-CREATE INDEX "idx_purchase_price_supplier_id" ON "public"."product_purchase_price_history" USING "btree" ("supplier_id") WHERE ("supplier_id" IS NOT NULL);
-
-
-
 CREATE INDEX "idx_rooms_organization_id" ON "public"."rooms" USING "btree" ("organization_id");
 
 
@@ -4993,6 +4990,26 @@ CREATE INDEX "idx_stock_movements_reference" ON "public"."stock_movements" USING
 
 
 CREATE INDEX "idx_stock_movements_type" ON "public"."stock_movements" USING "btree" ("movement_type");
+
+
+
+CREATE INDEX "idx_supplier_price_snapshots_product" ON "public"."supplier_price_snapshots" USING "btree" ("product_id", "effective_from" DESC);
+
+
+
+CREATE INDEX "idx_supplier_price_snapshots_ref" ON "public"."supplier_price_snapshots" USING "btree" ("supplier_reference_id") WHERE ("supplier_reference_id" IS NOT NULL);
+
+
+
+CREATE INDEX "idx_supplier_references_org_product" ON "public"."supplier_references" USING "btree" ("organization_id", "product_id");
+
+
+
+CREATE INDEX "idx_supplier_references_product" ON "public"."supplier_references" USING "btree" ("product_id") WHERE ("deleted" = false);
+
+
+
+CREATE INDEX "idx_supplier_references_supplier" ON "public"."supplier_references" USING "btree" ("supplier_id") WHERE ("deleted" = false);
 
 
 
@@ -5104,7 +5121,20 @@ CREATE UNIQUE INDEX "product_option_group_products_unique" ON "public"."product_
 
 
 
-CREATE UNIQUE INDEX "uq_product_suppliers_unique" ON "public"."product_suppliers" USING "btree" ("product_id", "supplier_id", "supplier_product_ref") NULLS NOT DISTINCT WHERE ("deleted" = false);
+CREATE OR REPLACE VIEW "public"."v_stock_reconciliation" AS
+ SELECT "ps"."id" AS "product_stock_id",
+    "ps"."product_composition_id",
+    "ps"."establishment_id",
+    "ps"."organization_id",
+    "ps"."unit",
+    "ps"."current_stock",
+    COALESCE("sum"("sm"."remaining_quantity"), (0)::numeric) AS "fifo_remaining_total",
+    ("ps"."current_stock" - COALESCE("sum"("sm"."remaining_quantity"), (0)::numeric)) AS "drift",
+    ("abs"(("ps"."current_stock" - COALESCE("sum"("sm"."remaining_quantity"), (0)::numeric))) > 0.001) AS "has_drift"
+   FROM ("public"."product_stocks" "ps"
+     LEFT JOIN "public"."stock_movements" "sm" ON ((("sm"."product_stock_id" = "ps"."id") AND (("sm"."movement_type")::"text" = 'purchase'::"text") AND ("sm"."remaining_quantity" > (0)::numeric) AND ("sm"."deleted" = false))))
+  WHERE ("ps"."deleted" = false)
+  GROUP BY "ps"."id";
 
 
 
@@ -5324,10 +5354,6 @@ CREATE OR REPLACE TRIGGER "handle_updated_at_product_stocks" BEFORE UPDATE ON "p
 
 
 
-CREATE OR REPLACE TRIGGER "handle_updated_at_product_suppliers" BEFORE UPDATE ON "public"."product_suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
 CREATE OR REPLACE TRIGGER "handle_updated_at_profiles" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
@@ -5357,6 +5383,10 @@ CREATE OR REPLACE TRIGGER "nf525_after_piece_insert" AFTER INSERT ON "public"."n
 
 
 CREATE OR REPLACE TRIGGER "trg_fifo_valorize" AFTER INSERT ON "public"."stock_movements" FOR EACH ROW EXECUTE FUNCTION "public"."fn_fifo_valorize"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_lock_stock_unit" BEFORE UPDATE ON "public"."product_stocks" FOR EACH ROW EXECUTE FUNCTION "public"."fn_lock_stock_unit"();
 
 
 
@@ -5686,7 +5716,7 @@ ALTER TABLE ONLY "public"."doc_import_lines"
 
 
 ALTER TABLE ONLY "public"."doc_import_lines"
-    ADD CONSTRAINT "doc_import_lines_product_supplier_id_fkey" FOREIGN KEY ("product_supplier_id") REFERENCES "public"."product_suppliers"("id");
+    ADD CONSTRAINT "doc_import_lines_supplier_reference_id_fkey" FOREIGN KEY ("supplier_reference_id") REFERENCES "public"."supplier_references"("id") ON DELETE SET NULL;
 
 
 
@@ -6515,41 +6545,6 @@ ALTER TABLE ONLY "public"."product_option_groups"
 
 
 
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_establishment_id_fkey" FOREIGN KEY ("establishment_id") REFERENCES "public"."establishments"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_product_supplier_id_fkey" FOREIGN KEY ("product_supplier_id") REFERENCES "public"."product_suppliers"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_source_doc_import_id_fkey" FOREIGN KEY ("source_doc_import_id") REFERENCES "public"."doc_imports"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_purchase_price_history"
-    ADD CONSTRAINT "product_purchase_price_history_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id");
-
-
-
 ALTER TABLE ONLY "public"."product_stocks"
     ADD CONSTRAINT "product_stocks_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
@@ -6567,26 +6562,6 @@ ALTER TABLE ONLY "public"."product_stocks"
 
 ALTER TABLE ONLY "public"."product_stocks"
     ADD CONSTRAINT "product_stocks_product_composition_id_fkey" FOREIGN KEY ("product_composition_id") REFERENCES "public"."product_compositions"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."product_suppliers"
-    ADD CONSTRAINT "product_suppliers_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_suppliers"
-    ADD CONSTRAINT "product_suppliers_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_suppliers"
-    ADD CONSTRAINT "product_suppliers_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id");
-
-
-
-ALTER TABLE ONLY "public"."product_suppliers"
-    ADD CONSTRAINT "product_suppliers_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id");
 
 
 
@@ -6686,7 +6661,57 @@ ALTER TABLE ONLY "public"."stock_movements"
 
 
 ALTER TABLE ONLY "public"."stock_movements"
-    ADD CONSTRAINT "stock_movements_product_supplier_id_fkey" FOREIGN KEY ("product_supplier_id") REFERENCES "public"."product_suppliers"("id");
+    ADD CONSTRAINT "stock_movements_supplier_reference_id_fkey" FOREIGN KEY ("supplier_reference_id") REFERENCES "public"."supplier_references"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_source_doc_import_id_fkey" FOREIGN KEY ("source_doc_import_id") REFERENCES "public"."doc_imports"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_snapshots"
+    ADD CONSTRAINT "supplier_price_snapshots_supplier_reference_id_fkey" FOREIGN KEY ("supplier_reference_id") REFERENCES "public"."supplier_references"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_references"
+    ADD CONSTRAINT "supplier_references_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_references"
+    ADD CONSTRAINT "supplier_references_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_references"
+    ADD CONSTRAINT "supplier_references_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_references"
+    ADD CONSTRAINT "supplier_references_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id");
 
 
 
@@ -8791,25 +8816,6 @@ CREATE POLICY "product_option_groups_update_universal" ON "public"."product_opti
 
 
 
-ALTER TABLE "public"."product_purchase_price_history" ENABLE ROW LEVEL SECURITY;
-
-
-CREATE POLICY "product_purchase_price_history_delete_universal" ON "public"."product_purchase_price_history" FOR DELETE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "product_purchase_price_history_insert_universal" ON "public"."product_purchase_price_history" FOR INSERT TO "authenticated" WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "product_purchase_price_history_select_universal" ON "public"."product_purchase_price_history" FOR SELECT TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "product_purchase_price_history_update_universal" ON "public"."product_purchase_price_history" FOR UPDATE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id")) WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
 ALTER TABLE "public"."product_stocks" ENABLE ROW LEVEL SECURITY;
 
 
@@ -8826,35 +8832,6 @@ CREATE POLICY "product_stocks_select_universal" ON "public"."product_stocks" FOR
 
 
 CREATE POLICY "product_stocks_update_universal" ON "public"."product_stocks" FOR UPDATE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id")) WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-ALTER TABLE "public"."product_suppliers" ENABLE ROW LEVEL SECURITY;
-
-
-CREATE POLICY "product_suppliers_delete_universal" ON "public"."product_suppliers" FOR DELETE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
-   FROM "public"."users_organizations"
-  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
-
-
-
-CREATE POLICY "product_suppliers_insert_universal" ON "public"."product_suppliers" FOR INSERT TO "authenticated" WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
-   FROM "public"."users_organizations"
-  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
-
-
-
-CREATE POLICY "product_suppliers_select_universal" ON "public"."product_suppliers" FOR SELECT TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
-   FROM "public"."users_organizations"
-  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
-
-
-
-CREATE POLICY "product_suppliers_update_universal" ON "public"."product_suppliers" FOR UPDATE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
-   FROM "public"."users_organizations"
-  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false))))) WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
-   FROM "public"."users_organizations"
-  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
 
 
 
@@ -8998,6 +8975,64 @@ CREATE POLICY "stock_movements_select_universal" ON "public"."stock_movements" F
 
 
 CREATE POLICY "stock_movements_update_universal" ON "public"."stock_movements" FOR UPDATE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id")) WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
+
+
+
+ALTER TABLE "public"."supplier_price_snapshots" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_price_snapshots_delete_universal" ON "public"."supplier_price_snapshots" FOR DELETE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_price_snapshots_insert_universal" ON "public"."supplier_price_snapshots" FOR INSERT TO "authenticated" WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_price_snapshots_select_universal" ON "public"."supplier_price_snapshots" FOR SELECT TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_price_snapshots_update_universal" ON "public"."supplier_price_snapshots" FOR UPDATE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false))))) WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+ALTER TABLE "public"."supplier_references" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_references_delete_universal" ON "public"."supplier_references" FOR DELETE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_references_insert_universal" ON "public"."supplier_references" FOR INSERT TO "authenticated" WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_references_select_universal" ON "public"."supplier_references" FOR SELECT TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_references_update_universal" ON "public"."supplier_references" FOR UPDATE TO "authenticated" USING (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false))))) WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
+   FROM "public"."users_organizations"
+  WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
 
 
 
@@ -9228,6 +9263,12 @@ GRANT ALL ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) 
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "service_role";
 
 
 
@@ -9771,21 +9812,9 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public".
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_purchase_price_history" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_purchase_price_history" TO "authenticated";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_purchase_price_history" TO "service_role";
-
-
-
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_stocks" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_stocks" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_stocks" TO "service_role";
-
-
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_suppliers" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_suppliers" TO "authenticated";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."product_suppliers" TO "service_role";
 
 
 
@@ -9826,6 +9855,18 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."rooms" TO "e8d33df2-5a44-40
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."stock_movements" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."stock_movements" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."stock_movements" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_references" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_references" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_references" TO "service_role";
 
 
 
@@ -9876,6 +9917,12 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."tables_connections" TO "e8d
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."users_organizations" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."users_organizations" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."users_organizations" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."v_stock_reconciliation" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."v_stock_reconciliation" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."v_stock_reconciliation" TO "service_role";
 
 
 
