@@ -51,7 +51,7 @@ export function useIngredientStockUnits(productIds: string[], establishmentId: s
         .eq("deleted", false);
       if (cErr) throw cErr;
 
-      const selfComps = (comps ?? []).filter((c) => c.main_product_id === c.component_product_id);
+      const selfComps = comps.filter((c) => c.main_product_id === c.component_product_id);
       if (selfComps.length === 0) return new Map<string, string>();
 
       const { data: stocks, error: sErr } = await supabase
@@ -67,7 +67,7 @@ export function useIngredientStockUnits(productIds: string[], establishmentId: s
 
       const compIdToProductId = new Map(selfComps.map((c) => [c.id, c.main_product_id]));
       const map = new Map<string, string>();
-      for (const s of stocks ?? []) {
+      for (const s of stocks) {
         const productId = compIdToProductId.get(s.product_composition_id);
         if (productId) map.set(productId, s.unit);
       }
@@ -118,6 +118,7 @@ export function useAddStockMovement(
       quantity,
       notes,
       currentStock,
+      totalPrice,
       productSupplierId,
       referenceType,
       referenceId,
@@ -126,6 +127,7 @@ export function useAddStockMovement(
       quantity: number;
       notes: string;
       currentStock: number;
+      totalPrice?: number;
       productSupplierId?: string;
       referenceType?: string;
       referenceId?: string;
@@ -134,15 +136,9 @@ export function useAddStockMovement(
 
       const supabase = createClient();
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError) throw new Error(`Session: ${sessionError.message}`);
-      const userId = session?.user.id;
-      if (!userId) throw new Error("Non authentifié — rechargez la page.");
-
       const quantityAfter = currentStock + quantity;
+      const unitCost =
+        totalPrice != null && quantity !== 0 ? Math.round((totalPrice / Math.abs(quantity)) * 100000) / 100000 : null;
 
       const { error } = await supabase.from("stock_movements").insert({
         product_id: productId,
@@ -155,13 +151,21 @@ export function useAddStockMovement(
         quantity_before: currentStock,
         quantity_after: quantityAfter,
         unit: unit ?? null,
+        unit_cost: unitCost,
         notes: notes.trim() || null,
         reference_type: referenceType ?? null,
         reference_id: referenceId ?? null,
-        created_by: userId,
+        created_by: null,
         deleted: false,
       });
       if (error) throw new Error(`DB: ${error.message} (${error.code})`);
+
+      const { error: stockErr } = await supabase
+        .from("product_stocks")
+        .update({ current_stock: quantityAfter })
+        .eq("id", productStockId);
+      if (stockErr) throw new Error(`Stock update: ${stockErr.message}`);
+
       return quantityAfter;
     },
     onSuccess: () => {
@@ -211,8 +215,6 @@ export function useChangeProductStockUnit(productId: string, organizationId: str
       conversionFactor: number;
     }) => {
       const supabase = createClient();
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) throw new Error("Non authentifié");
       const newQty = currentQty * conversionFactor;
       const { error: stockErr } = await supabase
         .from("product_stocks")
@@ -232,7 +234,7 @@ export function useChangeProductStockUnit(productId: string, organizationId: str
         quantity_after: newQty,
         unit: toUnit,
         notes: `Conversion d'unité : ${currentQty} ${fromUnit} → ${newQty} ${toUnit}`,
-        created_by: authData.user.id,
+        created_by: null,
         deleted: false,
       });
     },
@@ -266,11 +268,11 @@ export function useRecipesUsingIngredient(componentProductId: string) {
         .neq("main_product_id", componentProductId)
         .eq("deleted", false);
       if (compErr) throw compErr;
-      if (!comps || comps.length === 0) return [];
+      if (comps.length === 0) return [];
       const recipeIds = [...new Set(comps.map((c) => c.main_product_id))];
       const { data: products, error: prodErr } = await supabase.from("products").select("id, name").in("id", recipeIds);
       if (prodErr) throw prodErr;
-      const productMap = new Map((products ?? []).map((p) => [p.id, p.name]));
+      const productMap = new Map(products.map((p) => [p.id, p.name]));
       return comps.map((c) => ({
         id: c.id,
         quantity: c.default_quantity,
@@ -292,8 +294,6 @@ export async function insertInitialMovement(
 ) {
   if (quantity <= 0) return;
   const supabase = createClient();
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return;
   await supabase.from("stock_movements").insert({
     product_id: productId,
     organization_id: organizationId,
@@ -305,7 +305,7 @@ export async function insertInitialMovement(
     quantity_after: quantity,
     unit,
     notes: "Stock initial",
-    created_by: authData.user.id,
+    created_by: null,
     deleted: false,
   });
 }

@@ -202,6 +202,14 @@ export const getOrgAdminSidebarItems = (
       ],
     },
 
+    // ─── Reporting ────────────────────────────────────────────────────────────
+    {
+      id: 8,
+      label: "Reporting",
+      labelUrl: u("reporting"),
+      items: [{ title: "FIFO & Food cost", url: u("reporting"), icon: BarChart3 }],
+    },
+
     // ─── Configuration ────────────────────────────────────────────────────────
     {
       id: 7,
