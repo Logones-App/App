@@ -232,8 +232,8 @@ export function ReceptionModal({
         ) : refs.length === 0 ? (
           <div className="space-y-3 py-4">
             <p className="text-muted-foreground text-sm">
-              Aucun fournisseur n&apos;est configuré pour ce produit. Ajoutez-en un dans l&apos;onglet{" "}
-              <strong>Fournisseurs &amp; Prix</strong> avant d&apos;enregistrer une réception.
+              Aucun fournisseur n&apos;est configuré pour ce produit. Ajoutez-en un dans la section{" "}
+              <strong>Paramètres fournisseurs</strong> ci-dessous avant d&apos;enregistrer une réception.
             </p>
             <Button type="button" variant="outline" onClick={onClose}>
               Fermer
