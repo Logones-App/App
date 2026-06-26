@@ -63,6 +63,11 @@ function buildValidTabs(flags: TabFlags): string[] {
   ];
 }
 
+function resolveSelfStock(rows: CompositionStockRow[], portionUnit: string | null) {
+  const lineStock = rows.find((r) => r.isSelfComposition)?.lineStock ?? null;
+  return { lineStock, stockUnit: lineStock?.unit ?? portionUnit };
+}
+
 const LS_KEY = "product-dashboard-active-tab";
 
 export function ProductEstablishmentDashboardTabs({
@@ -79,8 +84,8 @@ export function ProductEstablishmentDashboardTabs({
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;
 
-  const selfStockRow = compositionStockRows.find((r) => r.isSelfComposition);
-  const lineStock = selfStockRow?.lineStock ?? null;
+  // Source de vérité unique de l'unité : product_stocks.unit si un stock existe, sinon portion_unit.
+  const { lineStock, stockUnit } = resolveSelfStock(compositionStockRows, portionUnit);
 
   const [activeTab, setActiveTab] = useState("propriete");
 
@@ -121,6 +126,7 @@ export function ProductEstablishmentDashboardTabs({
           organizationId={organizationId}
           establishmentId={establishmentId}
           backHref={backHref}
+          stockUnit={lineStock?.unit ?? null}
         />
       </TabsContent>
 
@@ -178,7 +184,7 @@ export function ProductEstablishmentDashboardTabs({
             <ProductFournisseursPrixPanel
               productId={product.id}
               organizationId={organizationId}
-              portionUnit={portionUnit}
+              portionUnit={stockUnit}
               title="Paramètres fournisseurs"
               description="Unités de commande, références, délais et prix catalogue."
             />

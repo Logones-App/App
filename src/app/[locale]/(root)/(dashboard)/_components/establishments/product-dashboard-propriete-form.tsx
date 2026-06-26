@@ -69,12 +69,15 @@ export function ProductProprieteForm({
   organizationId,
   establishmentId,
   backHref,
+  stockUnit = null,
 }: {
   product: ProductWithCategoryName;
   productId: string;
   organizationId: string;
   establishmentId: string;
   backHref: string;
+  /** Unité de stock réelle (product_stocks.unit) si un stock existe — verrouille le champ unité. */
+  stockUnit?: string | null;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -152,7 +155,8 @@ export function ProductProprieteForm({
           origins,
           product_type: productTypes,
           portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
-          portion_unit: portionUnit || null,
+          // Si un stock existe, l'unité est gouvernée par product_stocks.unit (source unique).
+          portion_unit: stockUnit ?? (portionUnit || null),
           sku: sku.trim() || null,
           food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
         })
@@ -374,27 +378,41 @@ export function ProductProprieteForm({
                 {isIngredientOnly ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Unité d&apos;achat{" "}
+                      Unité de stock{" "}
                       <span className="text-muted-foreground text-xs font-normal">
-                        (référence pour le prix HT — ex : kg, L)
+                        (référence pour le prix HT et le stock)
                       </span>
                     </label>
-                    <Select
-                      value={portionUnit || "__none__"}
-                      onValueChange={(v) => setPortionUnit(v === "__none__" ? "" : v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="— Aucune" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Aucune</SelectItem>
-                        {PORTION_UNITS.map((u) => (
-                          <SelectItem key={u} value={u}>
-                            {t(u)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {stockUnit ? (
+                      <div className="space-y-1">
+                        <Input
+                          value={stockUnit === "piece" ? "pièce" : stockUnit}
+                          disabled
+                          readOnly
+                          className="bg-muted/50"
+                        />
+                        <p className="text-muted-foreground text-xs">
+                          Définie par le stock — modifiable dans l&apos;onglet <strong>Stock</strong> (verrou FIFO).
+                        </p>
+                      </div>
+                    ) : (
+                      <Select
+                        value={portionUnit || "__none__"}
+                        onValueChange={(v) => setPortionUnit(v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="— Aucune" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Aucune</SelectItem>
+                          {PORTION_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>
+                              {t(u)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">

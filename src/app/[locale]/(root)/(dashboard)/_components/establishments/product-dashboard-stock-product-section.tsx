@@ -25,14 +25,16 @@ export function ProductSection({
   establishmentId,
   organizationId,
   invalidate,
+  defaultUnit,
 }: {
   selfRow: CompositionStockRow | undefined;
   productId: string;
   establishmentId: string;
   organizationId: string;
   invalidate: () => void;
+  defaultUnit?: string | null;
 }) {
-  const [initUnit, setInitUnit] = useState(DEFAULT_STOCK_UNIT);
+  const [initUnit, setInitUnit] = useState(defaultUnit ?? DEFAULT_STOCK_UNIT);
 
   const initMutation = useMutation({
     mutationFn: async (unit: string) => {
@@ -82,6 +84,11 @@ export function ProductSection({
         });
         if (error) throw error;
       }
+
+      // Source de vérité unique : product_stocks.unit. On aligne products.portion_unit
+      // dès la configuration pour qu'Achats/Recette/coûts ne divergent jamais.
+      const { error: prodErr } = await supabase.from("products").update({ portion_unit: unit }).eq("id", productId);
+      if (prodErr) throw prodErr;
     },
     onSuccess: () => {
       toast.success("Unité configurée. Faites une réception dans l'onglet Achats pour approvisionner le stock.");
