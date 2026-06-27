@@ -1827,61 +1827,6 @@ export type Database = {
           },
         ]
       }
-      employee_module_access: {
-        Row: {
-          created_at: string
-          deleted: boolean
-          employee_id: string
-          establishment_id: string | null
-          id: string
-          module: string
-          organization_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          deleted?: boolean
-          employee_id: string
-          establishment_id?: string | null
-          id?: string
-          module: string
-          organization_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          deleted?: boolean
-          employee_id?: string
-          establishment_id?: string | null
-          id?: string
-          module?: string
-          organization_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "employee_module_access_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "employee_module_access_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "employee_module_access_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employee_monthly_reports: {
         Row: {
           advance_payment: number | null
@@ -5923,7 +5868,6 @@ export type Database = {
           created_by: string | null
           deleted: boolean
           id: string
-          is_preferred: boolean
           lead_time_days: number | null
           min_order_qty: number | null
           notes: string | null
@@ -5942,7 +5886,6 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           id?: string
-          is_preferred?: boolean
           lead_time_days?: number | null
           min_order_qty?: number | null
           notes?: string | null
@@ -5961,7 +5904,6 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           id?: string
-          is_preferred?: boolean
           lead_time_days?: number | null
           min_order_qty?: number | null
           notes?: string | null

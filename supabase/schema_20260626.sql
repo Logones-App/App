@@ -1345,22 +1345,6 @@ CREATE TABLE IF NOT EXISTS "public"."employee_documents" (
 ALTER TABLE "public"."employee_documents" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."employee_module_access" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "organization_id" "uuid" NOT NULL,
-    "employee_id" "uuid" NOT NULL,
-    "module" "text" NOT NULL,
-    "establishment_id" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "deleted" boolean DEFAULT false NOT NULL,
-    CONSTRAINT "employee_module_access_module_check" CHECK (("module" = ANY (ARRAY['pos'::"text", 'hr'::"text", 'haccp'::"text", 'clients'::"text"])))
-);
-
-
-ALTER TABLE "public"."employee_module_access" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "public"."employee_monthly_reports" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "organization_id" "uuid" NOT NULL,
@@ -3074,7 +3058,6 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_references" (
     "conversion_factor" numeric DEFAULT 1 NOT NULL,
     "min_order_qty" numeric,
     "lead_time_days" integer,
-    "is_preferred" boolean DEFAULT false NOT NULL,
     "unit_price" numeric(14,4),
     "notes" "text",
     "deleted" boolean DEFAULT false NOT NULL,
@@ -3514,16 +3497,6 @@ ALTER TABLE ONLY "public"."employee_absences"
 
 ALTER TABLE ONLY "public"."employee_documents"
     ADD CONSTRAINT "employee_documents_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."employee_module_access"
-    ADD CONSTRAINT "employee_module_access_employee_id_module_establishment_id_key" UNIQUE ("employee_id", "module", "establishment_id");
-
-
-
-ALTER TABLE ONLY "public"."employee_module_access"
-    ADD CONSTRAINT "employee_module_access_pkey" PRIMARY KEY ("id");
 
 
 
@@ -4626,10 +4599,6 @@ CREATE INDEX "idx_mobile_user_permissions_organization_id" ON "public"."employee
 
 
 CREATE UNIQUE INDEX "idx_mobile_user_permissions_unique" ON "public"."employee_permissions" USING "btree" ("employee_id", "permission", "organization_id") WHERE ("deleted" = false);
-
-
-
-CREATE INDEX "idx_module_access_employee" ON "public"."employee_module_access" USING "btree" ("employee_id") WHERE ("deleted" = false);
 
 
 
@@ -5787,21 +5756,6 @@ ALTER TABLE ONLY "public"."employee_documents"
 
 ALTER TABLE ONLY "public"."employee_documents"
     ADD CONSTRAINT "employee_documents_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."employee_module_access"
-    ADD CONSTRAINT "employee_module_access_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "public"."employees"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."employee_module_access"
-    ADD CONSTRAINT "employee_module_access_establishment_id_fkey" FOREIGN KEY ("establishment_id") REFERENCES "public"."establishments"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."employee_module_access"
-    ADD CONSTRAINT "employee_module_access_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE CASCADE;
 
 
 
@@ -7549,25 +7503,6 @@ CREATE POLICY "employee_documents_update_universal" ON "public"."employee_docume
   WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false))))) WITH CHECK (("organization_id" IN ( SELECT "users_organizations"."organization_id"
    FROM "public"."users_organizations"
   WHERE (("users_organizations"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("users_organizations"."deleted" = false)))));
-
-
-
-ALTER TABLE "public"."employee_module_access" ENABLE ROW LEVEL SECURITY;
-
-
-CREATE POLICY "employee_module_access_delete_universal" ON "public"."employee_module_access" FOR DELETE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "employee_module_access_insert_universal" ON "public"."employee_module_access" FOR INSERT TO "authenticated" WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "employee_module_access_select_universal" ON "public"."employee_module_access" FOR SELECT TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
-
-
-
-CREATE POLICY "employee_module_access_update_universal" ON "public"."employee_module_access" FOR UPDATE TO "authenticated" USING ("public"."auth_can_access_establishment"("organization_id", "establishment_id")) WITH CHECK ("public"."auth_can_access_establishment"("organization_id", "establishment_id"));
 
 
 
@@ -9493,12 +9428,6 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public".
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_documents" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_documents" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_documents" TO "service_role";
-
-
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_module_access" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_module_access" TO "authenticated";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."employee_module_access" TO "service_role";
 
 
 

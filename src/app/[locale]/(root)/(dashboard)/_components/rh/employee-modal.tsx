@@ -23,12 +23,11 @@ const CONTRACT_LABELS: Record<string, string> = {
   stagiaire: "Stage",
   other: "Autre",
 };
-const ROLES = ["cashier", "manager", "supervisor", "hr_manager"] as const;
+// Aligné sur la contrainte CHECK employees.role (server | chef | manager | admin).
+const ROLES = ["server", "manager"] as const;
 const ROLE_LABELS: Record<string, string> = {
-  cashier: "Caissier",
+  server: "Serveur",
   manager: "Manager",
-  supervisor: "Superviseur",
-  hr_manager: "Resp. RH",
 };
 const GENDERS = [
   { value: "M", label: "Homme" },
