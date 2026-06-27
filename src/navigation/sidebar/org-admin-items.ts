@@ -207,7 +207,13 @@ export const getOrgAdminSidebarItems = (
       id: 8,
       label: "Reporting",
       labelUrl: u("reporting"),
-      items: [{ title: "FIFO & Food cost", url: u("reporting"), icon: BarChart3 }],
+      items: [
+        { title: "Ventes & CA", url: u("reporting/ventes"), icon: BarChart3 },
+        { title: "Marge & rentabilité", url: u("reporting/marge"), icon: BarChart3 },
+        { title: "RH & main d'œuvre", url: u("reporting/rh"), icon: BarChart3 },
+        { title: "Réservations & fréquentation", url: u("reporting/reservations"), icon: BarChart3 },
+        { title: "FIFO & Food cost", url: u("reporting"), icon: BarChart3 },
+      ],
     },
 
     // ─── Configuration ────────────────────────────────────────────────────────
