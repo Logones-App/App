@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useProductPurchasePriceHistory } from "@/lib/queries/purchase-price-queries";
 import { useSupplierReferences } from "@/lib/queries/supplier-queries";
 
+import { ReceptionModal } from "./product-dashboard-reception-modal";
 import { SupplierPriceCard, type ProductSupplierWithName } from "./product-dashboard-supplier-price-card";
-import { AddSupplierModal } from "./product-fournisseur-add-modal";
 
 export function ProductFournisseursPrixPanel({
   productId,
@@ -67,11 +67,14 @@ export function ProductFournisseursPrixPanel({
       </Card>
 
       {showAdd && (
-        <AddSupplierModal
+        <ReceptionModal
           productId={productId}
           organizationId={organizationId}
-          portionUnit={portionUnit}
-          establishmentId={establishmentId}
+          establishmentId={establishmentId ?? ""}
+          productStockId={null}
+          stockUnit={portionUnit}
+          currentStock={0}
+          mode="price"
           manageStock={manageStock}
           onClose={() => setShowAdd(false)}
         />

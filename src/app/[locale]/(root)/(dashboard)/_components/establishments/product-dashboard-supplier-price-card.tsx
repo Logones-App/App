@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
+import { useAddPurchasePrice, useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
 import {
   useDeleteSupplierReference,
   useUpdateSupplierReference,
@@ -31,9 +31,20 @@ type HistoryRow = { id: string; unit_cost: number; effective_from: string; suppl
 
 const HISTORY_PAGE = 5;
 
-function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: string | null }) {
+function PriceHistory({
+  rows,
+  portionUnit,
+  productId,
+  organizationId,
+}: {
+  rows: HistoryRow[];
+  portionUnit: string | null;
+  productId: string;
+  organizationId: string;
+}) {
   const [show, setShow] = useState(false);
   const [limit, setLimit] = useState(HISTORY_PAGE);
+  const deleteMutation = useDeletePurchasePrice(productId, organizationId);
   if (rows.length === 0) return null;
   return (
     <div className="mt-2">
@@ -50,12 +61,25 @@ function PriceHistory({ rows, portionUnit }: { rows: HistoryRow[]; portionUnit: 
           {rows.slice(0, limit).map((h) => {
             const { value, displayUnit } = toFriendlyUnitCost(h.unit_cost, portionUnit);
             return (
-              <p key={h.id} className="text-muted-foreground text-xs tabular-nums">
-                {eur.format(value)}
-                {displayUnit ? ` / ${displayUnit}` : ""}
-                {" · "}
-                {format(parseISO(h.effective_from), "d MMM yyyy", { locale: fr })}
-              </p>
+              <div key={h.id} className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
+                <span>
+                  {eur.format(value)}
+                  {displayUnit ? ` / ${displayUnit}` : ""}
+                  {" · "}
+                  {format(parseISO(h.effective_from), "d MMM yyyy", { locale: fr })}
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground/60 hover:text-destructive"
+                  title="Supprimer cette entrée"
+                  onClick={() => {
+                    if (confirm("Supprimer cette entrée d'historique de prix ?")) deleteMutation.mutate(h.id);
+                  }}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
           {rows.length > limit && (
@@ -430,7 +454,12 @@ export function SupplierPriceCard({
           </div>
         </div>
       )}
-      <PriceHistory rows={supplierHistory} portionUnit={portionUnit} />
+      <PriceHistory
+        rows={supplierHistory}
+        portionUnit={portionUnit}
+        productId={productId}
+        organizationId={organizationId}
+      />
     </div>
   );
 }
