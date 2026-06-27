@@ -5,21 +5,18 @@ import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import { useAddPurchasePrice, useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
+import { useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
 import {
   useDeleteSupplierReference,
   useUpdateSupplierReference,
   type SupplierReferenceRow,
 } from "@/lib/queries/supplier-queries";
-import { suggestConversionFactor, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
+import { toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -129,20 +126,6 @@ function SupplierPriceDisplay({
   );
 }
 
-function numToStr(n: number | null | undefined): string {
-  return n != null ? String(n) : "";
-}
-
-function posNum(s: string): number | null {
-  const n = parseFloat(s.replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function posInt(s: string): number | null {
-  const n = parseInt(s, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 function SupplierRefChips({
   supplierRef,
   name,
@@ -188,28 +171,6 @@ function SupplierCardHeader({ supplierName, isActive }: { supplierName: string |
   );
 }
 
-// Modèle unique : conversion_factor = nb d'unités de stock dans 1 unité d'achat (celle du prix).
-function computeNormalizedCost(unitPrice: number, conversionFactor: number): number {
-  const f = conversionFactor > 0 ? conversionFactor : 1;
-  return Math.round((unitPrice / f) * 10000) / 10000;
-}
-
-function ContenanceLabel({ portionUnit, t }: { portionUnit: string | null; t: (u: PortionUnit) => string }) {
-  if (portionUnit) {
-    return (
-      <p className="text-muted-foreground text-xs font-medium">
-        Contenance (en {t(portionUnit as PortionUnit)} par unité d&apos;achat)
-      </p>
-    );
-  }
-  return <p className="text-muted-foreground text-xs font-medium">Contenance</p>;
-}
-
-function PortionUnitSpan({ portionUnit, t }: { portionUnit: string | null; t: (u: PortionUnit) => string }) {
-  if (!portionUnit) return null;
-  return <span className="text-muted-foreground text-sm">{t(portionUnit as PortionUnit)}</span>;
-}
-
 export function SupplierPriceCard({
   link,
   productId,
@@ -223,60 +184,28 @@ export function SupplierPriceCard({
   portionUnit: string | null;
   history: HistoryRow[];
 }) {
-  const t = useTranslations("units");
-  const [editPrice, setEditPrice] = useState(false);
-  const [priceInput, setPriceInput] = useState(numToStr(link.unit_price));
-  const [unitInput, setUnitInput] = useState(link.order_unit ?? portionUnit ?? "");
-  const [qtyInput, setQtyInput] = useState(String(link.conversion_factor ?? 1));
+  const [editLabels, setEditLabels] = useState(false);
   const [refInput, setRefInput] = useState(link.supplier_product_ref ?? "");
   const [nameInput, setNameInput] = useState(link.supplier_product_name ?? "");
-  const [oqInput, setOqInput] = useState(numToStr(link.min_order_qty));
-  const [ltdInput, setLtdInput] = useState(numToStr(link.lead_time_days));
 
   const updateMutation = useUpdateSupplierReference(productId);
   const deleteMutation = useDeleteSupplierReference(productId);
-  const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
 
   const supplierHistory = history.filter((h) => h.supplier_reference_id === link.id);
-  const unitOptions = PORTION_UNITS;
 
-  const handleSavePrice = () => {
-    const cost = parseFloat(priceInput.replace(",", "."));
-    if (!Number.isFinite(cost) || cost < 0) {
-      toast.error("Prix invalide.");
-      return;
-    }
-    const unitPrice = Math.round(cost * 10000) / 10000;
-    const qty = parseFloat(qtyInput.replace(",", "."));
-    const qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    const normalizedCost = computeNormalizedCost(unitPrice, qtyNum);
+  const handleSaveLabels = () => {
     updateMutation.mutate(
       {
         id: link.id,
         patch: {
-          unit_price: unitPrice,
-          order_unit: unitInput !== "" ? unitInput : null,
-          conversion_factor: qtyNum,
           supplier_product_ref: refInput.trim() !== "" ? refInput.trim() : null,
           supplier_product_name: nameInput.trim() !== "" ? nameInput.trim() : null,
-          min_order_qty: posNum(oqInput),
-          lead_time_days: posInt(ltdInput),
         },
       },
       {
         onSuccess: () => {
-          toast.success("Prix mis à jour.");
-          addHistoryMutation.mutate(
-            {
-              unit_cost: normalizedCost,
-              effective_from: new Date().toISOString().slice(0, 10),
-              supplier_reference_id: link.id,
-              supplier_id: link.supplier_id,
-              supplier_ref: link.supplier_product_ref ?? undefined,
-            },
-            { onError: () => toast.error("Prix enregistré mais l'historique n'a pas pu être journalisé.") },
-          );
-          setEditPrice(false);
+          toast.success("Référence mise à jour.");
+          setEditLabels(false);
         },
       },
     );
@@ -299,6 +228,9 @@ export function SupplierPriceCard({
             orderQuantity={link.min_order_qty ?? null}
             leadTimeDays={link.lead_time_days ?? null}
           />
+          <p className="text-muted-foreground/70 text-xs italic">
+            Prix modifiable via « Ajouter un prix d&apos;achat ».
+          </p>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -306,13 +238,9 @@ export function SupplierPriceCard({
             variant="outline"
             size="sm"
             onClick={() => {
-              setEditPrice(true);
-              setPriceInput(numToStr(link.unit_price));
-              setUnitInput(link.order_unit ?? portionUnit ?? "");
+              setEditLabels(true);
               setRefInput(link.supplier_product_ref ?? "");
               setNameInput(link.supplier_product_name ?? "");
-              setOqInput(numToStr(link.min_order_qty));
-              setLtdInput(numToStr(link.lead_time_days));
             }}
           >
             Modifier
@@ -331,132 +259,29 @@ export function SupplierPriceCard({
           </Button>
         </div>
       </div>
-      {editPrice && (
+      {editLabels && (
         <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-xs font-medium">Prix HT</p>
-              <div className="relative w-28">
-                <Input
-                  value={priceInput}
-                  onChange={(e) => setPriceInput(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  className="pr-6 tabular-nums"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSavePrice();
-                    if (e.key === "Escape") setEditPrice(false);
-                  }}
-                />
-                <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-xs font-medium">Unité d&apos;achat</p>
-              <Select
-                value={unitInput || "__none__"}
-                onValueChange={(v) => {
-                  const next = v === "__none__" ? "" : v;
-                  setUnitInput(next);
-                  if (qtyInput === "" || qtyInput === "1") {
-                    const suggested = suggestConversionFactor(next, portionUnit);
-                    if (suggested != null) setQtyInput(String(suggested));
-                  }
-                }}
-              >
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— sans unité</SelectItem>
-                  {unitOptions.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {t(u)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <ContenanceLabel portionUnit={portionUnit} t={t} />
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground text-sm">
-                  1 {unitInput !== "" ? unitInput : "unité d'achat"} =
-                </span>
-                <Input
-                  value={qtyInput}
-                  onChange={(e) => setQtyInput(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="1"
-                  className="w-16 tabular-nums"
-                />
-                <PortionUnitSpan portionUnit={portionUnit} t={t} />
-              </div>
-            </div>
-            <div className="flex gap-1 pb-0.5">
-              <Button type="button" size="sm" onClick={handleSavePrice} disabled={updateMutation.isPending}>
-                OK
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setEditPrice(false)}>
-                ✕
-              </Button>
-            </div>
-          </div>
-          <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-            <strong>Règle unique :</strong> la contenance (×) = combien d&apos;unités de <strong>stock</strong> il y a
-            dans <strong>1 unité d&apos;achat</strong> (celle du prix). Le coût est alors{" "}
-            <strong>prix ÷ contenance</strong>.
-            <ul className="mt-1 list-none space-y-1">
-              <li>
-                Barquette à <strong>8,20 €</strong>, stock en <strong>g</strong>, 1 barquette = 250 g →{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">8,20</code> /{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">pièce</code> ×{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">250</code> → <strong>0,0328 €/g</strong>
-              </li>
-              <li>
-                Vrac à <strong>28 €/kg</strong>, stock en <strong>kg</strong> →{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">28</code> /{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">kg</code> ×{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">1</code> → <strong>28 €/kg</strong>
-              </li>
-              <li>
-                Vrac à <strong>28 €/kg</strong>, stock en <strong>g</strong> → contenance{" "}
-                <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">1000</code> (pré-remplie) →{" "}
-                <strong>0,028 €/g</strong>
-              </li>
-            </ul>
-          </div>
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Réf. article · Désignation · Qté min · Délai (j)</p>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                value={refInput}
-                onChange={(e) => setRefInput(e.target.value)}
-                placeholder="TG-12345"
-                className="w-36 font-mono text-xs"
-              />
-              <Input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Désignation fournisseur"
-                className="min-w-[12rem] flex-1 text-xs"
-              />
-              <Input
-                value={oqInput}
-                onChange={(e) => setOqInput(e.target.value)}
-                inputMode="decimal"
-                placeholder="Qté min"
-                className="w-20 text-xs tabular-nums"
-              />
-              <Input
-                value={ltdInput}
-                onChange={(e) => setLtdInput(e.target.value)}
-                inputMode="numeric"
-                placeholder="Délai (j)"
-                className="w-20 text-xs tabular-nums"
-              />
-            </div>
+          <p className="text-muted-foreground text-xs">Réf. article · Désignation</p>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              value={refInput}
+              onChange={(e) => setRefInput(e.target.value)}
+              placeholder="TG-12345"
+              className="w-36 font-mono text-xs"
+              autoFocus
+            />
+            <Input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Désignation fournisseur"
+              className="min-w-[12rem] flex-1 text-xs"
+            />
+            <Button type="button" size="sm" onClick={handleSaveLabels} disabled={updateMutation.isPending}>
+              OK
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setEditLabels(false)}>
+              ✕
+            </Button>
           </div>
         </div>
       )}

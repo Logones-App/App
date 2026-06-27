@@ -140,6 +140,7 @@ export function NewReferenceFields({
   onOrderUnitChange,
   contenanceStr,
   setContenanceStr,
+  contenanceLocked,
   gestionUnit,
   onGestionUnitChange,
   t,
@@ -152,6 +153,8 @@ export function NewReferenceFields({
   onOrderUnitChange: (v: string) => void;
   contenanceStr: string;
   setContenanceStr: (v: string) => void;
+  /** true quand l'unité d'achat et l'unité de gestion sont de même nature (conversion auto). */
+  contenanceLocked: boolean;
   gestionUnit: string;
   onGestionUnitChange: ((v: string) => void) | null;
   t: (u: PortionUnit) => string;
@@ -198,8 +201,11 @@ export function NewReferenceFields({
             onChange={(e) => setContenanceStr(e.target.value)}
             inputMode="decimal"
             placeholder="1"
-            className="tabular-nums"
+            disabled={contenanceLocked}
+            readOnly={contenanceLocked}
+            className={`tabular-nums ${contenanceLocked ? "bg-muted/50" : ""}`}
           />
+          {contenanceLocked && <p className="text-muted-foreground text-[11px]">Conversion automatique</p>}
         </div>
         <div className="space-y-2">
           <Label>Unité de gestion</Label>

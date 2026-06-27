@@ -28,7 +28,7 @@ import {
   useUpdateSupplierReference,
 } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
-import { suggestConversionFactor } from "@/lib/utils/unit-conversion";
+import { convertUnit } from "@/lib/utils/unit-conversion";
 
 import {
   AmountsFields,
@@ -126,12 +126,26 @@ export function ReceptionModal(props: Props) {
   });
   const text = modalText(isPrice, showGestionPicker);
 
+  // Conversion dimensionnelle (kg↔g, l↔ml↔cl, ou même unité) → facteur calculé et verrouillé.
+  // Non dimensionnel (colis/pièce → g) → saisie manuelle.
+  const dimFactor =
+    orderUnit !== "" && effectiveStockUnit !== "" ? convertUnit(1, orderUnit, effectiveStockUnit) : null;
+  const contenanceLocked = dimFactor != null && dimFactor > 0;
+
+  const applyDimensional = (order: string, gestion: string) => {
+    if (order === "" || gestion === "") return;
+    const dim = convertUnit(1, order, gestion);
+    if (dim != null && dim > 0) setContenanceStr(String(dim));
+  };
+
   const onOrderUnitChange = (v: string) => {
     setOrderUnit(v);
-    if (contenanceStr === "" || contenanceStr === "1") {
-      const suggested = suggestConversionFactor(v, effectiveStockUnit || null);
-      if (suggested != null) setContenanceStr(String(suggested));
-    }
+    applyDimensional(v, effectiveStockUnit);
+  };
+
+  const handleGestionChange = (v: string) => {
+    setGestionUnit(v);
+    applyDimensional(orderUnit, v);
   };
 
   const refArgs = () => ({
@@ -275,8 +289,9 @@ export function ReceptionModal(props: Props) {
               onOrderUnitChange={onOrderUnitChange}
               contenanceStr={contenanceStr}
               setContenanceStr={setContenanceStr}
+              contenanceLocked={contenanceLocked}
               gestionUnit={effectiveStockUnit}
-              onGestionUnitChange={showGestionPicker ? setGestionUnit : null}
+              onGestionUnitChange={showGestionPicker ? handleGestionChange : null}
               t={t}
             />
           )}
