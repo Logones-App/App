@@ -54,7 +54,7 @@ function buildSalesMap(
   for (const op of opRaw) {
     if (!op.product_id || op.cancelled) continue;
     const ttc = op.total_price ?? 0;
-    const ht = op.vat_rate ? ttc / (1 + op.vat_rate) : ttc;
+    const ht = op.vat_rate ? ttc / (1 + op.vat_rate / 100) : ttc;
     const e = salesByProduct.get(op.product_id) ?? { qty: 0, ht: 0, ttc: 0 };
     e.qty += op.quantity ?? 0;
     e.ht += ht;

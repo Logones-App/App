@@ -11,7 +11,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function lineHt(op: OrderProduct) {
   const ttc = op.total_price ?? 0;
-  return op.vat_rate ? ttc / (1 + op.vat_rate) : ttc;
+  // vat_rate en POURCENTAGE (10, 20, 5.5), cf. ttcToHt canonique.
+  return op.vat_rate ? ttc / (1 + op.vat_rate / 100) : ttc;
 }
 
 function isSold(op: OrderProduct) {
