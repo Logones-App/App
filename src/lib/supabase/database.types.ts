@@ -6571,6 +6571,30 @@ export type Database = {
           title: string
         }[]
       }
+      nf525_jet_130_saas: {
+        Args: {
+          p_establishment_id: string
+          p_label: string
+          p_organization_id: string
+        }
+        Returns: undefined
+      }
+      nf525_jet_180_saas: {
+        Args: {
+          p_establishment_id: string
+          p_label: string
+          p_organization_id: string
+        }
+        Returns: undefined
+      }
+      nf525_jet_290_saas: {
+        Args: {
+          p_establishment_id: string
+          p_label: string
+          p_organization_id: string
+        }
+        Returns: undefined
+      }
       nf525_jet_410_saas: {
         Args: {
           p_changed_fields: string

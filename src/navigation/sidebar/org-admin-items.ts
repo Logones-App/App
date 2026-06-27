@@ -213,6 +213,7 @@ export const getOrgAdminSidebarItems = (
         { title: "RH & main d'œuvre", url: u("reporting/rh"), icon: BarChart3 },
         { title: "Réservations & fréquentation", url: u("reporting/reservations"), icon: BarChart3 },
         { title: "FIFO & Food cost", url: u("reporting"), icon: BarChart3 },
+        { title: "Export comptable", url: u("reporting/comptabilite"), icon: BarChart3 },
       ],
     },
 

@@ -313,6 +313,147 @@ $$;
 ALTER FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+  v_signing_key TEXT;
+  v_event_id    BIGINT;
+  v_prev_sig    TEXT;
+  v_label       TEXT;
+  v_ts          TEXT;
+  v_chain       TEXT;
+  v_sig_b64     TEXT;
+  v_sig_b64url  TEXT;
+BEGIN
+  SELECT signing_key_base64
+  INTO   v_signing_key
+  FROM   public.nf525_signing_keys
+  WHERE  establishment_id = p_establishment_id
+    AND  valid_to IS NULL
+  LIMIT  1
+  FOR UPDATE;
+
+  IF v_signing_key IS NULL THEN
+    RETURN;  -- pas de chaîne NF525 active → pas de JET
+  END IF;
+
+  SELECT COALESCE(MAX(event_id), 0) + 1
+  INTO   v_event_id
+  FROM   public.nf525_jet
+  WHERE  establishment_id = p_establishment_id;
+
+  SELECT signature_base64url
+  INTO   v_prev_sig
+  FROM   public.nf525_jet
+  WHERE  establishment_id = p_establishment_id
+    AND  device_id IS NULL
+  ORDER  BY event_id DESC
+  LIMIT  1;
+
+  v_label := 'Modification droits employé : ' || p_label;
+
+  v_ts := to_char(NOW() AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISS');
+
+  -- Chaîne R19 §6.3 : eventId,130,label,timestamp,operator,caisse,hasPrev,prevSig
+  v_chain := v_event_id::TEXT
+    || ',130'
+    || ',' || v_label
+    || ',' || v_ts
+    || ', '
+    || ', '
+    || ',' || CASE WHEN v_prev_sig IS NOT NULL THEN '1' ELSE '0' END
+    || ',' || COALESCE(v_prev_sig, ' ');
+
+  v_sig_b64    := encode(hmac(v_chain::bytea, decode(v_signing_key, 'base64'), 'sha256'), 'base64');
+  v_sig_b64url := replace(replace(replace(v_sig_b64, '+', '-'), '/', '_'), '=', '');
+
+  INSERT INTO public.nf525_jet (
+    id, establishment_id, organization_id, event_id, code_event,
+    label, event_at, operator_code, device_id, report_previous_signature,
+    previous_signature_base64url, signature_base64url, hash_chain_input,
+    purgeable, created_at
+  ) VALUES (
+    gen_random_uuid(), p_establishment_id, p_organization_id, v_event_id, 130,
+    v_label, NOW(), NULL, NULL, NULL,
+    v_prev_sig, v_sig_b64url, v_chain, TRUE, NOW()   -- purgeable = TRUE (R19 130 = O, Journal Technique)
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."nf525_jet_180_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+  v_signing_key TEXT; v_event_id BIGINT; v_prev_sig TEXT;
+  v_label TEXT; v_ts TEXT; v_chain TEXT; v_sig_b64 TEXT; v_sig_b64url TEXT;
+BEGIN
+  SELECT signing_key_base64 INTO v_signing_key FROM public.nf525_signing_keys
+    WHERE establishment_id = p_establishment_id AND valid_to IS NULL LIMIT 1 FOR UPDATE;
+  IF v_signing_key IS NULL THEN RETURN; END IF;
+  SELECT COALESCE(MAX(event_id),0)+1 INTO v_event_id FROM public.nf525_jet
+    WHERE establishment_id = p_establishment_id;
+  SELECT signature_base64url INTO v_prev_sig FROM public.nf525_jet
+    WHERE establishment_id = p_establishment_id AND device_id IS NULL
+    ORDER BY event_id DESC LIMIT 1;
+  v_label := 'Génération export écritures comptables : ' || p_label;
+  v_ts := to_char(NOW() AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISS');
+  v_chain := v_event_id::TEXT || ',180' || ',' || v_label || ',' || v_ts || ', ' || ', '
+    || ',' || CASE WHEN v_prev_sig IS NOT NULL THEN '1' ELSE '0' END
+    || ',' || COALESCE(v_prev_sig,' ');
+  v_sig_b64    := encode(hmac(v_chain::bytea, decode(v_signing_key,'base64'),'sha256'),'base64');
+  v_sig_b64url := replace(replace(replace(v_sig_b64,'+','-'),'/','_'),'=','');
+  INSERT INTO public.nf525_jet (id, establishment_id, organization_id, event_id, code_event,
+    label, event_at, operator_code, device_id, report_previous_signature,
+    previous_signature_base64url, signature_base64url, hash_chain_input, purgeable, created_at)
+  VALUES (gen_random_uuid(), p_establishment_id, p_organization_id, v_event_id, 180,
+    v_label, NOW(), NULL, NULL, NULL, v_prev_sig, v_sig_b64url, v_chain, TRUE, NOW());
+END; $$;
+
+
+ALTER FUNCTION "public"."nf525_jet_180_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."nf525_jet_290_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+  v_signing_key TEXT; v_event_id BIGINT; v_prev_sig TEXT;
+  v_label TEXT; v_ts TEXT; v_chain TEXT; v_sig_b64 TEXT; v_sig_b64url TEXT;
+BEGIN
+  SELECT signing_key_base64 INTO v_signing_key FROM public.nf525_signing_keys
+    WHERE establishment_id = p_establishment_id AND valid_to IS NULL LIMIT 1 FOR UPDATE;
+  IF v_signing_key IS NULL THEN RETURN; END IF;
+  SELECT COALESCE(MAX(event_id),0)+1 INTO v_event_id FROM public.nf525_jet
+    WHERE establishment_id = p_establishment_id;
+  SELECT signature_base64url INTO v_prev_sig FROM public.nf525_jet
+    WHERE establishment_id = p_establishment_id AND device_id IS NULL
+    ORDER BY event_id DESC LIMIT 1;
+  v_label := 'Échange expert-comptable (export/Z) : ' || p_label;
+  v_ts := to_char(NOW() AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISS');
+  v_chain := v_event_id::TEXT || ',290' || ',' || v_label || ',' || v_ts || ', ' || ', '
+    || ',' || CASE WHEN v_prev_sig IS NOT NULL THEN '1' ELSE '0' END
+    || ',' || COALESCE(v_prev_sig,' ');
+  v_sig_b64    := encode(hmac(v_chain::bytea, decode(v_signing_key,'base64'),'sha256'),'base64');
+  v_sig_b64url := replace(replace(replace(v_sig_b64,'+','-'),'/','_'),'=','');
+  INSERT INTO public.nf525_jet (id, establishment_id, organization_id, event_id, code_event,
+    label, event_at, operator_code, device_id, report_previous_signature,
+    previous_signature_base64url, signature_base64url, hash_chain_input, purgeable, created_at)
+  VALUES (gen_random_uuid(), p_establishment_id, p_organization_id, v_event_id, 290,
+    v_label, NOW(), NULL, NULL, NULL, v_prev_sig, v_sig_b64url, v_chain, TRUE, NOW());
+END; $$;
+
+
+ALTER FUNCTION "public"."nf525_jet_290_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."nf525_jet_410_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_changed_fields" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
@@ -9222,6 +9363,24 @@ GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."nf525_jet_180_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."nf525_jet_180_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."nf525_jet_180_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."nf525_jet_290_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."nf525_jet_290_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."nf525_jet_290_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") TO "service_role";
 
 
 

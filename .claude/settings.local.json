@@ -4,7 +4,12 @@
       "Read(//tmp/**)",
       "Read(//c/Users/Administrateur/Documents/www/APP-13.07.25/next-shadcn-admin-dashboard-main/**)",
       "PowerShell(npx tsc --noEmit)",
-      "PowerShell(npx next lint)"
+      "PowerShell(npx next lint)",
+      "PowerShell(npx eslint --fix \"src/lib/queries/accounting-export-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/page.tsx\" \"src/app/api/establishments/[id]/accounting-export/send/route.ts\" \"src/lib/permissions/nf525-jet.ts\")",
+      "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/page.tsx\" \"src/app/api/establishments/[id]/accounting-export/send/route.ts\" \"src/lib/permissions/nf525-jet.ts\")",
+      "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\" \"src/lib/queries/sales-reporting-queries.ts\" \"src/lib/queries/margin-reporting-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\")",
+      "PowerShell(npx eslint \"src/app/api/establishments/[id]/accounting-export/send/route.ts\")",
+      "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\")"
     ]
   }
 }
