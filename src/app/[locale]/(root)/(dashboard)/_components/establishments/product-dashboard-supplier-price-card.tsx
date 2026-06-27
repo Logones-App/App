@@ -27,7 +27,13 @@ export type ProductSupplierWithName = SupplierReferenceRow & {
   supplier: { id: string; name: string; is_active: boolean } | null;
 };
 
-type HistoryRow = { id: string; unit_cost: number; effective_from: string; supplier_id: string | null };
+type HistoryRow = {
+  id: string;
+  unit_cost: number;
+  effective_from: string;
+  supplier_id: string | null;
+  supplier_reference_id: string | null;
+};
 
 const HISTORY_PAGE = 5;
 
@@ -231,7 +237,7 @@ export function SupplierPriceCard({
   const deleteMutation = useDeleteSupplierReference(productId);
   const addHistoryMutation = useAddPurchasePrice(productId, organizationId);
 
-  const supplierHistory = history.filter((h) => h.supplier_id === link.supplier_id);
+  const supplierHistory = history.filter((h) => h.supplier_reference_id === link.id);
   const unitOptions = PORTION_UNITS;
 
   const handleSavePrice = () => {
@@ -317,7 +323,7 @@ export function SupplierPriceCard({
             size="icon"
             className="text-destructive hover:text-destructive h-8 w-8"
             onClick={() => {
-              if (confirm("Supprimer ce fournisseur du produit ?")) deleteMutation.mutate(link.id);
+              if (confirm("Supprimer cette référence fournisseur ?")) deleteMutation.mutate(link.id);
             }}
             disabled={deleteMutation.isPending}
           >
