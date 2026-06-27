@@ -71,9 +71,14 @@ function buildValidTabs(flags: TabFlags): string[] {
   ];
 }
 
-function resolveSelfStock(rows: CompositionStockRow[], portionUnit: string | null) {
+function resolveSelfStock(rows: CompositionStockRow[]) {
   const lineStock = rows.find((r) => r.isSelfComposition)?.lineStock ?? null;
-  return { lineStock, stockUnit: lineStock?.unit ?? portionUnit };
+  return {
+    hasStock: lineStock != null,
+    stockId: lineStock?.id ?? null,
+    lineUnit: lineStock?.unit ?? null,
+    lineCurrentStock: lineStock?.current_stock ?? 0,
+  };
 }
 
 const LS_KEY = "product-dashboard-active-tab";
@@ -88,11 +93,11 @@ export function ProductEstablishmentDashboardTabs({
   menuProductPricing,
 }: TabsProps) {
   const flags = computeTabFlags(product, compositionStockRows);
-  const { isForSale, hasFicheTechnique, hasAchatsTab, isPureIngredient, portionUnit, persoStockRows } = flags;
+  const { isForSale, hasFicheTechnique, hasAchatsTab, isPureIngredient, persoStockRows } = flags;
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;
 
-  const { lineStock } = resolveSelfStock(compositionStockRows, portionUnit);
+  const { hasStock, stockId, lineUnit, lineCurrentStock } = resolveSelfStock(compositionStockRows);
 
   const [activeTab, setActiveTab] = useState("propriete");
 
@@ -133,7 +138,7 @@ export function ProductEstablishmentDashboardTabs({
           organizationId={organizationId}
           establishmentId={establishmentId}
           backHref={backHref}
-          stockUnit={lineStock?.unit ?? null}
+          stockUnit={lineUnit}
         />
       </TabsContent>
 
@@ -173,6 +178,9 @@ export function ProductEstablishmentDashboardTabs({
             establishmentId={establishmentId}
             organizationId={organizationId}
             menuProductPricing={menuProductPricing}
+            productStockId={stockId}
+            stockUnit={lineUnit}
+            currentStock={lineCurrentStock}
           />
         </TabsContent>
       )}
@@ -180,19 +188,19 @@ export function ProductEstablishmentDashboardTabs({
       {hasAchatsTab && (
         <TabsContent value="achats">
           <div className="space-y-6">
-            <AchatsGuidance productId={product.id} hasStock={lineStock != null} />
+            <AchatsGuidance productId={product.id} hasStock={hasStock} />
             <PurchaseReceptionCard
               productId={product.id}
               organizationId={organizationId}
               establishmentId={establishmentId}
-              productStockId={lineStock?.id ?? null}
-              unit={lineStock?.unit ?? null}
-              currentStock={lineStock?.current_stock ?? 0}
+              productStockId={stockId}
+              unit={lineUnit}
+              currentStock={lineCurrentStock}
             />
             <ProductFournisseursPrixPanel
               productId={product.id}
               organizationId={organizationId}
-              portionUnit={lineStock?.unit ?? null}
+              portionUnit={lineUnit}
               establishmentId={establishmentId}
               manageStock
               title="Paramètres fournisseurs"

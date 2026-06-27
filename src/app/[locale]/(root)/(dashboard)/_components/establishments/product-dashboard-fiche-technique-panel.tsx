@@ -28,6 +28,7 @@ import { CompositionAddModal } from "./composition-add-modal";
 import { CompositionEditModal } from "./composition-edit-modal";
 import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
+import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
@@ -120,12 +121,19 @@ export function ProductFicheTechniquePanel({
   establishmentId,
   organizationId,
   menuProductPricing = [],
+  productStockId = null,
+  stockUnit = null,
+  currentStock = 0,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
   establishmentId: string;
   organizationId: string;
   menuProductPricing?: MenuProductPricingJoin[];
+  /** Stock self-composition du produit (pour la réception « achat direct » d'une recette achetée prête). */
+  productStockId?: string | null;
+  stockUnit?: string | null;
+  currentStock?: number;
 }) {
   const t = useTranslations("units");
   const types = (product.product_type as string[] | null) ?? [];
@@ -259,13 +267,25 @@ export function ProductFicheTechniquePanel({
   return (
     <div className="space-y-6">
       {showAchatDirect && (
-        <ProductFournisseursPrixPanel
-          productId={product.id}
-          organizationId={organizationId}
-          portionUnit={product.portion_unit ?? null}
-          title="Achat direct"
-          description="Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
-        />
+        <div className="space-y-6">
+          <PurchaseReceptionCard
+            productId={product.id}
+            organizationId={organizationId}
+            establishmentId={establishmentId}
+            productStockId={productStockId}
+            unit={stockUnit}
+            currentStock={currentStock}
+          />
+          <ProductFournisseursPrixPanel
+            productId={product.id}
+            organizationId={organizationId}
+            portionUnit={stockUnit}
+            establishmentId={establishmentId}
+            manageStock
+            title="Achat direct"
+            description="Réceptionnez et fixez les prix si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
+          />
+        </div>
       )}
 
       {showBom && (
