@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx tsc *)",
+      "PowerShell(npx eslint *)",
+      "PowerShell(npx next lint *)",
+      "PowerShell(npx prettier *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx next lint *)",
+      "Bash(npx prettier *)"
+    ],
+    "deny": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rm *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git clean *)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git rm *)",
+      "PowerShell(git reset *)",
+      "PowerShell(git rebase *)",
+      "PowerShell(git restore *)",
+      "PowerShell(git checkout *)",
+      "PowerShell(git stash *)",
+      "PowerShell(git cherry-pick *)",
+      "PowerShell(git clean *)"
+    ]
+  }
+}
