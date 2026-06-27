@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { isCertifyingPermission, presetForRole } from "@/lib/permissions/employee-permissions";
+import { writeJet130 } from "@/lib/permissions/nf525-jet";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -63,6 +65,37 @@ function invalidateEmployees(
   }
 }
 
+// Seed des droits par défaut selon le rôle (modèle default-DENY : sans ligne, l'employé
+// serait verrouillé). Best-effort : un échec ici ne doit pas annuler la création.
+async function seedRolePermissions(supabase: ReturnType<typeof createClient>, employee: Employee) {
+  const keys = presetForRole(employee.role);
+  if (keys.length === 0 || !employee.establishment_id || !employee.organization_id) return;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const rows = keys.map((permission) => ({
+    employee_id: employee.id,
+    establishment_id: employee.establishment_id,
+    organization_id: employee.organization_id,
+    permission,
+    granted_by: user?.id ?? null,
+  }));
+  const { error } = await supabase.from("employee_permissions").insert(rows);
+  if (error) throw new Error(error.message);
+  // JET 130 : octroi des droits initiaux certifiants (best-effort, ne bloque pas la création).
+  const certifying = keys.filter(isCertifyingPermission);
+  if (certifying.length === 0) return;
+  const actor = user?.email ?? user?.id ?? "système";
+  const label = `${employee.lastname} ${employee.firstname} : droits initiaux preset ${employee.role} [${certifying
+    .map((k) => `+${k}`)
+    .join(", ")}] (par ${actor})`;
+  await writeJet130(supabase, {
+    establishmentId: employee.establishment_id,
+    organizationId: employee.organization_id,
+    label,
+  });
+}
+
 export function useCreateEmployee(organizationId: string, establishmentId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -70,7 +103,9 @@ export function useCreateEmployee(organizationId: string, establishmentId?: stri
       const supabase = createClient();
       const { data, error } = await supabase.from("employees").insert(payload).select("*").single();
       if (error) throw error;
-      return data as Employee;
+      const employee = data as Employee;
+      await seedRolePermissions(supabase, employee);
+      return employee;
     },
     onSuccess: () => invalidateEmployees(queryClient, organizationId, establishmentId),
   });

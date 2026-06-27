@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ROLE_LABELS, ROLES } from "@/lib/permissions/employee-permissions";
 import type { Employee, EmployeeInsert, EmployeeUpdate } from "@/lib/queries/employees-queries";
 
 const CONTRACTS = ["cdi", "cdd", "interim", "apprentissage", "stagiaire", "other"] as const;
@@ -22,12 +23,6 @@ const CONTRACT_LABELS: Record<string, string> = {
   apprentissage: "Apprentissage",
   stagiaire: "Stage",
   other: "Autre",
-};
-// Aligné sur la contrainte CHECK employees.role (server | chef | manager | admin).
-const ROLES = ["server", "manager"] as const;
-const ROLE_LABELS: Record<string, string> = {
-  server: "Serveur",
-  manager: "Manager",
 };
 const GENDERS = [
   { value: "M", label: "Homme" },

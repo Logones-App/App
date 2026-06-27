@@ -68,10 +68,11 @@ export function EmployeeAccessPanel({ employee, establishmentId, organizationId 
   const presetKeys = presetForRole(employee.role);
   const roleLabel =
     employee.role && employee.role in ROLE_LABELS ? ROLE_LABELS[employee.role as "server" | "manager"] : null;
+  const employeeLabel = `${employee.lastname} ${employee.firstname}`;
 
   const handleToggle = (key: string, grant: boolean) => {
     togglePermission.mutate(
-      { employeeId: employee.id, permission: key, grant },
+      { employeeId: employee.id, permission: key, grant, employeeLabel },
       { onError: () => toast.error("Erreur lors de la mise à jour du droit") },
     );
   };
@@ -80,7 +81,7 @@ export function EmployeeAccessPanel({ employee, establishmentId, organizationId 
     if (!confirm(`Appliquer le preset « ${roleLabel} » ? Les droits actuels seront remplacés par ceux du rôle.`))
       return;
     setPermissions.mutate(
-      { employeeId: employee.id, keys: presetKeys },
+      { employeeId: employee.id, keys: presetKeys, employeeLabel },
       {
         onSuccess: () => toast.success("Preset appliqué"),
         onError: () => toast.error("Erreur lors de l'application du preset"),

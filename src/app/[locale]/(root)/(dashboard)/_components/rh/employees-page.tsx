@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { roleLabel } from "@/lib/permissions/employee-permissions";
 import {
   type Employee,
   type EmployeeInsert,
@@ -31,13 +32,6 @@ const CONTRACT_LABELS: Record<string, string> = {
   apprentissage: "Apprentissage",
   stagiaire: "Stage",
   other: "Autre",
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  cashier: "Caissier",
-  manager: "Manager",
-  supervisor: "Superviseur",
-  hr_manager: "Resp. RH",
 };
 
 export function EmployeesPage({
@@ -185,7 +179,7 @@ export function EmployeesPage({
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       {emp.has_mobile_access && <Smartphone className="text-primary h-3.5 w-3.5" />}
-                      <span className="text-sm">{emp.role ? (ROLE_LABELS[emp.role] ?? emp.role) : "—"}</span>
+                      <span className="text-sm">{roleLabel(emp.role) ?? "—"}</span>
                     </div>
                   </TableCell>
                   <TableCell>
