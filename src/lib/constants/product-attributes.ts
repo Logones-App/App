@@ -125,19 +125,19 @@ export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string;
     key: "recipe",
     label: "Recette",
     emoji: "🍽️",
-    description: "Produit vendu au client, composé d'ingrédients (plat, dessert cuisiné…)",
+    description: "Cuisiné à partir d'ingrédients, vendu au client (ex : burger, salade, cocktail).",
   },
   {
     key: "purchased",
     label: "Achat direct",
     emoji: "🛒",
-    description: "Produit acheté et revendu tel quel, sans transformation (boissons, articles packagés…)",
+    description: "Acheté et revendu tel quel, sans transformation (ex : canette de Coca, bouteille d'eau).",
   },
   {
     key: "ingredient",
     label: "Ingrédient",
     emoji: "🧄",
-    description: "Matière première achetée fournisseur, utilisée dans les recettes, jamais vendue seule",
+    description: "Matière première ou préparation consommée dans les recettes (ex : farine, huile, sauce maison).",
   },
 ];
 

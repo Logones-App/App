@@ -160,7 +160,8 @@
       "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-supplier-price-card.tsx\" 2>&1)",
       "PowerShell(npx eslint \"src/lib/queries/purchase-price-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-supplier-price-card.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\" 2>&1)",
       "PowerShell(npx eslint --fix \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-supplier-price-card.tsx\" 2>&1)",
-      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\" 2>&1)"
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\" 2>&1)",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-establishment-dashboard-panels.tsx\" \"src/lib/constants/product-attributes.ts\" \"src/components/ui/product-attribute-pickers.tsx\" 2>&1)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

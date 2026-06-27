@@ -48,8 +48,10 @@ function computeTabFlags(product: ProductWithCategoryName, compositionStockRows:
     isForSale,
     // Recette : recettes (BOM) et ingrédients composés. Un produit acheté pur n'a rien à composer.
     hasFicheTechnique: isRecipe || isIngredient,
-    // Achats (réception + fournisseurs) : tout ce qu'on achète — ingrédient OU produit acheté-revendu.
-    hasAchatsTab: isIngredient || isPurchased,
+    // Achats (réception + fournisseurs) : ce qu'on ACHÈTE réellement.
+    // Ingrédient brut OU produit acheté-revendu. Une préparation maison (ingrédient + recette)
+    // se produit (pas de réception) sauf si elle est aussi achetée prête.
+    hasAchatsTab: (isIngredient && !isRecipe) || isPurchased,
     // Onglet Stock : seul un ingrédient pur utilise la fiche stock directe (les autres ont le sélecteur de mode).
     isPureIngredient: isIngredient && !isForSale,
     portionUnit: product.portion_unit ?? null,

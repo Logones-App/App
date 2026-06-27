@@ -109,28 +109,51 @@ export function ProductTypePicker({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {PRODUCT_TYPES.map((t) => {
-        const active = value.includes(t.key);
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => toggle(t.key)}
-            className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
-              active
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
-            }`}
-          >
-            <span className="text-base">{t.emoji}</span>
-            <span className="mt-0.5 font-medium">{t.label}</span>
-            <span className={`mt-0.5 text-xs leading-tight ${active ? "text-primary/80" : "text-muted-foreground"}`}>
-              {t.description}
-            </span>
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {PRODUCT_TYPES.map((t) => {
+          const active = value.includes(t.key);
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => toggle(t.key)}
+              className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left text-sm transition-colors focus:ring-ring focus:ring-2 focus:outline-none ${
+                active
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              }`}
+            >
+              <span className="text-base">{t.emoji}</span>
+              <span className="mt-0.5 font-medium">{t.label}</span>
+              <span className={`mt-0.5 text-xs leading-tight ${active ? "text-primary/80" : "text-muted-foreground"}`}>
+                {t.description}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="bg-muted/40 text-muted-foreground rounded-md p-2.5 text-xs leading-relaxed">
+        <strong className="text-foreground">Plusieurs types possibles</strong> quand un produit cumule les rôles :
+        <ul className="mt-1 list-none space-y-0.5">
+          <li>
+            🧄 + 🍽️ <strong>Ingrédient + Recette</strong> = préparation maison (ex : sauce tomate cuisinée puis
+            utilisée dans plusieurs plats).
+          </li>
+          <li>
+            🧄 + 🛒 <strong>Ingrédient + Achat direct</strong> = utilisé en cuisine ET vendu tel quel (ex : bouteille
+            d&apos;huile, Coca versé en cocktail ou vendu en canette).
+          </li>
+          <li>
+            🍽️ + 🛒 <strong>Recette + Achat direct</strong> = cuisiné maison certains jours, acheté prêt d&apos;autres
+            (ex : pain, dessert).
+          </li>
+        </ul>
+        <p className="mt-1">
+          Astuce : si tu vends le <em>même stock</em> sous plusieurs formes (vin à la bouteille <em>et</em> au verre),
+          crée plutôt un <strong>ingrédient</strong> (le vin) + des <strong>recettes</strong> (bouteille, verre).
+        </p>
+      </div>
     </div>
   );
 }
