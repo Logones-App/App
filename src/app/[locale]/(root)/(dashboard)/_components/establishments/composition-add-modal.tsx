@@ -162,7 +162,6 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
             organization_id: organizationId,
             unit_price: validated.unitCost,
             order_unit: newPriceUnit,
-            is_preferred: true,
             deleted: false,
           })
           .select("id")

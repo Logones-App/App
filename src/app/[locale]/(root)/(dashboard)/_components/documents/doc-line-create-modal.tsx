@@ -189,7 +189,6 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
           unit_price: safeUnitPrice,
           order_unit: unit.trim() || null,
           conversion_factor: safeUnitsPerPkg ?? undefined,
-          is_preferred: false,
           deleted: false,
         })
         .select("id")

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
-import { ArrowLeft, Mail, MapPin, Phone, Star } from "lucide-react";
+import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,6 @@ export function SupplierDetailClient() {
   const { data: products = [], isLoading: productsLoading } = useSupplierProducts(supplierId);
 
   const backHref = pathname.replace(/\/[^/]+\/?$/, "");
-  const preferred = products.filter((p) => p.is_preferred);
-  const others = products.filter((p) => !p.is_preferred);
 
   if (supplierLoading) {
     return (
@@ -120,10 +118,7 @@ export function SupplierDetailClient() {
             Produits approvisionnés
             <span className="text-muted-foreground ml-2 text-sm font-normal">({products.length})</span>
           </CardTitle>
-          <CardDescription>
-            Tous les produits du catalogue liés à ce fournisseur. L&apos;étoile ★ indique les produits pour lesquels ce
-            fournisseur est le préféré.
-          </CardDescription>
+          <CardDescription>Toutes les références de ce fournisseur dans le catalogue.</CardDescription>
         </CardHeader>
         <CardContent>
           {productsLoading ? (
@@ -147,64 +142,28 @@ export function SupplierDetailClient() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preferred.length > 0 && others.length > 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-muted-foreground bg-yellow-50/50 py-1.5 text-xs font-medium dark:bg-yellow-950/20"
-                      >
-                        <Star className="mr-1 inline h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        Fournisseur préféré pour ces produits
+                  {products.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <span className="font-medium">{row.product?.name ?? "—"}</span>
+                        {row.product?.description && (
+                          <p className="text-muted-foreground max-w-[220px] truncate text-xs">
+                            {row.product.description}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{row.supplier_product_ref ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {row.supplier_product_name ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {row.order_unit ? `${row.min_order_qty ?? 1} ${row.order_unit}` : (row.min_order_qty ?? "—")}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {row.lead_time_days != null ? `${row.lead_time_days} j` : "—"}
                       </TableCell>
                     </TableRow>
-                  )}
-                  {[...preferred, ...(preferred.length > 0 && others.length > 0 ? [null] : []), ...others].map(
-                    (row) => {
-                      if (row === null) {
-                        return (
-                          <TableRow key="separator">
-                            <TableCell
-                              colSpan={5}
-                              className="text-muted-foreground bg-muted/30 py-1.5 text-xs font-medium"
-                            >
-                              Autres produits
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }
-                      return (
-                        <TableRow key={row.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {row.is_preferred && (
-                                <Star className="h-3.5 w-3.5 shrink-0 fill-yellow-400 text-yellow-400" />
-                              )}
-                              <span className="font-medium">{row.product?.name ?? "—"}</span>
-                            </div>
-                            {row.product?.description && (
-                              <p className="text-muted-foreground max-w-[220px] truncate text-xs">
-                                {row.product.description}
-                              </p>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {row.supplier_product_ref ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {row.supplier_product_name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {row.order_unit
-                              ? `${row.min_order_qty ?? 1} ${row.order_unit}`
-                              : (row.min_order_qty ?? "—")}
-                          </TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">
-                            {row.lead_time_days != null ? `${row.lead_time_days} j` : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    },
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </div>

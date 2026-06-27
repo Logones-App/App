@@ -128,7 +128,6 @@ export function useSupplierReferences(productId: string) {
         .select("*, supplier:suppliers(id, name, is_active)")
         .eq("product_id", productId)
         .eq("deleted", false)
-        .order("is_preferred", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as (SupplierReferenceRow & {
@@ -254,7 +253,6 @@ export function useSupplierProducts(supplierId: string) {
         .select("*, product:products(id, name, description, category_id)")
         .eq("supplier_id", supplierId)
         .eq("deleted", false)
-        .order("is_preferred", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as SupplierProductRow[];

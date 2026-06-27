@@ -151,7 +151,8 @@
       "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal.tsx\" 2>&1)",
       "PowerShell(npx eslint --fix \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal.tsx\" 2>&1)",
       "PowerShell(npx eslint \"src/lib/queries/stock-movement-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-history.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-form.tsx\" 2>&1)",
-      "PowerShell(npx eslint \"src/lib/queries/stock-movement-queries.ts\" \"src/lib/queries/reception-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-history.tsx\" 2>&1)"
+      "PowerShell(npx eslint \"src/lib/queries/stock-movement-queries.ts\" \"src/lib/queries/reception-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-history.tsx\" 2>&1)",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/suppliers/supplier-detail-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/catalog-achats/catalog-achats-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/composition-add-modal.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/documents/doc-line-create-modal.tsx\" \"src/lib/queries/supplier-queries.ts\" 2>&1)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\admin\\organizations\\[id]\\establishments\\[establishmentId]",

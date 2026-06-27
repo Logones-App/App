@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Star, X } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -83,10 +83,7 @@ function RowEdit({
     <TableRow className="bg-muted/30">
       <TableCell className="font-medium">{row.product?.name ?? "—"}</TableCell>
       <TableCell>
-        <div className="flex items-center gap-1.5">
-          {row.is_preferred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
-          <span className="text-sm">{row.supplier?.name ?? "—"}</span>
-        </div>
+        <span className="text-sm">{row.supplier?.name ?? "—"}</span>
       </TableCell>
       <TableCell>
         <Input
@@ -130,7 +127,6 @@ function RowView({ row, onEdit }: { row: CatalogReferenceRow; onEdit: () => void
       <TableCell className="font-medium">{row.product?.name ?? "—"}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5">
-          {row.is_preferred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
           <span className="text-sm">{row.supplier?.name ?? "—"}</span>
           {row.supplier && !row.supplier.is_active && (
             <Badge variant="secondary" className="text-xs">
