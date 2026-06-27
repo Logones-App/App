@@ -25,7 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
-import { useRestoreProduct } from "@/lib/queries/product-archive";
+import { useProductTypeGuard, useRestoreProduct, type ProductTypeGuard } from "@/lib/queries/product-archive";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type ProductWithCategoryName,
@@ -55,6 +55,44 @@ function toFormDefaults(product: ProductWithCategoryName): ProductProprieteDraft
     printer_id: product.printer_id ?? "__none__",
     vat_rate_id: product.vat_rate_id ?? "",
   };
+}
+
+// Contrôle d'un changement de type : bloque les retraits dangereux, avertit pour Recette+BOM.
+function validateTypeChange(
+  oldTypes: string[],
+  newTypes: string[],
+  guard: ProductTypeGuard | undefined,
+): { block: string } | { warn: string } | null {
+  if (newTypes.length === 0) return { block: "Sélectionnez au moins un type de produit." };
+  const removed = oldTypes.filter((t) => !newTypes.includes(t));
+  if (removed.length === 0) return null; // ajouts seulement → libre
+  if (!guard) return { block: "Vérification en cours, réessayez dans un instant." };
+
+  if (removed.includes("ingredient")) {
+    if (guard.componentRecipes.length > 0) {
+      const list = guard.componentRecipes.slice(0, 5).join(", ");
+      const more = guard.componentRecipes.length > 5 ? "…" : "";
+      return { block: `Impossible de retirer « Ingrédient » : utilisé dans ${list}${more}.` };
+    }
+    if (guard.hasActiveStock) {
+      return {
+        block: "Impossible de retirer « Ingrédient » : des lots de stock sont actifs. Soldez le stock d'abord.",
+      };
+    }
+  }
+
+  const wasForSale = oldTypes.includes("recipe") || oldTypes.includes("purchased");
+  const nowForSale = newTypes.includes("recipe") || newTypes.includes("purchased");
+  if (wasForSale && !nowForSale && guard.onMenuOrFormula) {
+    return { block: "Impossible : ce produit est présent sur des menus ou des formules. Retirez-le d'abord." };
+  }
+
+  if (removed.includes("recipe") && guard.hasBom) {
+    return {
+      warn: "Cette recette a une fiche technique (BOM). En retirant « Recette », le BOM sera conservé mais inactif. Continuer ?",
+    };
+  }
+  return null;
 }
 
 export function ProductProprieteForm({
@@ -172,6 +210,19 @@ export function ProductProprieteForm({
   const restoreMutation = useRestoreProduct(organizationId, () => {
     invalidate();
   });
+
+  const { data: typeGuard } = useProductTypeGuard(productId, organizationId);
+
+  const handleSaveCharacteristics = () => {
+    const oldTypes = (product.product_type as string[] | null) ?? [];
+    const result = validateTypeChange(oldTypes, productTypes, typeGuard);
+    if (result && "block" in result) {
+      toast.error(result.block);
+      return;
+    }
+    if (result && "warn" in result && !confirm(result.warn)) return;
+    updateCharacteristicsMutation.mutate();
+  };
 
   const orphanPrinter = product.printer_id && !printers.some((p) => p.id === product.printer_id);
   const orphanVat = product.vat_rate_id && !vatRates.some((v) => v.id === product.vat_rate_id);
@@ -449,11 +500,7 @@ export function ProductProprieteForm({
             )}
           </div>
 
-          <Button
-            type="button"
-            onClick={() => updateCharacteristicsMutation.mutate()}
-            disabled={updateCharacteristicsMutation.isPending}
-          >
+          <Button type="button" onClick={handleSaveCharacteristics} disabled={updateCharacteristicsMutation.isPending}>
             {updateCharacteristicsMutation.isPending ? "Enregistrement…" : "Enregistrer les caractéristiques"}
           </Button>
         </CardContent>

@@ -157,6 +157,73 @@ export function useArchivePrecheck(productId: string, organizationId: string, en
   });
 }
 
+// ─── Garde au changement de type de produit ───────────────────────────────────
+
+export type ProductTypeGuard = {
+  componentRecipes: string[]; // recettes qui utilisent ce produit comme ingrédient
+  onMenuOrFormula: boolean; // présent sur un menu ou un slot de formule
+  hasBom: boolean; // possède une fiche technique (compositions de type recipe)
+  hasActiveStock: boolean; // lots FIFO actifs (remaining_quantity > 0)
+};
+
+export function useProductTypeGuard(productId: string, organizationId: string) {
+  return useQuery({
+    queryKey: ["product-type-guard", productId, organizationId],
+    staleTime: 0,
+    enabled: !!productId && !!organizationId,
+    queryFn: async (): Promise<ProductTypeGuard> => {
+      const supabase = createClient();
+
+      const compsP = supabase
+        .from("product_compositions")
+        .select("main_product_id, recipe:products!product_compositions_main_product_id_fkey(name, deleted)")
+        .eq("component_product_id", productId)
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      const menusP = supabase
+        .from("menus_products")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", productId)
+        .eq("deleted", false);
+      const formulaP = supabase
+        .from("formula_products")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", productId)
+        .eq("deleted", false);
+      const bomP = supabase
+        .from("product_compositions")
+        .select("id", { count: "exact", head: true })
+        .eq("main_product_id", productId)
+        .eq("composition_kind", "recipe")
+        .neq("component_product_id", productId)
+        .eq("deleted", false);
+      const lotsP = supabase
+        .from("stock_movements")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", productId)
+        .eq("movement_type", "purchase")
+        .gt("remaining_quantity", 0)
+        .eq("deleted", false);
+
+      const [{ data: comps }, { count: menuCount }, { count: formulaCount }, { count: bomCount }, { count: lotCount }] =
+        await Promise.all([compsP, menusP, formulaP, bomP, lotsP]);
+
+      type CompRow = { main_product_id: string; recipe: { name: string; deleted: boolean | null } | null };
+      const names = new Set<string>();
+      for (const c of (comps ?? []) as unknown as CompRow[]) {
+        if (c.main_product_id !== productId && c.recipe && c.recipe.deleted === false) names.add(c.recipe.name);
+      }
+
+      return {
+        componentRecipes: [...names],
+        onMenuOrFormula: (menuCount ?? 0) + (formulaCount ?? 0) > 0,
+        hasBom: (bomCount ?? 0) > 0,
+        hasActiveStock: (lotCount ?? 0) > 0,
+      };
+    },
+  });
+}
+
 // ─── Produits disponibles pour remplacement ───────────────────────────────────
 
 export function useReplacementProducts(organizationId: string, excludeProductId: string, enabled: boolean) {
