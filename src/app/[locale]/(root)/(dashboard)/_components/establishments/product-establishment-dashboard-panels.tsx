@@ -85,8 +85,7 @@ export function ProductEstablishmentDashboardTabs({
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;
 
-  // Source de vérité unique de l'unité : product_stocks.unit si un stock existe, sinon portion_unit.
-  const { lineStock, stockUnit } = resolveSelfStock(compositionStockRows, portionUnit);
+  const { lineStock } = resolveSelfStock(compositionStockRows, portionUnit);
 
   const [activeTab, setActiveTab] = useState("propriete");
 
@@ -186,7 +185,9 @@ export function ProductEstablishmentDashboardTabs({
             <ProductFournisseursPrixPanel
               productId={product.id}
               organizationId={organizationId}
-              portionUnit={stockUnit}
+              portionUnit={lineStock?.unit ?? null}
+              establishmentId={establishmentId}
+              manageStock
               title="Paramètres fournisseurs"
               description="Unités de commande, références, délais et prix catalogue."
             />

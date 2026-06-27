@@ -25,6 +25,7 @@ export function ProductSection({
   establishmentId,
   organizationId,
   invalidate,
+  viaAchats = false,
   defaultUnit,
 }: {
   selfRow: CompositionStockRow | undefined;
@@ -32,6 +33,8 @@ export function ProductSection({
   establishmentId: string;
   organizationId: string;
   invalidate: () => void;
+  /** true pour un ingrédient : la fiche stock + l'unité sont créées à la 1ère réception (onglet Achats). */
+  viaAchats?: boolean;
   defaultUnit?: string | null;
 }) {
   const [initUnit, setInitUnit] = useState(defaultUnit ?? DEFAULT_STOCK_UNIT);
@@ -39,9 +42,10 @@ export function ProductSection({
   const initMutation = useMutation({
     mutationFn: async (unit: string) => {
       const supabase = createClient();
-
       let compId: string;
-      if (!selfRow) {
+      if (selfRow) {
+        compId = selfRow.composition.id;
+      } else {
         const { data: existingSelf } = await supabase
           .from("product_compositions")
           .select("id")
@@ -49,7 +53,6 @@ export function ProductSection({
           .eq("component_product_id", productId)
           .eq("deleted", false)
           .maybeSingle();
-
         if (existingSelf) {
           compId = existingSelf.id;
         } else {
@@ -71,8 +74,6 @@ export function ProductSection({
           if (cErr) throw cErr;
           compId = newComp.id;
         }
-      } else {
-        compId = selfRow.composition.id;
       }
 
       if (!selfRow?.lineStock) {
@@ -84,76 +85,82 @@ export function ProductSection({
         });
         if (error) throw error;
       }
-
-      // Source de vérité unique : product_stocks.unit. On aligne products.portion_unit
-      // dès la configuration pour qu'Achats/Recette/coûts ne divergent jamais.
-      const { error: prodErr } = await supabase.from("products").update({ portion_unit: unit }).eq("id", productId);
-      if (prodErr) throw prodErr;
     },
     onSuccess: () => {
-      toast.success("Unité configurée. Faites une réception dans l'onglet Achats pour approvisionner le stock.");
+      toast.success("Stock configuré.");
       invalidate();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la configuration."),
   });
 
   const lineStock = selfRow?.lineStock ?? null;
-  const currentStock = lineStock?.current_stock ?? 0;
-  const stockUnit = lineStock?.unit ?? null;
 
-  if (!lineStock) {
+  if (lineStock) {
+    return (
+      <>
+        <StockMovementsSection
+          productId={productId}
+          organizationId={organizationId}
+          establishmentId={establishmentId}
+          productStockId={lineStock.id}
+          currentStock={lineStock.current_stock ?? 0}
+          unit={lineStock.unit ?? null}
+        />
+        <ChangeStockUnitSection
+          productId={productId}
+          organizationId={organizationId}
+          establishmentId={establishmentId}
+          stockId={lineStock.id}
+          currentUnit={lineStock.unit ?? DEFAULT_STOCK_UNIT}
+          currentQty={lineStock.current_stock ?? 0}
+        />
+      </>
+    );
+  }
+
+  // Ingrédient : la fiche stock et l'unité de gestion naissent à la première réception.
+  if (viaAchats) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Configurer le suivi de stock</CardTitle>
+          <CardTitle className="text-base">Suivi de stock</CardTitle>
           <CardDescription>
-            Choisissez l&apos;unité de mesure. Les réceptions se font ensuite dans l&apos;onglet Achats.
+            L&apos;unité de gestion et le stock seront créés à la <strong>première réception</strong> (onglet Achats).
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label>Unité de stock</Label>
-              <Select value={initUnit} onValueChange={setInitUnit}>
-                <SelectTrigger className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PORTION_UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u === "piece" ? "pièce" : u}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button disabled={initMutation.isPending} onClick={() => initMutation.mutate(initUnit)}>
-              {initMutation.isPending ? "Configuration…" : "Configurer le stock"}
-            </Button>
-          </div>
-        </CardContent>
       </Card>
     );
   }
 
+  // Produit fini (recette) : pas de réception → on configure l'unité ici.
   return (
-    <>
-      <StockMovementsSection
-        productId={productId}
-        organizationId={organizationId}
-        establishmentId={establishmentId}
-        productStockId={lineStock.id}
-        currentStock={currentStock}
-        unit={stockUnit}
-      />
-      <ChangeStockUnitSection
-        productId={productId}
-        organizationId={organizationId}
-        establishmentId={establishmentId}
-        stockId={lineStock.id}
-        currentUnit={stockUnit ?? DEFAULT_STOCK_UNIT}
-        currentQty={currentStock}
-      />
-    </>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Configurer le suivi de stock</CardTitle>
+        <CardDescription>Choisissez l&apos;unité de comptage du produit fini.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label>Unité de stock</Label>
+            <Select value={initUnit} onValueChange={setInitUnit}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PORTION_UNITS.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {u === "piece" ? "pièce" : u}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button disabled={initMutation.isPending} onClick={() => initMutation.mutate(initUnit)}>
+            {initMutation.isPending ? "Configuration…" : "Configurer le stock"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

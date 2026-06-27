@@ -18,12 +18,17 @@ export function ProductFournisseursPrixPanel({
   portionUnit,
   title = "Fournisseurs & Prix d'achat",
   description = "Le fournisseur ★ est utilisé en priorité pour les calculs de coût matière.",
+  establishmentId,
+  manageStock = false,
 }: {
   productId: string;
   organizationId: string;
   portionUnit: string | null;
   title?: string;
   description?: string;
+  /** Ingrédient (onglet Achats) : permet de figer l'unité de gestion + créer la fiche stock à la 1ère référence. */
+  establishmentId?: string;
+  manageStock?: boolean;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const { data: links = [], isLoading } = useSupplierReferences(productId);
@@ -66,6 +71,8 @@ export function ProductFournisseursPrixPanel({
           productId={productId}
           organizationId={organizationId}
           portionUnit={portionUnit}
+          establishmentId={establishmentId}
+          manageStock={manageStock}
           onClose={() => setShowAdd(false)}
         />
       )}

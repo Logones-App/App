@@ -28,6 +28,76 @@ export function receptionsQueryKey(productId: string, establishmentId: string) {
   return ["product-receptions", productId, establishmentId] as const;
 }
 
+/**
+ * Garantit l'existence de la fiche stock (self-composition + product_stocks) d'un ingrédient.
+ * Si elle n'existe pas, la crée avec `desiredUnit` comme unité de gestion (source de vérité)
+ * et aligne `products.portion_unit`. L'unité n'est définie qu'ici, à la 1ère référence.
+ */
+export async function ensureSelfStock(
+  supabase: ReturnType<typeof createClient>,
+  args: { productId: string; establishmentId: string; organizationId: string; desiredUnit: string },
+): Promise<{ productStockId: string; currentStock: number }> {
+  const { productId, establishmentId, organizationId, desiredUnit } = args;
+
+  let { data: comp } = await supabase
+    .from("product_compositions")
+    .select("id")
+    .eq("main_product_id", productId)
+    .eq("component_product_id", productId)
+    .eq("establishment_id", establishmentId)
+    .eq("deleted", false)
+    .maybeSingle();
+
+  if (!comp) {
+    const { data: created, error } = await supabase
+      .from("product_compositions")
+      .insert({
+        main_product_id: productId,
+        component_product_id: productId,
+        establishment_id: establishmentId,
+        organization_id: organizationId,
+        composition_kind: "recipe",
+        default_quantity: 1,
+        show_in_customization: false,
+        is_required: false,
+        deleted: false,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(`Création composition : ${error.message}`);
+    comp = created;
+  }
+
+  const { data: stock } = await supabase
+    .from("product_stocks")
+    .select("id, current_stock")
+    .eq("product_composition_id", comp.id)
+    .eq("establishment_id", establishmentId)
+    .maybeSingle();
+
+  if (stock) return { productStockId: stock.id, currentStock: stock.current_stock };
+
+  const { data: created, error } = await supabase
+    .from("product_stocks")
+    .insert({
+      product_composition_id: comp.id,
+      establishment_id: establishmentId,
+      organization_id: organizationId,
+      current_stock: 0,
+      min_stock: 0,
+      reserved_stock: 0,
+      unit: desiredUnit,
+      inventory_tracked: true,
+      deleted: false,
+    })
+    .select("id, current_stock")
+    .single();
+  if (error) throw new Error(`Création stock : ${error.message}`);
+  // Aligne portion_unit (miroir de l'unité de gestion).
+  await supabase.from("products").update({ portion_unit: desiredUnit }).eq("id", productId);
+  return { productStockId: created.id, currentStock: created.current_stock };
+}
+
 /** Historique des réceptions (mouvements purchase) avec fournisseur + référence joints. */
 export function useProductReceptions(productId: string, establishmentId: string) {
   return useQuery({
@@ -70,6 +140,99 @@ function receptionInvalidate(
   void queryClient.invalidateQueries({ queryKey: ["product-establishment-dashboard"] });
   void queryClient.invalidateQueries({
     queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
+  });
+}
+
+/**
+ * Enregistre une réception (mouvement purchase). Crée la fiche stock à la volée si elle
+ * n'existe pas encore (1ère référence) en figeant l'unité de gestion `stockUnit`.
+ */
+export function useCreateReception(productId: string, organizationId: string, establishmentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      productStockId: string | null;
+      stockUnit: string;
+      supplierRefId: string;
+      supplierId: string;
+      orderQty: number;
+      unitPrice: number;
+      conversionFactor: number;
+      notes: string;
+    }) => {
+      const supabase = createClient();
+      const { productStockId, stockUnit, supplierRefId, supplierId, orderQty, unitPrice, conversionFactor, notes } =
+        args;
+
+      // Résoudre / créer la fiche stock + connaître le stock courant.
+      let stockId = productStockId;
+      let currentStock = 0;
+      if (stockId) {
+        const { data, error } = await supabase
+          .from("product_stocks")
+          .select("current_stock")
+          .eq("id", stockId)
+          .single();
+        if (error) throw error;
+        currentStock = data.current_stock;
+      } else {
+        const ensured = await ensureSelfStock(supabase, {
+          productId,
+          establishmentId,
+          organizationId,
+          desiredUnit: stockUnit,
+        });
+        stockId = ensured.productStockId;
+        currentStock = ensured.currentStock;
+      }
+
+      const f = conversionFactor > 0 ? conversionFactor : 1;
+      const stockQty = Math.round(orderQty * f * 1000) / 1000;
+      const unitCost = Math.round((unitPrice / f) * 100000) / 100000;
+      const quantityAfter = Math.round((currentStock + stockQty) * 1000) / 1000;
+
+      const { error: mvtErr } = await supabase.from("stock_movements").insert({
+        product_id: productId,
+        organization_id: organizationId,
+        establishment_id: establishmentId,
+        product_stock_id: stockId,
+        supplier_reference_id: supplierRefId,
+        movement_type: "purchase",
+        quantity: stockQty,
+        quantity_before: currentStock,
+        quantity_after: quantityAfter,
+        unit: stockUnit,
+        unit_cost: unitCost,
+        notes: notes.trim() !== "" ? notes.trim() : null,
+        created_by: null,
+        deleted: false,
+      });
+      if (mvtErr) throw new Error(`DB: ${mvtErr.message} (${mvtErr.code})`);
+
+      const { error: stockErr } = await supabase
+        .from("product_stocks")
+        .update({ current_stock: quantityAfter })
+        .eq("id", stockId);
+      if (stockErr) throw stockErr;
+
+      await Promise.all([
+        supabase.from("supplier_references").update({ unit_price: unitPrice }).eq("id", supplierRefId),
+        supabase.from("supplier_price_snapshots").insert({
+          product_id: productId,
+          organization_id: organizationId,
+          unit_cost: unitCost,
+          supplier_reference_id: supplierRefId,
+          supplier_id: supplierId,
+          effective_from: new Date().toISOString().slice(0, 10),
+          currency: "EUR",
+        }),
+      ]);
+    },
+    onSuccess: () => {
+      toast.success("Réception enregistrée");
+      receptionInvalidate(queryClient, productId, organizationId, establishmentId);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement"),
   });
 }
 

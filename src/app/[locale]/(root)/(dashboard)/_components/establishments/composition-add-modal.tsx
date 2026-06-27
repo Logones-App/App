@@ -20,9 +20,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { ensureSelfStock } from "@/lib/queries/reception-queries";
 import { useActiveSuppliers, useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
-import { areUnitsCompatible, compatibleUnits } from "@/lib/utils/unit-conversion";
+import { areUnitsCompatible, compatibleUnits, convertUnit } from "@/lib/utils/unit-conversion";
 
 type SupplierMode = "none" | "existing" | "new";
 
@@ -58,14 +59,14 @@ async function createIngredientProduct(
     name,
     supplierMode,
     priceQtyNum,
-    priceUnit,
+    gestionUnit,
     vatRateId,
   }: {
     organizationId: string;
     name: string;
     supplierMode: SupplierMode;
     priceQtyNum: number;
-    priceUnit: string;
+    gestionUnit: string;
     vatRateId: string | null;
   },
 ) {
@@ -78,7 +79,8 @@ async function createIngredientProduct(
       vat_rate_id: vatRateId,
       product_type: ["ingredient"],
       portion_weight: supplierMode !== "none" ? priceQtyNum : null,
-      portion_unit: supplierMode !== "none" ? priceUnit : null,
+      // Unité de gestion = unité de la recette (g), pas l'unité d'achat (kg).
+      portion_unit: supplierMode !== "none" ? gestionUnit : null,
       is_available: true,
       deleted: false,
     })
@@ -144,7 +146,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         name: newName,
         supplierMode,
         priceQtyNum: validated.priceQtyNum,
-        priceUnit: newPriceUnit,
+        gestionUnit: newUnit,
         vatRateId: defaultVatRateId,
       });
       const resolvedSupplierId = await resolveSupplier(
@@ -154,14 +156,26 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         createSupplierMutation,
       );
       if (resolvedSupplierId && validated.unitCost) {
+        // Crée la fiche stock + fige l'unité de gestion (= unité recette).
+        await ensureSelfStock(supabase, {
+          productId: productId2,
+          establishmentId,
+          organizationId,
+          desiredUnit: newUnit,
+        });
+        // unit_price = prix par unité d'achat ; conversion vers l'unité de gestion.
+        const orderUnitPrice = validated.unitCost; // = prix / priceQty (par newPriceUnit)
+        const factor = convertUnit(1, newPriceUnit, newUnit) ?? 1;
+        const gestionUnitCost = Math.round((orderUnitPrice / (factor > 0 ? factor : 1)) * 10000) / 10000;
         const { data: newRef, error: psErr } = await supabase
           .from("supplier_references")
           .insert({
             product_id: productId2,
             supplier_id: resolvedSupplierId,
             organization_id: organizationId,
-            unit_price: validated.unitCost,
+            unit_price: orderUnitPrice,
             order_unit: newPriceUnit,
+            conversion_factor: factor,
             deleted: false,
           })
           .select("id")
@@ -170,7 +184,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         await supabase.from("supplier_price_snapshots").insert({
           product_id: productId2,
           organization_id: organizationId,
-          unit_cost: validated.unitCost,
+          unit_cost: gestionUnitCost,
           supplier_reference_id: newRef.id,
           supplier_id: resolvedSupplierId,
           effective_from: new Date().toISOString().slice(0, 10),

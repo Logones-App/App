@@ -40,30 +40,27 @@ export function PurchaseReceptionCard({
             {unit ? ` ${unit}` : ""}
           </CardDescription>
         </div>
-        {productStockId && (
-          <Button type="button" size="sm" onClick={() => setShowModal(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle réception
-          </Button>
-        )}
+        <Button type="button" size="sm" onClick={() => setShowModal(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nouvelle réception
+        </Button>
       </CardHeader>
       <CardContent>
-        {!productStockId && (
-          <p className="text-muted-foreground text-sm">
-            Configurez d&apos;abord l&apos;unité de stock dans l&apos;onglet Stock.
-          </p>
-        )}
-        {productStockId && (
+        {productStockId ? (
           <ReceptionHistoryTable
             productId={productId}
             organizationId={organizationId}
             establishmentId={establishmentId}
             productStockId={productStockId}
           />
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Aucune réception. La première réception définira l&apos;unité de gestion du stock.
+          </p>
         )}
       </CardContent>
 
-      {showModal && productStockId && (
+      {showModal && (
         <ReceptionModal
           productId={productId}
           organizationId={organizationId}

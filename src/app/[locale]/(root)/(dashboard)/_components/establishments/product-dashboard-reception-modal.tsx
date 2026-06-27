@@ -19,20 +19,25 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import { useAddStockMovement } from "@/lib/queries/stock-movement-queries";
+import { useCreateReception } from "@/lib/queries/reception-queries";
 import {
   useActiveSuppliers,
   useCreateSupplier,
   useCreateSupplierReference,
   useSupplierReferences,
 } from "@/lib/queries/supplier-queries";
-import { orderQtyToStockQty, suggestConversionFactor, unitCostFromTotal } from "@/lib/utils/unit-conversion";
+import {
+  compatibleUnits,
+  orderQtyToStockQty,
+  suggestConversionFactor,
+  unitCostFromTotal,
+} from "@/lib/utils/unit-conversion";
 
 type Props = {
   productId: string;
   organizationId: string;
   establishmentId: string;
-  productStockId: string;
+  productStockId: string | null;
   stockUnit: string | null;
   currentStock: number;
   onClose: () => void;
@@ -61,7 +66,6 @@ function refLabel(r: Ref): string {
   return `${name}${unit}${factor}`;
 }
 
-// ── Dérivation d'état (pure) ─────────────────────────────────────────────────
 type Derived = {
   isNewSupplier: boolean;
   hasSupplier: boolean;
@@ -128,6 +132,22 @@ async function resolveSupplierAndRef(args: {
   return { supId, refId };
 }
 
+function computeCanSubmit(
+  d: Derived,
+  args: {
+    busy: boolean;
+    qty: number | null;
+    pu: number | null;
+    newSupplierName: string;
+    designation: string;
+    effectiveStockUnit: string;
+  },
+): boolean {
+  const supplierOk = d.isNewSupplier ? args.newSupplierName.trim() !== "" : d.hasSupplier;
+  const refOk = !d.isNewRef || args.designation.trim() !== "";
+  return !args.busy && args.qty != null && args.pu != null && supplierOk && refOk && args.effectiveStockUnit !== "";
+}
+
 // ── Bloc « nouvelle référence » ──────────────────────────────────────────────
 function NewReferenceFields({
   designation,
@@ -136,7 +156,8 @@ function NewReferenceFields({
   onOrderUnitChange,
   contenanceStr,
   setContenanceStr,
-  stockUnit,
+  gestionUnit,
+  onGestionUnitChange,
   t,
 }: {
   designation: string;
@@ -145,10 +166,13 @@ function NewReferenceFields({
   onOrderUnitChange: (v: string) => void;
   contenanceStr: string;
   setContenanceStr: (v: string) => void;
-  stockUnit: string | null;
+  gestionUnit: string;
+  /** Présent uniquement à la 1ère référence : choix de l'unité de gestion. */
+  onGestionUnitChange: ((v: string) => void) | null;
   t: (u: PortionUnit) => string;
 }) {
   const factor = parsePositive(contenanceStr) ?? 1;
+  const gestionOptions = compatibleUnits(orderUnit || null, PORTION_UNITS);
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Nouvelle référence</p>
@@ -160,7 +184,7 @@ function NewReferenceFields({
           placeholder="ex : Plaquette 250 g"
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-2">
           <Label>Unité de commande</Label>
           <Select value={orderUnit || "__none__"} onValueChange={(v) => onOrderUnitChange(v === "__none__" ? "" : v)}>
@@ -187,11 +211,30 @@ function NewReferenceFields({
             className="tabular-nums"
           />
         </div>
+        <div className="space-y-2">
+          <Label>Unité de gestion</Label>
+          {onGestionUnitChange ? (
+            <Select value={gestionUnit || undefined} onValueChange={onGestionUnitChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="— Unité" />
+              </SelectTrigger>
+              <SelectContent>
+                {gestionOptions.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {t(u as PortionUnit)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input value={gestionUnit} disabled readOnly className="bg-muted/50" />
+          )}
+        </div>
       </div>
       <p className="text-muted-foreground text-xs">
         1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
         <strong>
-          {factor} {stockUnit ?? "u. de stock"}
+          {factor} {gestionUnit || "unité de gestion"}
         </strong>
       </p>
     </div>
@@ -214,7 +257,7 @@ function QtyPriceFields({
   puStr: string;
   setPuStr: (v: string) => void;
   orderUnit: string | null;
-  stockUnit: string | null;
+  stockUnit: string;
   factor: number;
   currentStock: number;
 }) {
@@ -240,9 +283,9 @@ function QtyPriceFields({
           <p className="text-muted-foreground text-xs">
             →{" "}
             <strong>
-              {stockQty} {stockUnit ?? ""}
+              {stockQty} {stockUnit}
             </strong>{" "}
-            en stock{stockAfter != null ? ` · après : ${stockAfter} ${stockUnit ?? ""}` : ""}
+            en stock{stockAfter != null ? ` · après : ${stockAfter} ${stockUnit}` : ""}
           </p>
         )}
       </div>
@@ -258,7 +301,7 @@ function QtyPriceFields({
         {total != null && (
           <p className="text-muted-foreground text-xs">
             Total : <strong>{total} €</strong>
-            {unitCost != null ? ` · coût FIFO : ${unitCost} €/${stockUnit ?? ""}` : ""}
+            {unitCost != null ? ` · coût FIFO : ${unitCost} €/${stockUnit}` : ""}
           </p>
         )}
       </div>
@@ -274,7 +317,7 @@ export function ReceptionModal(props: Props) {
   const refs = refsData as Ref[];
   const createSupplier = useCreateSupplier(organizationId);
   const createRef = useCreateSupplierReference(productId);
-  const addMovement = useAddStockMovement(productId, organizationId, establishmentId, productStockId, stockUnit);
+  const createReception = useCreateReception(productId, organizationId, establishmentId);
 
   const [supplierId, setSupplierId] = useState("");
   const [newSupplierName, setNewSupplierName] = useState("");
@@ -282,29 +325,32 @@ export function ReceptionModal(props: Props) {
   const [designation, setDesignation] = useState("");
   const [orderUnit, setOrderUnit] = useState("");
   const [contenanceStr, setContenanceStr] = useState("1");
+  const [gestionUnit, setGestionUnit] = useState(""); // 1ère référence uniquement
   const [qtyStr, setQtyStr] = useState("");
   const [puStr, setPuStr] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Unité de gestion : figée si un stock existe, sinon choisie à cette 1ère référence.
+  const unitLocked = stockUnit != null;
+  const effectiveStockUnit = stockUnit ?? gestionUnit;
+
   const d = deriveState(refs, supplierId, refId, contenanceStr, orderUnit);
   const qty = parsePositive(qtyStr);
   const pu = parsePositive(puStr);
-  const busy = createSupplier.isPending || createRef.isPending || addMovement.isPending;
-  const supplierOk = d.isNewSupplier ? newSupplierName.trim() !== "" : d.hasSupplier;
-  const refOk = !d.isNewRef || designation.trim() !== "";
-  const canSubmit = !busy && qty != null && pu != null && supplierOk && refOk;
+  const busy = createSupplier.isPending || createRef.isPending || createReception.isPending;
+  const canSubmit = computeCanSubmit(d, { busy, qty, pu, newSupplierName, designation, effectiveStockUnit });
 
   const onOrderUnitChange = (v: string) => {
     setOrderUnit(v);
     if (contenanceStr === "" || contenanceStr === "1") {
-      const suggested = suggestConversionFactor(v, stockUnit);
+      const suggested = suggestConversionFactor(v, effectiveStockUnit || null);
       if (suggested != null) setContenanceStr(String(suggested));
     }
   };
 
   const handleSubmit = async () => {
     if (!canSubmit || qty == null || pu == null) {
-      toast.error("Complétez le fournisseur, la référence, la quantité et le prix.");
+      toast.error("Complétez le fournisseur, la référence, l'unité de gestion, la quantité et le prix.");
       return;
     }
     try {
@@ -319,16 +365,16 @@ export function ReceptionModal(props: Props) {
         createSupplier,
         createRef,
       });
-      addMovement.mutate(
+      createReception.mutate(
         {
-          movementType: "purchase",
-          quantity: orderQtyToStockQty(qty, d.factor),
-          notes: notes.trim(),
-          currentStock,
-          totalPrice: Math.round(qty * pu * 100) / 100,
+          productStockId,
+          stockUnit: effectiveStockUnit,
           supplierRefId: resolvedRefId,
-          conversionFactor: d.factor,
           supplierId: supId,
+          orderQty: qty,
+          unitPrice: pu,
+          conversionFactor: d.factor,
+          notes,
         },
         { onSuccess: onClose },
       );
@@ -349,6 +395,7 @@ export function ReceptionModal(props: Props) {
           <DialogTitle>Nouvelle réception</DialogTitle>
           <DialogDescription>
             Choisissez le fournisseur et la référence reçue, puis saisissez la quantité et le prix unitaire.
+            {!unitLocked && " L'unité de gestion du stock sera figée à cette première référence."}
           </DialogDescription>
         </DialogHeader>
 
@@ -411,7 +458,8 @@ export function ReceptionModal(props: Props) {
               onOrderUnitChange={onOrderUnitChange}
               contenanceStr={contenanceStr}
               setContenanceStr={setContenanceStr}
-              stockUnit={stockUnit}
+              gestionUnit={effectiveStockUnit}
+              onGestionUnitChange={unitLocked ? null : setGestionUnit}
               t={t}
             />
           )}
@@ -423,7 +471,7 @@ export function ReceptionModal(props: Props) {
               puStr={puStr}
               setPuStr={setPuStr}
               orderUnit={d.effectiveOrderUnit}
-              stockUnit={stockUnit}
+              stockUnit={effectiveStockUnit || "—"}
               factor={d.factor}
               currentStock={currentStock}
             />

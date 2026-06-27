@@ -337,7 +337,7 @@ export function ProductStockPanel({
           establishmentId={establishmentId}
           organizationId={organizationId}
           invalidate={invalidate}
-          defaultUnit={product.portion_unit ?? null}
+          viaAchats
         />
       </div>
     );
@@ -360,7 +360,6 @@ export function ProductStockPanel({
           establishmentId={establishmentId}
           organizationId={organizationId}
           invalidate={invalidate}
-          defaultUnit={product.portion_unit ?? null}
         />
       )}
 

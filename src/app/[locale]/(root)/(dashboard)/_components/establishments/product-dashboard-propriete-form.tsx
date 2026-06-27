@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -24,12 +23,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  PORTION_UNITS,
-  type AllergenKey,
-  type LabelKey,
-  type ProductTypeKey,
-} from "@/lib/constants/product-attributes";
+import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import { useRestoreProduct } from "@/lib/queries/product-archive";
 import {
@@ -81,7 +75,6 @@ export function ProductProprieteForm({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const t = useTranslations("units");
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
 
@@ -108,6 +101,8 @@ export function ProductProprieteForm({
     product.food_cost_target != null ? String(Math.round(product.food_cost_target * 100)) : "",
   );
   const [origins, setOrigins] = useState<string[]>(() => (product.origins as string[] | null) ?? []);
+
+  const isIngredientOnly = productTypes.includes("ingredient") && !productTypes.includes("recipe");
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
@@ -155,8 +150,9 @@ export function ProductProprieteForm({
           origins,
           product_type: productTypes,
           portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
-          // Si un stock existe, l'unité est gouvernée par product_stocks.unit (source unique).
-          portion_unit: stockUnit ?? (portionUnit || null),
+          // Ingrédient : l'unité est gouvernée par product_stocks.unit (définie à la 1ère réception).
+          // Recette : portion_unit = unité du poids de portion vendue (éditable ici).
+          portion_unit: isIngredientOnly ? (stockUnit ?? portionUnit ?? null) : (portionUnit ?? null),
           sku: sku.trim() || null,
           food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
         })
@@ -361,7 +357,6 @@ export function ProductProprieteForm({
         </CardHeader>
         <CardContent className="space-y-6">
           {(() => {
-            const isIngredientOnly = productTypes.includes("ingredient") && !productTypes.includes("recipe");
             return (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -378,10 +373,8 @@ export function ProductProprieteForm({
                 {isIngredientOnly ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Unité de stock{" "}
-                      <span className="text-muted-foreground text-xs font-normal">
-                        (référence pour le prix HT et le stock)
-                      </span>
+                      Unité de gestion du stock{" "}
+                      <span className="text-muted-foreground text-xs font-normal">(lecture seule)</span>
                     </label>
                     {stockUnit ? (
                       <div className="space-y-1">
@@ -392,26 +385,13 @@ export function ProductProprieteForm({
                           className="bg-muted/50"
                         />
                         <p className="text-muted-foreground text-xs">
-                          Définie par le stock — modifiable dans l&apos;onglet <strong>Stock</strong> (verrou FIFO).
+                          Définie par le stock — pour la changer, soldez le stock (onglet <strong>Stock</strong>).
                         </p>
                       </div>
                     ) : (
-                      <Select
-                        value={portionUnit || "__none__"}
-                        onValueChange={(v) => setPortionUnit(v === "__none__" ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="— Aucune" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">— Aucune</SelectItem>
-                          {PORTION_UNITS.map((u) => (
-                            <SelectItem key={u} value={u}>
-                              {t(u)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <p className="text-muted-foreground rounded-md border border-dashed p-2.5 text-sm">
+                        Sera définie à la <strong>première réception</strong> (onglet Achats).
+                      </p>
                     )}
                   </div>
                 ) : (

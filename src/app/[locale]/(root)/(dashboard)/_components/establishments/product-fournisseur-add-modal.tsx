@@ -20,20 +20,158 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
+import { ensureSelfStock } from "@/lib/queries/reception-queries";
 import { useActiveSuppliers, useCreateSupplierReference, useCreateSupplier } from "@/lib/queries/supplier-queries";
-import { suggestConversionFactor, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
+import { createClient } from "@/lib/supabase/client";
+import { compatibleUnits, suggestConversionFactor, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 type SupplierMode = "none" | "existing" | "new";
 
 type Props = {
   productId: string;
   organizationId: string;
-  /** Unité de stock (fixe) du produit — sert de base à la contenance. */
+  /** Unité de gestion (fixe) du produit si un stock existe — sinon null. */
   portionUnit: string | null;
   onClose: () => void;
+  /** Fournis pour un ingrédient : permet de créer la fiche stock + figer l'unité à la 1ère référence. */
+  establishmentId?: string;
+  manageStock?: boolean;
 };
 
-export function AddSupplierModal({ productId, organizationId, portionUnit, onClose }: Props) {
+function PricingFields({
+  orderUnit,
+  onOrderUnitChange,
+  contenanceStr,
+  setContenanceStr,
+  needGestionPicker,
+  gestionUnit,
+  setGestionUnit,
+  effectiveGestionUnit,
+  factor,
+  price,
+  setPrice,
+  friendly,
+  t,
+}: {
+  orderUnit: string;
+  onOrderUnitChange: (v: string) => void;
+  contenanceStr: string;
+  setContenanceStr: (v: string) => void;
+  needGestionPicker: boolean;
+  gestionUnit: string;
+  setGestionUnit: (v: string) => void;
+  effectiveGestionUnit: string;
+  factor: number;
+  price: string;
+  setPrice: (v: string) => void;
+  friendly: { value: number; displayUnit: string } | null;
+  t: (u: PortionUnit) => string;
+}) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label>Unité de commande</Label>
+        <Select value={orderUnit || "__none__"} onValueChange={onOrderUnitChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="— Unité" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">— Aucune</SelectItem>
+            {PORTION_UNITS.map((u) => (
+              <SelectItem key={u} value={u}>
+                {t(u)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Contenance</Label>
+        <Input
+          value={contenanceStr}
+          onChange={(e) => setContenanceStr(e.target.value)}
+          inputMode="decimal"
+          placeholder="1"
+          className="tabular-nums"
+        />
+        {needGestionPicker && (
+          <Select value={gestionUnit || undefined} onValueChange={setGestionUnit}>
+            <SelectTrigger>
+              <SelectValue placeholder="Unité de gestion…" />
+            </SelectTrigger>
+            <SelectContent>
+              {compatibleUnits(orderUnit || null, PORTION_UNITS).map((u) => (
+                <SelectItem key={u} value={u}>
+                  {t(u as PortionUnit)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <p className="text-muted-foreground text-xs">
+          1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
+          <strong>
+            {factor} {effectiveGestionUnit ? t(effectiveGestionUnit as PortionUnit) : "unité de gestion"}
+          </strong>
+        </p>
+      </div>
+      <div className="space-y-2 sm:col-span-2">
+        <Label>Prix HT{orderUnit ? ` / ${orderUnit}` : ""}</Label>
+        <div className="relative">
+          <Input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            className="pr-6 tabular-nums"
+          />
+          <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
+        </div>
+        {friendly != null && (
+          <p className="text-muted-foreground text-xs">
+            → coût normalisé :{" "}
+            <strong>
+              {friendly.value} €/{friendly.displayUnit}
+            </strong>
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+// Crée la fiche stock (et fige l'unité de gestion) si on est sur la 1ère référence d'un ingrédient.
+async function ensureStockIfNeeded(args: {
+  needGestionPicker: boolean;
+  gestionUnit: string;
+  productId: string;
+  organizationId: string;
+  establishmentId?: string;
+}): Promise<boolean> {
+  if (!args.needGestionPicker) return true;
+  if (args.gestionUnit === "") {
+    toast.error("Choisissez l'unité de gestion du stock.");
+    return false;
+  }
+  if (args.establishmentId) {
+    await ensureSelfStock(createClient(), {
+      productId: args.productId,
+      establishmentId: args.establishmentId,
+      organizationId: args.organizationId,
+      desiredUnit: args.gestionUnit,
+    });
+  }
+  return true;
+}
+
+export function AddSupplierModal({
+  productId,
+  organizationId,
+  portionUnit,
+  onClose,
+  establishmentId,
+  manageStock = false,
+}: Props) {
   const t = useTranslations("units");
 
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("existing");
@@ -41,6 +179,7 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
   const [newSupplierName, setNewSupplierName] = useState("");
   const [orderUnit, setOrderUnit] = useState("");
   const [contenanceStr, setContenanceStr] = useState("1");
+  const [gestionUnit, setGestionUnit] = useState(""); // 1ère référence d'un ingrédient
   const [supplierRef, setSupplierRef] = useState("");
   const [supplierProductName, setSupplierProductName] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
@@ -60,19 +199,23 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
-  // Contenance = nb d'unités de stock par unité de commande (conversion_factor).
+  // Unité de gestion : figée si un stock existe (portionUnit), sinon choisie ici (ingrédient).
+  const needGestionPicker = manageStock && portionUnit == null;
+  const effectiveGestionUnit = portionUnit ?? gestionUnit;
+
+  // Contenance = nb d'unités de gestion par unité de commande (conversion_factor).
   const factor = parsePositive(contenanceStr) ?? 1;
   const unitPrice = parsePositive(price); // prix par unité de commande
-  // Coût normalisé par unité de stock (modèle unique : prix ÷ contenance).
+  // Coût normalisé par unité de gestion (modèle unique : prix ÷ contenance).
   const unitCost = unitPrice != null ? Math.round((unitPrice / factor) * 10000) / 10000 : null;
-  const friendly = unitCost != null ? toFriendlyUnitCost(unitCost, portionUnit) : null;
+  const friendly = unitCost != null ? toFriendlyUnitCost(unitCost, effectiveGestionUnit || null) : null;
 
   const onOrderUnitChange = (value: string) => {
     const next = value === "__none__" ? "" : value;
     setOrderUnit(next);
     // Pré-remplit la contenance si une conversion dimensionnelle existe (kg→g = 1000).
     if (contenanceStr === "" || contenanceStr === "1") {
-      const suggested = suggestConversionFactor(next, portionUnit);
+      const suggested = suggestConversionFactor(next, effectiveGestionUnit || null);
       if (suggested != null) setContenanceStr(String(suggested));
     }
   };
@@ -134,15 +277,24 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
       return;
     }
 
-    if (supplierMode === "new") {
-      try {
+    try {
+      const stockOk = await ensureStockIfNeeded({
+        needGestionPicker,
+        gestionUnit,
+        productId,
+        organizationId,
+        establishmentId,
+      });
+      if (!stockOk) return;
+
+      if (supplierMode === "new") {
         const sid = await createSupplierMutation.mutateAsync({ name: newSupplierName.trim(), is_active: true });
         submitWithSupplier(sid);
-      } catch {
-        /* erreur gérée par la mutation */
+      } else {
+        submitWithSupplier(supplierMode === "existing" ? selectedId || null : null);
       }
-    } else {
-      submitWithSupplier(supplierMode === "existing" ? selectedId || null : null);
+    } catch {
+      /* erreurs gérées par les mutations */
     }
   };
 
@@ -208,60 +360,21 @@ export function AddSupplierModal({ productId, organizationId, portionUnit, onClo
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Unité de commande</Label>
-            <Select value={orderUnit || "__none__"} onValueChange={onOrderUnitChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="— Unité" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— Aucune</SelectItem>
-                {PORTION_UNITS.map((u) => (
-                  <SelectItem key={u} value={u}>
-                    {t(u)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Contenance</Label>
-            <Input
-              value={contenanceStr}
-              onChange={(e) => setContenanceStr(e.target.value)}
-              inputMode="decimal"
-              placeholder="1"
-              className="tabular-nums"
-            />
-            <p className="text-muted-foreground text-xs">
-              1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
-              <strong>
-                {factor} {portionUnit ? t(portionUnit as PortionUnit) : "u. de stock"}
-              </strong>
-            </p>
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Prix HT{orderUnit ? ` / ${orderUnit}` : portionUnit ? ` / ${portionUnit}` : ""}</Label>
-            <div className="relative">
-              <Input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                className="pr-6 tabular-nums"
-              />
-              <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-sm">€</span>
-            </div>
-            {friendly != null && (
-              <p className="text-muted-foreground text-xs">
-                → coût normalisé :{" "}
-                <strong>
-                  {friendly.value} €/{friendly.displayUnit}
-                </strong>
-              </p>
-            )}
-          </div>
+          <PricingFields
+            orderUnit={orderUnit}
+            onOrderUnitChange={onOrderUnitChange}
+            contenanceStr={contenanceStr}
+            setContenanceStr={setContenanceStr}
+            needGestionPicker={needGestionPicker}
+            gestionUnit={gestionUnit}
+            setGestionUnit={setGestionUnit}
+            effectiveGestionUnit={effectiveGestionUnit}
+            factor={factor}
+            price={price}
+            setPrice={setPrice}
+            friendly={friendly}
+            t={t}
+          />
 
           {supplierMode !== "none" && (
             <>
