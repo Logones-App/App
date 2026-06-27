@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useProductPurchasePriceHistory } from "@/lib/queries/purchase-price-queries";
 import { useSupplierReferences } from "@/lib/queries/supplier-queries";
 
+import { ProductPriceHistoryChart } from "./product-dashboard-price-history-chart";
 import { ReceptionModal } from "./product-dashboard-reception-modal";
 import { SupplierPriceCard, type ProductSupplierWithName } from "./product-dashboard-supplier-price-card";
 
@@ -36,6 +37,7 @@ export function ProductFournisseursPrixPanel({
 
   return (
     <div className="space-y-6">
+      <ProductPriceHistoryChart history={history} references={links} portionUnit={portionUnit} />
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
