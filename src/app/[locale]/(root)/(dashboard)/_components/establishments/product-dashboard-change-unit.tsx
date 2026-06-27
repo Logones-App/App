@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,23 +26,6 @@ type Props = {
   suggestedUnit?: string;
   suggestedFactor?: number;
 };
-
-function FifoLockWarning({ activeLots }: { activeLots: number }) {
-  if (activeLots === 0) return null;
-  const s = activeLots > 1 ? "s" : "";
-  return (
-    <div className="rounded border border-red-200 bg-red-50/70 p-2.5 text-xs text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
-      <div className="flex items-center gap-1.5 font-medium">
-        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-        Changement d&apos;unité impossible : {activeLots} lot{s} FIFO actif{s} en stock
-      </div>
-      <p className="mt-1">
-        Des réceptions fournisseur ont du stock restant (remaining_quantity &gt; 0). Changer l&apos;unité rendrait ces
-        lots incomparables avec les nouveaux. Soldez le stock avant de changer d&apos;unité.
-      </p>
-    </div>
-  );
-}
 
 type RecipeEntry = { id: string; recipeName: string; quantity: number | null; quantityUnit: string | null };
 
@@ -82,28 +65,20 @@ function AffectedRecipesList({ compositions, toUnit }: { compositions: RecipeEnt
   );
 }
 
-export function ChangeStockUnitSection({
-  productId,
-  organizationId,
-  establishmentId,
-  stockId,
-  currentUnit,
-  currentQty,
-  suggestedUnit,
-  suggestedFactor,
-}: Props) {
+export function ChangeStockUnitSection(props: Props) {
   const [open, setOpen] = useState(false);
-  const [toUnit, setToUnit] = useState<string>(suggestedUnit ?? PORTION_UNITS.find((u) => u !== currentUnit) ?? "g");
-  const [factorStr, setFactorStr] = useState(suggestedFactor != null ? String(suggestedFactor) : "");
+  const { data: activeLots = 0 } = useActiveFifoLotsCount(props.stockId);
 
-  const mutation = useChangeProductStockUnit(productId, organizationId, establishmentId);
-  const { data: affectedCompositions = [] } = useRecipesUsingIngredient(productId);
-  const { data: activeLots = 0 } = useActiveFifoLotsCount(open ? stockId : null);
-
-  const factor = parseFloat(factorStr.replace(",", "."));
-  const isValid = Number.isFinite(factor) && factor > 0 && toUnit !== currentUnit;
-  const newQty = isValid ? Math.round(currentQty * factor * 1000) / 1000 : null;
-  const canSubmit = isValid && !mutation.isPending && activeLots === 0;
+  // Verrou FIFO : tant que des lots sont en stock, l'unité est figée. On masque l'action
+  // (au lieu d'afficher un mur d'erreur) et on explique brièvement pourquoi.
+  if (activeLots > 0) {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <Lock className="h-3 w-3 shrink-0" />
+        Unité de stock verrouillée — soldez le stock pour pouvoir la modifier.
+      </p>
+    );
+  }
 
   if (!open) {
     return (
@@ -113,9 +88,38 @@ export function ChangeStockUnitSection({
     );
   }
 
+  return <ChangeUnitEditor {...props} onClose={() => setOpen(false)} />;
+}
+
+function ChangeUnitEditor({
+  productId,
+  organizationId,
+  establishmentId,
+  stockId,
+  currentUnit,
+  currentQty,
+  suggestedUnit,
+  suggestedFactor,
+  onClose,
+}: Props & { onClose: () => void }) {
+  const [toUnit, setToUnit] = useState<string>(suggestedUnit ?? PORTION_UNITS.find((u) => u !== currentUnit) ?? "g");
+  const [factorStr, setFactorStr] = useState(suggestedFactor != null ? String(suggestedFactor) : "");
+
+  const mutation = useChangeProductStockUnit(productId, organizationId, establishmentId);
+  const { data: affectedCompositions = [] } = useRecipesUsingIngredient(productId);
+
+  // Le facteur ne sert que s'il y a une quantité à reconvertir (stock non-FIFO, ex : recette
+  // « produit fini »). À stock soldé (= 0), on choisit simplement la nouvelle unité.
+  const needsFactor = currentQty > 0;
+  const factor = parseFloat(factorStr.replace(",", "."));
+  const factorValid = Number.isFinite(factor) && factor > 0;
+  const isValid = toUnit !== currentUnit && (!needsFactor || factorValid);
+  const newQty = needsFactor && factorValid ? Math.round(currentQty * factor * 1000) / 1000 : currentQty;
+  const canSubmit = isValid && !mutation.isPending;
+
   return (
     <div className="space-y-3 rounded border border-orange-200 bg-orange-50/40 p-3">
-      <p className="text-sm font-medium">Conversion d&apos;unité de stock</p>
+      <p className="text-sm font-medium">Changer l&apos;unité de stock</p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Actuel</Label>
@@ -139,25 +143,29 @@ export function ChangeStockUnitSection({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">
-            Facteur ({currentUnit === "piece" ? "pièce" : currentUnit} → {toUnit})
-          </Label>
-          <Input
-            value={factorStr}
-            onChange={(e) => setFactorStr(e.target.value)}
-            placeholder="ex : 250"
-            className="h-8 w-24 text-xs tabular-nums"
-            inputMode="decimal"
-          />
-        </div>
-        {newQty != null && (
+        {needsFactor && (
+          <div className="space-y-1">
+            <Label className="text-xs">
+              1 {currentUnit === "piece" ? "pièce" : currentUnit} = ? {toUnit}
+            </Label>
+            <Input
+              value={factorStr}
+              onChange={(e) => setFactorStr(e.target.value)}
+              placeholder="ex : 250"
+              className="h-8 w-24 text-xs tabular-nums"
+              inputMode="decimal"
+            />
+          </div>
+        )}
+        {needsFactor && newQty !== currentQty && (
           <p className="text-sm font-medium text-blue-700">
             → {newQty} {toUnit}
           </p>
         )}
       </div>
-      <FifoLockWarning activeLots={activeLots} />
+      {!needsFactor && (
+        <p className="text-muted-foreground text-xs">Stock à 0 — choisissez simplement la nouvelle unité.</p>
+      )}
       <AffectedRecipesList compositions={affectedCompositions} toUnit={toUnit} />
       <p className="text-muted-foreground text-xs">
         L&apos;historique des mouvements conserve les anciennes unités. Un mouvement d&apos;ajustement de conversion
@@ -169,14 +177,20 @@ export function ChangeStockUnitSection({
           disabled={!canSubmit}
           onClick={() =>
             mutation.mutate(
-              { productStockId: stockId, fromUnit: currentUnit, toUnit, currentQty, conversionFactor: factor },
-              { onSuccess: () => setOpen(false) },
+              {
+                productStockId: stockId,
+                fromUnit: currentUnit,
+                toUnit,
+                currentQty,
+                conversionFactor: needsFactor && factorValid ? factor : 1,
+              },
+              { onSuccess: onClose },
             )
           }
         >
-          {mutation.isPending ? "Conversion…" : "Confirmer la conversion"}
+          {mutation.isPending ? "Conversion…" : "Confirmer"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+        <Button size="sm" variant="ghost" onClick={onClose}>
           Annuler
         </Button>
       </div>

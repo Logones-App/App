@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useAddStockMovement } from "@/lib/queries/stock-movement-queries";
-import { useSupplierReferences } from "@/lib/queries/supplier-queries";
-import { orderQtyToStockQty, unitCostFromTotal } from "@/lib/utils/unit-conversion";
+import {
+  useActiveSuppliers,
+  useCreateSupplier,
+  useCreateSupplierReference,
+  useSupplierReferences,
+} from "@/lib/queries/supplier-queries";
+import { orderQtyToStockQty, suggestConversionFactor, unitCostFromTotal } from "@/lib/utils/unit-conversion";
 
 type Props = {
   productId: string;
@@ -31,185 +38,303 @@ type Props = {
   onClose: () => void;
 };
 
+const NEW = "__new__";
+
 type Ref = {
   id: string;
   supplier_id: string;
-  supplier: { name: string } | null;
   supplier_product_name: string | null;
   order_unit: string | null;
   conversion_factor: number;
+  unit_price: number | null;
 };
-
-function refLabel(ref: Ref): string {
-  const supplier = ref.supplier?.name ?? "—";
-  const name = ref.supplier_product_name ? ` · ${ref.supplier_product_name}` : "";
-  const factor = ref.conversion_factor !== 1 ? ` ×${ref.conversion_factor}` : "";
-  const unit = ref.order_unit ? ` (${ref.order_unit}${factor})` : "";
-  return `${supplier}${name}${unit}`;
-}
 
 function parsePositive(s: string): number | null {
   const n = parseFloat(s.replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-type Calc = { stockQty: number | null; stockAfter: number | null; unitCost: number | null };
-
-function computeReception(ref: Ref | null, orderQtyStr: string, totalPriceStr: string, currentStock: number): Calc {
-  const orderQty = parsePositive(orderQtyStr);
-  const totalPrice = parsePositive(totalPriceStr);
-  const stockQty = ref != null && orderQty != null ? orderQtyToStockQty(orderQty, ref.conversion_factor) : null;
-  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
-  const unitCost = stockQty != null && totalPrice != null ? unitCostFromTotal(totalPrice, stockQty) : null;
-  return { stockQty, stockAfter, unitCost };
+function refLabel(r: Ref): string {
+  const name = r.supplier_product_name ?? "Référence";
+  const unit = r.order_unit ? ` — ${r.order_unit}` : "";
+  const factor = r.conversion_factor !== 1 ? ` (×${r.conversion_factor})` : "";
+  return `${name}${unit}${factor}`;
 }
 
-function ReceptionFields({
-  refs,
-  selectedRefId,
-  setSelectedRefId,
-  orderQtyStr,
-  setOrderQtyStr,
-  totalPriceStr,
-  setTotalPriceStr,
-  notes,
-  setNotes,
-  stockUnit,
-  selectedRef,
-  calc,
-}: {
-  refs: Ref[];
-  selectedRefId: string;
-  setSelectedRefId: (v: string) => void;
-  orderQtyStr: string;
-  setOrderQtyStr: (v: string) => void;
-  totalPriceStr: string;
-  setTotalPriceStr: (v: string) => void;
-  notes: string;
-  setNotes: (v: string) => void;
-  stockUnit: string | null;
+// ── Dérivation d'état (pure) ─────────────────────────────────────────────────
+type Derived = {
+  isNewSupplier: boolean;
+  hasSupplier: boolean;
+  supplierRefs: Ref[];
+  isNewRef: boolean;
   selectedRef: Ref | null;
-  calc: Calc;
+  factor: number;
+  effectiveOrderUnit: string | null;
+  showRefSelect: boolean;
+  showNewRef: boolean;
+};
+
+function deriveState(
+  refs: Ref[],
+  supplierId: string,
+  refId: string,
+  contenanceStr: string,
+  orderUnit: string,
+): Derived {
+  const isNewSupplier = supplierId === NEW;
+  const hasSupplier = supplierId !== "";
+  const supplierRefs = hasSupplier && !isNewSupplier ? refs.filter((r) => r.supplier_id === supplierId) : [];
+  const isNewRef = isNewSupplier || refId === NEW || refId === "";
+  const selectedRef = isNewRef ? null : (supplierRefs.find((r) => r.id === refId) ?? null);
+  const factor = selectedRef ? selectedRef.conversion_factor : (parsePositive(contenanceStr) ?? 1);
+  return {
+    isNewSupplier,
+    hasSupplier,
+    supplierRefs,
+    isNewRef,
+    selectedRef,
+    factor,
+    effectiveOrderUnit: selectedRef ? selectedRef.order_unit : orderUnit || null,
+    showRefSelect: hasSupplier && !isNewSupplier,
+    showNewRef: hasSupplier && isNewRef,
+  };
+}
+
+async function resolveSupplierAndRef(args: {
+  d: Derived;
+  organizationId: string;
+  newSupplierName: string;
+  supplierId: string;
+  orderUnit: string;
+  designation: string;
+  pu: number;
+  createSupplier: ReturnType<typeof useCreateSupplier>;
+  createRef: ReturnType<typeof useCreateSupplierReference>;
+}): Promise<{ supId: string; refId: string }> {
+  const { d, organizationId, newSupplierName, supplierId, orderUnit, designation, pu, createSupplier, createRef } =
+    args;
+  const supId = d.isNewSupplier
+    ? await createSupplier.mutateAsync({ name: newSupplierName.trim(), is_active: true })
+    : supplierId;
+  if (d.selectedRef) return { supId, refId: d.selectedRef.id };
+  const refId = await createRef.mutateAsync({
+    supplier_id: supId,
+    organization_id: organizationId,
+    order_unit: orderUnit !== "" ? orderUnit : null,
+    conversion_factor: d.factor,
+    unit_price: pu,
+    supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
+  });
+  return { supId, refId };
+}
+
+// ── Bloc « nouvelle référence » ──────────────────────────────────────────────
+function NewReferenceFields({
+  designation,
+  setDesignation,
+  orderUnit,
+  onOrderUnitChange,
+  contenanceStr,
+  setContenanceStr,
+  stockUnit,
+  t,
+}: {
+  designation: string;
+  setDesignation: (v: string) => void;
+  orderUnit: string;
+  onOrderUnitChange: (v: string) => void;
+  contenanceStr: string;
+  setContenanceStr: (v: string) => void;
+  stockUnit: string | null;
+  t: (u: PortionUnit) => string;
 }) {
-  const unitSuffix = stockUnit ?? "";
+  const factor = parsePositive(contenanceStr) ?? 1;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 rounded-md border border-dashed p-3">
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Nouvelle référence</p>
       <div className="space-y-2">
-        <Label>Référence fournisseur</Label>
-        <Select value={selectedRefId || undefined} onValueChange={setSelectedRefId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Choisir une référence…" />
-          </SelectTrigger>
-          <SelectContent>
-            {refs.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                {refLabel(r)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Quantité reçue{selectedRef?.order_unit ? ` (${selectedRef.order_unit})` : ""}</Label>
-          <Input
-            value={orderQtyStr}
-            onChange={(e) => setOrderQtyStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="0"
-            className="tabular-nums"
-          />
-          {calc.stockQty != null && (
-            <p className="text-muted-foreground text-xs">
-              →{" "}
-              <strong>
-                {calc.stockQty} {unitSuffix}
-              </strong>{" "}
-              en stock
-              {calc.stockAfter != null ? ` · après : ${calc.stockAfter} ${unitSuffix}` : ""}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label>
-            Prix total HT (€) <span className="text-muted-foreground text-xs font-normal">ligne BL</span>
-          </Label>
-          <Input
-            value={totalPriceStr}
-            onChange={(e) => setTotalPriceStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="ex: 60.00"
-            className="tabular-nums"
-          />
-          {calc.unitCost != null && (
-            <p className="text-muted-foreground text-xs">
-              → coût FIFO :{" "}
-              <strong>
-                {calc.unitCost} €/{unitSuffix}
-              </strong>
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Notes BL (optionnel)</Label>
-        <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          placeholder="N° BL, date de livraison…"
-          className="text-sm"
+        <Label>Désignation / format</Label>
+        <Input
+          value={designation}
+          onChange={(e) => setDesignation(e.target.value)}
+          placeholder="ex : Plaquette 250 g"
         />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Unité de commande</Label>
+          <Select value={orderUnit || "__none__"} onValueChange={(v) => onOrderUnitChange(v === "__none__" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="— Unité" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Aucune</SelectItem>
+              {PORTION_UNITS.map((u) => (
+                <SelectItem key={u} value={u}>
+                  {t(u)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Contenance</Label>
+          <Input
+            value={contenanceStr}
+            onChange={(e) => setContenanceStr(e.target.value)}
+            inputMode="decimal"
+            placeholder="1"
+            className="tabular-nums"
+          />
+        </div>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
+        <strong>
+          {factor} {stockUnit ?? "u. de stock"}
+        </strong>
+      </p>
+    </div>
+  );
+}
+
+// ── Quantité + prix ──────────────────────────────────────────────────────────
+function QtyPriceFields({
+  qtyStr,
+  setQtyStr,
+  puStr,
+  setPuStr,
+  orderUnit,
+  stockUnit,
+  factor,
+  currentStock,
+}: {
+  qtyStr: string;
+  setQtyStr: (v: string) => void;
+  puStr: string;
+  setPuStr: (v: string) => void;
+  orderUnit: string | null;
+  stockUnit: string | null;
+  factor: number;
+  currentStock: number;
+}) {
+  const qty = parsePositive(qtyStr);
+  const pu = parsePositive(puStr);
+  const stockQty = qty != null ? orderQtyToStockQty(qty, factor) : null;
+  const total = qty != null && pu != null ? Math.round(qty * pu * 100) / 100 : null;
+  const unitCost = stockQty != null && total != null ? unitCostFromTotal(total, stockQty) : null;
+  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label>Quantité reçue{orderUnit ? ` (${orderUnit})` : ""}</Label>
+        <Input
+          value={qtyStr}
+          onChange={(e) => setQtyStr(e.target.value)}
+          inputMode="decimal"
+          placeholder="0"
+          className="tabular-nums"
+        />
+        {stockQty != null && (
+          <p className="text-muted-foreground text-xs">
+            →{" "}
+            <strong>
+              {stockQty} {stockUnit ?? ""}
+            </strong>{" "}
+            en stock{stockAfter != null ? ` · après : ${stockAfter} ${stockUnit ?? ""}` : ""}
+          </p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label>Prix unitaire HT{orderUnit ? ` / ${orderUnit}` : ""} (€)</Label>
+        <Input
+          value={puStr}
+          onChange={(e) => setPuStr(e.target.value)}
+          inputMode="decimal"
+          placeholder="ex: 20.00"
+          className="tabular-nums"
+        />
+        {total != null && (
+          <p className="text-muted-foreground text-xs">
+            Total : <strong>{total} €</strong>
+            {unitCost != null ? ` · coût FIFO : ${unitCost} €/${stockUnit ?? ""}` : ""}
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
-export function ReceptionModal({
-  productId,
-  organizationId,
-  establishmentId,
-  productStockId,
-  stockUnit,
-  currentStock,
-  onClose,
-}: Props) {
-  const { data: refsData = [], isLoading } = useSupplierReferences(productId);
+export function ReceptionModal(props: Props) {
+  const { productId, organizationId, establishmentId, productStockId, stockUnit, currentStock, onClose } = props;
+  const t = useTranslations("units");
+  const { data: suppliers = [] } = useActiveSuppliers(organizationId);
+  const { data: refsData = [] } = useSupplierReferences(productId);
   const refs = refsData as Ref[];
+  const createSupplier = useCreateSupplier(organizationId);
+  const createRef = useCreateSupplierReference(productId);
   const addMovement = useAddStockMovement(productId, organizationId, establishmentId, productStockId, stockUnit);
 
-  const [selectedRefId, setSelectedRefId] = useState("");
-  const [orderQtyStr, setOrderQtyStr] = useState("");
-  const [totalPriceStr, setTotalPriceStr] = useState("");
+  const [supplierId, setSupplierId] = useState("");
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [refId, setRefId] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [orderUnit, setOrderUnit] = useState("");
+  const [contenanceStr, setContenanceStr] = useState("1");
+  const [qtyStr, setQtyStr] = useState("");
+  const [puStr, setPuStr] = useState("");
   const [notes, setNotes] = useState("");
 
-  const selectedRef = refs.find((r) => r.id === selectedRefId) ?? null;
-  const calc = computeReception(selectedRef, orderQtyStr, totalPriceStr, currentStock);
-  const canSubmit =
-    selectedRef != null && calc.stockQty != null && parsePositive(totalPriceStr) != null && !addMovement.isPending;
+  const d = deriveState(refs, supplierId, refId, contenanceStr, orderUnit);
+  const qty = parsePositive(qtyStr);
+  const pu = parsePositive(puStr);
+  const busy = createSupplier.isPending || createRef.isPending || addMovement.isPending;
+  const supplierOk = d.isNewSupplier ? newSupplierName.trim() !== "" : d.hasSupplier;
+  const refOk = !d.isNewRef || designation.trim() !== "";
+  const canSubmit = !busy && qty != null && pu != null && supplierOk && refOk;
 
-  const handleSubmit = () => {
-    const totalPrice = parsePositive(totalPriceStr);
-    if (!selectedRef || calc.stockQty == null || totalPrice == null) {
-      toast.error("Sélectionnez une référence fournisseur et renseignez quantité et prix.");
+  const onOrderUnitChange = (v: string) => {
+    setOrderUnit(v);
+    if (contenanceStr === "" || contenanceStr === "1") {
+      const suggested = suggestConversionFactor(v, stockUnit);
+      if (suggested != null) setContenanceStr(String(suggested));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!canSubmit || qty == null || pu == null) {
+      toast.error("Complétez le fournisseur, la référence, la quantité et le prix.");
       return;
     }
-    addMovement.mutate(
-      {
-        movementType: "purchase",
-        quantity: calc.stockQty,
-        notes: notes.trim(),
-        currentStock,
-        totalPrice,
-        supplierRefId: selectedRef.id,
-        conversionFactor: selectedRef.conversion_factor,
-        supplierId: selectedRef.supplier_id,
-      },
-      { onSuccess: onClose },
-    );
+    try {
+      const { supId, refId: resolvedRefId } = await resolveSupplierAndRef({
+        d,
+        organizationId,
+        newSupplierName,
+        supplierId,
+        orderUnit,
+        designation,
+        pu,
+        createSupplier,
+        createRef,
+      });
+      addMovement.mutate(
+        {
+          movementType: "purchase",
+          quantity: orderQtyToStockQty(qty, d.factor),
+          notes: notes.trim(),
+          currentStock,
+          totalPrice: Math.round(qty * pu * 100) / 100,
+          supplierRefId: resolvedRefId,
+          conversionFactor: d.factor,
+          supplierId: supId,
+        },
+        { onSuccess: onClose },
+      );
+    } catch {
+      /* erreurs gérées par les mutations */
+    }
   };
 
   return (
@@ -219,52 +344,111 @@ export function ReceptionModal({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nouvelle réception</DialogTitle>
           <DialogDescription>
-            Choisissez une référence fournisseur du produit, puis saisissez la quantité reçue et le prix de la ligne.
+            Choisissez le fournisseur et la référence reçue, puis saisissez la quantité et le prix unitaire.
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <p className="text-muted-foreground py-6 text-center text-sm">Chargement…</p>
-        ) : refs.length === 0 ? (
-          <div className="space-y-3 py-4">
-            <p className="text-muted-foreground text-sm">
-              Aucun fournisseur n&apos;est configuré pour ce produit. Ajoutez-en un dans la section{" "}
-              <strong>Paramètres fournisseurs</strong> ci-dessous avant d&apos;enregistrer une réception.
-            </p>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Fermer
-            </Button>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Fournisseur</Label>
+            <Select
+              value={supplierId || undefined}
+              onValueChange={(v) => {
+                setSupplierId(v);
+                setRefId("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir un fournisseur…" />
+              </SelectTrigger>
+              <SelectContent>
+                {suppliers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value={NEW}>+ Nouveau fournisseur</SelectItem>
+              </SelectContent>
+            </Select>
+            {d.isNewSupplier && (
+              <Input
+                value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
+                placeholder="Nom du fournisseur"
+                autoFocus
+              />
+            )}
           </div>
-        ) : (
-          <>
-            <ReceptionFields
-              refs={refs}
-              selectedRefId={selectedRefId}
-              setSelectedRefId={setSelectedRefId}
-              orderQtyStr={orderQtyStr}
-              setOrderQtyStr={setOrderQtyStr}
-              totalPriceStr={totalPriceStr}
-              setTotalPriceStr={setTotalPriceStr}
-              notes={notes}
-              setNotes={setNotes}
+
+          {d.showRefSelect && (
+            <div className="space-y-2">
+              <Label>Référence commandée</Label>
+              <Select value={refId || undefined} onValueChange={setRefId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une référence…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {d.supplierRefs.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {refLabel(r)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW}>+ Nouvelle référence</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {d.showNewRef && (
+            <NewReferenceFields
+              designation={designation}
+              setDesignation={setDesignation}
+              orderUnit={orderUnit}
+              onOrderUnitChange={onOrderUnitChange}
+              contenanceStr={contenanceStr}
+              setContenanceStr={setContenanceStr}
               stockUnit={stockUnit}
-              selectedRef={selectedRef}
-              calc={calc}
+              t={t}
             />
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Annuler
-              </Button>
-              <Button type="button" disabled={!canSubmit} onClick={handleSubmit}>
-                {addMovement.isPending ? "Enregistrement…" : "Enregistrer la réception"}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+          )}
+
+          {d.hasSupplier && (
+            <QtyPriceFields
+              qtyStr={qtyStr}
+              setQtyStr={setQtyStr}
+              puStr={puStr}
+              setPuStr={setPuStr}
+              orderUnit={d.effectiveOrderUnit}
+              stockUnit={stockUnit}
+              factor={d.factor}
+              currentStock={currentStock}
+            />
+          )}
+
+          <div className="space-y-2">
+            <Label>Notes BL (optionnel)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="N° BL, date de livraison…"
+              className="text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button type="button" disabled={!canSubmit} onClick={() => void handleSubmit()}>
+            {busy ? "Enregistrement…" : "Enregistrer la réception"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
