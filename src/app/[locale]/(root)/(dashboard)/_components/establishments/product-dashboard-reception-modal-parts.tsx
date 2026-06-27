@@ -237,6 +237,17 @@ export function NewReferenceFields({
   );
 }
 
+function computeAmounts(qtyStr: string, puStr: string, factor: number, currentStock: number) {
+  const qty = parsePositive(qtyStr);
+  const pu = parsePositive(puStr);
+  const stockQty = qty != null ? orderQtyToStockQty(qty, factor) : null;
+  const total = qty != null && pu != null ? Math.round(qty * pu * 100) / 100 : null;
+  const fifoCost = stockQty != null && total != null ? unitCostFromTotal(total, stockQty) : null;
+  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
+  const normalizedCost = pu != null ? Math.round((pu / (factor > 0 ? factor : 1)) * 100000) / 100000 : null;
+  return { stockQty, total, fifoCost, stockAfter, normalizedCost };
+}
+
 export function AmountsFields({
   showQty,
   qtyStr,
@@ -258,13 +269,9 @@ export function AmountsFields({
   factor: number;
   currentStock: number;
 }) {
-  const qty = parsePositive(qtyStr);
-  const pu = parsePositive(puStr);
-  const stockQty = qty != null ? orderQtyToStockQty(qty, factor) : null;
-  const total = qty != null && pu != null ? Math.round(qty * pu * 100) / 100 : null;
-  const fifoCost = stockQty != null && total != null ? unitCostFromTotal(total, stockQty) : null;
-  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
-  const normalizedCost = pu != null ? Math.round((pu / (factor > 0 ? factor : 1)) * 100000) / 100000 : null;
+  const { stockQty, total, fifoCost, stockAfter, normalizedCost } = computeAmounts(qtyStr, puStr, factor, currentStock);
+  // Aperçus masqués tant que l'unité de gestion n'est pas connue (sinon « €/— » trompeur).
+  const hasUnit = stockUnit !== "" && stockUnit !== "—";
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -278,7 +285,7 @@ export function AmountsFields({
             placeholder="0"
             className="tabular-nums"
           />
-          {stockQty != null && (
+          {hasUnit && stockQty != null && (
             <p className="text-muted-foreground text-xs">
               →{" "}
               <strong>
@@ -301,10 +308,10 @@ export function AmountsFields({
         {showQty && total != null && (
           <p className="text-muted-foreground text-xs">
             Total : <strong>{total} €</strong>
-            {fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
+            {hasUnit && fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
           </p>
         )}
-        {!showQty && normalizedCost != null && (
+        {!showQty && hasUnit && normalizedCost != null && (
           <p className="text-muted-foreground text-xs">
             → coût normalisé :{" "}
             <strong>

@@ -5,18 +5,23 @@ import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
 import {
   useDeleteSupplierReference,
   useUpdateSupplierReference,
   type SupplierReferenceRow,
 } from "@/lib/queries/supplier-queries";
-import { toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
+import { compatibleUnits, convertUnit, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -33,6 +38,11 @@ type HistoryRow = {
 };
 
 const HISTORY_PAGE = 5;
+
+function parsePositive(s: string): number | null {
+  const n = parseFloat(s.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 function PriceHistory({
   rows,
@@ -171,6 +181,139 @@ function SupplierCardHeader({ supplierName, isActive }: { supplierName: string |
   );
 }
 
+// Construit le patch de mise à jour : libellés + (conversion dimensionnelle via unité d'achat, ou contenance manuelle).
+function buildPatch(args: {
+  link: ProductSupplierWithName;
+  portionUnit: string | null;
+  isDimensional: boolean;
+  refInput: string;
+  nameInput: string;
+  orderUnitInput: string;
+  contenanceInput: string;
+}): TablesUpdate<"supplier_references"> {
+  const { link, portionUnit, isDimensional, refInput, nameInput, orderUnitInput, contenanceInput } = args;
+  const patch: TablesUpdate<"supplier_references"> = {
+    supplier_product_ref: refInput.trim() !== "" ? refInput.trim() : null,
+    supplier_product_name: nameInput.trim() !== "" ? nameInput.trim() : null,
+  };
+  if (isDimensional) {
+    if (orderUnitInput !== "" && orderUnitInput !== link.order_unit) {
+      patch.order_unit = orderUnitInput;
+      patch.conversion_factor = convertUnit(1, orderUnitInput, portionUnit) ?? 1;
+      const conv = convertUnit(1, orderUnitInput, link.order_unit ?? orderUnitInput);
+      if (link.unit_price != null && conv != null)
+        patch.unit_price = Math.round(link.unit_price * conv * 10000) / 10000;
+    }
+  } else {
+    const f = parsePositive(contenanceInput);
+    if (f != null) patch.conversion_factor = f;
+  }
+  return patch;
+}
+
+function ReferenceEditForm({
+  link,
+  productId,
+  portionUnit,
+  onDone,
+}: {
+  link: ProductSupplierWithName;
+  productId: string;
+  portionUnit: string | null;
+  onDone: () => void;
+}) {
+  const t = useTranslations("units");
+  const updateMutation = useUpdateSupplierReference(productId);
+  const [refInput, setRefInput] = useState(link.supplier_product_ref ?? "");
+  const [nameInput, setNameInput] = useState(link.supplier_product_name ?? "");
+  const [orderUnitInput, setOrderUnitInput] = useState(link.order_unit ?? "");
+  const [contenanceInput, setContenanceInput] = useState(String(link.conversion_factor ?? 1));
+
+  const isDimensional = !!link.order_unit && !!portionUnit && convertUnit(1, link.order_unit, portionUnit) != null;
+  const autoFactor = isDimensional ? convertUnit(1, orderUnitInput, portionUnit) : null;
+
+  const handleSave = () => {
+    updateMutation.mutate(
+      {
+        id: link.id,
+        patch: buildPatch({ link, portionUnit, isDimensional, refInput, nameInput, orderUnitInput, contenanceInput }),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Référence mise à jour.");
+          onDone();
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Input
+          value={refInput}
+          onChange={(e) => setRefInput(e.target.value)}
+          placeholder="Réf. article"
+          className="w-36 font-mono text-xs"
+          autoFocus
+        />
+        <Input
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          placeholder="Désignation fournisseur"
+          className="min-w-[12rem] flex-1 text-xs"
+        />
+      </div>
+
+      {isDimensional ? (
+        <div className="space-y-1">
+          <Label className="text-xs">Unité d&apos;achat (même nature que l&apos;unité de gestion)</Label>
+          <div className="flex items-center gap-2">
+            <Select value={orderUnitInput || undefined} onValueChange={setOrderUnitInput}>
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {compatibleUnits(link.order_unit, PORTION_UNITS).map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {t(u as PortionUnit)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground text-xs">
+              1 {orderUnitInput} = <strong>{autoFactor ?? 1}</strong> {portionUnit} · conversion + prix recalculés
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <Label className="text-xs">
+            Contenance (1 {link.order_unit ?? "unité d'achat"} = ? {portionUnit})
+          </Label>
+          <Input
+            value={contenanceInput}
+            onChange={(e) => setContenanceInput(e.target.value)}
+            inputMode="decimal"
+            placeholder="1"
+            className="w-24 text-xs tabular-nums"
+          />
+          <p className="text-muted-foreground text-[11px]">S&apos;applique aux prochaines réceptions.</p>
+        </div>
+      )}
+
+      <div className="flex gap-1">
+        <Button type="button" size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+          OK
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+          ✕
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function SupplierPriceCard({
   link,
   productId,
@@ -184,32 +327,9 @@ export function SupplierPriceCard({
   portionUnit: string | null;
   history: HistoryRow[];
 }) {
-  const [editLabels, setEditLabels] = useState(false);
-  const [refInput, setRefInput] = useState(link.supplier_product_ref ?? "");
-  const [nameInput, setNameInput] = useState(link.supplier_product_name ?? "");
-
-  const updateMutation = useUpdateSupplierReference(productId);
+  const [editing, setEditing] = useState(false);
   const deleteMutation = useDeleteSupplierReference(productId);
-
   const supplierHistory = history.filter((h) => h.supplier_reference_id === link.id);
-
-  const handleSaveLabels = () => {
-    updateMutation.mutate(
-      {
-        id: link.id,
-        patch: {
-          supplier_product_ref: refInput.trim() !== "" ? refInput.trim() : null,
-          supplier_product_name: nameInput.trim() !== "" ? nameInput.trim() : null,
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success("Référence mise à jour.");
-          setEditLabels(false);
-        },
-      },
-    );
-  };
 
   return (
     <div className="rounded-lg border p-4">
@@ -233,16 +353,7 @@ export function SupplierPriceCard({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setEditLabels(true);
-              setRefInput(link.supplier_product_ref ?? "");
-              setNameInput(link.supplier_product_name ?? "");
-            }}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
             Modifier
           </Button>
           <Button
@@ -259,31 +370,13 @@ export function SupplierPriceCard({
           </Button>
         </div>
       </div>
-      {editLabels && (
-        <div className="mt-3 space-y-2">
-          <p className="text-muted-foreground text-xs">Réf. article · Désignation</p>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              value={refInput}
-              onChange={(e) => setRefInput(e.target.value)}
-              placeholder="TG-12345"
-              className="w-36 font-mono text-xs"
-              autoFocus
-            />
-            <Input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Désignation fournisseur"
-              className="min-w-[12rem] flex-1 text-xs"
-            />
-            <Button type="button" size="sm" onClick={handleSaveLabels} disabled={updateMutation.isPending}>
-              OK
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setEditLabels(false)}>
-              ✕
-            </Button>
-          </div>
-        </div>
+      {editing && (
+        <ReferenceEditForm
+          link={link}
+          productId={productId}
+          portionUnit={portionUnit}
+          onDone={() => setEditing(false)}
+        />
       )}
       <PriceHistory
         rows={supplierHistory}
