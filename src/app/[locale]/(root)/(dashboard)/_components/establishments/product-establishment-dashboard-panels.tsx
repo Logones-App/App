@@ -32,7 +32,8 @@ type TabsProps = {
 type TabFlags = {
   isForSale: boolean;
   hasFicheTechnique: boolean;
-  hasFournisseursTab: boolean;
+  hasAchatsTab: boolean;
+  isPureIngredient: boolean;
   portionUnit: string | null;
   persoStockRows: CompositionStockRow[];
 };
@@ -45,8 +46,12 @@ function computeTabFlags(product: ProductWithCategoryName, compositionStockRows:
   const isForSale = isRecipe || isPurchased;
   return {
     isForSale,
-    hasFicheTechnique: isRecipe || isPurchased || isIngredient,
-    hasFournisseursTab: isIngredient && !isForSale,
+    // Recette : recettes (BOM) et ingrédients composés. Un produit acheté pur n'a rien à composer.
+    hasFicheTechnique: isRecipe || isIngredient,
+    // Achats (réception + fournisseurs) : tout ce qu'on achète — ingrédient OU produit acheté-revendu.
+    hasAchatsTab: isIngredient || isPurchased,
+    // Onglet Stock : seul un ingrédient pur utilise la fiche stock directe (les autres ont le sélecteur de mode).
+    isPureIngredient: isIngredient && !isForSale,
     portionUnit: product.portion_unit ?? null,
     persoStockRows: compositionStockRows.filter(
       (r) => r.isSelfComposition || r.composition.composition_kind === "modifier",
@@ -60,7 +65,7 @@ function buildValidTabs(flags: TabFlags): string[] {
     "stock",
     ...(flags.isForSale ? ["prix-menus", "personnalisation"] : []),
     ...(flags.hasFicheTechnique ? ["recette"] : []),
-    ...(flags.hasFournisseursTab ? ["achats"] : []),
+    ...(flags.hasAchatsTab ? ["achats"] : []),
   ];
 }
 
@@ -81,7 +86,7 @@ export function ProductEstablishmentDashboardTabs({
   menuProductPricing,
 }: TabsProps) {
   const flags = computeTabFlags(product, compositionStockRows);
-  const { isForSale, hasFicheTechnique, hasFournisseursTab, portionUnit, persoStockRows } = flags;
+  const { isForSale, hasFicheTechnique, hasAchatsTab, isPureIngredient, portionUnit, persoStockRows } = flags;
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;
 
@@ -116,7 +121,7 @@ export function ProductEstablishmentDashboardTabs({
         {isForSale && <TabsTrigger value="personnalisation">Personnalisation ({persoCount})</TabsTrigger>}
         <TabsTrigger value="stock">Stock</TabsTrigger>
         {hasFicheTechnique && <TabsTrigger value="recette">Recette</TabsTrigger>}
-        {hasFournisseursTab && <TabsTrigger value="achats">Achats</TabsTrigger>}
+        {hasAchatsTab && <TabsTrigger value="achats">Achats</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="propriete">
@@ -154,7 +159,7 @@ export function ProductEstablishmentDashboardTabs({
           productId={product.id}
           establishmentId={establishmentId}
           organizationId={organizationId}
-          isIngredient={flags.hasFournisseursTab}
+          isIngredient={isPureIngredient}
         />
       </TabsContent>
 
@@ -170,7 +175,7 @@ export function ProductEstablishmentDashboardTabs({
         </TabsContent>
       )}
 
-      {hasFournisseursTab && (
+      {hasAchatsTab && (
         <TabsContent value="achats">
           <div className="space-y-6">
             <AchatsGuidance productId={product.id} hasStock={lineStock != null} />

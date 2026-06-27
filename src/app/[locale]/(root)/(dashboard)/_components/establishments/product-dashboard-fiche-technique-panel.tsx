@@ -130,12 +130,11 @@ export function ProductFicheTechniquePanel({
   const t = useTranslations("units");
   const types = (product.product_type as string[] | null) ?? [];
   const isRecipe = types.includes("recipe");
-  const isPurchased = types.includes("purchased");
   const isIngredient = types.includes("ingredient");
   const showBom = isRecipe || isIngredient;
-  // « Achat direct » = acheter le plat prêt à l'emploi. Pour un ingrédient pur,
-  // les fournisseurs se gèrent dans l'onglet Achats (source unique).
-  const showAchatDirect = isRecipe || isPurchased;
+  // « Achat direct » = acheter le plat prêt à l'emploi (recettes uniquement).
+  // Ingrédients et produits achetés-revendus gèrent leurs fournisseurs dans l'onglet Achats.
+  const showAchatDirect = isRecipe;
   const edit = useCompositionInlineEdit({
     productId: product.id,
     establishmentId,
@@ -265,11 +264,7 @@ export function ProductFicheTechniquePanel({
           organizationId={organizationId}
           portionUnit={product.portion_unit ?? null}
           title="Achat direct"
-          description={
-            isRecipe
-              ? "Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
-              : "Prix d'achat de ce produit auprès des fournisseurs."
-          }
+          description="Prix d'achat si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
         />
       )}
 
