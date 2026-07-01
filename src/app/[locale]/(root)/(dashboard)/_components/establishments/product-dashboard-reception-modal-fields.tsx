@@ -120,8 +120,9 @@ export function GestionUnitField({
   );
 }
 
-/** Formulaire « phrase » de création de référence : [conditionnement] de [contenance] [unité] + prix/base. */
+/** Formulaire « phrase » de création/édition de référence : [conditionnement] de [contenance] [unité] + prix/base. */
 export function ReferencePhraseFields({
+  title = "Nouvelle référence",
   packaging,
   onPackagingChange,
   contenanceStr,
@@ -136,6 +137,7 @@ export function ReferencePhraseFields({
   setPriceBasis,
   t,
 }: {
+  title?: string;
   packaging: string;
   onPackagingChange: (v: string) => void;
   contenanceStr: string;
@@ -159,7 +161,7 @@ export function ReferencePhraseFields({
 
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Nouvelle référence</p>
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</p>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[9rem] flex-1 space-y-1">
