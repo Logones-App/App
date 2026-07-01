@@ -156,7 +156,9 @@ export function ProductFicheTechniquePanel({
   const compositionQueryKey = [PRODUCT_DASHBOARD_QUERY_KEY, product.id, establishmentId, organizationId];
 
   const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
-  const productsById = new Map(allProducts.map((p) => [p.id, { allergens: p.allergens, origins: p.origins }]));
+  const productsById = new Map(
+    allProducts.map((p) => [p.id, { name: p.name, allergens: p.allergens, origins: p.origins }]),
+  );
   const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
   const ingredientList = allProducts.filter(
     (p) => p.id !== product.id && (p.product_type as string[] | null)?.includes("ingredient"),
@@ -292,9 +294,11 @@ export function ProductFicheTechniquePanel({
 
       {isRecipe && (
         <RecipeAllergensCard
+          recipeProductId={product.id}
           recipeAllergens={product.allergens}
           recipeOrigins={product.origins}
-          componentIds={componentIds}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
           productsById={productsById}
         />
       )}
