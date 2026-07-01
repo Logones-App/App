@@ -138,6 +138,25 @@ export function useSupplierReferences(productId: string) {
   });
 }
 
+/** Allergènes + origine des références (par produit) pour un lot de produits — pour l'agrégation recette. */
+export function useSupplierReferenceAttributes(productIds: string[]) {
+  const ids = [...productIds].sort();
+  return useQuery({
+    queryKey: ["supplier-reference-attributes", ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("supplier_references")
+        .select("product_id, allergens, origins")
+        .in("product_id", ids)
+        .eq("deleted", false);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export function useCreateSupplierReference(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({

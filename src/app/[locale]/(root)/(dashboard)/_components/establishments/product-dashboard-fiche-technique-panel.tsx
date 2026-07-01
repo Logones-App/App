@@ -29,6 +29,7 @@ import { CompositionEditModal } from "./composition-edit-modal";
 import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-prix-panel";
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
+import { RecipeAllergensCard } from "./product-dashboard-recipe-allergens-card";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
@@ -155,6 +156,7 @@ export function ProductFicheTechniquePanel({
   const compositionQueryKey = [PRODUCT_DASHBOARD_QUERY_KEY, product.id, establishmentId, organizationId];
 
   const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
+  const productsById = new Map(allProducts.map((p) => [p.id, { allergens: p.allergens, origins: p.origins }]));
   const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
   const ingredientList = allProducts.filter(
     (p) => p.id !== product.id && (p.product_type as string[] | null)?.includes("ingredient"),
@@ -286,6 +288,15 @@ export function ProductFicheTechniquePanel({
             description="Réceptionnez et fixez les prix si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
           />
         </div>
+      )}
+
+      {isRecipe && (
+        <RecipeAllergensCard
+          recipeAllergens={product.allergens}
+          recipeOrigins={product.origins}
+          componentIds={componentIds}
+          productsById={productsById}
+        />
       )}
 
       {showBom && (
