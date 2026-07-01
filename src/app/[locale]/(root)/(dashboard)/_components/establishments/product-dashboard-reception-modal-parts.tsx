@@ -5,7 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import type { useCreateSupplier, useCreateSupplierReference } from "@/lib/queries/supplier-queries";
-import { compatibleUnits, orderQtyToStockQty, unitCostFromTotal } from "@/lib/utils/unit-conversion";
+import {
+  compatibleUnits,
+  convertUnit,
+  orderQtyToStockQty,
+  unitCategory,
+  unitCostFromTotal,
+} from "@/lib/utils/unit-conversion";
 
 export type Mode = "reception" | "price";
 
@@ -33,6 +39,72 @@ export function refLabel(r: Ref): string {
   return `${name}${unit}${factor}`;
 }
 
+/**
+ * Déduit l'unité de gestion du stock impliquée par une référence existante,
+ * à partir de son couple (order_unit, conversion_factor).
+ * Retourne `null` si indéductible (unité de commande absente ou facteur non dimensionnel).
+ */
+export function stockUnitFromRef(ref: Ref | null): string | null {
+  if (!ref || !ref.order_unit) return null;
+  const factor = ref.conversion_factor;
+  for (const u of compatibleUnits(ref.order_unit, PORTION_UNITS)) {
+    const f = convertUnit(1, ref.order_unit, u);
+    if (f != null && Math.abs(f - factor) < 1e-9) return u;
+  }
+  return null;
+}
+
+/** Unité de stock effective : prop figée > choix utilisateur > déduction de la référence. */
+export function resolveStockUnit(stockUnit: string | null, gestionUnit: string, derived: string | null): string {
+  if (stockUnit != null) return stockUnit;
+  if (gestionUnit !== "") return gestionUnit;
+  return derived ?? "";
+}
+
+/**
+ * Sélecteur d'unité de gestion du stock, affiché pour une référence existante quand le produit
+ * n'a pas encore d'unité figée. Pré-rempli avec l'unité déduite de la référence si possible,
+ * mais toujours modifiable — pour ne jamais bloquer l'ajout d'un prix (sans entrée de stock).
+ */
+export function GestionUnitField({
+  show,
+  hasRef,
+  orderUnit,
+  value,
+  onChange,
+  t,
+}: {
+  show: boolean;
+  hasRef: boolean;
+  orderUnit: string | null;
+  value: string;
+  onChange: (v: string) => void;
+  t: (u: PortionUnit) => string;
+}) {
+  if (!show || !hasRef) return null;
+  const options = compatibleUnits(orderUnit, PORTION_UNITS);
+  return (
+    <div className="space-y-2 rounded-md border border-dashed p-3">
+      <Label>Unité de gestion du stock</Label>
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Choisir l'unité de suivi du stock…" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((u) => (
+            <SelectItem key={u} value={u}>
+              {t(u as PortionUnit)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-muted-foreground text-[11px]">
+        Figée à cette première référence — aucune entrée de stock n&apos;est nécessaire.
+      </p>
+    </div>
+  );
+}
+
 export type Derived = {
   isNewSupplier: boolean;
   hasSupplier: boolean;
@@ -55,7 +127,10 @@ export function deriveState(
   const isNewSupplier = supplierId === NEW;
   const hasSupplier = supplierId !== "";
   const supplierRefs = hasSupplier && !isNewSupplier ? refs.filter((r) => r.supplier_id === supplierId) : [];
-  const isNewRef = isNewSupplier || refId === NEW || refId === "";
+  const hasExistingRefs = supplierRefs.length > 0;
+  // « Nouvelle référence » : nouveau fournisseur, choix explicite (+ Nouvelle), ou fournisseur sans aucune référence.
+  // On NE crée PAS de nouvelle référence tant que rien n'est choisi si des références existent déjà.
+  const isNewRef = isNewSupplier || refId === NEW || (hasSupplier && !hasExistingRefs);
   const selectedRef = isNewRef ? null : (supplierRefs.find((r) => r.id === refId) ?? null);
   const factor = selectedRef ? selectedRef.conversion_factor : (parsePositive(contenanceStr) ?? 1);
   return {
@@ -66,7 +141,7 @@ export function deriveState(
     selectedRef,
     factor,
     effectiveOrderUnit: selectedRef ? selectedRef.order_unit : orderUnit || null,
-    showRefSelect: hasSupplier && !isNewSupplier,
+    showRefSelect: hasSupplier && !isNewSupplier && hasExistingRefs,
     showNewRef: hasSupplier && isNewRef,
   };
 }
@@ -125,10 +200,22 @@ export function computeCanSubmit(
   },
 ): boolean {
   const supplierOk = d.isNewSupplier ? args.newSupplierName.trim() !== "" : d.hasSupplier;
-  const refOk = !d.isNewRef || args.designation.trim() !== "";
+  const refOk = d.isNewRef ? args.designation.trim() !== "" : d.selectedRef != null;
   const qtyOk = args.mode === "price" || args.qty != null;
   const unitOk = !args.manageStock || args.effectiveStockUnit !== "";
   return !args.busy && args.pu != null && qtyOk && supplierOk && refOk && unitOk;
+}
+
+/**
+ * Unités de commande cohérentes avec une unité de gestion (stock) déjà figée :
+ * même catégorie (masse↔masse, volume↔volume) + « piece » (achat au colis/à la pièce, facteur manuel).
+ * Stock à la pièce → commande à la pièce uniquement. Unité inconnue → toutes autorisées.
+ */
+export function orderUnitsForStock(stockUnit: string): readonly PortionUnit[] {
+  const cat = unitCategory(stockUnit);
+  if (cat == null) return PORTION_UNITS;
+  if (cat === "unit") return ["piece"];
+  return PORTION_UNITS.filter((u) => unitCategory(u) === cat || u === "piece");
 }
 
 export function NewReferenceFields({
@@ -177,7 +264,7 @@ export function NewReferenceFields({
           <Input value={refArticle} onChange={(e) => setRefArticle(e.target.value)} placeholder="TG-12345" />
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={`grid gap-3 ${orderUnit !== "" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div className="space-y-2">
           <Label>Unité de commande</Label>
           <Select value={orderUnit || "__none__"} onValueChange={(v) => onOrderUnitChange(v === "__none__" ? "" : v)}>
@@ -186,7 +273,7 @@ export function NewReferenceFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">— Aucune</SelectItem>
-              {PORTION_UNITS.map((u) => (
+              {(onGestionUnitChange ? PORTION_UNITS : orderUnitsForStock(gestionUnit)).map((u) => (
                 <SelectItem key={u} value={u}>
                   {t(u)}
                 </SelectItem>
@@ -194,19 +281,21 @@ export function NewReferenceFields({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>Contenance</Label>
-          <Input
-            value={contenanceStr}
-            onChange={(e) => setContenanceStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="1"
-            disabled={contenanceLocked}
-            readOnly={contenanceLocked}
-            className={`tabular-nums ${contenanceLocked ? "bg-muted/50" : ""}`}
-          />
-          {contenanceLocked && <p className="text-muted-foreground text-[11px]">Conversion automatique</p>}
-        </div>
+        {orderUnit !== "" && (
+          <div className="space-y-2">
+            <Label>Contenance</Label>
+            <Input
+              value={contenanceStr}
+              onChange={(e) => setContenanceStr(e.target.value)}
+              inputMode="decimal"
+              placeholder="1"
+              disabled={contenanceLocked}
+              readOnly={contenanceLocked}
+              className={`tabular-nums ${contenanceLocked ? "bg-muted/50" : ""}`}
+            />
+            {contenanceLocked && <p className="text-muted-foreground text-[11px]">Conversion automatique</p>}
+          </div>
+        )}
         <div className="space-y-2">
           <Label>Unité de gestion</Label>
           {onGestionUnitChange ? (
@@ -227,12 +316,14 @@ export function NewReferenceFields({
           )}
         </div>
       </div>
-      <p className="text-muted-foreground text-xs">
-        1 {orderUnit !== "" ? orderUnit : "unité d'achat"} ={" "}
-        <strong>
-          {factor} {gestionUnit || "unité de gestion"}
-        </strong>
-      </p>
+      {orderUnit !== "" && (
+        <p className="text-muted-foreground text-xs">
+          1 {orderUnit} ={" "}
+          <strong>
+            {factor} {gestionUnit || "unité de gestion"}
+          </strong>
+        </p>
+      )}
     </div>
   );
 }

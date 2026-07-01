@@ -9,7 +9,9 @@ export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 export type BookingSlot = Database["public"]["Tables"]["booking_slots"]["Row"];
 
 // Statuts honorés (présence réelle) vs annulés / no-show.
-const HONORED = new Set(["confirmed", "completed"]);
+// Alignés sur la contrainte CHECK : pending | confirmed | seated | no_show | cancelled.
+const HONORED = new Set(["confirmed", "seated"]);
+const NO_SHOW = "no_show";
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
 export function useBookingsInRange(establishmentId: string, organizationId: string, fromDate: string, toDate: string) {
@@ -68,7 +70,7 @@ export function computeBookingKPIs(bookings: Booking[]): BookingKPIs {
     if (HONORED.has(b.status)) {
       honoredCount += 1;
       honoredCovers += b.number_of_guests;
-    } else if (b.status === "no-show") {
+    } else if (b.status === NO_SHOW) {
       noShow += 1;
     } else if (b.status === "cancelled") {
       cancelled += 1;

@@ -270,7 +270,8 @@ export type StockStatus = "no-stock" | "not-managed" | "out-of-stock" | "critica
 /**
  * Statut de réservation
  */
-export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no-show";
+// Aligné sur la contrainte CHECK bookings_status_check.
+export type BookingStatus = "pending" | "confirmed" | "seated" | "cancelled" | "no_show";
 
 /**
  * Statut de disponibilité

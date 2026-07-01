@@ -34,13 +34,16 @@ import {
   AmountsFields,
   computeCanSubmit,
   deriveState,
+  GestionUnitField,
   NEW,
   NewReferenceFields,
   parsePositive,
+  resolveStockUnit,
   type Mode,
   type Ref,
   refLabel,
   resolveSupplierAndRef,
+  stockUnitFromRef,
 } from "./product-dashboard-reception-modal-parts";
 
 type Props = {
@@ -102,9 +105,12 @@ export function ReceptionModal(props: Props) {
 
   const isPrice = mode === "price";
   const showGestionPicker = manageStock && stockUnit == null;
-  const effectiveStockUnit = stockUnit ?? gestionUnit;
 
   const d = deriveState(refs, supplierId, refId, contenanceStr, orderUnit);
+  // Produit sans unité de stock + référence existante choisie : on déduit l'unité de gestion
+  // de la référence (order_unit + conversion_factor) — sinon le formulaire était en impasse.
+  const derivedRefStockUnit = stockUnitFromRef(d.selectedRef);
+  const effectiveStockUnit = resolveStockUnit(stockUnit, gestionUnit, derivedRefStockUnit);
   const qty = parsePositive(qtyStr);
   const pu = parsePositive(puStr);
   const busy = [
@@ -133,7 +139,11 @@ export function ReceptionModal(props: Props) {
   const contenanceLocked = dimFactor != null && dimFactor > 0;
 
   const applyDimensional = (order: string, gestion: string) => {
-    if (order === "" || gestion === "") return;
+    if (order === "") {
+      setContenanceStr("1"); // « Aucune » unité de commande → achat dans l'unité de stock, facteur = 1.
+      return;
+    }
+    if (gestion === "") return;
     const dim = convertUnit(1, order, gestion);
     if (dim != null && dim > 0) setContenanceStr(String(dim));
   };
@@ -295,6 +305,15 @@ export function ReceptionModal(props: Props) {
               t={t}
             />
           )}
+
+          <GestionUnitField
+            show={showGestionPicker}
+            hasRef={d.selectedRef != null}
+            orderUnit={d.effectiveOrderUnit}
+            value={effectiveStockUnit}
+            onChange={setGestionUnit}
+            t={t}
+          />
 
           {d.hasSupplier && (
             <AmountsFields

@@ -5,11 +5,13 @@ import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { Download, Loader2, Mail } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangePicker, defaultDateRange, rangeToIso } from "@/components/ui/date-range-picker";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,21 +22,6 @@ import { buildAccountingCsv, computeVatBreakdown, computeVatByDay } from "@/lib/
 import { useEstablishmentOrders } from "@/lib/queries/orders-queries";
 import { computeRevenueByPaymentMethod } from "@/lib/queries/sales-reporting-queries";
 import { createClient } from "@/lib/supabase/client";
-
-const PERIODS = [
-  { label: "30 jours", days: 30 },
-  { label: "90 jours", days: 90 },
-  { label: "365 jours", days: 365 },
-] as const;
-
-type Period = (typeof PERIODS)[number]["days"];
-
-function getPeriodDates(days: Period) {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  return { fromDate: from.toISOString().slice(0, 10), toDate: to.toISOString().slice(0, 10) };
-}
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -68,15 +55,10 @@ export function ComptabiliteClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId() ?? "";
-  const [period, setPeriod] = useState<Period>(30);
-  const { fromDate, toDate } = useMemo(() => getPeriodDates(period), [period]);
+  const [range, setRange] = useState<DateRange | undefined>(() => defaultDateRange());
+  const { fromDate, toDate, fromIso, toIso } = rangeToIso(range);
 
-  const ordersQ = useEstablishmentOrders(
-    establishmentId,
-    organizationId,
-    `${fromDate}T00:00:00.000Z`,
-    `${toDate}T23:59:59.999Z`,
-  );
+  const ordersQ = useEstablishmentOrders(establishmentId, organizationId, fromIso, toIso);
   const orders = useMemo(() => ordersQ.data ?? [], [ordersQ.data]);
 
   const vat = useMemo(() => computeVatBreakdown(orders), [orders]);
@@ -141,18 +123,7 @@ export function ComptabiliteClient() {
             Transmission au cabinet : ventilation TVA et encaissements (pas de FEC normé)
           </p>
         </div>
-        <div className="flex gap-2">
-          {PERIODS.map((p) => (
-            <Button
-              key={p.days}
-              size="sm"
-              variant={period === p.days ? "default" : "outline"}
-              onClick={() => setPeriod(p.days)}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

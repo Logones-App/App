@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 
 import { useParams } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import type { DateRange } from "react-day-picker";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangePicker, defaultDateRange, rangeToIso } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import {
@@ -20,27 +22,12 @@ import {
 
 import { FrequentationChart } from "./frequentation-chart";
 
-const PERIODS = [
-  { label: "7 jours", days: 7 },
-  { label: "30 jours", days: 30 },
-  { label: "90 jours", days: 90 },
-] as const;
-
-type Period = (typeof PERIODS)[number]["days"];
-
-function getPeriodDates(days: Period) {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  return { fromDate: from.toISOString().slice(0, 10), toDate: to.toISOString().slice(0, 10) };
-}
-
 const STATUS_LABELS: Record<string, string> = {
-  confirmed: "Confirmé",
-  completed: "Terminé",
   pending: "En attente",
+  confirmed: "Confirmé",
+  seated: "Installé",
   cancelled: "Annulé",
-  "no-show": "No-show",
+  no_show: "No-show",
 };
 
 function StatCard({ title, value, hint }: { title: string; value: string; hint: string }) {
@@ -61,8 +48,8 @@ export function ReservationsClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId() ?? "";
-  const [period, setPeriod] = useState<Period>(30);
-  const { fromDate, toDate } = useMemo(() => getPeriodDates(period), [period]);
+  const [range, setRange] = useState<DateRange | undefined>(() => defaultDateRange());
+  const { fromDate, toDate } = rangeToIso(range);
 
   const bookingsQ = useBookingsInRange(establishmentId, organizationId, fromDate, toDate);
   const slotsQ = useBookingSlots(establishmentId, organizationId);
@@ -83,18 +70,7 @@ export function ReservationsClient() {
           <h1 className="text-2xl font-bold">Réservations & fréquentation</h1>
           <p className="text-muted-foreground text-sm">Couverts, taux de remplissage et no-show par période</p>
         </div>
-        <div className="flex gap-2">
-          {PERIODS.map((p) => (
-            <Button
-              key={p.days}
-              size="sm"
-              variant={period === p.days ? "default" : "outline"}
-              onClick={() => setPeriod(p.days)}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

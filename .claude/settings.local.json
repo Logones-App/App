@@ -9,7 +9,23 @@
       "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/page.tsx\" \"src/app/api/establishments/[id]/accounting-export/send/route.ts\" \"src/lib/permissions/nf525-jet.ts\")",
       "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\" \"src/lib/queries/sales-reporting-queries.ts\" \"src/lib/queries/margin-reporting-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\")",
       "PowerShell(npx eslint \"src/app/api/establishments/[id]/accounting-export/send/route.ts\")",
-      "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\")"
+      "PowerShell(npx eslint \"src/lib/queries/accounting-export-queries.ts\")",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\")",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/date-range-picker.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\")",
+      "Bash(rm \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/date-range-picker.tsx\")",
+      "PowerShell(npx eslint --fix \"src/components/ui/date-range-picker.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/comptabilite/_components/comptabilite-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/marge/_components/marge-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/ventes/_components/ventes-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/rh/_components/rh-client.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/reservations/_components/reservations-client.tsx\")",
+      "PowerShell(npx eslint --fix \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/_components/reporting-client.tsx\")",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/bookings-shared.tsx\")",
+      "PowerShell(npx prettier --write \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/bookings-shared.tsx\")",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/booking-edit-modal.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/bookings-shared.tsx\")",
+      "PowerShell(npx prettier --write \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/booking-edit-modal.tsx\")",
+      "PowerShell(npx eslint \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/booking-edit-modal.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/bookings-shared.tsx\" \"src/lib/queries/bookings-reporting-queries.ts\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/dashboard/establishments/[id]/reporting/reservations/_components/reservations-client.tsx\" \"src/lib/types/database-extensions.ts\")",
+      "PowerShell(npx next lint --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal.tsx\" --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\")",
+      "PowerShell(npx prettier --write \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal.tsx\" \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\")",
+      "PowerShell(npx next lint --file \"src/app/[locale]/\\(root\\)/\\(dashboard\\)/_components/establishments/product-dashboard-reception-modal-parts.tsx\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Administrateur\\Documents\\www\\APP-13.07.25\\next-shadcn-admin-dashboard-main\\next-shadcn-admin-dashboard-main\\src\\app\\[locale]\\(root)\\(dashboard)\\dashboard\\establishments\\[id]\\reporting\\comptabilite\\_components"
     ]
   }
 }

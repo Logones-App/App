@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { useParams } from "next/navigation";
 
+import type { DateRange } from "react-day-picker";
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangePicker, defaultDateRange, rangeToIso } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -16,21 +18,6 @@ import {
   useFifoStockValuation,
   type FoodCostRow,
 } from "@/lib/queries/fifo-reporting-queries";
-
-const PERIODS = [
-  { label: "7 jours", days: 7 },
-  { label: "30 jours", days: 30 },
-  { label: "90 jours", days: 90 },
-] as const;
-
-type Period = (typeof PERIODS)[number]["days"];
-
-function getPeriodRange(days: Period) {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  return { from: from.toISOString(), to: to.toISOString() };
-}
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -53,8 +40,8 @@ function LoadingState() {
 export function ReportingClient() {
   const params = useParams();
   const establishmentId = params.id as string;
-  const [period, setPeriod] = useState<Period>(30);
-  const { from, to } = useMemo(() => getPeriodRange(period), [period]);
+  const [range, setRange] = useState<DateRange | undefined>(() => defaultDateRange());
+  const { fromIso: from, toIso: to } = rangeToIso(range);
 
   const cogsQ = useFifoCOGSByPeriod(establishmentId, from, to);
   const foodQ = useFifoFoodCostByRecipe(establishmentId, from, to);
@@ -71,18 +58,7 @@ export function ReportingClient() {
           <h1 className="text-2xl font-bold">Reporting FIFO</h1>
           <p className="text-muted-foreground text-sm">Valorisation réelle des ventes et du stock</p>
         </div>
-        <div className="flex gap-2">
-          {PERIODS.map((p) => (
-            <Button
-              key={p.days}
-              size="sm"
-              variant={period === p.days ? "default" : "outline"}
-              onClick={() => setPeriod(p.days)}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -92,7 +68,7 @@ export function ReportingClient() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{fmt(totalCogs)} €</p>
-            <p className="text-muted-foreground mt-1 text-xs">coût matière FIFO — {period} jours</p>
+            <p className="text-muted-foreground mt-1 text-xs">coût matière FIFO sur la période</p>
           </CardContent>
         </Card>
         <Card>

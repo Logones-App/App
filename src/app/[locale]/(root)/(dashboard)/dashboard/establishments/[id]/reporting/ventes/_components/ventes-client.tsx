@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 
 import { useParams } from "next/navigation";
 
+import type { DateRange } from "react-day-picker";
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangePicker, defaultDateRange, rangeToIso } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import { useEstablishmentOrders } from "@/lib/queries/orders-queries";
@@ -18,21 +20,6 @@ import {
 } from "@/lib/queries/sales-reporting-queries";
 
 import { VentesRevenueChart } from "./ventes-revenue-chart";
-
-const PERIODS = [
-  { label: "7 jours", days: 7 },
-  { label: "30 jours", days: 30 },
-  { label: "90 jours", days: 90 },
-] as const;
-
-type Period = (typeof PERIODS)[number]["days"];
-
-function getPeriodRange(days: Period) {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  return { from: from.toISOString(), to: to.toISOString() };
-}
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,10 +43,10 @@ export function VentesClient() {
   const params = useParams();
   const establishmentId = params.id as string;
   const organizationId = useOrgaUserOrganizationId() ?? "";
-  const [period, setPeriod] = useState<Period>(30);
-  const { from, to } = useMemo(() => getPeriodRange(period), [period]);
+  const [range, setRange] = useState<DateRange | undefined>(() => defaultDateRange());
+  const { fromIso, toIso } = rangeToIso(range);
 
-  const ordersQ = useEstablishmentOrders(establishmentId, organizationId, from, to);
+  const ordersQ = useEstablishmentOrders(establishmentId, organizationId, fromIso, toIso);
   const orders = useMemo(() => ordersQ.data ?? [], [ordersQ.data]);
 
   const kpis = useMemo(() => computeSalesKPIs(orders), [orders]);
@@ -77,22 +64,11 @@ export function VentesClient() {
           </div>
           <p className="text-muted-foreground text-sm">CA HT, panier moyen et ventes par produit (hors pourboires)</p>
         </div>
-        <div className="flex gap-2">
-          {PERIODS.map((p) => (
-            <Button
-              key={p.days}
-              size="sm"
-              variant={period === p.days ? "default" : "outline"}
-              onClick={() => setPeriod(p.days)}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="CA HT" value={`${fmt(kpis.revenueHt)} €`} hint={`${period} jours`} />
+        <StatCard title="CA HT" value={`${fmt(kpis.revenueHt)} €`} hint="sur la période" />
         <StatCard title="Commandes" value={String(kpis.orderCount)} hint={`${kpis.itemCount} articles vendus`} />
         <StatCard title="Panier moyen HT" value={`${fmt(kpis.avgBasketHt)} €`} hint="CA HT / commande" />
         <StatCard title="CA TTC" value={`${fmt(kpis.revenueTtc)} €`} hint="ventes lignes TTC" />

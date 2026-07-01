@@ -41,3 +41,6 @@ env-config.txt
 # Documentation
 Documentation/
 Documentation/*
+
+# Benchmark interne (ne pas versionner)
+KPI_BENCHMARK.md

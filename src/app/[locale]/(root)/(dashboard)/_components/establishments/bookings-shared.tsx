@@ -5,10 +5,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowLeft, Calendar, Users, Search, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  Calendar,
+  Check,
+  CheckCheck,
+  Users,
+  Search,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Plus,
+  Trash2,
+  UserX,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,49 +40,29 @@ import { useBookingsRealtime } from "@/hooks/use-bookings-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/lib/supabase/database.types";
 
+import { BookingEditModal } from "./booking-edit-modal";
+
 // Utilisation du type généré par Supabase
 type Booking = Tables<"bookings">;
 
-// Hook pour récupérer l'ID d'organisation d'un org_admin
-function useOrgaUserOrganizationId(): string | null {
-  const query = useQuery({
-    queryKey: ["orga-user-organization-id"],
-    queryFn: async (): Promise<string | null> => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return null;
+type StatusVariant = "default" | "secondary" | "destructive" | "outline";
 
-      const { data, error } = await supabase
-        .from("users_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "org_admin")
-        .single();
-
-      if (error) {
-        console.error("Erreur lors de la récupération de l'organisation:", error);
-        return null;
-      }
-      return data?.organization_id ?? null;
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 15 * 60 * 1000, // 30 minutes
-  });
-  return query.data ?? null;
-}
+// Valeurs alignées sur la contrainte CHECK bookings_status_check.
+const STATUS_CONFIG: Record<string, { label: string; variant: StatusVariant; className?: string }> = {
+  pending: { label: "En attente", variant: "secondary" },
+  confirmed: { label: "Confirmé", variant: "default" },
+  seated: { label: "Installé", variant: "outline", className: "border-emerald-400 text-emerald-600" },
+  cancelled: { label: "Annulé", variant: "destructive" },
+  no_show: { label: "No-show", variant: "outline", className: "border-orange-400 text-orange-600" },
+};
 
 const getStatusBadge = (status: string) => {
-  const statusConfig = {
-    confirmed: { label: "Confirmé", variant: "default" as const },
-    pending: { label: "En attente", variant: "secondary" as const },
-    cancelled: { label: "Annulé", variant: "destructive" as const },
-    completed: { label: "Terminé", variant: "outline" as const },
-  };
-
-  const config = statusConfig[status as keyof typeof statusConfig] ?? statusConfig.pending;
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  return (
+    <Badge variant={config.variant} className={config.className}>
+      {config.label}
+    </Badge>
+  );
 };
 
 export function BookingsShared({
@@ -81,6 +75,7 @@ export function BookingsShared({
   const pathname = usePathname();
   const isSystemAdmin = pathname.includes("/admin/organizations/");
   const [searchTerm, setSearchTerm] = useState("");
+  const [modal, setModal] = useState<{ booking: Booking | null; mode: "view" | "edit" | "create" } | null>(null);
 
   const backLink = isSystemAdmin
     ? `/admin/organizations/${organizationId}/establishments/${establishmentId}`
@@ -97,6 +92,23 @@ export function BookingsShared({
   const filteredBookings = bookings.filter((booking: Booking) =>
     `${booking.customer_first_name} ${booking.customer_last_name}`.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  // Changement de statut (le hook Realtime rafraîchit automatiquement la liste).
+  const handleStatusChange = async (bookingId: string, status: string) => {
+    const supabase = createClient();
+    const { error: updateError } = await supabase.from("bookings").update({ status }).eq("id", bookingId);
+    if (updateError) toast.error("Erreur lors de la mise à jour du statut");
+    else toast.success("Statut mis à jour");
+  };
+
+  // Suppression logique (soft-delete).
+  const handleDelete = async (booking: Booking) => {
+    if (!confirm(`Supprimer la réservation de ${booking.customer_first_name} ${booking.customer_last_name} ?`)) return;
+    const supabase = createClient();
+    const { error: delError } = await supabase.from("bookings").update({ deleted: true }).eq("id", booking.id);
+    if (delError) toast.error("Erreur lors de la suppression");
+    else toast.success("Réservation supprimée");
+  };
 
   if (isLoading) {
     return (
@@ -169,6 +181,10 @@ export function BookingsShared({
             {filteredBookings.length} réservation{filteredBookings.length > 1 ? "s" : ""}
           </p>
         </div>
+        <Button onClick={() => setModal({ booking: null, mode: "create" })}>
+          <Plus className="mr-2 h-4 w-4" />
+          Ajouter une réservation
+        </Button>
       </div>
 
       <div className="flex items-center gap-4">
@@ -231,16 +247,34 @@ export function BookingsShared({
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setModal({ booking, mode: "view" })}>
                           <Eye className="mr-2 h-4 w-4" />
                           Voir les détails
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setModal({ booking, mode: "edit" })}>
                           <Edit className="mr-2 h-4 w-4" />
                           Modifier
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuLabel>Statut</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => void handleStatusChange(booking.id, "confirmed")}>
+                          <Check className="mr-2 h-4 w-4" />
+                          Confirmer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void handleStatusChange(booking.id, "seated")}>
+                          <CheckCheck className="mr-2 h-4 w-4" />
+                          Marquer présent (installé)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void handleStatusChange(booking.id, "no_show")}>
+                          <UserX className="mr-2 h-4 w-4" />
+                          Marquer no-show
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void handleStatusChange(booking.id, "cancelled")}>
+                          <Ban className="mr-2 h-4 w-4" />
+                          Annuler
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => void handleDelete(booking)}>
                           <Trash2 className="mr-2 h-4 w-4" />
                           Supprimer
                         </DropdownMenuItem>
@@ -259,6 +293,17 @@ export function BookingsShared({
           </TableBody>
         </Table>
       </div>
+
+      <BookingEditModal
+        open={!!modal}
+        onOpenChange={(o) => {
+          if (!o) setModal(null);
+        }}
+        booking={modal?.booking ?? null}
+        mode={modal?.mode ?? "view"}
+        establishmentId={establishmentId}
+        organizationId={organizationId}
+      />
     </div>
   );
 }
