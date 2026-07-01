@@ -2,8 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AllergenPicker } from "@/components/ui/product-attribute-pickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
+import { type AllergenKey, PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import {
   compatibleUnits,
   orderQtyToStockQty,
@@ -20,6 +21,7 @@ import {
   type ReferenceUnits,
   VRAC,
 } from "./product-dashboard-reception-modal-parts";
+import { OriginPicker } from "./product-origin-picker";
 
 const fmtEur = (n: number) => {
   const r = Math.round(n * 10000) / 10000;
@@ -137,6 +139,10 @@ export function ReferencePhraseFields({
   setPriceStr,
   priceBasis,
   setPriceBasis,
+  allergens,
+  setAllergens,
+  origins,
+  setOrigins,
   t,
 }: {
   title?: string;
@@ -154,6 +160,10 @@ export function ReferencePhraseFields({
   setPriceStr: (v: string) => void;
   priceBasis: string;
   setPriceBasis: (v: string) => void;
+  allergens: AllergenKey[];
+  setAllergens: (v: AllergenKey[]) => void;
+  origins: string[];
+  setOrigins: (v: string[]) => void;
   t: (u: PortionUnit) => string;
 }) {
   const isVrac = packaging === VRAC;
@@ -269,6 +279,19 @@ export function ReferencePhraseFields({
       </div>
 
       {equiv !== "" && <p className="text-muted-foreground text-xs">→ {equiv}</p>}
+
+      <div className="space-y-1">
+        <Label className="text-xs">
+          Allergènes <span className="text-muted-foreground">(actifs en rouge)</span>
+        </Label>
+        <AllergenPicker value={allergens} onChange={setAllergens} />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">
+          Origine <span className="text-muted-foreground">(pays de production)</span>
+        </Label>
+        <OriginPicker value={origins} onChange={setOrigins} />
+      </div>
     </div>
   );
 }
@@ -384,6 +407,10 @@ export function NewRefSection(props: {
   refArticle: string;
   setRefArticle: (v: string) => void;
   stockUnit: string;
+  allergens: AllergenKey[];
+  setAllergens: (v: AllergenKey[]) => void;
+  origins: string[];
+  setOrigins: (v: string[]) => void;
   t: (u: PortionUnit) => string;
 }) {
   return (
@@ -402,6 +429,10 @@ export function NewRefSection(props: {
       setPriceStr={props.setPuStr}
       priceBasis={props.priceBasis}
       setPriceBasis={props.setPriceBasis}
+      allergens={props.allergens}
+      setAllergens={props.setAllergens}
+      origins={props.origins}
+      setOrigins={props.setOrigins}
       t={props.t}
     />
   );

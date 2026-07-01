@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { type AllergenKey } from "@/lib/constants/product-attributes";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
 import { ensureSelfStock, useCreateReception } from "@/lib/queries/reception-queries";
 import {
@@ -104,6 +105,8 @@ export function ReceptionModal(props: Props) {
   const [notes, setNotes] = useState("");
   const [packaging, setPackaging] = useState(VRAC);
   const [priceBasis, setPriceBasis] = useState("");
+  const [allergens, setAllergens] = useState<AllergenKey[]>([]);
+  const [origins, setOrigins] = useState<string[]>([]);
 
   const isPrice = mode === "price";
   const showGestionPicker = manageStock && stockUnit == null;
@@ -174,6 +177,8 @@ export function ReceptionModal(props: Props) {
       packaging: ru.packaging,
       supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
       supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
+      allergens,
+      origins,
     });
 
   const submitReception = async () => {
@@ -348,6 +353,10 @@ export function ReceptionModal(props: Props) {
               refArticle={refArticle}
               setRefArticle={setRefArticle}
               stockUnit={effectiveStockUnit}
+              allergens={allergens}
+              setAllergens={setAllergens}
+              origins={origins}
+              setOrigins={setOrigins}
               t={t}
             />
           )}

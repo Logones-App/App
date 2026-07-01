@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { type AllergenKey } from "@/lib/constants/product-attributes";
 import { useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
 import {
   useActiveSuppliers,
@@ -206,6 +207,8 @@ function ReferenceEditForm({
   const [priceBasis, setPriceBasis] = useState(init.priceBasis);
   const [designation, setDesignation] = useState(link.supplier_product_name ?? "");
   const [refArticle, setRefArticle] = useState(link.supplier_product_ref ?? "");
+  const [allergens, setAllergens] = useState<AllergenKey[]>((link.allergens as AllergenKey[] | null) ?? []);
+  const [origins, setOrigins] = useState<string[]>((link.origins as string[] | null) ?? []);
   const stockUnit = portionUnit ?? "";
 
   // L'unité de stock est figée (product_stocks.unit) → non modifiable ici. Le reste est libre.
@@ -233,6 +236,8 @@ function ReferenceEditForm({
           packaging: ru.packaging,
           supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
           supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
+          allergens,
+          origins,
         },
       },
       {
@@ -279,6 +284,10 @@ function ReferenceEditForm({
         setPriceStr={setPriceStr}
         priceBasis={priceBasis}
         setPriceBasis={setPriceBasis}
+        allergens={allergens}
+        setAllergens={setAllergens}
+        origins={origins}
+        setOrigins={setOrigins}
         t={t}
       />
       <div className="flex gap-1">

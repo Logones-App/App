@@ -5863,6 +5863,7 @@ export type Database = {
       }
       supplier_references: {
         Row: {
+          allergens: Json
           conversion_factor: number
           created_at: string
           created_by: string | null
@@ -5873,6 +5874,7 @@ export type Database = {
           notes: string | null
           order_unit: string | null
           organization_id: string
+          origins: Json
           packaging: string | null
           product_id: string
           supplier_id: string
@@ -5882,6 +5884,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          allergens?: Json
           conversion_factor?: number
           created_at?: string
           created_by?: string | null
@@ -5892,6 +5895,7 @@ export type Database = {
           notes?: string | null
           order_unit?: string | null
           organization_id: string
+          origins?: Json
           packaging?: string | null
           product_id: string
           supplier_id: string
@@ -5901,6 +5905,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          allergens?: Json
           conversion_factor?: number
           created_at?: string
           created_by?: string | null
@@ -5911,6 +5916,7 @@ export type Database = {
           notes?: string | null
           order_unit?: string | null
           organization_id?: string
+          origins?: Json
           packaging?: string | null
           product_id?: string
           supplier_id?: string
