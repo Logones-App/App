@@ -15,7 +15,6 @@ import {
   A_LA_PIECE,
   BASIS_PACK,
   computeReferenceUnits,
-  orderUnitsForStock,
   PACKAGINGS,
   parsePositive,
   type ReferenceUnits,
@@ -259,116 +258,6 @@ export function ReferencePhraseFields({
   );
 }
 
-export function NewReferenceFields({
-  designation,
-  setDesignation,
-  refArticle,
-  setRefArticle,
-  orderUnit,
-  onOrderUnitChange,
-  contenanceStr,
-  setContenanceStr,
-  contenanceLocked,
-  gestionUnit,
-  onGestionUnitChange,
-  t,
-}: {
-  designation: string;
-  setDesignation: (v: string) => void;
-  refArticle: string;
-  setRefArticle: (v: string) => void;
-  orderUnit: string;
-  onOrderUnitChange: (v: string) => void;
-  contenanceStr: string;
-  setContenanceStr: (v: string) => void;
-  /** true quand l'unité d'achat et l'unité de gestion sont de même nature (conversion auto). */
-  contenanceLocked: boolean;
-  gestionUnit: string;
-  onGestionUnitChange: ((v: string) => void) | null;
-  t: (u: PortionUnit) => string;
-}) {
-  const factor = parsePositive(contenanceStr) ?? 1;
-  return (
-    <div className="space-y-3 rounded-md border border-dashed p-3">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Nouvelle référence</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Désignation / format</Label>
-          <Input
-            value={designation}
-            onChange={(e) => setDesignation(e.target.value)}
-            placeholder="ex : Plaquette 250 g"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Réf. article</Label>
-          <Input value={refArticle} onChange={(e) => setRefArticle(e.target.value)} placeholder="TG-12345" />
-        </div>
-      </div>
-      <div className={`grid gap-3 ${orderUnit !== "" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-        <div className="space-y-2">
-          <Label>Unité de commande</Label>
-          <Select value={orderUnit || "__none__"} onValueChange={(v) => onOrderUnitChange(v === "__none__" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="— Unité" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">— Aucune</SelectItem>
-              {(onGestionUnitChange ? PORTION_UNITS : orderUnitsForStock(gestionUnit)).map((u) => (
-                <SelectItem key={u} value={u}>
-                  {t(u)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {orderUnit !== "" && (
-          <div className="space-y-2">
-            <Label>Contenance</Label>
-            <Input
-              value={contenanceStr}
-              onChange={(e) => setContenanceStr(e.target.value)}
-              inputMode="decimal"
-              placeholder="1"
-              disabled={contenanceLocked}
-              readOnly={contenanceLocked}
-              className={`tabular-nums ${contenanceLocked ? "bg-muted/50" : ""}`}
-            />
-            {contenanceLocked && <p className="text-muted-foreground text-[11px]">Conversion automatique</p>}
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label>Unité de gestion</Label>
-          {onGestionUnitChange ? (
-            <Select value={gestionUnit || undefined} onValueChange={onGestionUnitChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="— Unité" />
-              </SelectTrigger>
-              <SelectContent>
-                {compatibleUnits(orderUnit || null, PORTION_UNITS).map((u) => (
-                  <SelectItem key={u} value={u}>
-                    {t(u as PortionUnit)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input value={gestionUnit} disabled readOnly className="bg-muted/50" />
-          )}
-        </div>
-      </div>
-      {orderUnit !== "" && (
-        <p className="text-muted-foreground text-xs">
-          1 {orderUnit} ={" "}
-          <strong>
-            {factor} {gestionUnit || "unité de gestion"}
-          </strong>
-        </p>
-      )}
-    </div>
-  );
-}
-
 function computeAmounts(qtyStr: string, puStr: string, factor: number, currentStock: number) {
   const qty = parsePositive(qtyStr);
   const pu = parsePositive(puStr);
@@ -382,6 +271,7 @@ function computeAmounts(qtyStr: string, puStr: string, factor: number, currentSt
 
 export function AmountsFields({
   showQty,
+  showPrice = true,
   qtyStr,
   setQtyStr,
   puStr,
@@ -392,6 +282,7 @@ export function AmountsFields({
   currentStock,
 }: {
   showQty: boolean;
+  showPrice?: boolean;
   qtyStr: string;
   setQtyStr: (v: string) => void;
   puStr: string;
@@ -428,43 +319,43 @@ export function AmountsFields({
           )}
         </div>
       )}
-      <div className="space-y-2">
-        <Label>Prix unitaire HT{orderUnit ? ` / ${orderUnit}` : ""} (€)</Label>
-        <Input
-          value={puStr}
-          onChange={(e) => setPuStr(e.target.value)}
-          inputMode="decimal"
-          placeholder="ex: 20.00"
-          className="tabular-nums"
-        />
-        {showQty && total != null && (
-          <p className="text-muted-foreground text-xs">
-            Total : <strong>{total} €</strong>
-            {hasUnit && fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
-          </p>
-        )}
-        {!showQty && hasUnit && normalizedCost != null && (
-          <p className="text-muted-foreground text-xs">
-            → coût normalisé :{" "}
-            <strong>
-              {normalizedCost} €/{stockUnit}
-            </strong>
-          </p>
-        )}
-      </div>
+      {showPrice && (
+        <div className="space-y-2">
+          <Label>Prix unitaire HT{orderUnit ? ` / ${orderUnit}` : ""} (€)</Label>
+          <Input
+            value={puStr}
+            onChange={(e) => setPuStr(e.target.value)}
+            inputMode="decimal"
+            placeholder="ex: 20.00"
+            className="tabular-nums"
+          />
+          {showQty && total != null && (
+            <p className="text-muted-foreground text-xs">
+              Total : <strong>{total} €</strong>
+              {hasUnit && fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
+            </p>
+          )}
+          {!showQty && hasUnit && normalizedCost != null && (
+            <p className="text-muted-foreground text-xs">
+              → coût normalisé :{" "}
+              <strong>
+                {normalizedCost} €/{stockUnit}
+              </strong>
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * Section « nouvelle référence » : formulaire en phrase (mode prix) ou formulaire classique
- * (mode réception). Regroupé ici pour garder le modal simple.
+ * Section « nouvelle référence » (phrase), utilisée par les modes prix ET réception.
+ * Regroupée ici pour garder le modal simple (la logique picker d'unité reste isolée).
  */
 export function NewRefSection(props: {
-  isPrice: boolean;
   showGestionPicker: boolean;
   setGestionUnit: (v: string) => void;
-  handleGestionChange: (v: string) => void;
   packaging: string;
   onPackagingChange: (v: string) => void;
   priceBasis: string;
@@ -476,45 +367,22 @@ export function NewRefSection(props: {
   refArticle: string;
   setRefArticle: (v: string) => void;
   stockUnit: string;
-  designation: string;
-  setDesignation: (v: string) => void;
-  orderUnit: string;
-  onOrderUnitChange: (v: string) => void;
-  contenanceLocked: boolean;
   t: (u: PortionUnit) => string;
 }) {
-  if (props.isPrice) {
-    return (
-      <ReferencePhraseFields
-        packaging={props.packaging}
-        onPackagingChange={props.onPackagingChange}
-        contenanceStr={props.contenanceStr}
-        setContenanceStr={props.setContenanceStr}
-        stockUnit={props.stockUnit}
-        onStockUnitChange={props.showGestionPicker ? props.setGestionUnit : null}
-        refArticle={props.refArticle}
-        setRefArticle={props.setRefArticle}
-        priceStr={props.puStr}
-        setPriceStr={props.setPuStr}
-        priceBasis={props.priceBasis}
-        setPriceBasis={props.setPriceBasis}
-        t={props.t}
-      />
-    );
-  }
   return (
-    <NewReferenceFields
-      designation={props.designation}
-      setDesignation={props.setDesignation}
-      refArticle={props.refArticle}
-      setRefArticle={props.setRefArticle}
-      orderUnit={props.orderUnit}
-      onOrderUnitChange={props.onOrderUnitChange}
+    <ReferencePhraseFields
+      packaging={props.packaging}
+      onPackagingChange={props.onPackagingChange}
       contenanceStr={props.contenanceStr}
       setContenanceStr={props.setContenanceStr}
-      contenanceLocked={props.contenanceLocked}
-      gestionUnit={props.stockUnit}
-      onGestionUnitChange={props.showGestionPicker ? props.handleGestionChange : null}
+      stockUnit={props.stockUnit}
+      onStockUnitChange={props.showGestionPicker ? props.setGestionUnit : null}
+      refArticle={props.refArticle}
+      setRefArticle={props.setRefArticle}
+      priceStr={props.puStr}
+      setPriceStr={props.setPuStr}
+      priceBasis={props.priceBasis}
+      setPriceBasis={props.setPriceBasis}
       t={props.t}
     />
   );

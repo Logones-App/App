@@ -28,25 +28,22 @@ import {
   useUpdateSupplierReference,
 } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
-import { convertUnit } from "@/lib/utils/unit-conversion";
 
 import { AmountsFields, GestionUnitField, NewRefSection } from "./product-dashboard-reception-modal-fields";
 import {
   A_LA_PIECE,
   BASIS_PACK,
-  canSubmitPhrase,
-  computeCanSubmit,
+  canSubmitAll,
   computeReferenceUnits,
   deriveState,
-  isContenanceLocked,
   NEW,
   parsePositive,
+  qtyOrderLabel,
   refDesignation,
   resolveStockUnit,
   type Mode,
   type Ref,
   refLabel,
-  resolveSupplierAndRef,
   stockUnitFromRef,
   VRAC,
 } from "./product-dashboard-reception-modal-parts";
@@ -67,7 +64,7 @@ function modalText(isPrice: boolean, showFirstRefHint: boolean) {
   const title = isPrice ? "Ajouter un prix d'achat" : "Nouvelle réception";
   const base = isPrice
     ? "Enregistrez un tarif fournisseur pour une référence (sans entrée de stock)."
-    : "Choisissez le fournisseur et la référence reçue, puis saisissez la quantité et le prix unitaire.";
+    : "Choisissez le fournisseur et la référence reçue, puis saisissez la quantité.";
   const description = showFirstRefHint
     ? `${base} L'unité de gestion du stock sera figée à cette première référence.`
     : base;
@@ -99,9 +96,7 @@ export function ReceptionModal(props: Props) {
   const [supplierId, setSupplierId] = useState("");
   const [newSupplierName, setNewSupplierName] = useState("");
   const [refId, setRefId] = useState("");
-  const [designation, setDesignation] = useState("");
   const [refArticle, setRefArticle] = useState("");
-  const [orderUnit, setOrderUnit] = useState("");
   const [contenanceStr, setContenanceStr] = useState("1");
   const [gestionUnit, setGestionUnit] = useState("");
   const [qtyStr, setQtyStr] = useState("");
@@ -113,13 +108,22 @@ export function ReceptionModal(props: Props) {
   const isPrice = mode === "price";
   const showGestionPicker = manageStock && stockUnit == null;
 
-  const d = deriveState(refs, supplierId, refId, contenanceStr, orderUnit);
-  // Produit sans unité de stock + référence existante choisie : on déduit l'unité de gestion
-  // de la référence (order_unit + conversion_factor) — sinon le formulaire était en impasse.
+  const d = deriveState(refs, supplierId, refId, contenanceStr, "");
+  // Référence existante sans unité de stock figée : on déduit l'unité de gestion de la référence.
   const derivedRefStockUnit = stockUnitFromRef(d.selectedRef);
   const effectiveStockUnit = resolveStockUnit(stockUnit, gestionUnit, derivedRefStockUnit);
   const qty = parsePositive(qtyStr);
   const pu = parsePositive(puStr);
+  const contenance = parsePositive(contenanceStr) ?? 1;
+  // Traduction de la « phrase » (pour la création de référence et l'aperçu quantité).
+  const ru = computeReferenceUnits({
+    packaging,
+    contenance,
+    stockUnit: effectiveStockUnit,
+    priceValue: pu ?? 0,
+    priceBasis,
+  });
+
   const busy = [
     createSupplier.isPending,
     createRef.isPending,
@@ -127,43 +131,23 @@ export function ReceptionModal(props: Props) {
     createReception.isPending,
     addPrice.isPending,
   ].some(Boolean);
-  // Mode « ajout de prix + création de référence » → formulaire en phrase (conditionnement…).
-  const isPriceNewRef = isPrice && d.showNewRef;
-  const canSubmit = isPriceNewRef
-    ? canSubmitPhrase(d, {
-        busy,
-        pu,
-        newSupplierName,
-        packaging,
-        contenanceStr,
-        priceBasis,
-        stockUnit: effectiveStockUnit,
-      })
-    : computeCanSubmit(d, { mode, manageStock, busy, qty, pu, newSupplierName, designation, effectiveStockUnit });
+
+  // Nouvelle référence → formulaire « phrase » (prix + réception). Existante → montants classiques.
+  const canSubmit = canSubmitAll(d, {
+    isPrice,
+    mode,
+    manageStock,
+    busy,
+    qty,
+    pu,
+    newSupplierName,
+    packaging,
+    contenanceStr,
+    priceBasis,
+    effectiveStockUnit,
+  });
   const text = modalText(isPrice, showGestionPicker);
-
-  // Verrou de contenance de l'ancien formulaire de réception (conversion dimensionnelle auto).
-  const contenanceLocked = isContenanceLocked(orderUnit, effectiveStockUnit);
-
-  const applyDimensional = (order: string, gestion: string) => {
-    if (order === "") {
-      setContenanceStr("1"); // « Aucune » unité de commande → achat dans l'unité de stock, facteur = 1.
-      return;
-    }
-    if (gestion === "") return;
-    const dim = convertUnit(1, order, gestion);
-    if (dim != null && dim > 0) setContenanceStr(String(dim));
-  };
-
-  const onOrderUnitChange = (v: string) => {
-    setOrderUnit(v);
-    applyDimensional(v, effectiveStockUnit);
-  };
-
-  const handleGestionChange = (v: string) => {
-    setGestionUnit(v);
-    applyDimensional(orderUnit, v);
-  };
+  const stockUnitLabel = effectiveStockUnit || "—";
 
   const onPackagingChange = (v: string) => {
     setPackaging(v);
@@ -177,30 +161,49 @@ export function ReceptionModal(props: Props) {
     }
   };
 
-  const refArgs = () => ({
-    d,
-    organizationId,
-    newSupplierName,
-    supplierId,
-    orderUnit,
-    designation,
-    refArticle,
-    pu: pu as number,
-    createSupplier,
-    createRef,
-  });
+  const ensureSupplier = async () =>
+    d.isNewSupplier ? createSupplier.mutateAsync({ name: newSupplierName.trim(), is_active: true }) : supplierId;
+
+  const createPhraseRef = async (supId: string) =>
+    createRef.mutateAsync({
+      supplier_id: supId,
+      organization_id: organizationId,
+      order_unit: ru.orderUnit,
+      conversion_factor: ru.conversionFactor,
+      unit_price: ru.unitPrice,
+      packaging: ru.packaging,
+      supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
+      supplier_product_name: refDesignation(packaging, contenance, effectiveStockUnit),
+    });
 
   const submitReception = async () => {
-    const { supId, refId: resolvedRefId } = await resolveSupplierAndRef(refArgs());
+    if (d.selectedRef) {
+      createReception.mutate(
+        {
+          productStockId,
+          stockUnit: effectiveStockUnit,
+          supplierRefId: d.selectedRef.id,
+          supplierId,
+          orderQty: qty as number,
+          unitPrice: pu as number,
+          conversionFactor: d.factor,
+          notes,
+        },
+        { onSuccess: onClose },
+      );
+      return;
+    }
+    const supId = await ensureSupplier();
+    const newRefId = await createPhraseRef(supId);
     createReception.mutate(
       {
         productStockId,
         stockUnit: effectiveStockUnit,
-        supplierRefId: resolvedRefId,
+        supplierRefId: newRefId,
         supplierId: supId,
         orderQty: qty as number,
-        unitPrice: pu as number,
-        conversionFactor: d.factor,
+        unitPrice: ru.unitPrice,
+        conversionFactor: ru.conversionFactor,
         notes,
       },
       { onSuccess: onClose },
@@ -216,9 +219,7 @@ export function ReceptionModal(props: Props) {
         desiredUnit: effectiveStockUnit,
       });
     }
-    const supId = d.isNewSupplier
-      ? await createSupplier.mutateAsync({ name: newSupplierName.trim(), is_active: true })
-      : supplierId;
+    const supId = await ensureSupplier();
     const today = new Date().toISOString().slice(0, 10);
     const supplierRef = refArticle.trim() !== "" ? refArticle.trim() : undefined;
 
@@ -239,25 +240,8 @@ export function ReceptionModal(props: Props) {
       return;
     }
 
-    // Nouvelle référence via la « phrase » (conditionnement de X unité + base de prix).
-    const contenance = parsePositive(contenanceStr) ?? 1;
-    const ru = computeReferenceUnits({
-      packaging,
-      contenance,
-      stockUnit: effectiveStockUnit,
-      priceValue: pu as number,
-      priceBasis,
-    });
-    const newRefId = await createRef.mutateAsync({
-      supplier_id: supId,
-      organization_id: organizationId,
-      order_unit: ru.orderUnit,
-      conversion_factor: ru.conversionFactor,
-      unit_price: ru.unitPrice,
-      packaging: ru.packaging,
-      supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
-      supplier_product_name: refDesignation(packaging, contenance, effectiveStockUnit),
-    });
+    // Nouvelle référence via la « phrase ».
+    const newRefId = await createPhraseRef(supId);
     addPrice.mutate(
       {
         unit_cost: ru.unitCost,
@@ -349,10 +333,8 @@ export function ReceptionModal(props: Props) {
 
           {d.showNewRef && (
             <NewRefSection
-              isPrice={isPrice}
               showGestionPicker={showGestionPicker}
               setGestionUnit={setGestionUnit}
-              handleGestionChange={handleGestionChange}
               packaging={packaging}
               onPackagingChange={onPackagingChange}
               priceBasis={priceBasis}
@@ -364,11 +346,6 @@ export function ReceptionModal(props: Props) {
               refArticle={refArticle}
               setRefArticle={setRefArticle}
               stockUnit={effectiveStockUnit}
-              designation={designation}
-              setDesignation={setDesignation}
-              orderUnit={orderUnit}
-              onOrderUnitChange={onOrderUnitChange}
-              contenanceLocked={contenanceLocked}
               t={t}
             />
           )}
@@ -382,7 +359,7 @@ export function ReceptionModal(props: Props) {
             t={t}
           />
 
-          {d.hasSupplier && !isPriceNewRef && (
+          {d.hasSupplier && !d.showNewRef && (
             <AmountsFields
               showQty={!isPrice}
               qtyStr={qtyStr}
@@ -390,8 +367,23 @@ export function ReceptionModal(props: Props) {
               puStr={puStr}
               setPuStr={setPuStr}
               orderUnit={d.effectiveOrderUnit}
-              stockUnit={effectiveStockUnit || "—"}
+              stockUnit={stockUnitLabel}
               factor={d.factor}
+              currentStock={currentStock}
+            />
+          )}
+
+          {d.showNewRef && !isPrice && (
+            <AmountsFields
+              showQty
+              showPrice={false}
+              qtyStr={qtyStr}
+              setQtyStr={setQtyStr}
+              puStr={puStr}
+              setPuStr={setPuStr}
+              orderUnit={qtyOrderLabel(packaging, ru.orderUnit)}
+              stockUnit={stockUnitLabel}
+              factor={ru.conversionFactor}
               currentStock={currentStock}
             />
           )}

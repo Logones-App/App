@@ -1,6 +1,5 @@
-import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import type { useCreateSupplier, useCreateSupplierReference } from "@/lib/queries/supplier-queries";
-import { compatibleUnits, convertUnit, unitCategory } from "@/lib/utils/unit-conversion";
+import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { compatibleUnits, convertUnit } from "@/lib/utils/unit-conversion";
 
 export type Mode = "reception" | "price";
 
@@ -86,17 +85,18 @@ export function computeReferenceUnits(input: {
   };
 }
 
+/** Libellé de l'unité de quantité reçue selon le conditionnement (pour la réception). */
+export function qtyOrderLabel(packaging: string, orderUnit: string): string {
+  if (packaging === VRAC) return orderUnit;
+  if (packaging === A_LA_PIECE) return "pièce";
+  return packaging;
+}
+
 /** Désignation lisible construite depuis la phrase (stockée dans supplier_product_name). */
 export function refDesignation(packaging: string, contenance: number, stockUnit: string): string | null {
   if (packaging === VRAC) return null;
   if (packaging === A_LA_PIECE) return "À la pièce";
   return `${packaging} de ${contenance} ${stockUnit}`;
-}
-
-/** Verrou de contenance (conservé pour l'ancien formulaire de réception). */
-export function isContenanceLocked(orderUnit: string, stockUnit: string): boolean {
-  const dim = orderUnit !== "" && stockUnit !== "" ? convertUnit(1, orderUnit, stockUnit) : null;
-  return dim != null && dim > 0;
 }
 
 export type Ref = {
@@ -107,7 +107,33 @@ export type Ref = {
   order_unit: string | null;
   conversion_factor: number;
   unit_price: number | null;
+  packaging: string | null;
 };
+
+/** Valeurs de la « phrase » (état du formulaire) issues d'une référence stockée — pour l'édition. */
+export type PhraseForm = {
+  packaging: string;
+  contenanceStr: string;
+  priceStr: string;
+  priceBasis: string;
+};
+
+/** Reverse-mapping : reconstruit la phrase depuis une référence existante. */
+export function referenceToForm(ref: Ref): PhraseForm {
+  const pkg = ref.packaging;
+  let packaging: string;
+  if (pkg && pkg !== "piece") packaging = pkg;
+  else if (pkg === "piece") packaging = A_LA_PIECE;
+  else packaging = ref.order_unit && ref.order_unit !== "piece" ? VRAC : A_LA_PIECE;
+
+  const isVrac = packaging === VRAC;
+  return {
+    packaging,
+    contenanceStr: isVrac ? "1" : String(ref.conversion_factor),
+    priceStr: ref.unit_price != null ? String(ref.unit_price) : "",
+    priceBasis: isVrac ? (ref.order_unit ?? "") : BASIS_PACK,
+  };
+}
 
 export function parsePositive(s: string): number | null {
   const n = parseFloat(s.replace(",", "."));
@@ -184,46 +210,6 @@ export function deriveState(
   };
 }
 
-export async function resolveSupplierAndRef(args: {
-  d: Derived;
-  organizationId: string;
-  newSupplierName: string;
-  supplierId: string;
-  orderUnit: string;
-  designation: string;
-  refArticle: string;
-  pu: number;
-  createSupplier: ReturnType<typeof useCreateSupplier>;
-  createRef: ReturnType<typeof useCreateSupplierReference>;
-}): Promise<{ supId: string; refId: string }> {
-  const {
-    d,
-    organizationId,
-    newSupplierName,
-    supplierId,
-    orderUnit,
-    designation,
-    refArticle,
-    pu,
-    createSupplier,
-    createRef,
-  } = args;
-  const supId = d.isNewSupplier
-    ? await createSupplier.mutateAsync({ name: newSupplierName.trim(), is_active: true })
-    : supplierId;
-  if (d.selectedRef) return { supId, refId: d.selectedRef.id };
-  const refId = await createRef.mutateAsync({
-    supplier_id: supId,
-    organization_id: organizationId,
-    order_unit: orderUnit !== "" ? orderUnit : null,
-    conversion_factor: d.factor,
-    unit_price: pu,
-    supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
-    supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
-  });
-  return { supId, refId };
-}
-
 export function computeCanSubmit(
   d: Derived,
   args: {
@@ -264,14 +250,43 @@ export function canSubmitPhrase(
   return !args.busy && args.pu != null && supplierOk && phraseOk;
 }
 
-/**
- * Unités de commande cohérentes avec une unité de gestion (stock) déjà figée :
- * même catégorie (masse↔masse, volume↔volume) + « piece » (achat au colis/à la pièce, facteur manuel).
- * Stock à la pièce → commande à la pièce uniquement. Unité inconnue → toutes autorisées.
- */
-export function orderUnitsForStock(stockUnit: string): readonly PortionUnit[] {
-  const cat = unitCategory(stockUnit);
-  if (cat == null) return PORTION_UNITS;
-  if (cat === "unit") return ["piece"];
-  return PORTION_UNITS.filter((u) => unitCategory(u) === cat || u === "piece");
+/** Validité du bouton, tous cas confondus (nouvelle référence « phrase » ou référence existante). */
+export function canSubmitAll(
+  d: Derived,
+  args: {
+    isPrice: boolean;
+    mode: Mode;
+    manageStock: boolean;
+    busy: boolean;
+    qty: number | null;
+    pu: number | null;
+    newSupplierName: string;
+    packaging: string;
+    contenanceStr: string;
+    priceBasis: string;
+    effectiveStockUnit: string;
+  },
+): boolean {
+  if (d.showNewRef) {
+    const phraseValid = canSubmitPhrase(d, {
+      busy: args.busy,
+      pu: args.pu,
+      newSupplierName: args.newSupplierName,
+      packaging: args.packaging,
+      contenanceStr: args.contenanceStr,
+      priceBasis: args.priceBasis,
+      stockUnit: args.effectiveStockUnit,
+    });
+    return phraseValid && (args.isPrice || args.qty != null);
+  }
+  return computeCanSubmit(d, {
+    mode: args.mode,
+    manageStock: args.manageStock,
+    busy: args.busy,
+    qty: args.qty,
+    pu: args.pu,
+    newSupplierName: args.newSupplierName,
+    designation: "",
+    effectiveStockUnit: args.effectiveStockUnit,
+  });
 }
