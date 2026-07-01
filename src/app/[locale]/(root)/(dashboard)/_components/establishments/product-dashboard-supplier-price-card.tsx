@@ -10,8 +10,11 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDeletePurchasePrice } from "@/lib/queries/purchase-price-queries";
 import {
+  useActiveSuppliers,
   useDeleteSupplierReference,
   useUpdateSupplierReference,
   type SupplierReferenceRow,
@@ -194,7 +197,9 @@ function ReferenceEditForm({
 }) {
   const t = useTranslations("units");
   const updateMutation = useUpdateSupplierReference(productId);
+  const { data: suppliers = [] } = useActiveSuppliers(link.organization_id);
   const init = referenceToForm(link);
+  const [supplierId, setSupplierId] = useState(link.supplier_id);
   const [packaging, setPackaging] = useState(init.packaging);
   const [contenanceStr, setContenanceStr] = useState(init.contenanceStr);
   const [priceStr, setPriceStr] = useState(init.priceStr);
@@ -221,6 +226,7 @@ function ReferenceEditForm({
       {
         id: link.id,
         patch: {
+          supplier_id: supplierId,
           order_unit: ru.orderUnit,
           conversion_factor: ru.conversionFactor,
           unit_price: ru.unitPrice,
@@ -240,6 +246,23 @@ function ReferenceEditForm({
 
   return (
     <div className="mt-3 space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Fournisseur</Label>
+        <Select value={supplierId || undefined} onValueChange={setSupplierId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Choisir un fournisseur…" />
+          </SelectTrigger>
+          <SelectContent>
+            {suppliers.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-[11px]">Changer le fournisseur transfère cette référence.</p>
+      </div>
+
       <ReferencePhraseFields
         title="Modifier la référence"
         packaging={packaging}
