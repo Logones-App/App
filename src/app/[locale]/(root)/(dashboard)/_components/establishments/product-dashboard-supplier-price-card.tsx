@@ -24,7 +24,6 @@ import {
   BASIS_PACK,
   computeReferenceUnits,
   parsePositive,
-  refDesignation,
   referenceToForm,
   VRAC,
 } from "./product-dashboard-reception-modal-parts";
@@ -200,6 +199,7 @@ function ReferenceEditForm({
   const [contenanceStr, setContenanceStr] = useState(init.contenanceStr);
   const [priceStr, setPriceStr] = useState(init.priceStr);
   const [priceBasis, setPriceBasis] = useState(init.priceBasis);
+  const [designation, setDesignation] = useState(link.supplier_product_name ?? "");
   const [refArticle, setRefArticle] = useState(link.supplier_product_ref ?? "");
   const stockUnit = portionUnit ?? "";
 
@@ -225,7 +225,7 @@ function ReferenceEditForm({
           conversion_factor: ru.conversionFactor,
           unit_price: ru.unitPrice,
           packaging: ru.packaging,
-          supplier_product_name: refDesignation(packaging, contenance, stockUnit),
+          supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
           supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
         },
       },
@@ -248,6 +248,8 @@ function ReferenceEditForm({
         setContenanceStr={setContenanceStr}
         stockUnit={stockUnit}
         onStockUnitChange={null}
+        designation={designation}
+        setDesignation={setDesignation}
         refArticle={refArticle}
         setRefArticle={setRefArticle}
         priceStr={priceStr}

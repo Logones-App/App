@@ -129,6 +129,8 @@ export function ReferencePhraseFields({
   setContenanceStr,
   stockUnit,
   onStockUnitChange,
+  designation,
+  setDesignation,
   refArticle,
   setRefArticle,
   priceStr,
@@ -144,6 +146,8 @@ export function ReferencePhraseFields({
   setContenanceStr: (v: string) => void;
   stockUnit: string;
   onStockUnitChange: ((v: string) => void) | null;
+  designation: string;
+  setDesignation: (v: string) => void;
   refArticle: string;
   setRefArticle: (v: string) => void;
   priceStr: string;
@@ -162,6 +166,15 @@ export function ReferencePhraseFields({
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</p>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Désignation (nom fournisseur)</Label>
+        <Input
+          value={designation}
+          onChange={(e) => setDesignation(e.target.value)}
+          placeholder="ex : Génépi des Alpes AOP 75 cl"
+        />
+      </div>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[9rem] flex-1 space-y-1">
@@ -366,6 +379,8 @@ export function NewRefSection(props: {
   setPuStr: (v: string) => void;
   contenanceStr: string;
   setContenanceStr: (v: string) => void;
+  designation: string;
+  setDesignation: (v: string) => void;
   refArticle: string;
   setRefArticle: (v: string) => void;
   stockUnit: string;
@@ -379,6 +394,8 @@ export function NewRefSection(props: {
       setContenanceStr={props.setContenanceStr}
       stockUnit={props.stockUnit}
       onStockUnitChange={props.showGestionPicker ? props.setGestionUnit : null}
+      designation={props.designation}
+      setDesignation={props.setDesignation}
       refArticle={props.refArticle}
       setRefArticle={props.setRefArticle}
       priceStr={props.puStr}

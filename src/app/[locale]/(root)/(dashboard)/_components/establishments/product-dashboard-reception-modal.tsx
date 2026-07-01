@@ -39,7 +39,6 @@ import {
   NEW,
   parsePositive,
   qtyOrderLabel,
-  refDesignation,
   resolveStockUnit,
   type Mode,
   type Ref,
@@ -96,6 +95,7 @@ export function ReceptionModal(props: Props) {
   const [supplierId, setSupplierId] = useState("");
   const [newSupplierName, setNewSupplierName] = useState("");
   const [refId, setRefId] = useState("");
+  const [designation, setDesignation] = useState("");
   const [refArticle, setRefArticle] = useState("");
   const [contenanceStr, setContenanceStr] = useState("1");
   const [gestionUnit, setGestionUnit] = useState("");
@@ -173,7 +173,7 @@ export function ReceptionModal(props: Props) {
       unit_price: ru.unitPrice,
       packaging: ru.packaging,
       supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
-      supplier_product_name: refDesignation(packaging, contenance, effectiveStockUnit),
+      supplier_product_name: designation.trim() !== "" ? designation.trim() : null,
     });
 
   const submitReception = async () => {
@@ -343,6 +343,8 @@ export function ReceptionModal(props: Props) {
               setPuStr={setPuStr}
               contenanceStr={contenanceStr}
               setContenanceStr={setContenanceStr}
+              designation={designation}
+              setDesignation={setDesignation}
               refArticle={refArticle}
               setRefArticle={setRefArticle}
               stockUnit={effectiveStockUnit}

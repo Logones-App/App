@@ -92,13 +92,6 @@ export function qtyOrderLabel(packaging: string, orderUnit: string): string {
   return packaging;
 }
 
-/** Désignation lisible construite depuis la phrase (stockée dans supplier_product_name). */
-export function refDesignation(packaging: string, contenance: number, stockUnit: string): string | null {
-  if (packaging === VRAC) return null;
-  if (packaging === A_LA_PIECE) return "À la pièce";
-  return `${packaging} de ${contenance} ${stockUnit}`;
-}
-
 export type Ref = {
   id: string;
   supplier_id: string;
