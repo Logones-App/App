@@ -1,21 +1,103 @@
-"use client";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import type { useCreateSupplier, useCreateSupplierReference } from "@/lib/queries/supplier-queries";
-import {
-  compatibleUnits,
-  convertUnit,
-  orderQtyToStockQty,
-  unitCategory,
-  unitCostFromTotal,
-} from "@/lib/utils/unit-conversion";
+import { compatibleUnits, convertUnit, unitCategory } from "@/lib/utils/unit-conversion";
 
 export type Mode = "reception" | "price";
 
 export const NEW = "__new__";
+
+// ─── Modèle « phrase » d'ajout de référence : [conditionnement] de [contenance] [unité] ──
+/** Conditionnement « en vrac » (achat au poids/volume, sans emballage). */
+export const VRAC = "__vrac__";
+/** Conditionnement « à la pièce » (pas de sous-contenu). */
+export const A_LA_PIECE = "__piece__";
+/** Base de prix = le conditionnement lui-même (par opposition à une unité de mesure). */
+export const BASIS_PACK = "__pack__";
+
+/** Liste fermée de conditionnements (extensible au fil des cas réels). */
+export const PACKAGINGS = [
+  "Bouteille",
+  "Cubi",
+  "Bidon",
+  "Fût",
+  "Brique",
+  "Canette",
+  "Sac",
+  "Sachet",
+  "Plaquette",
+  "Boîte",
+  "Pot",
+  "Barquette",
+  "Plateau",
+  "Filet",
+  "Carton",
+  "Caisse",
+  "Colis",
+] as const;
+
+const round5 = (n: number) => Math.round(n * 100000) / 100000;
+
+export type ReferenceUnits = {
+  orderUnit: string;
+  conversionFactor: number;
+  unitPrice: number; // par order_unit (ce que stocke supplier_references.unit_price)
+  unitCost: number; // par unité de stock (source de vérité food cost)
+  packaging: string | null;
+};
+
+/**
+ * Traduit la « phrase » (conditionnement de [contenance] [unité de stock]) + le prix
+ * (valeur + base) en valeurs à stocker + coût normalisé.
+ * - `priceBasis = BASIS_PACK` → prix au conditionnement ; sinon = unité de mesure compatible.
+ * - En **vrac**, la base EST l'unité de commande (prix au kg, au L…).
+ */
+export function computeReferenceUnits(input: {
+  packaging: string; // VRAC | A_LA_PIECE | nom de conditionnement
+  contenance: number; // contenu du conditionnement, en unité de stock
+  stockUnit: string;
+  priceValue: number;
+  priceBasis: string; // BASIS_PACK | unité de mesure
+}): ReferenceUnits {
+  const { packaging, contenance, stockUnit, priceValue, priceBasis } = input;
+  const isVrac = packaging === VRAC;
+  const isPiece = packaging === A_LA_PIECE;
+  const packSize = isVrac || isPiece ? 1 : contenance; // unités de stock par pack
+
+  // Coût par unité de stock (source de vérité).
+  let unitCost: number;
+  if (!isVrac && priceBasis === BASIS_PACK) {
+    unitCost = priceValue / (packSize > 0 ? packSize : 1);
+  } else {
+    // base = unité de mesure (kg, L…) — y compris le cas vrac
+    const k = convertUnit(1, priceBasis, stockUnit) ?? 1;
+    unitCost = priceValue / (k > 0 ? k : 1);
+  }
+
+  const orderUnit = isVrac ? priceBasis : "piece";
+  const conversionFactor = isVrac ? (convertUnit(1, priceBasis, stockUnit) ?? 1) : packSize;
+  const packagingStore = isVrac ? null : isPiece ? "piece" : packaging;
+
+  return {
+    orderUnit,
+    conversionFactor,
+    unitPrice: round5(unitCost * conversionFactor),
+    unitCost: round5(unitCost),
+    packaging: packagingStore,
+  };
+}
+
+/** Désignation lisible construite depuis la phrase (stockée dans supplier_product_name). */
+export function refDesignation(packaging: string, contenance: number, stockUnit: string): string | null {
+  if (packaging === VRAC) return null;
+  if (packaging === A_LA_PIECE) return "À la pièce";
+  return `${packaging} de ${contenance} ${stockUnit}`;
+}
+
+/** Verrou de contenance (conservé pour l'ancien formulaire de réception). */
+export function isContenanceLocked(orderUnit: string, stockUnit: string): boolean {
+  const dim = orderUnit !== "" && stockUnit !== "" ? convertUnit(1, orderUnit, stockUnit) : null;
+  return dim != null && dim > 0;
+}
 
 export type Ref = {
   id: string;
@@ -59,50 +141,6 @@ export function resolveStockUnit(stockUnit: string | null, gestionUnit: string, 
   if (stockUnit != null) return stockUnit;
   if (gestionUnit !== "") return gestionUnit;
   return derived ?? "";
-}
-
-/**
- * Sélecteur d'unité de gestion du stock, affiché pour une référence existante quand le produit
- * n'a pas encore d'unité figée. Pré-rempli avec l'unité déduite de la référence si possible,
- * mais toujours modifiable — pour ne jamais bloquer l'ajout d'un prix (sans entrée de stock).
- */
-export function GestionUnitField({
-  show,
-  hasRef,
-  orderUnit,
-  value,
-  onChange,
-  t,
-}: {
-  show: boolean;
-  hasRef: boolean;
-  orderUnit: string | null;
-  value: string;
-  onChange: (v: string) => void;
-  t: (u: PortionUnit) => string;
-}) {
-  if (!show || !hasRef) return null;
-  const options = compatibleUnits(orderUnit, PORTION_UNITS);
-  return (
-    <div className="space-y-2 rounded-md border border-dashed p-3">
-      <Label>Unité de gestion du stock</Label>
-      <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue placeholder="Choisir l'unité de suivi du stock…" />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((u) => (
-            <SelectItem key={u} value={u}>
-              {t(u as PortionUnit)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <p className="text-muted-foreground text-[11px]">
-        Figée à cette première référence — aucune entrée de stock n&apos;est nécessaire.
-      </p>
-    </div>
-  );
 }
 
 export type Derived = {
@@ -206,6 +244,26 @@ export function computeCanSubmit(
   return !args.busy && args.pu != null && qtyOk && supplierOk && refOk && unitOk;
 }
 
+/** Validité du formulaire « phrase » (ajout de prix, nouvelle référence). */
+export function canSubmitPhrase(
+  d: Derived,
+  args: {
+    busy: boolean;
+    pu: number | null;
+    newSupplierName: string;
+    packaging: string;
+    contenanceStr: string;
+    priceBasis: string;
+    stockUnit: string;
+  },
+): boolean {
+  const supplierOk = d.isNewSupplier ? args.newSupplierName.trim() !== "" : d.hasSupplier;
+  const needsContenance = args.packaging !== VRAC && args.packaging !== A_LA_PIECE;
+  const contenanceOk = !needsContenance || parsePositive(args.contenanceStr) != null;
+  const phraseOk = args.packaging !== "" && args.stockUnit !== "" && contenanceOk && args.priceBasis !== "";
+  return !args.busy && args.pu != null && supplierOk && phraseOk;
+}
+
 /**
  * Unités de commande cohérentes avec une unité de gestion (stock) déjà figée :
  * même catégorie (masse↔masse, volume↔volume) + « piece » (achat au colis/à la pièce, facteur manuel).
@@ -216,201 +274,4 @@ export function orderUnitsForStock(stockUnit: string): readonly PortionUnit[] {
   if (cat == null) return PORTION_UNITS;
   if (cat === "unit") return ["piece"];
   return PORTION_UNITS.filter((u) => unitCategory(u) === cat || u === "piece");
-}
-
-export function NewReferenceFields({
-  designation,
-  setDesignation,
-  refArticle,
-  setRefArticle,
-  orderUnit,
-  onOrderUnitChange,
-  contenanceStr,
-  setContenanceStr,
-  contenanceLocked,
-  gestionUnit,
-  onGestionUnitChange,
-  t,
-}: {
-  designation: string;
-  setDesignation: (v: string) => void;
-  refArticle: string;
-  setRefArticle: (v: string) => void;
-  orderUnit: string;
-  onOrderUnitChange: (v: string) => void;
-  contenanceStr: string;
-  setContenanceStr: (v: string) => void;
-  /** true quand l'unité d'achat et l'unité de gestion sont de même nature (conversion auto). */
-  contenanceLocked: boolean;
-  gestionUnit: string;
-  onGestionUnitChange: ((v: string) => void) | null;
-  t: (u: PortionUnit) => string;
-}) {
-  const factor = parsePositive(contenanceStr) ?? 1;
-  return (
-    <div className="space-y-3 rounded-md border border-dashed p-3">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Nouvelle référence</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Désignation / format</Label>
-          <Input
-            value={designation}
-            onChange={(e) => setDesignation(e.target.value)}
-            placeholder="ex : Plaquette 250 g"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Réf. article</Label>
-          <Input value={refArticle} onChange={(e) => setRefArticle(e.target.value)} placeholder="TG-12345" />
-        </div>
-      </div>
-      <div className={`grid gap-3 ${orderUnit !== "" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-        <div className="space-y-2">
-          <Label>Unité de commande</Label>
-          <Select value={orderUnit || "__none__"} onValueChange={(v) => onOrderUnitChange(v === "__none__" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="— Unité" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">— Aucune</SelectItem>
-              {(onGestionUnitChange ? PORTION_UNITS : orderUnitsForStock(gestionUnit)).map((u) => (
-                <SelectItem key={u} value={u}>
-                  {t(u)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {orderUnit !== "" && (
-          <div className="space-y-2">
-            <Label>Contenance</Label>
-            <Input
-              value={contenanceStr}
-              onChange={(e) => setContenanceStr(e.target.value)}
-              inputMode="decimal"
-              placeholder="1"
-              disabled={contenanceLocked}
-              readOnly={contenanceLocked}
-              className={`tabular-nums ${contenanceLocked ? "bg-muted/50" : ""}`}
-            />
-            {contenanceLocked && <p className="text-muted-foreground text-[11px]">Conversion automatique</p>}
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label>Unité de gestion</Label>
-          {onGestionUnitChange ? (
-            <Select value={gestionUnit || undefined} onValueChange={onGestionUnitChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="— Unité" />
-              </SelectTrigger>
-              <SelectContent>
-                {compatibleUnits(orderUnit || null, PORTION_UNITS).map((u) => (
-                  <SelectItem key={u} value={u}>
-                    {t(u as PortionUnit)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input value={gestionUnit} disabled readOnly className="bg-muted/50" />
-          )}
-        </div>
-      </div>
-      {orderUnit !== "" && (
-        <p className="text-muted-foreground text-xs">
-          1 {orderUnit} ={" "}
-          <strong>
-            {factor} {gestionUnit || "unité de gestion"}
-          </strong>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function computeAmounts(qtyStr: string, puStr: string, factor: number, currentStock: number) {
-  const qty = parsePositive(qtyStr);
-  const pu = parsePositive(puStr);
-  const stockQty = qty != null ? orderQtyToStockQty(qty, factor) : null;
-  const total = qty != null && pu != null ? Math.round(qty * pu * 100) / 100 : null;
-  const fifoCost = stockQty != null && total != null ? unitCostFromTotal(total, stockQty) : null;
-  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
-  const normalizedCost = pu != null ? Math.round((pu / (factor > 0 ? factor : 1)) * 100000) / 100000 : null;
-  return { stockQty, total, fifoCost, stockAfter, normalizedCost };
-}
-
-export function AmountsFields({
-  showQty,
-  qtyStr,
-  setQtyStr,
-  puStr,
-  setPuStr,
-  orderUnit,
-  stockUnit,
-  factor,
-  currentStock,
-}: {
-  showQty: boolean;
-  qtyStr: string;
-  setQtyStr: (v: string) => void;
-  puStr: string;
-  setPuStr: (v: string) => void;
-  orderUnit: string | null;
-  stockUnit: string;
-  factor: number;
-  currentStock: number;
-}) {
-  const { stockQty, total, fifoCost, stockAfter, normalizedCost } = computeAmounts(qtyStr, puStr, factor, currentStock);
-  // Aperçus masqués tant que l'unité de gestion n'est pas connue (sinon « €/— » trompeur).
-  const hasUnit = stockUnit !== "" && stockUnit !== "—";
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {showQty && (
-        <div className="space-y-2">
-          <Label>Quantité reçue{orderUnit ? ` (${orderUnit})` : ""}</Label>
-          <Input
-            value={qtyStr}
-            onChange={(e) => setQtyStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="0"
-            className="tabular-nums"
-          />
-          {hasUnit && stockQty != null && (
-            <p className="text-muted-foreground text-xs">
-              →{" "}
-              <strong>
-                {stockQty} {stockUnit}
-              </strong>{" "}
-              en stock{stockAfter != null ? ` · après : ${stockAfter} ${stockUnit}` : ""}
-            </p>
-          )}
-        </div>
-      )}
-      <div className="space-y-2">
-        <Label>Prix unitaire HT{orderUnit ? ` / ${orderUnit}` : ""} (€)</Label>
-        <Input
-          value={puStr}
-          onChange={(e) => setPuStr(e.target.value)}
-          inputMode="decimal"
-          placeholder="ex: 20.00"
-          className="tabular-nums"
-        />
-        {showQty && total != null && (
-          <p className="text-muted-foreground text-xs">
-            Total : <strong>{total} €</strong>
-            {hasUnit && fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
-          </p>
-        )}
-        {!showQty && hasUnit && normalizedCost != null && (
-          <p className="text-muted-foreground text-xs">
-            → coût normalisé :{" "}
-            <strong>
-              {normalizedCost} €/{stockUnit}
-            </strong>
-          </p>
-        )}
-      </div>
-    </div>
-  );
 }

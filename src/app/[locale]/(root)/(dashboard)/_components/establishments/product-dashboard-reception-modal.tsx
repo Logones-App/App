@@ -30,20 +30,25 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { convertUnit } from "@/lib/utils/unit-conversion";
 
+import { AmountsFields, GestionUnitField, NewRefSection } from "./product-dashboard-reception-modal-fields";
 import {
-  AmountsFields,
+  A_LA_PIECE,
+  BASIS_PACK,
+  canSubmitPhrase,
   computeCanSubmit,
+  computeReferenceUnits,
   deriveState,
-  GestionUnitField,
+  isContenanceLocked,
   NEW,
-  NewReferenceFields,
   parsePositive,
+  refDesignation,
   resolveStockUnit,
   type Mode,
   type Ref,
   refLabel,
   resolveSupplierAndRef,
   stockUnitFromRef,
+  VRAC,
 } from "./product-dashboard-reception-modal-parts";
 
 type Props = {
@@ -102,6 +107,8 @@ export function ReceptionModal(props: Props) {
   const [qtyStr, setQtyStr] = useState("");
   const [puStr, setPuStr] = useState("");
   const [notes, setNotes] = useState("");
+  const [packaging, setPackaging] = useState(VRAC);
+  const [priceBasis, setPriceBasis] = useState("");
 
   const isPrice = mode === "price";
   const showGestionPicker = manageStock && stockUnit == null;
@@ -120,23 +127,23 @@ export function ReceptionModal(props: Props) {
     createReception.isPending,
     addPrice.isPending,
   ].some(Boolean);
-  const canSubmit = computeCanSubmit(d, {
-    mode,
-    manageStock,
-    busy,
-    qty,
-    pu,
-    newSupplierName,
-    designation,
-    effectiveStockUnit,
-  });
+  // Mode « ajout de prix + création de référence » → formulaire en phrase (conditionnement…).
+  const isPriceNewRef = isPrice && d.showNewRef;
+  const canSubmit = isPriceNewRef
+    ? canSubmitPhrase(d, {
+        busy,
+        pu,
+        newSupplierName,
+        packaging,
+        contenanceStr,
+        priceBasis,
+        stockUnit: effectiveStockUnit,
+      })
+    : computeCanSubmit(d, { mode, manageStock, busy, qty, pu, newSupplierName, designation, effectiveStockUnit });
   const text = modalText(isPrice, showGestionPicker);
 
-  // Conversion dimensionnelle (kg↔g, l↔ml↔cl, ou même unité) → facteur calculé et verrouillé.
-  // Non dimensionnel (colis/pièce → g) → saisie manuelle.
-  const dimFactor =
-    orderUnit !== "" && effectiveStockUnit !== "" ? convertUnit(1, orderUnit, effectiveStockUnit) : null;
-  const contenanceLocked = dimFactor != null && dimFactor > 0;
+  // Verrou de contenance de l'ancien formulaire de réception (conversion dimensionnelle auto).
+  const contenanceLocked = isContenanceLocked(orderUnit, effectiveStockUnit);
 
   const applyDimensional = (order: string, gestion: string) => {
     if (order === "") {
@@ -156,6 +163,18 @@ export function ReceptionModal(props: Props) {
   const handleGestionChange = (v: string) => {
     setGestionUnit(v);
     applyDimensional(orderUnit, v);
+  };
+
+  const onPackagingChange = (v: string) => {
+    setPackaging(v);
+    if (v === A_LA_PIECE) {
+      setPriceBasis(BASIS_PACK);
+      if (showGestionPicker) setGestionUnit("piece");
+    } else if (v === VRAC) {
+      setPriceBasis("");
+    } else {
+      setPriceBasis(BASIS_PACK);
+    }
   };
 
   const refArgs = () => ({
@@ -197,16 +216,55 @@ export function ReceptionModal(props: Props) {
         desiredUnit: effectiveStockUnit,
       });
     }
-    const { supId, refId: resolvedRefId } = await resolveSupplierAndRef(refArgs());
-    if (d.selectedRef) await updateRef.mutateAsync({ id: resolvedRefId, patch: { unit_price: pu } });
-    const unitCost = Math.round(((pu as number) / (d.factor > 0 ? d.factor : 1)) * 100000) / 100000;
+    const supId = d.isNewSupplier
+      ? await createSupplier.mutateAsync({ name: newSupplierName.trim(), is_active: true })
+      : supplierId;
+    const today = new Date().toISOString().slice(0, 10);
+    const supplierRef = refArticle.trim() !== "" ? refArticle.trim() : undefined;
+
+    // Référence existante : on met juste à jour le prix.
+    if (d.selectedRef) {
+      await updateRef.mutateAsync({ id: d.selectedRef.id, patch: { unit_price: pu } });
+      const unitCost = Math.round(((pu as number) / (d.factor > 0 ? d.factor : 1)) * 100000) / 100000;
+      addPrice.mutate(
+        {
+          unit_cost: unitCost,
+          effective_from: today,
+          supplier_reference_id: d.selectedRef.id,
+          supplier_id: supId,
+          supplier_ref: supplierRef,
+        },
+        { onSuccess: onClose },
+      );
+      return;
+    }
+
+    // Nouvelle référence via la « phrase » (conditionnement de X unité + base de prix).
+    const contenance = parsePositive(contenanceStr) ?? 1;
+    const ru = computeReferenceUnits({
+      packaging,
+      contenance,
+      stockUnit: effectiveStockUnit,
+      priceValue: pu as number,
+      priceBasis,
+    });
+    const newRefId = await createRef.mutateAsync({
+      supplier_id: supId,
+      organization_id: organizationId,
+      order_unit: ru.orderUnit,
+      conversion_factor: ru.conversionFactor,
+      unit_price: ru.unitPrice,
+      packaging: ru.packaging,
+      supplier_product_ref: refArticle.trim() !== "" ? refArticle.trim() : null,
+      supplier_product_name: refDesignation(packaging, contenance, effectiveStockUnit),
+    });
     addPrice.mutate(
       {
-        unit_cost: unitCost,
-        effective_from: new Date().toISOString().slice(0, 10),
-        supplier_reference_id: resolvedRefId,
+        unit_cost: ru.unitCost,
+        effective_from: today,
+        supplier_reference_id: newRefId,
         supplier_id: supId,
-        supplier_ref: refArticle.trim() !== "" ? refArticle.trim() : undefined,
+        supplier_ref: supplierRef,
       },
       { onSuccess: onClose },
     );
@@ -290,18 +348,27 @@ export function ReceptionModal(props: Props) {
           )}
 
           {d.showNewRef && (
-            <NewReferenceFields
-              designation={designation}
-              setDesignation={setDesignation}
-              refArticle={refArticle}
-              setRefArticle={setRefArticle}
-              orderUnit={orderUnit}
-              onOrderUnitChange={onOrderUnitChange}
+            <NewRefSection
+              isPrice={isPrice}
+              showGestionPicker={showGestionPicker}
+              setGestionUnit={setGestionUnit}
+              handleGestionChange={handleGestionChange}
+              packaging={packaging}
+              onPackagingChange={onPackagingChange}
+              priceBasis={priceBasis}
+              setPriceBasis={setPriceBasis}
+              puStr={puStr}
+              setPuStr={setPuStr}
               contenanceStr={contenanceStr}
               setContenanceStr={setContenanceStr}
+              refArticle={refArticle}
+              setRefArticle={setRefArticle}
+              stockUnit={effectiveStockUnit}
+              designation={designation}
+              setDesignation={setDesignation}
+              orderUnit={orderUnit}
+              onOrderUnitChange={onOrderUnitChange}
               contenanceLocked={contenanceLocked}
-              gestionUnit={effectiveStockUnit}
-              onGestionUnitChange={showGestionPicker ? handleGestionChange : null}
               t={t}
             />
           )}
@@ -315,7 +382,7 @@ export function ReceptionModal(props: Props) {
             t={t}
           />
 
-          {d.hasSupplier && (
+          {d.hasSupplier && !isPriceNewRef && (
             <AmountsFields
               showQty={!isPrice}
               qtyStr={qtyStr}

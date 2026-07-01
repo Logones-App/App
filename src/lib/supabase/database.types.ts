@@ -5873,6 +5873,7 @@ export type Database = {
           notes: string | null
           order_unit: string | null
           organization_id: string
+          packaging: string | null
           product_id: string
           supplier_id: string
           supplier_product_name: string | null
@@ -5891,6 +5892,7 @@ export type Database = {
           notes?: string | null
           order_unit?: string | null
           organization_id: string
+          packaging?: string | null
           product_id: string
           supplier_id: string
           supplier_product_name?: string | null
@@ -5909,6 +5911,7 @@ export type Database = {
           notes?: string | null
           order_unit?: string | null
           organization_id?: string
+          packaging?: string | null
           product_id?: string
           supplier_id?: string
           supplier_product_name?: string | null
