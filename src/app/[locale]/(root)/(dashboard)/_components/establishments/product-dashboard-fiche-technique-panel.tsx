@@ -157,7 +157,7 @@ export function ProductFicheTechniquePanel({
 
   const { data: allProducts = [] } = useOrganizationProducts(organizationId || undefined);
   const productsById = new Map(
-    allProducts.map((p) => [p.id, { name: p.name, allergens: p.allergens, origins: p.origins }]),
+    allProducts.map((p) => [p.id, { name: p.name, allergens: p.allergens, origins: p.origins, labels: p.labels }]),
   );
   const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
   const ingredientList = allProducts.filter(

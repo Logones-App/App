@@ -4,15 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AllergenBadges } from "@/components/ui/product-attribute-pickers";
 import { COUNTRIES } from "@/lib/constants/countries";
-import { ALLERGENS } from "@/lib/constants/product-attributes";
+import { ALLERGENS, LABELS } from "@/lib/constants/product-attributes";
 import { useEstablishmentRecipeEdges, type RecipeEdge } from "@/lib/queries/recipe-graph-queries";
 import { useSupplierReferenceAttributes } from "@/lib/queries/supplier-queries";
 
-type NodeAttr = { name: string; allergens: unknown; origins: unknown };
+type NodeAttr = { name: string; allergens: unknown; origins: unknown; labels: unknown };
 type RefRow = { product_id: string; allergens: unknown; origins: unknown };
 
 function asStrings(v: unknown): string[] {
   return Array.isArray(v) ? (v as string[]) : [];
+}
+function labelMeta(key: string) {
+  return LABELS.find((l) => l.key === key);
+}
+
+/**
+ * Labels d'une recette = INTERSECTION des labels des ingrédients « feuilles » (matières premières) :
+ * un label ne remonte que si TOUS les ingrédients le portent (ex. « Bio » only si tout est bio).
+ */
+function intersectLabels(leafIds: string[], productsById: Map<string, NodeAttr>): string[] {
+  const sets = leafIds.map((id) => new Set<string>(asStrings(productsById.get(id)?.labels)));
+  if (sets.length === 0) return [];
+  const [first, ...rest] = sets;
+  return [...first].filter((l) => rest.every((s) => s.has(l)));
 }
 function countryName(code: string): string {
   return COUNTRIES.find((c) => c.code === code)?.name ?? code;
@@ -114,7 +128,9 @@ export function RecipeAllergensCard({
   productsById: Map<string, NodeAttr>;
 }) {
   const { data: edges = [] } = useEstablishmentRecipeEdges(establishmentId, organizationId);
-  const descendantIds = collectDescendants(recipeProductId, buildAdjacency(edges));
+  const adjacency = buildAdjacency(edges);
+  const descendantIds = collectDescendants(recipeProductId, adjacency);
+  const leafIds = descendantIds.filter((id) => (adjacency.get(id) ?? []).length === 0);
   const { data: refAttrs = [] } = useSupplierReferenceAttributes(descendantIds);
   const agg = buildAggregation(
     asStrings(recipeAllergens),
@@ -123,6 +139,7 @@ export function RecipeAllergensCard({
     productsById,
     refAttrs,
   );
+  const labels = intersectLabels(leafIds, productsById);
 
   return (
     <Card>
@@ -163,6 +180,25 @@ export function RecipeAllergensCard({
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">Origine non renseignée.</p>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs font-medium">
+            Labels <span className="font-normal">(portés par tous les ingrédients)</span>
+          </p>
+          {labels.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {labels.map((l) => {
+                const meta = labelMeta(l);
+                return (
+                  <Badge key={l} variant="secondary" className={meta?.color}>
+                    {meta ? `${meta.emoji} ${meta.label}` : l}
+                  </Badge>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">Aucun label commun à tous les ingrédients.</p>
           )}
         </div>
       </CardContent>
