@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type { DocJson, DocLigne } from "@/lib/queries/doc-import-queries";
+import type { DocLigne } from "@/lib/queries/doc-import-queries";
+import { ensureSelfStock } from "@/lib/queries/reception-queries";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
@@ -149,75 +150,6 @@ export type ApplyDocLinePayload = {
   };
 };
 
-async function resolveOrCreateProductStock(
-  supabase: ReturnType<typeof createClient>,
-  productId: string,
-  establishmentId: string,
-  organizationId: string,
-): Promise<{ productStockId: string; currentStock: number }> {
-  // 1. Self-composition
-  let { data: comp } = await supabase
-    .from("product_compositions")
-    .select("id")
-    .eq("main_product_id", productId)
-    .eq("component_product_id", productId)
-    .eq("establishment_id", establishmentId)
-    .eq("deleted", false)
-    .maybeSingle();
-
-  if (!comp) {
-    const { data: created, error } = await supabase
-      .from("product_compositions")
-      .insert({
-        main_product_id: productId,
-        component_product_id: productId,
-        establishment_id: establishmentId,
-        organization_id: organizationId,
-        composition_kind: "recipe",
-        default_quantity: 1,
-        display_order: 0,
-        show_in_customization: false,
-        is_required: false,
-        deleted: false,
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(`Création composition : ${error.message}`);
-    comp = created;
-  }
-
-  // 2. product_stocks
-  let { data: stock } = await supabase
-    .from("product_stocks")
-    .select("id, current_stock")
-    .eq("product_composition_id", comp.id)
-    .eq("establishment_id", establishmentId)
-    .maybeSingle();
-
-  if (!stock) {
-    const { data: product } = await supabase.from("products").select("portion_unit").eq("id", productId).single();
-    const { data: created, error } = await supabase
-      .from("product_stocks")
-      .insert({
-        product_composition_id: comp.id,
-        establishment_id: establishmentId,
-        organization_id: organizationId,
-        current_stock: 0,
-        min_stock: 0,
-        reserved_stock: 0,
-        unit: product?.portion_unit ?? "piece",
-        inventory_tracked: true,
-        deleted: false,
-      })
-      .select("id, current_stock")
-      .single();
-    if (error) throw new Error(`Création stock : ${error.message}`);
-    stock = created;
-  }
-
-  return { productStockId: stock.id, currentStock: stock.current_stock };
-}
-
 export function useApplyDocLine(importId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -246,12 +178,14 @@ export function useApplyDocLine(importId: string) {
       }
 
       if (payload.applyStock) {
-        const resolved = await resolveOrCreateProductStock(
-          supabase,
-          payload.productId,
-          payload.establishmentId,
-          payload.organizationId,
-        );
+        // ensureSelfStock fige l'unité de gestion + miroir products.portion_unit (cohérence avec le modèle référence).
+        const desiredUnit = payload.portionUnit ?? payload.orderUnit ?? "piece";
+        const resolved = await ensureSelfStock(supabase, {
+          productId: payload.productId,
+          establishmentId: payload.establishmentId,
+          organizationId: payload.organizationId,
+          desiredUnit,
+        });
         let currentStock = resolved.currentStock;
         let effectivePortionUnit = payload.portionUnit;
 
