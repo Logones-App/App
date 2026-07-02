@@ -85,6 +85,11 @@ export function ProductSection({
         });
         if (error) throw error;
       }
+      // Ingrédient : l'unité de gestion est aussi l'unité de portion → miroir sur products.portion_unit.
+      if (viaAchats) {
+        const { error: pErr } = await supabase.from("products").update({ portion_unit: unit }).eq("id", productId);
+        if (pErr) throw pErr;
+      }
     },
     onSuccess: () => {
       toast.success("Stock configuré.");
@@ -118,31 +123,26 @@ export function ProductSection({
     );
   }
 
-  // Ingrédient : la fiche stock et l'unité de gestion naissent à la première réception.
-  if (viaAchats) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Suivi de stock</CardTitle>
-          <CardDescription>
-            L&apos;unité de gestion et le stock seront créés à la <strong>première réception</strong> (onglet Achats).
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  // Produit fini (recette) : pas de réception → on configure l'unité ici.
+  // Pas encore de fiche stock : on permet de définir l'unité directement.
+  // - Recette (produit fini) : on choisit l'unité de comptage.
+  // - Ingrédient : l'unité se fige normalement à la 1ère réception, mais on peut la fixer ici
+  //   (ex. un prix d'achat a été saisi sans réception → pas d'unité définie).
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Configurer le suivi de stock</CardTitle>
-        <CardDescription>Choisissez l&apos;unité de comptage du produit fini.</CardDescription>
+        <CardTitle className="text-base">
+          {viaAchats ? "Définir l'unité de gestion" : "Configurer le suivi de stock"}
+        </CardTitle>
+        <CardDescription>
+          {viaAchats
+            ? "L'unité se fige normalement à la première réception — mais vous pouvez la définir ici sans passer par un prix d'achat."
+            : "Choisissez l'unité de comptage du produit fini."}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <Label>Unité de stock</Label>
+            <Label>{viaAchats ? "Unité de gestion" : "Unité de stock"}</Label>
             <Select value={initUnit} onValueChange={setInitUnit}>
               <SelectTrigger className="w-36">
                 <SelectValue />
@@ -157,7 +157,7 @@ export function ProductSection({
             </Select>
           </div>
           <Button disabled={initMutation.isPending} onClick={() => initMutation.mutate(initUnit)}>
-            {initMutation.isPending ? "Configuration…" : "Configurer le stock"}
+            {initMutation.isPending ? "Configuration…" : viaAchats ? "Définir l'unité" : "Configurer le stock"}
           </Button>
         </div>
       </CardContent>
