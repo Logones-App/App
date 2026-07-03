@@ -120,7 +120,14 @@ export const LABELS: { key: LabelKey; label: string; emoji: string; color: strin
 
 export type ProductTypeKey = "recipe" | "ingredient" | "purchased";
 
-export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string; description: string }[] = [
+export const PRODUCT_TYPES: {
+  key: ProductTypeKey;
+  label: string;
+  emoji: string;
+  description: string;
+  /** Type conservé pour la compat (produits legacy) mais plus proposé à la création. */
+  deprecated?: boolean;
+}[] = [
   {
     key: "recipe",
     label: "Recette",
@@ -131,7 +138,9 @@ export const PRODUCT_TYPES: { key: ProductTypeKey; label: string; emoji: string;
     key: "purchased",
     label: "Achat direct",
     emoji: "🛒",
-    description: "Acheté et revendu tel quel, sans transformation (ex : canette de Coca, bouteille d'eau).",
+    description:
+      "Déprécié : préférez un ingrédient décliné en vente. Acheté et revendu tel quel (ex : canette, bouteille d'eau).",
+    deprecated: true,
   },
   {
     key: "ingredient",

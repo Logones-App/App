@@ -108,10 +108,13 @@ export function ProductTypePicker({
     onChange(value.includes(key) ? value.filter((k) => k !== key) : [...value, key]);
   };
 
+  // Types dépréciés (achat direct) masqués à la création, mais conservés si un produit legacy les porte déjà.
+  const options = PRODUCT_TYPES.filter((t) => !t.deprecated || value.includes(t.key));
+
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        {PRODUCT_TYPES.map((t) => {
+        {options.map((t) => {
           const active = value.includes(t.key);
           return (
             <button
@@ -140,18 +143,11 @@ export function ProductTypePicker({
             🧄 + 🍽️ <strong>Ingrédient + Recette</strong> = préparation maison (ex : sauce tomate cuisinée puis
             utilisée dans plusieurs plats).
           </li>
-          <li>
-            🧄 + 🛒 <strong>Ingrédient + Achat direct</strong> = utilisé en cuisine ET vendu tel quel (ex : bouteille
-            d&apos;huile, Coca versé en cocktail ou vendu en canette).
-          </li>
-          <li>
-            🍽️ + 🛒 <strong>Recette + Achat direct</strong> = cuisiné maison certains jours, acheté prêt d&apos;autres
-            (ex : pain, dessert).
-          </li>
         </ul>
         <p className="mt-1">
-          Astuce : si tu vends le <em>même stock</em> sous plusieurs formes (vin à la bouteille <em>et</em> au verre),
-          crée plutôt un <strong>ingrédient</strong> (le vin) + des <strong>recettes</strong> (bouteille, verre).
+          Pour un produit acheté puis revendu (canette, bouteille…), crée un <strong>ingrédient</strong> (la matière)
+          puis <strong>décline-le en vente</strong> depuis sa fiche : « à la canette » (33 cl), « au verre » (12,5 cl)…
+          Un seul stock, tous les formats.
         </p>
       </div>
     </div>

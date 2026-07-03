@@ -21,6 +21,7 @@ import {
 import { defaultProductStockInsert } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
 
+import { DeclinationGeneratorCard } from "./declination-generator-modal";
 import { ProductSection } from "./product-dashboard-stock-product-section";
 
 type StockMode = "none" | "product" | "ingredients";
@@ -338,6 +339,17 @@ export function ProductStockPanel({
           organizationId={organizationId}
           invalidate={invalidate}
           viaAchats
+        />
+        <DeclinationGeneratorCard
+          ingredient={{
+            id: productId,
+            name: product.name,
+            category_id: product.category_id,
+            vat_rate_id: product.vat_rate_id,
+            portion_unit: product.portion_unit,
+          }}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
         />
       </div>
     );
