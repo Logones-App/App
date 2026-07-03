@@ -164,7 +164,7 @@ export type ProductTypeBehavior = {
 };
 
 export const PRODUCT_TYPE_BEHAVIORS: Record<ProductTypeKey, ProductTypeBehavior> = {
-  recipe: { showInPOS: true, isForSale: true, canBeRecipeComponent: false, requiresPurchasePrice: false },
+  recipe: { showInPOS: true, isForSale: true, canBeRecipeComponent: true, requiresPurchasePrice: false },
   purchased: { showInPOS: true, isForSale: true, canBeRecipeComponent: true, requiresPurchasePrice: true },
   ingredient: { showInPOS: false, isForSale: false, canBeRecipeComponent: true, requiresPurchasePrice: true },
 };

@@ -112,14 +112,32 @@ export function suggestConversionFactor(
 }
 
 /**
+ * Convertit une quantité de recette (`qty` exprimée dans `qtyUnit`) vers l'unité `targetUnit`
+ * du composant — unité de stock d'une matière feuille, OU unité de rendement d'une sous-recette.
+ * Primitive partagée (coût récursif SaaS + aplatissement du décrément mobile).
+ * - Conversion dimensionnelle si compatible (`convertUnit`).
+ * - Sinon pont via `conversionFactor` = « 1 targetUnit = X qtyUnit » → `qty / conversionFactor`
+ *   (ex. 1 pièce = 450 g → 112 g / 450 = 0,249 pièce). Renseigné seulement si unités incompatibles.
+ * Retourne `null` si aucune conversion possible (→ à traiter en `needs_review` côté vente).
+ */
+export function toComponentQty(
+  qty: number,
+  qtyUnit: string | null | undefined,
+  targetUnit: string | null | undefined,
+  conversionFactor?: number | null,
+): number | null {
+  const converted = convertUnit(qty, qtyUnit, targetUnit);
+  if (converted != null) return converted;
+  if (conversionFactor != null && conversionFactor > 0) return qty / conversionFactor;
+  return null;
+}
+
+/**
  * Calcule le coût HT d'une ligne de composition.
  * - `qty` : quantité utilisée dans la recette (avec son unité `qtyUnit`)
  * - `unitCost` : coût par `ingredientUnit` de l'ingrédient
+ * - `conversionFactor` = « 1 [ingredientUnit] = X [qtyUnit] » (pont si unités incompatibles)
  * Retourne `null` si le coût ou la conversion sont impossibles.
- */
-/**
- * conversionFactor = "1 [ingredientUnit] = X [qtyUnit]"
- * Ex : 1 pièce = 450 g → conversionFactor = 450, qty = 112 g → 112/450 × unitCost
  */
 export function compositionLineCost(
   qty: number | null,
@@ -129,10 +147,6 @@ export function compositionLineCost(
   conversionFactor?: number | null,
 ): number | null {
   if (qty == null || !unitCost) return null;
-  const converted = convertUnit(qty, qtyUnit, ingredientUnit);
-  if (converted != null) return Math.round(converted * unitCost * 10000) / 10000;
-  if (conversionFactor != null && conversionFactor > 0) {
-    return Math.round((qty / conversionFactor) * unitCost * 10000) / 10000;
-  }
-  return null;
+  const q = toComponentQty(qty, qtyUnit, ingredientUnit, conversionFactor);
+  return q != null ? Math.round(q * unitCost * 10000) / 10000 : null;
 }

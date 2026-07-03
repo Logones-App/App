@@ -25,6 +25,8 @@ function parsePositive(s: string): number | null {
  * Sert à répartir proportionnellement les ingrédients quand la recette est
  * consommée dans une autre (ex. 250 g d'une pâte dont le lot fait 5 kg).
  */
+const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
 export function RecipeYieldCard({
   productId,
   establishmentId,
@@ -32,6 +34,7 @@ export function RecipeYieldCard({
   yieldQuantity,
   yieldUnit,
   portionUnit,
+  recipeCostHT = null,
 }: {
   productId: string;
   establishmentId: string;
@@ -39,6 +42,8 @@ export function RecipeYieldCard({
   yieldQuantity: number | null;
   yieldUnit: string | null;
   portionUnit: string | null;
+  /** Coût matière HT du BOM (= coût du lot pour ce rendement). Pour le coût par unité produite. */
+  recipeCostHT?: number | null;
 }) {
   const t = useTranslations("units");
   const queryClient = useQueryClient();
@@ -67,6 +72,13 @@ export function RecipeYieldCard({
 
   const dirty =
     qtyStr !== (yieldQuantity != null ? String(yieldQuantity) : "") || unit !== (yieldUnit ?? portionUnit ?? "");
+
+  // Coût par unité produite = coût du lot ÷ rendement (utilise le rendement ENREGISTRÉ, pas le brouillon).
+  const costPerUnit =
+    yieldQuantity != null && yieldQuantity > 0 && recipeCostHT != null && recipeCostHT > 0
+      ? recipeCostHT / yieldQuantity
+      : null;
+  const savedUnitLabel = yieldUnit ?? portionUnit ?? "";
 
   return (
     <Card>
@@ -116,6 +128,14 @@ export function RecipeYieldCard({
             {mutation.isPending ? "…" : "Enregistrer"}
           </Button>
         </div>
+        {costPerUnit != null && (
+          <p className="text-muted-foreground mt-3 text-xs">
+            Coût matière du lot ≈ <strong>{eur.format(recipeCostHT as number)}</strong> → ≈{" "}
+            <strong>
+              {eur.format(costPerUnit)}/{savedUnitLabel === "piece" ? "pièce" : savedUnitLabel}
+            </strong>
+          </p>
+        )}
       </CardContent>
     </Card>
   );

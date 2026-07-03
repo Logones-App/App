@@ -21,7 +21,21 @@ import {
   type ProductWithCategoryName,
 } from "@/lib/queries/product-establishment-dashboard";
 import { useComponentCurrentPurchasePrices } from "@/lib/queries/purchase-price-queries";
+import { useEstablishmentRecipeCompositions } from "@/lib/queries/recipe-cost-queries";
 import { useIngredientStockUnits } from "@/lib/queries/stock-movement-queries";
+import {
+  buildByMain,
+  buildCandidateStockUnits,
+  buildComponentCandidates,
+  buildCostCtx,
+  buildPickerList,
+  collectReachable,
+  componentUnitCost,
+  computeAncestors,
+  isIngredientType,
+  recipeBatchCost,
+  type ProductLike,
+} from "@/lib/recipe-cost";
 import { compositionLineCost } from "@/lib/utils/unit-conversion";
 
 import { CompositionAddModal } from "./composition-add-modal";
@@ -115,6 +129,37 @@ function InlineNumberCell({
   );
 }
 
+// ─── Coût récursif + candidats composant (assemblage des données) ────────────
+
+function useRecipeCostData(
+  productId: string,
+  allProducts: ProductLike[],
+  establishmentId: string,
+  organizationId: string,
+) {
+  // Graphe BOM de l'établissement (avec quantités) → coût récursif + garde-cycle du sélecteur.
+  const { data: allCompositions = [] } = useEstablishmentRecipeCompositions(establishmentId, organizationId);
+  const byMain = buildByMain(allCompositions);
+  const reachableIds = [...collectReachable(productId, byMain)];
+  const { data: fifoCosts } = useComponentFifoCosts(reachableIds, organizationId, establishmentId);
+  const { data: lastPrices } = useComponentCurrentPurchasePrices(reachableIds, organizationId);
+  // FIFO prioritaire, fallback sur dernier prix. Coût matière par produit (feuille).
+  const matiereCost = new Map<string, number>([...(lastPrices ?? new Map()), ...(fifoCosts ?? new Map())]);
+  const costCtx = buildCostCtx(allProducts, byMain, matiereCost);
+
+  // Sélecteur : ingrédients + sous-recettes (avec rendement), hors soi + ancêtres (anti-cycle).
+  const candidates = buildComponentCandidates(allProducts, productId, computeAncestors(productId, allCompositions));
+  const candidateIds = candidates.filter(isIngredientType).map((p) => p.id);
+  const { data: stockUnits } = useIngredientStockUnits(candidateIds, establishmentId);
+
+  return {
+    costCtx,
+    candidateStockUnits: buildCandidateStockUnits(candidates, stockUnits),
+    ingredientList: buildPickerList(candidates),
+    totalCostHT: recipeBatchCost(productId, costCtx, new Set<string>()) ?? 0,
+  };
+}
+
 // ─── Composant principal ─────────────────────────────────────────────────────
 
 export function ProductFicheTechniquePanel({
@@ -161,36 +206,24 @@ export function ProductFicheTechniquePanel({
     allProducts.map((p) => [p.id, { name: p.name, allergens: p.allergens, origins: p.origins, labels: p.labels }]),
   );
   const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
-  const ingredientList = allProducts.filter(
-    (p) => p.id !== product.id && (p.product_type as string[] | null)?.includes("ingredient"),
-  );
-  const ingredientIds = ingredientList.map((p) => p.id);
-  const { data: stockUnits } = useIngredientStockUnits(ingredientIds, establishmentId);
 
-  // Seulement les ingrédients BOM (recette)
+  const { costCtx, candidateStockUnits, ingredientList, totalCostHT } = useRecipeCostData(
+    product.id,
+    allProducts as ProductLike[],
+    establishmentId,
+    organizationId,
+  );
+
+  // Lignes BOM directes (rendu du tableau).
   const technicalLines = compositions.filter(
     (c) => c.main_product_id !== c.component_product_id && c.composition_kind === "recipe",
   );
-  const componentIds = technicalLines.map((c) => c.component_product_id);
-  const { data: fifoCosts } = useComponentFifoCosts(componentIds, organizationId, establishmentId);
-  const { data: lastPrices } = useComponentCurrentPurchasePrices(componentIds, organizationId);
-  // FIFO prioritaire, fallback sur dernier prix si pas encore de données FIFO pour ce produit
-  const componentPrices = new Map<string, number>([...(lastPrices ?? new Map()), ...(fifoCosts ?? new Map())]);
-
-  const totalCostHT = technicalLines
-    .filter((c) => c.composition_kind === "recipe")
-    .reduce((sum, c) => {
-      const uc = componentPrices.get(c.component_product_id);
-      const cf = (c as unknown as { conversion_factor: number | null }).conversion_factor ?? null;
-      const cost = compositionLineCost(c.default_quantity, c.quantity_unit, uc, c.component?.portion_unit, cf);
-      return cost != null ? sum + cost : sum;
-    }, 0);
 
   const renderExistingRow = (c: ProductCompositionRow) => {
     const isArchived = c.component?.deleted === true;
-    const unitCost = componentPrices.get(c.component_product_id) ?? null;
+    const { cost: unitCost, unit: compUnit } = componentUnitCost(c.component_product_id, costCtx, new Set());
     const cf = (c as unknown as { conversion_factor: number | null }).conversion_factor ?? null;
-    const lineCost = compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, c.component?.portion_unit, cf);
+    const lineCost = compositionLineCost(c.default_quantity, c.quantity_unit, unitCost, compUnit, cf);
     const pct = lineCost != null && totalCostHT > 0 ? lineCost / totalCostHT : null;
     return (
       <TableRow key={c.id} className={isArchived ? "opacity-50" : undefined}>
@@ -224,7 +257,7 @@ export function ProductFicheTechniquePanel({
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                Unités incompatibles ({c.quantity_unit} ≠ {c.component?.portion_unit ?? "?"}) — coût non calculable.
+                Unités incompatibles ({c.quantity_unit} ≠ {compUnit ?? "?"}) — coût non calculable.
               </TooltipContent>
             </Tooltip>
           ) : (
@@ -310,6 +343,7 @@ export function ProductFicheTechniquePanel({
             yieldQuantity={product.yield_quantity}
             yieldUnit={product.yield_unit}
             portionUnit={product.portion_unit}
+            recipeCostHT={totalCostHT}
           />
         </>
       )}
@@ -353,7 +387,7 @@ export function ProductFicheTechniquePanel({
                   {showInlineAdd ? (
                     <InlineIngredientAddRow
                       ingredients={ingredientList}
-                      stockUnits={stockUnits ?? new Map()}
+                      stockUnits={candidateStockUnits}
                       isPending={edit.isPending}
                       colSpan={5}
                       onAdd={({ componentId, quantity, quantityUnit, conversionFactor }) =>
@@ -427,8 +461,8 @@ export function ProductFicheTechniquePanel({
               composition={comp}
               componentName={comp.component?.name ?? "—"}
               componentPortionUnit={comp.component?.portion_unit ?? null}
-              componentStockUnit={stockUnits?.get(comp.component_product_id) ?? null}
-              currentUnitCost={componentPrices.get(comp.component_product_id) ?? null}
+              componentStockUnit={candidateStockUnits.get(comp.component_product_id) ?? null}
+              currentUnitCost={componentUnitCost(comp.component_product_id, costCtx, new Set()).cost}
               organizationId={organizationId}
               queryKey={compositionQueryKey}
               onClose={() => setEditingComposition(null)}

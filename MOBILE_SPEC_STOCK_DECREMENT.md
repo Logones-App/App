@@ -64,11 +64,21 @@ chaque passage par une sous-recette.
 
 ### `stock_movements` (déjà écrits par le mobile — on ne change PAS le schéma)
 - `product_stock_id`, `establishment_id`, `organization_id`
-- `movement_type` : `"purchase"` | `"sale"` | `"adjustment"` | `"restore"` …
-- `quantity`, `unit`, `unit_cost`, `lot_allocations` (FIFO), `remaining_quantity`
-- **`recipe_product_id`** : le produit VENDU (pour attribuer le COGS à la recette dans le
-  reporting marge). ⚠ Reste le produit vendu **même pour les feuilles** décrémentées en
-  profondeur (voir §7).
+- **`product_stock_id`** : la **fiche stock** de la matière consommée → **clé du FIFO** (le
+  trigger alloue sur les lots de ce `product_stock_id`). **Obligatoire** sur une vente.
+- **`quantity_before` / `quantity_after`** : stock avant / après → le trigger en déduit la
+  quantité vendue (`before − after`). **Obligatoires** sur une vente (le FIFO les utilise, pas
+  `quantity`).
+- `product_id` : la matière consommée (feuille) — cohérence / requêtes catalogue, **non**
+  utilisé par le FIFO.
+- **`recipe_product_id`** : le **produit VENDU** (COGS, reporting marge). ⚠ Reste le produit
+  vendu **même pour les feuilles** atteintes via une sous-recette (voir §7).
+- `movement_type` : contrainte CHECK = `purchase | sale | adjustment | transfer | waste |
+  production | reservation | unreservation | restore`.
+- `quantity`, `unit`, `reference_id` (pour lier un `restore` à sa vente).
+- `unit_cost`, `lot_allocations`, `remaining_quantity`, `needs_review` : **écrits par le
+  trigger FIFO** — le mobile les laisse **NULL** à l'insert (voir §6bis). Pas de table
+  `product_stock_lots` : les lots = les mouvements `purchase` avec `remaining_quantity`.
 
 ---
 
@@ -88,83 +98,89 @@ plusieurs branches sont **sommées**). On écrit ensuite **un mouvement `sale` p
 
 ---
 
-## 4. Quantité d'une arête
+## 4. Quantité d'une arête → quantité dans l'unité du composant
 
-Pour une arête (ligne de composition recette) donnée, la quantité de composant consommée par
-**1 unité du parent** est :
+⚠ **Correction importante** : `product_compositions.conversion_factor` **n'est PAS un
+multiplicateur**. C'est un **pont d'unité** utilisé uniquement quand `quantity_unit` et
+l'unité du composant sont **dimensionnellement incompatibles**.
+
+- `default_quantity` est exprimé dans `quantity_unit` (fallback `component.portion_unit`).
+- `conversion_factor` (sur `product_compositions`) = **« 1 unité (de stock/portion) du
+  composant = X `quantity_unit` »** (ex. `1 pièce = 450 g` → `conversion_factor = 450`).
+  Renseigné **seulement** si les unités sont incompatibles ; sinon **NULL**.
+- ⚠ Ne pas confondre avec `supplier_references.conversion_factor` (lui = unités de stock par
+  unité de commande, un multiplicateur — contexte réception, hors sujet ici).
+
+**Primitive de conversion** (recette → unité cible du composant) :
 
 ```
-qtyArete = default_quantity × (conversion_factor ?? 1)      // dans l'unité `quantity_unit`
-unitArete = quantity_unit ?? component.portion_unit
+function toComponentQty(default_quantity, quantity_unit, targetUnit, conversion_factor):
+    q = convertUnit(default_quantity, quantity_unit, targetUnit)     // conversion dimensionnelle
+    if q != null: return q
+    if conversion_factor != null and conversion_factor > 0:
+        return default_quantity / conversion_factor                 // pont (division), ex. 112 g / 450 = 0.249 pièce
+    return null                                                     // incompatible → needs_review
 ```
 
-(C'est déjà la formule utilisée côté SaaS : `qtyPerSale = default_quantity × (conversion_factor ?? 1)`.)
+C'est exactement la logique de `compositionLineCost` côté SaaS (source de vérité du coût).
 
 ---
 
 ## 5. Aplatissement (le cœur)
 
-### Règle « feuille vs sous-recette »
-Un composant est **une sous-recette à développer** s'il possède lui-même des arêtes recette
-(un BOM) **et n'a pas de stock propre suivi** (par défaut les préparations n'ont pas de
-stock). Sinon c'est une **feuille** (matière première) → on décrémente son stock propre.
+### Règle « feuille vs sous-recette » (dérivée — il n'y a PAS de marqueur explicite)
+Il n'existe **aucun flag** « préparation » ni valeur `stock_mode` dédiée pour un composant.
+On dérive le rôle dans cet ordre :
 
-> Option future « mode production » : si une préparation a un `product_stocks` propre
-> `inventory_tracked = true`, la traiter comme **feuille** (on décrémente son stock au lieu
-> de la développer). Par défaut, aucune préparation n'a de stock propre → on développe.
+1. **Le composant a un `product_stocks` propre `inventory_tracked = true`** (self-composition
+   `main==component`) → **FEUILLE** : on décrémente ce stock. Couvre les matières premières
+   **ET** les préparations « mode production » (qui ont un stock propre).
+2. **Sinon, s'il a des arêtes `composition_kind='recipe'` (un BOM)** → **SOUS-RECETTE** :
+   on la **développe** (proportion via rendement).
+3. **Sinon** (ni stock suivi ni BOM) → rien à décrémenter, `log`.
 
-### Proportion via le rendement
-Quand on développe une sous-recette `S` consommée en quantité `qtyArete` (unité `unitArete`) :
-
-```
-qtyEnUniteRendement = convert(qtyArete, unitArete, S.yield_unit)   // conversion d'unité
-ratio = qtyEnUniteRendement / S.yield_quantity
-```
-
-On descend alors dans `S` en multipliant le facteur courant par `ratio`.
+> Cet ordre règle le cas A3 : une préparation avec stock propre est traitée comme feuille
+> (on ne la développe pas), une préparation transparente (sans stock) est développée.
 
 ### Pseudocode
 
 ```
 CAP = 4                     // profondeur max (garde-fou)
-leaves = {}                 // Map<leafProductId, qtyEnUniteDeStockDeLaFeuille>
+leaves = {}                 // Map<feuilleProductId, qtyEnUniteDeStockDeLaFeuille>
 
 function flatten(productId, factor, depth, pathSet):
-    if depth > CAP:
-        log("cap profondeur dépassé", productId); return
-    if productId in pathSet:
-        log("cycle détecté", productId); return          // garde-cycle
+    if depth > CAP: log("cap profondeur dépassé", productId); return
+    if productId in pathSet: log("cycle détecté", productId); return    // garde-cycle
     pathSet.add(productId)
 
-    for arete in editesRecette(productId):                // kind=recipe, non-self, !deleted, affects_stock
-        comp   = arete.component_product_id
-        qty    = arete.default_quantity * (arete.conversion_factor ?? 1)
-        unit   = arete.quantity_unit ?? portionUnit(comp)
+    for arete in aretesRecette(productId):     // kind='recipe', non-self, !deleted, affects_stock=true
+        comp = arete.component_product_id
+        dq   = arete.default_quantity
+        qu   = arete.quantity_unit ?? portionUnit(comp)
+        cf   = arete.conversion_factor
 
-        if estSousRecette(comp):                          // a un BOM recette ET pas de stock propre suivi
-            Y   = yieldQuantity(comp)
-            if Y == null or Y <= 0:
-                // FALLBACK : pas de rendement → on suppose que le BOM = 1 unité de `unit`
-                // → ratio = qty. Marquer needs_review sur les mouvements produits.
-                ratio = qty ; flagNeedsReview = true
-            else:
-                qYU = convert(qty, unit, yieldUnit(comp))
-                if qYU == null: log("unités incompatibles rendement", comp); continue
-                ratio = qYU / Y
+        if aStockPropreSuivi(comp):                                    // 1) FEUILLE
+            su = uniteStockPropre(comp)                                // product_stocks.unit de la self-compo
+            q  = toComponentQty(dq, qu, su, cf)                        // cf. §4
+            if q == null: needs_review(comp); continue
+            leaves[comp] = (leaves[comp] ?? 0) + factor * q
+
+        else if aBOMRecette(comp):                                     // 2) SOUS-RECETTE → développer
+            yU = yield_unit(comp) ?? portion_unit(comp)
+            q  = toComponentQty(dq, qu, yU, cf)                        // qté dans l'unité de rendement
+            if q == null: needs_review(comp); continue
+            Y  = yield_quantity(comp)
+            ratio = (Y != null and Y > 0) ? (q / Y) : q               // fallback si pas de rendement (+ needs_review)
             flatten(comp, factor * ratio, depth + 1, pathSet)
-        else:                                             // feuille (matière)
-            su = uniteStockPropre(comp)                   // product_stocks.unit de la self-compo
-            qStock = convert(qty, unit, su)
-            if qStock == null: log("unités incompatibles feuille", comp); continue
-            leaves[comp] = (leaves[comp] ?? 0) + factor * qStock
 
-    pathSet.remove(productId)                             // autorise les « diamants » (même feuille via 2 branches)
+        // else : ni stock ni BOM → log, rien
+
+    pathSet.remove(productId)                  // autorise les « diamants » (même feuille via 2 branches)
 ```
 
 Appel pour une vente : `flatten(P, Q, 0, {})` où `Q` = nombre d'unités vendues.
-Le `pathSet` est ajouté à l'entrée et retiré à la sortie : cela **bloque les cycles**
-(A→B→A) tout en **autorisant les diamants** (une feuille atteinte par deux chemins, qui doit
-bien être sommée).
+Le `pathSet` (ajouté à l'entrée, retiré à la sortie) **bloque les cycles** (A→B→A) tout en
+**autorisant les diamants** (une feuille atteinte par deux chemins → **sommée**).
 
 ---
 
@@ -174,19 +190,49 @@ Pour chaque `(feuilleId, qtyStock)` de `leaves` :
 
 1. Récupérer le `product_stocks` **propre** (self-composition) de la feuille pour cet
    établissement, `inventory_tracked = true`. Si absent ou non suivi → **ignorer** cette
-   feuille (matière non suivie), éventuellement `log`.
-2. Décrémenter `current_stock` de `qtyStock`.
-3. Écrire **un `stock_movements`** de type `"sale"` **en réutilisant exactement la logique
-   FIFO existante** que le mobile applique déjà pour un décrément de vente à 1 niveau :
-   - `product_stock_id` = la fiche stock de la feuille,
-   - `quantity` = `qtyStock` (convention de signe **identique** aux ventes actuelles),
-   - `unit` = unité de stock de la feuille,
-   - `lot_allocations` + `unit_cost` = **allocation FIFO** sur les lots de cette feuille
-     (inchangé — c'est le même calcul qu'aujourd'hui, juste appliqué à ces feuilles-là),
-   - `recipe_product_id` = **le produit vendu `P`** (pas la feuille — voir §7).
+   feuille (matière non suivie), `log`.
+2. **Décrémenter `current_stock`** de `qtyStock` (maintenu **côté app**, comme le fait la
+   réception : `current_stock = current_stock − qtyStock`).
+3. Écrire **un `stock_movements`** de type `"sale"` en respectant le **contrat du trigger**
+   (voir §6bis) — les champs **obligatoires** pour que le FIFO fonctionne :
+   - **`product_stock_id`** = la fiche stock de la feuille → **c'est LA clé du FIFO** (le
+     trigger alloue sur les lots ayant ce même `product_stock_id`).
+   - **`quantity_before`** = stock **avant** décrément, **`quantity_after`** = stock **après**
+     → ⚠ le trigger calcule la quantité vendue = `quantity_before − quantity_after`
+     (**pas** le champ `quantity`).
+   - **`unit_cost` = NULL** et **`lot_allocations` = NULL** → sinon le trigger **s'abstient**
+     (garde : il ne tourne que si `unit_cost IS NULL`). C'est le trigger qui les remplit.
+   - `recipe_product_id` = **le produit vendu `P`** (COGS, voir §7).
+   - `product_id` = la feuille (cohérence / requêtes catalogue ; **non** utilisé par le FIFO).
+   - `quantity` = `qtyStock`, `unit` = unité de stock de la feuille.
 
-**Rien ne change dans le schéma des mouvements ni dans le calcul FIFO.** Ce qui change, c'est
-uniquement **la liste des fiches à décrémenter et les quantités** (issues de l'aplatissement).
+## 6bis. FIFO — trigger `trg_fifo_valorize` (source dans le repo)
+
+Le FIFO **n'est pas calculé par le mobile**. Il est fait par le trigger Postgres
+`trg_fifo_valorize AFTER INSERT ON stock_movements` (fonction `public.fn_fifo_valorize()`,
+présente dans `supabase/schema_20260626.sql`). Réponses aux questions D (confirmées sur le
+code du trigger) :
+
+- **(a) Déclenchement** : `AFTER INSERT ON stock_movements`. À la **synchro** offline→serveur,
+  l'insert de la ligne `sale` déclenche le trigger. ✅
+- **(b) Clé d'allocation** : `WHERE product_stock_id = NEW.product_stock_id` +
+  `movement_type='purchase'` + `remaining_quantity>0`, `ORDER BY created_at ASC`. → **c'est
+  `product_stock_id`** qui compte, **pas** `product_id`. Et la quantité allouée =
+  `quantity_before − quantity_after`. ✅
+- **(c) unit_cost des ventes** : le trigger **écrit** `unit_cost` (moyenne pondérée des lots
+  consommés) **et** `lot_allocations` sur la ligne de vente — **mais uniquement si
+  `NEW.unit_cost IS NULL`** à l'insert (garde). Donc le mobile doit insérer `unit_cost=NULL`. ✅
+- **Lots épuisés** : s'il manque du stock, le trigger prend le **dernier `unit_cost` d'achat**
+  comme repli et pose `needs_review=true` sur la vente.
+- **Lots (pas de table dédiée)** : les lots = les mouvements `purchase` (`remaining_quantity`).
+- **Annulation** : `movement_type='restore'` ; le trigger retrouve la vente d'origine via
+  **`reference_id`** et contre-passe en **LIFO**. → une annulation mobile doit poser
+  `reference_id` = celui de la vente, + `quantity_before/after` inversés.
+
+**En résumé mobile** : par feuille, insérer une ligne `sale` avec `product_stock_id`,
+`quantity_before`, `quantity_after`, `recipe_product_id`, `unit`, `unit_cost=NULL`,
+`lot_allocations=NULL` ; décrémenter `current_stock` (app) ; le trigger fait tout le FIFO.
+Aucun changement de schéma. Le contrat exact = la source `fn_fifo_valorize()`.
 
 ---
 
