@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import {
+  buildByMain,
+  buildCostCtx,
+  flattenLeaves,
+  type CompLine,
+  type ProductLike,
+  type RecipeCostCtx,
+} from "@/lib/recipe-cost";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
@@ -50,26 +58,85 @@ async function checkSessionActive(service: SupabaseClient, establishment_id: str
   return data !== null;
 }
 
-async function checkStock(service: SupabaseClient, item: OrderItem, establishment_id: string): Promise<string | null> {
-  const { data: comp } = await service
+type StockGraph = {
+  ctx: RecipeCostCtx;
+  hasStock: Set<string>;
+  currentByProduct: Map<string, { current: number; tracked: boolean }>;
+  stockModeById: Map<string, string>;
+};
+
+/**
+ * Charge une fois le graphe de stock de l'établissement pour vérifier la dispo des produits vendus,
+ * y compris en profondeur (recettes/déclinaisons `stock_mode="ingredients"` → aplatissement vers
+ * les feuilles matières, cohérent avec le décrément mobile).
+ */
+async function buildStockGraph(
+  service: SupabaseClient,
+  establishment_id: string,
+  organization_id: string,
+): Promise<StockGraph> {
+  const { data: products } = await service
+    .from("products")
+    .select("id, name, product_type, portion_unit, yield_quantity, yield_unit, stock_mode")
+    .eq("organization_id", organization_id)
+    .eq("deleted", false);
+  const { data: comps } = await service
     .from("product_compositions")
-    .select("id")
-    .eq("product_id", item.product_id)
+    .select("id, main_product_id, component_product_id, default_quantity, quantity_unit, conversion_factor")
     .eq("establishment_id", establishment_id)
-    .limit(1)
-    .maybeSingle();
+    .eq("composition_kind", "recipe")
+    .eq("deleted", false);
 
-  if (!comp) return null;
+  const rows = comps ?? [];
+  const lines = rows.filter((c) => c.main_product_id !== c.component_product_id) as CompLine[];
+  const byMain = buildByMain(lines);
+  const ctx = buildCostCtx((products ?? []) as ProductLike[], byMain, new Map());
+  const stockModeById = new Map((products ?? []).map((p) => [p.id, p.stock_mode]));
 
-  const { data: stock } = await service
+  const selfComps = rows.filter((c) => c.main_product_id === c.component_product_id);
+  const compToProduct = new Map(selfComps.map((c) => [c.id, c.main_product_id]));
+  const { data: stocks } = await service
     .from("product_stocks")
-    .select("current_stock, inventory_tracked")
-    .eq("product_composition_id", comp.id)
+    .select("product_composition_id, current_stock, inventory_tracked")
+    .in(
+      "product_composition_id",
+      selfComps.map((c) => c.id),
+    )
     .eq("establishment_id", establishment_id)
-    .maybeSingle();
+    .eq("deleted", false);
 
-  if (stock?.inventory_tracked && stock.current_stock < item.quantity) {
-    return item.name;
+  const currentByProduct = new Map<string, { current: number; tracked: boolean }>();
+  const hasStock = new Set<string>();
+  for (const s of stocks ?? []) {
+    const pid = compToProduct.get(s.product_composition_id);
+    if (!pid) continue;
+    const tracked = s.inventory_tracked ?? false;
+    currentByProduct.set(pid, { current: s.current_stock, tracked });
+    if (tracked) hasStock.add(pid);
+  }
+  return { ctx, hasStock, currentByProduct, stockModeById };
+}
+
+/** Retourne le nom du produit si épuisé (dispo insuffisante), sinon null. */
+function checkStock(graph: StockGraph, item: OrderItem): string | null {
+  const mode = graph.stockModeById.get(item.product_id) ?? "none";
+  if (mode === "none") return null;
+  if (mode === "product") {
+    const st = graph.currentByProduct.get(item.product_id);
+    return st?.tracked && st.current < item.quantity ? item.name : null;
+  }
+  // "ingredients" : aplatir vers les feuilles matières (par unité) et vérifier chaque feuille suivie.
+  const leaves = flattenLeaves(
+    item.product_id,
+    graph.ctx,
+    1,
+    graph.hasStock,
+    new Set<string>(),
+    new Map<string, number>(),
+  );
+  for (const [leafId, qtyPerUnit] of leaves) {
+    const st = graph.currentByProduct.get(leafId);
+    if (st?.tracked && st.current < qtyPerUnit * item.quantity) return item.name;
   }
   return null;
 }
@@ -111,8 +178,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Commandes désactivées. Demandez un serveur." }, { status: 503 });
     }
 
+    const stockGraph = await buildStockGraph(service, establishment_id, organizationId);
+
     for (const item of items) {
-      const outOfStock = await checkStock(service, item, establishment_id);
+      const outOfStock = checkStock(stockGraph, item);
       if (outOfStock) {
         return NextResponse.json({ error: "Produit épuisé", product_name: outOfStock }, { status: 409 });
       }

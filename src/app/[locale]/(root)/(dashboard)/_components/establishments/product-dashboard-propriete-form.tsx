@@ -81,8 +81,8 @@ function validateTypeChange(
     }
   }
 
-  const wasForSale = oldTypes.includes("recipe") || oldTypes.includes("purchased");
-  const nowForSale = newTypes.includes("recipe") || newTypes.includes("purchased");
+  const wasForSale = oldTypes.includes("sellable");
+  const nowForSale = newTypes.includes("sellable");
   if (wasForSale && !nowForSale && guard.onMenuOrFormula) {
     return { block: "Impossible : ce produit est présent sur des menus ou des formules. Retirez-le d'abord." };
   }
@@ -416,6 +416,18 @@ export function ProductProprieteForm({
                     <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
                   </label>
                   <ProductTypePicker value={productTypes} onChange={setProductTypes} />
+                  <label className="flex items-center gap-2 pt-1 text-sm">
+                    <Switch
+                      checked={productTypes.includes("sellable")}
+                      onCheckedChange={(v) =>
+                        setProductTypes((prev) => (v ? [...prev, "sellable"] : prev.filter((k) => k !== "sellable")))
+                      }
+                    />
+                    En vente{" "}
+                    <span className="text-muted-foreground text-xs font-normal">
+                      (affiche les prix et menus — indépendant du fait d&apos;avoir une recette)
+                    </span>
+                  </label>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Référence interne (SKU)</label>

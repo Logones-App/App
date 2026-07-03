@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { PRODUCT_DASHBOARD_QUERY_KEY } from "@/lib/queries/product-establishment-dashboard";
+import { ensureProductType } from "@/lib/queries/product-type-sync";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -84,6 +85,12 @@ export function useCompositionInlineEdit({ productId, establishmentId, organizat
         deleted: false,
       });
       if (error) throw error;
+      // Typage dérivé : ajouter un ingrédient BOM → le produit devient une recette (de fait),
+      // et le composant gagne le rôle ingrédient (une sous-recette devient préparation).
+      if (draft.composition_kind === "recipe") {
+        await ensureProductType(supabase, productId, "recipe");
+        await ensureProductType(supabase, draft.component_product_id, "ingredient");
+      }
     },
     onError: () => toast.error("Erreur lors de l'ajout de l'ingrédient"),
     onSuccess: () => {

@@ -38,20 +38,23 @@ type TabFlags = {
   persoStockRows: CompositionStockRow[];
 };
 
-function computeTabFlags(product: ProductWithCategoryName, compositionStockRows: CompositionStockRow[]): TabFlags {
+function computeTabFlags(
+  product: ProductWithCategoryName,
+  compositionStockRows: CompositionStockRow[],
+  isOnMenu: boolean,
+): TabFlags {
   const types = (product.product_type as string[] | null) ?? [];
   const isRecipe = types.includes("recipe");
-  const isPurchased = types.includes("purchased");
   const isIngredient = types.includes("ingredient");
-  const isForSale = isRecipe || isPurchased;
+  // Vendu = intent explicite `sellable` OU déjà sur un menu (couvre les produits créés côté mobile).
+  const isForSale = types.includes("sellable") || isOnMenu;
   return {
     isForSale,
-    // Recette : recettes (BOM) et ingrédients composés. Un produit acheté pur n'a rien à composer.
+    // Recette : recettes (BOM) et ingrédients composés.
     hasFicheTechnique: isRecipe || isIngredient,
-    // Achats (réception + fournisseurs) : ce qu'on ACHÈTE réellement.
-    // Ingrédient brut OU produit acheté-revendu. Une préparation maison (ingrédient + recette)
-    // se produit (pas de réception) sauf si elle est aussi achetée prête.
-    hasAchatsTab: (isIngredient && !isRecipe) || isPurchased,
+    // Achats (réception + fournisseurs) : ce qu'on ACHÈTE réellement (ingrédient brut).
+    // Une préparation maison (ingrédient + recette) se produit (pas de réception).
+    hasAchatsTab: isIngredient && !isRecipe,
     // Onglet Stock : seul un ingrédient pur utilise la fiche stock directe (les autres ont le sélecteur de mode).
     isPureIngredient: isIngredient && !isForSale,
     portionUnit: product.portion_unit ?? null,
@@ -92,7 +95,7 @@ export function ProductEstablishmentDashboardTabs({
   compositionStockRows,
   menuProductPricing,
 }: TabsProps) {
-  const flags = computeTabFlags(product, compositionStockRows);
+  const flags = computeTabFlags(product, compositionStockRows, menuProductPricing.length > 0);
   const { isForSale, hasFicheTechnique, hasAchatsTab, isPureIngredient, persoStockRows } = flags;
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;

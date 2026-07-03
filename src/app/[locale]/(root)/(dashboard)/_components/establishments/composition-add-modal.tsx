@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
 import { useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { ensureProductType } from "@/lib/queries/product-type-sync";
 import { ensureSelfStock } from "@/lib/queries/reception-queries";
 import { useActiveSuppliers, useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
@@ -203,6 +204,8 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
         deleted: false,
       });
       if (compErr) throw compErr;
+      // Typage dérivé : ajouter un ingrédient rend le produit principal une recette (de fait).
+      await ensureProductType(supabase, productId, "recipe");
     },
     onSuccess: () => {
       toast.success("Ingrédient créé et ajouté.");

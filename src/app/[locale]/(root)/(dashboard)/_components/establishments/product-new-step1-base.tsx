@@ -56,6 +56,15 @@ export function Step1FormFields({ draft, patch, productTypes, setProductTypes, v
               Type <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
             </Label>
             <ProductTypePicker value={productTypes} onChange={setProductTypes} />
+            <label className="flex items-center gap-2 pt-1 text-sm">
+              <Switch
+                checked={productTypes.includes("sellable")}
+                onCheckedChange={(v) =>
+                  setProductTypes(v ? [...productTypes, "sellable"] : productTypes.filter((k) => k !== "sellable"))
+                }
+              />
+              En vente <span className="text-muted-foreground text-xs font-normal">(prix &amp; menus)</span>
+            </label>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

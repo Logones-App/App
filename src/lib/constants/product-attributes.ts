@@ -118,29 +118,25 @@ export const LABELS: { key: LabelKey; label: string; emoji: string; color: strin
 
 // ─── Types de produit ─────────────────────────────────────────────────────────
 
-export type ProductTypeKey = "recipe" | "ingredient" | "purchased";
+// Rôles cumulables dans `products.product_type` (jsonb, le mobile ne le lit pas → liberté totale) :
+// - `recipe` = a un BOM (composé / préparation / plat) — auto-posé à l'ajout d'un ingrédient
+// - `ingredient` = matière / est composant — auto-posé quand utilisé comme composant
+// - `sellable` = mis en vente (intent, DÉCOUPLÉ du BOM) — case « en vente »
+// (« purchased »/achat direct retiré 2026-07 : remplacé par ingrédient décliné en vente.)
+export type ProductTypeKey = "recipe" | "ingredient" | "sellable";
 
+// Options du picker de type (rôles structurels). « sellable » est géré à part (case « en vente »).
 export const PRODUCT_TYPES: {
-  key: ProductTypeKey;
+  key: "recipe" | "ingredient";
   label: string;
   emoji: string;
   description: string;
-  /** Type conservé pour la compat (produits legacy) mais plus proposé à la création. */
-  deprecated?: boolean;
 }[] = [
   {
     key: "recipe",
     label: "Recette",
     emoji: "🍽️",
     description: "Cuisiné à partir d'ingrédients, vendu au client (ex : burger, salade, cocktail).",
-  },
-  {
-    key: "purchased",
-    label: "Achat direct",
-    emoji: "🛒",
-    description:
-      "Déprécié : préférez un ingrédient décliné en vente. Acheté et revendu tel quel (ex : canette, bouteille d'eau).",
-    deprecated: true,
   },
   {
     key: "ingredient",
@@ -163,10 +159,12 @@ export type ProductTypeBehavior = {
   requiresPurchasePrice: boolean;
 };
 
+// `recipe`/`ingredient` = rôles STRUCTURELS (composé / matière), ne décident PAS de la mise en vente.
+// La vente vient du token `sellable` (intent) — découplé du BOM.
 export const PRODUCT_TYPE_BEHAVIORS: Record<ProductTypeKey, ProductTypeBehavior> = {
-  recipe: { showInPOS: true, isForSale: true, canBeRecipeComponent: true, requiresPurchasePrice: false },
-  purchased: { showInPOS: true, isForSale: true, canBeRecipeComponent: true, requiresPurchasePrice: true },
+  recipe: { showInPOS: false, isForSale: false, canBeRecipeComponent: true, requiresPurchasePrice: false },
   ingredient: { showInPOS: false, isForSale: false, canBeRecipeComponent: true, requiresPurchasePrice: true },
+  sellable: { showInPOS: true, isForSale: true, canBeRecipeComponent: false, requiresPurchasePrice: false },
 };
 
 /**

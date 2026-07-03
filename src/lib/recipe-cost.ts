@@ -1,7 +1,7 @@
 // Coût récursif d'une recette (une sous-recette peut être un composant d'une autre).
 // Pur (pas de React) : la fiche technique assemble les données puis appelle ces fonctions.
 
-import { compositionLineCost } from "@/lib/utils/unit-conversion";
+import { compositionLineCost, toComponentQty } from "@/lib/utils/unit-conversion";
 
 export type CompLine = {
   main_product_id: string;
@@ -101,6 +101,51 @@ export function recipeBatchCost(id: string, ctx: RecipeCostCtx, visited: Set<str
     }
   }
   return any ? Math.round(sum * 10000) / 10000 : null;
+}
+
+/**
+ * Aplatit le BOM de `id` vers ses feuilles (matières + sous-préparations STOCKÉES), en
+ * quantités, pour la production. `factor` = nb de lots produits (1 = un rendement).
+ * - Règle « feuille » IDENTIQUE au décrément mobile : un composant avec **stock propre suivi**
+ *   (`hasStock`) est une feuille (on consomme son stock) ; sinon, s'il a un BOM → on développe
+ *   (ratio q/yield) ; sinon feuille matière.
+ * - Quantités converties via `toComponentQty` ; garde-cycle ; diamants sommés.
+ * Écrit dans `out` : Map<feuilleProductId, quantité en unité de stock de la feuille>.
+ */
+export function flattenLeaves(
+  id: string,
+  ctx: RecipeCostCtx,
+  factor: number,
+  hasStock: Set<string>,
+  visited: Set<string>,
+  out: Map<string, number>,
+): Map<string, number> {
+  if (visited.has(id)) return out; // garde-cycle
+  const lines = ctx.byMain.get(id);
+  if (!lines || lines.length === 0) return out;
+  const next = new Set(visited).add(id);
+  for (const line of lines) {
+    const comp = line.component_product_id;
+    const expand = !hasStock.has(comp) && (ctx.byMain.get(comp)?.length ?? 0) > 0;
+    if (expand) {
+      const yU = ctx.yieldUnit.get(comp) ?? ctx.portionUnit.get(comp) ?? null;
+      const q = toComponentQty(line.default_quantity ?? 0, line.quantity_unit, yU, line.conversion_factor);
+      const y = ctx.yieldQty.get(comp) ?? null;
+      if (q == null || y == null || y <= 0) continue;
+      flattenLeaves(comp, ctx, factor * (q / y), hasStock, next, out);
+    } else {
+      // feuille : matière OU sous-préparation stockée → on consomme son stock (unité = portion_unit)
+      const q = toComponentQty(
+        line.default_quantity ?? 0,
+        line.quantity_unit,
+        ctx.portionUnit.get(comp) ?? null,
+        line.conversion_factor,
+      );
+      if (q == null) continue;
+      out.set(comp, (out.get(comp) ?? 0) + factor * q);
+    }
+  }
+  return out;
 }
 
 /** Tous les composants atteignables depuis `rootId` (pour charger leurs coûts matière). Garde-cycle. */

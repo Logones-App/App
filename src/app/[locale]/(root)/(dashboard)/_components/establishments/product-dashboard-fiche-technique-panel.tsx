@@ -44,6 +44,7 @@ import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-p
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
 import { RecipeAllergensCard } from "./product-dashboard-recipe-allergens-card";
+import { RecipeProductionCard } from "./product-dashboard-recipe-production-card";
 import { RecipeYieldCard } from "./product-dashboard-recipe-yield-card";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
@@ -157,6 +158,7 @@ function useRecipeCostData(
     candidateStockUnits: buildCandidateStockUnits(candidates, stockUnits),
     ingredientList: buildPickerList(candidates),
     totalCostHT: recipeBatchCost(productId, costCtx, new Set<string>()) ?? 0,
+    nameById: new Map(allProducts.map((p) => [p.id, p.name])),
   };
 }
 
@@ -207,7 +209,7 @@ export function ProductFicheTechniquePanel({
   );
   const { data: allMenus = [] } = useEstablishmentMenus(establishmentId, organizationId);
 
-  const { costCtx, candidateStockUnits, ingredientList, totalCostHT } = useRecipeCostData(
+  const { costCtx, candidateStockUnits, ingredientList, totalCostHT, nameById } = useRecipeCostData(
     product.id,
     allProducts as ProductLike[],
     establishmentId,
@@ -344,6 +346,19 @@ export function ProductFicheTechniquePanel({
             yieldUnit={product.yield_unit}
             portionUnit={product.portion_unit}
             recipeCostHT={totalCostHT}
+          />
+          <RecipeProductionCard
+            prep={{
+              id: product.id,
+              name: product.name,
+              yield_quantity: product.yield_quantity,
+              yield_unit: product.yield_unit,
+              portion_unit: product.portion_unit,
+            }}
+            costCtx={costCtx}
+            nameById={nameById}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
           />
         </>
       )}

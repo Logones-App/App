@@ -108,13 +108,10 @@ export function ProductTypePicker({
     onChange(value.includes(key) ? value.filter((k) => k !== key) : [...value, key]);
   };
 
-  // Types dépréciés (achat direct) masqués à la création, mais conservés si un produit legacy les porte déjà.
-  const options = PRODUCT_TYPES.filter((t) => !t.deprecated || value.includes(t.key));
-
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        {options.map((t) => {
+        {PRODUCT_TYPES.map((t) => {
           const active = value.includes(t.key);
           return (
             <button
