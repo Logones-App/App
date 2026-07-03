@@ -99,6 +99,7 @@ export function ReceptionModal(props: Props) {
   const [designation, setDesignation] = useState("");
   const [refArticle, setRefArticle] = useState("");
   const [contenanceStr, setContenanceStr] = useState("1");
+  const [contenanceUnit, setContenanceUnit] = useState("");
   const [gestionUnit, setGestionUnit] = useState("");
   const [qtyStr, setQtyStr] = useState("");
   const [puStr, setPuStr] = useState("");
@@ -122,6 +123,7 @@ export function ReceptionModal(props: Props) {
   const ru = computeReferenceUnits({
     packaging,
     contenance,
+    contenanceUnit,
     stockUnit: effectiveStockUnit,
     priceValue: pu ?? 0,
     priceBasis,
@@ -348,6 +350,8 @@ export function ReceptionModal(props: Props) {
               setPuStr={setPuStr}
               contenanceStr={contenanceStr}
               setContenanceStr={setContenanceStr}
+              contenanceUnit={contenanceUnit}
+              setContenanceUnit={setContenanceUnit}
               designation={designation}
               setDesignation={setDesignation}
               refArticle={refArticle}

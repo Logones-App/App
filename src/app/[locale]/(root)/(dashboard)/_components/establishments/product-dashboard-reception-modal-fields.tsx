@@ -59,6 +59,7 @@ function referenceEquivalences(ru: ReferenceUnits, stockUnit: string, packaging:
 function previewEquivalences(
   packaging: string,
   contenanceStr: string,
+  contenanceUnit: string,
   stockUnit: string,
   priceStr: string,
   priceBasis: string,
@@ -71,6 +72,7 @@ function previewEquivalences(
   const ru = computeReferenceUnits({
     packaging,
     contenance: contenance ?? 1,
+    contenanceUnit,
     stockUnit,
     priceValue: price,
     priceBasis,
@@ -129,6 +131,8 @@ export function ReferencePhraseFields({
   onPackagingChange,
   contenanceStr,
   setContenanceStr,
+  contenanceUnit,
+  setContenanceUnit,
   stockUnit,
   onStockUnitChange,
   designation,
@@ -150,6 +154,8 @@ export function ReferencePhraseFields({
   onPackagingChange: (v: string) => void;
   contenanceStr: string;
   setContenanceStr: (v: string) => void;
+  contenanceUnit: string;
+  setContenanceUnit: (v: string) => void;
   stockUnit: string;
   onStockUnitChange: ((v: string) => void) | null;
   designation: string;
@@ -171,7 +177,10 @@ export function ReferencePhraseFields({
   const showContenance = !isVrac && !isPiece;
   const unitOptions = isVrac ? PORTION_UNITS.filter((u) => u !== "piece") : PORTION_UNITS;
   const basisOptions = priceBasisOptions(packaging, stockUnit, t);
-  const equiv = previewEquivalences(packaging, contenanceStr, stockUnit, priceStr, priceBasis);
+  const equiv = previewEquivalences(packaging, contenanceStr, contenanceUnit, stockUnit, priceStr, priceBasis);
+  // Unité de la contenance (ex. « 75 cl » géré en L) : proposée dès que l'unité de stock est connue.
+  const contenanceUnitOptions = stockUnit !== "" ? compatibleUnits(stockUnit, PORTION_UNITS) : [];
+  const showContenanceUnit = showContenance && contenanceUnitOptions.length > 0;
 
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
@@ -218,12 +227,29 @@ export function ReferencePhraseFields({
                 className="tabular-nums"
               />
             </div>
+            {showContenanceUnit && (
+              <div className="w-20 space-y-1">
+                <Label className="text-xs">en</Label>
+                <Select value={contenanceUnit || stockUnit} onValueChange={setContenanceUnit}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contenanceUnitOptions.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {t(u as PortionUnit)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </>
         )}
         {isVrac && <span className="text-muted-foreground pb-2 text-sm">au</span>}
 
         <div className="w-24 space-y-1">
-          <Label className="text-xs">Unité</Label>
+          <Label className="text-xs">{isVrac ? "Unité" : "Unité de stock"}</Label>
           {isPiece ? (
             <Input value="pièce" disabled readOnly className="bg-muted/50" />
           ) : onStockUnitChange ? (
@@ -402,6 +428,8 @@ export function NewRefSection(props: {
   setPuStr: (v: string) => void;
   contenanceStr: string;
   setContenanceStr: (v: string) => void;
+  contenanceUnit: string;
+  setContenanceUnit: (v: string) => void;
   designation: string;
   setDesignation: (v: string) => void;
   refArticle: string;
@@ -419,6 +447,8 @@ export function NewRefSection(props: {
       onPackagingChange={props.onPackagingChange}
       contenanceStr={props.contenanceStr}
       setContenanceStr={props.setContenanceStr}
+      contenanceUnit={props.contenanceUnit}
+      setContenanceUnit={props.setContenanceUnit}
       stockUnit={props.stockUnit}
       onStockUnitChange={props.showGestionPicker ? props.setGestionUnit : null}
       designation={props.designation}

@@ -45,14 +45,17 @@ export type ReferenceUnits = {
 };
 
 /**
- * Traduit la « phrase » (conditionnement de [contenance] [unité de stock]) + le prix
+ * Traduit la « phrase » (conditionnement de [contenance] [unité de contenance]) + le prix
  * (valeur + base) en valeurs à stocker + coût normalisé.
+ * - `contenanceUnit` = unité dans laquelle la contenance est saisie (ex. « 75 cl »), convertie
+ *   vers l'unité de stock — permet « Bouteille de 75 cl » gérée en L. Défaut = unité de stock.
  * - `priceBasis = BASIS_PACK` → prix au conditionnement ; sinon = unité de mesure compatible.
  * - En **vrac**, la base EST l'unité de commande (prix au kg, au L…).
  */
 export function computeReferenceUnits(input: {
   packaging: string; // VRAC | A_LA_PIECE | nom de conditionnement
-  contenance: number; // contenu du conditionnement, en unité de stock
+  contenance: number; // contenu du conditionnement, exprimé en `contenanceUnit`
+  contenanceUnit?: string; // unité de la contenance (défaut = unité de stock)
   stockUnit: string;
   priceValue: number;
   priceBasis: string; // BASIS_PACK | unité de mesure
@@ -60,7 +63,9 @@ export function computeReferenceUnits(input: {
   const { packaging, contenance, stockUnit, priceValue, priceBasis } = input;
   const isVrac = packaging === VRAC;
   const isPiece = packaging === A_LA_PIECE;
-  const packSize = isVrac || isPiece ? 1 : contenance; // unités de stock par pack
+  const cUnit = input.contenanceUnit && input.contenanceUnit !== "" ? input.contenanceUnit : stockUnit;
+  const contenanceStock = convertUnit(contenance, cUnit, stockUnit) ?? contenance; // contenance en unités de stock
+  const packSize = isVrac || isPiece ? 1 : contenanceStock; // unités de stock par pack
 
   // Coût par unité de stock (source de vérité).
   let unitCost: number;
@@ -107,6 +112,7 @@ export type Ref = {
 export type PhraseForm = {
   packaging: string;
   contenanceStr: string;
+  contenanceUnit: string; // "" = même unité que le stock
   priceStr: string;
   priceBasis: string;
 };
@@ -122,7 +128,9 @@ export function referenceToForm(ref: Ref): PhraseForm {
   const isVrac = packaging === VRAC;
   return {
     packaging,
+    // conversion_factor est déjà en unités de stock → contenance réaffichée dans l'unité de stock.
     contenanceStr: isVrac ? "1" : String(ref.conversion_factor),
+    contenanceUnit: "",
     priceStr: ref.unit_price != null ? String(ref.unit_price) : "",
     priceBasis: isVrac ? (ref.order_unit ?? "") : BASIS_PACK,
   };

@@ -203,6 +203,7 @@ function ReferenceEditForm({
   const [supplierId, setSupplierId] = useState(link.supplier_id);
   const [packaging, setPackaging] = useState(init.packaging);
   const [contenanceStr, setContenanceStr] = useState(init.contenanceStr);
+  const [contenanceUnit, setContenanceUnit] = useState(init.contenanceUnit || (portionUnit ?? ""));
   const [priceStr, setPriceStr] = useState(init.priceStr);
   const [priceBasis, setPriceBasis] = useState(init.priceBasis);
   const [designation, setDesignation] = useState(link.supplier_product_name ?? "");
@@ -224,7 +225,14 @@ function ReferenceEditForm({
     pu != null && stockUnit !== "" && priceBasis !== "" && (!needsContenance || parsePositive(contenanceStr) != null);
 
   const handleSave = () => {
-    const ru = computeReferenceUnits({ packaging, contenance, stockUnit, priceValue: pu as number, priceBasis });
+    const ru = computeReferenceUnits({
+      packaging,
+      contenance,
+      contenanceUnit,
+      stockUnit,
+      priceValue: pu as number,
+      priceBasis,
+    });
     updateMutation.mutate(
       {
         id: link.id,
@@ -274,6 +282,8 @@ function ReferenceEditForm({
         onPackagingChange={onPackagingChange}
         contenanceStr={contenanceStr}
         setContenanceStr={setContenanceStr}
+        contenanceUnit={contenanceUnit}
+        setContenanceUnit={setContenanceUnit}
         stockUnit={stockUnit}
         onStockUnitChange={null}
         designation={designation}
