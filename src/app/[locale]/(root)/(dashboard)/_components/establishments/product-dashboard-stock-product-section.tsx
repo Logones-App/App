@@ -76,7 +76,22 @@ export function ProductSection({
         }
       }
 
-      if (!selfRow?.lineStock) {
+      // Fiche stock : on VÉRIFIE en base (pas l'état client) → update si elle existe, insert sinon.
+      // Évite le doublon (violation d'unicité sur product_composition_id) quand une fiche a déjà
+      // été créée (ex. par un ajout de prix via ensureSelfStock) mais pas encore reflétée côté client.
+      const { data: existingStock } = await supabase
+        .from("product_stocks")
+        .select("id")
+        .eq("product_composition_id", compId)
+        .eq("establishment_id", establishmentId)
+        .maybeSingle();
+      if (existingStock) {
+        const { error } = await supabase
+          .from("product_stocks")
+          .update({ unit, inventory_tracked: true })
+          .eq("id", existingStock.id);
+        if (error) throw error;
+      } else {
         const { error } = await supabase.from("product_stocks").insert({
           ...defaultProductStockInsert(compId, establishmentId, organizationId),
           current_stock: 0,
@@ -95,7 +110,15 @@ export function ProductSection({
       toast.success("Stock configuré.");
       invalidate();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la configuration."),
+    onError: (e: unknown) => {
+      // Remonter le message DB réel (les erreurs Supabase ne sont pas des instances d'Error).
+      const detail =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message?: unknown; code?: unknown }).message) +
+            ("code" in e ? ` (${String((e as { code?: unknown }).code)})` : "")
+          : "Erreur lors de la configuration.";
+      toast.error(detail);
+    },
   });
 
   const lineStock = selfRow?.lineStock ?? null;

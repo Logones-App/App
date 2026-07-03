@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
 
+import { PRODUCT_DASHBOARD_QUERY_KEY } from "./product-establishment-dashboard";
 import { supplierReferenceQueryKey } from "./supplier-queries";
 
 export type SupplierPriceSnapshotRow = Tables<"supplier_price_snapshots">;
@@ -96,6 +97,9 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
     onSuccess: () => {
       toast.success("Prix d'achat enregistré");
       void queryClient.invalidateQueries({ queryKey: qk });
+      // Le prix a pu créer la fiche stock (ensureSelfStock) → rafraîchir la fiche produit
+      // pour que l'onglet Stock reflète l'unité (sinon bouton « Définir l'unité » périmé).
+      void queryClient.invalidateQueries({ queryKey: [PRODUCT_DASHBOARD_QUERY_KEY, productId] });
     },
     onError: () => toast.error("Erreur lors de l'enregistrement"),
   });
