@@ -5356,6 +5356,8 @@ export type Database = {
           stock_mode: string
           updated_at: string | null
           vat_rate_id: string | null
+          yield_quantity: number | null
+          yield_unit: string | null
         }
         Insert: {
           allergens?: Json
@@ -5380,6 +5382,8 @@ export type Database = {
           stock_mode?: string
           updated_at?: string | null
           vat_rate_id?: string | null
+          yield_quantity?: number | null
+          yield_unit?: string | null
         }
         Update: {
           allergens?: Json
@@ -5404,6 +5408,8 @@ export type Database = {
           stock_mode?: string
           updated_at?: string | null
           vat_rate_id?: string | null
+          yield_quantity?: number | null
+          yield_unit?: string | null
         }
         Relationships: [
           {
@@ -6579,6 +6585,10 @@ export type Database = {
           similarity: number
           title: string
         }[]
+      }
+      n8n_increment_doc_usage: {
+        Args: { p_limit?: number; p_month: string; p_organization_id: string }
+        Returns: boolean
       }
       nf525_jet_130_saas: {
         Args: {

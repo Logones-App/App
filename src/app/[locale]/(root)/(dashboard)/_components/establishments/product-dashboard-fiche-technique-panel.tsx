@@ -30,6 +30,7 @@ import { ProductFournisseursPrixPanel } from "./product-dashboard-fournisseurs-p
 import { ProductMargePanel } from "./product-dashboard-marge-panel";
 import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
 import { RecipeAllergensCard } from "./product-dashboard-recipe-allergens-card";
+import { RecipeYieldCard } from "./product-dashboard-recipe-yield-card";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
@@ -293,14 +294,24 @@ export function ProductFicheTechniquePanel({
       )}
 
       {isRecipe && (
-        <RecipeAllergensCard
-          recipeProductId={product.id}
-          recipeAllergens={product.allergens}
-          recipeOrigins={product.origins}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-          productsById={productsById}
-        />
+        <>
+          <RecipeAllergensCard
+            recipeProductId={product.id}
+            recipeAllergens={product.allergens}
+            recipeOrigins={product.origins}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+            productsById={productsById}
+          />
+          <RecipeYieldCard
+            productId={product.id}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+            yieldQuantity={product.yield_quantity}
+            yieldUnit={product.yield_unit}
+            portionUnit={product.portion_unit}
+          />
+        </>
       )}
 
       {showBom && (
