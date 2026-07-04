@@ -46,8 +46,9 @@ function computeTabFlags(product: ProductWithCategoryName, compositionStockRows:
   const isForSale = types.includes("sellable");
   return {
     isForSale,
-    // Recette : recettes (BOM) et ingrédients composés.
-    hasFicheTechnique: isRecipe || isIngredient,
+    // Recette : recettes (BOM), ingrédients composés, et tout produit vendable (pour lui construire
+    // sa recette — l'ajout d'un 1er ingrédient pose alors le rôle `recipe`).
+    hasFicheTechnique: isRecipe || isIngredient || isForSale,
     // Achats (réception + fournisseurs) : ce qu'on ACHÈTE réellement (ingrédient brut).
     // Une préparation maison (ingrédient + recette) se produit (pas de réception).
     hasAchatsTab: isIngredient && !isRecipe,

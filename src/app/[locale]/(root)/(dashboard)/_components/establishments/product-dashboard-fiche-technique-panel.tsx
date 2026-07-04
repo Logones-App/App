@@ -188,7 +188,10 @@ export function ProductFicheTechniquePanel({
   const types = (product.product_type as string[] | null) ?? [];
   const isRecipe = types.includes("recipe");
   const isIngredient = types.includes("ingredient");
-  const showBom = isRecipe || isIngredient;
+  const isForSale = types.includes("sellable");
+  // BOM éditable : recettes, ingrédients composés, et tout produit vendable (pour lui construire
+  // sa recette). Ajouter le 1er ingrédient pose alors le rôle `recipe` (typage dérivé).
+  const showBom = isRecipe || isIngredient || isForSale;
   // « Achat direct » = acheter le plat prêt à l'emploi (recettes uniquement).
   // Ingrédients et produits achetés-revendus gèrent leurs fournisseurs dans l'onglet Achats.
   const showAchatDirect = isRecipe;
