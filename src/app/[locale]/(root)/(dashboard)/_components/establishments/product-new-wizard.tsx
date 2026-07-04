@@ -16,6 +16,22 @@ import { createClient } from "@/lib/supabase/client";
 
 import { Step1FormFields } from "./product-new-step1-base";
 
+export type CreationIntent = "product" | "ingredient";
+
+type IntentCopy = { title: string; namePlaceholder: string; success: string; role: ProductTypeKey };
+
+/** Copie de l'UI + rôle posé à la création selon l'intention (les autres rôles émergent ensuite). */
+function intentCopy(intent: CreationIntent): IntentCopy {
+  return intent === "ingredient"
+    ? {
+        title: "Nouvel ingrédient",
+        namePlaceholder: "Nom de l'ingrédient",
+        success: "Ingrédient créé.",
+        role: "ingredient",
+      }
+    : { title: "Nouveau produit", namePlaceholder: "Nom du produit", success: "Produit créé.", role: "sellable" };
+}
+
 type Draft = {
   name: string;
   description: string;
@@ -38,20 +54,22 @@ export function ProductNewWizard({
   establishmentId,
   organizationId,
   backHref,
+  intent = "product",
 }: {
   establishmentId: string;
   organizationId: string;
   backHref: string;
+  intent?: CreationIntent;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const normalizedBase = backHref.replace(/\/$/, "");
+  const copy = intentCopy(intent);
 
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [productTypes, setProductTypes] = useState<ProductTypeKey[]>([]);
   const actionRef = useRef<Action>("fiche");
 
   const patch = (k: keyof Draft, v: string | boolean) => setDraft((prev) => ({ ...prev, [k]: v }));
@@ -71,7 +89,7 @@ export function ProductNewWizard({
           is_available: draft.is_available,
           printer_id: draft.printer_id === "__none__" ? null : draft.printer_id,
           vat_rate_id: draft.vat_rate_id,
-          product_type: productTypes,
+          product_type: [copy.role],
           deleted: false,
         })
         .select("id")
@@ -80,7 +98,7 @@ export function ProductNewWizard({
       return data.id;
     },
     onSuccess: (productId) => {
-      toast.success("Produit créé.");
+      toast.success(copy.success);
       void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
       void queryClient.invalidateQueries({
         queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
@@ -92,7 +110,6 @@ export function ProductNewWizard({
         router.push(backHref);
       } else {
         setDraft(emptyDraft());
-        setProductTypes([]);
       }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Création impossible."),
@@ -123,7 +140,7 @@ export function ProductNewWizard({
               Retour à la liste
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold">Nouveau produit</h1>
+          <h1 className="text-2xl font-bold">{copy.title}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => router.push(backHref)}>
@@ -141,8 +158,7 @@ export function ProductNewWizard({
       <Step1FormFields
         draft={draft}
         patch={patch}
-        productTypes={productTypes}
-        setProductTypes={setProductTypes}
+        namePlaceholder={copy.namePlaceholder}
         vatRates={vatRates}
         printers={printers}
       />

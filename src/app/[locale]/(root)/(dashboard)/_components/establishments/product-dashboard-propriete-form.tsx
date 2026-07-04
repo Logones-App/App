@@ -13,19 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  AllergenPicker,
-  LabelBadges,
-  LabelPicker,
-  PortionInput,
-  ProductTypePicker,
-} from "@/components/ui/product-attribute-pickers";
+import { AllergenPicker, LabelBadges, LabelPicker, PortionInput } from "@/components/ui/product-attribute-pickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
-import { useProductTypeGuard, useRestoreProduct, type ProductTypeGuard } from "@/lib/queries/product-archive";
+import { useRestoreProduct } from "@/lib/queries/product-archive";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type ProductWithCategoryName,
@@ -55,44 +49,6 @@ function toFormDefaults(product: ProductWithCategoryName): ProductProprieteDraft
     printer_id: product.printer_id ?? "__none__",
     vat_rate_id: product.vat_rate_id ?? "",
   };
-}
-
-// Contrôle d'un changement de type : bloque les retraits dangereux, avertit pour Recette+BOM.
-function validateTypeChange(
-  oldTypes: string[],
-  newTypes: string[],
-  guard: ProductTypeGuard | undefined,
-): { block: string } | { warn: string } | null {
-  if (newTypes.length === 0) return { block: "Sélectionnez au moins un type de produit." };
-  const removed = oldTypes.filter((t) => !newTypes.includes(t));
-  if (removed.length === 0) return null; // ajouts seulement → libre
-  if (!guard) return { block: "Vérification en cours, réessayez dans un instant." };
-
-  if (removed.includes("ingredient")) {
-    if (guard.componentRecipes.length > 0) {
-      const list = guard.componentRecipes.slice(0, 5).join(", ");
-      const more = guard.componentRecipes.length > 5 ? "…" : "";
-      return { block: `Impossible de retirer « Ingrédient » : utilisé dans ${list}${more}.` };
-    }
-    if (guard.hasActiveStock) {
-      return {
-        block: "Impossible de retirer « Ingrédient » : des lots de stock sont actifs. Soldez le stock d'abord.",
-      };
-    }
-  }
-
-  const wasForSale = oldTypes.includes("sellable");
-  const nowForSale = newTypes.includes("sellable");
-  if (wasForSale && !nowForSale && guard.onMenuOrFormula) {
-    return { block: "Impossible : ce produit est présent sur des menus ou des formules. Retirez-le d'abord." };
-  }
-
-  if (removed.includes("recipe") && guard.hasBom) {
-    return {
-      warn: "Cette recette a une fiche technique (BOM). En retirant « Recette », le BOM sera conservé mais inactif. Continuer ?",
-    };
-  }
-  return null;
 }
 
 export function ProductProprieteForm({
@@ -127,9 +83,8 @@ export function ProductProprieteForm({
   // État des caractéristiques (initialisé depuis le produit)
   const [allergens, setAllergens] = useState<AllergenKey[]>(() => (product.allergens as AllergenKey[] | null) ?? []);
   const [labels, setLabels] = useState<LabelKey[]>(() => (product.labels as LabelKey[] | null) ?? []);
-  const [productTypes, setProductTypes] = useState<ProductTypeKey[]>(
-    () => (product.product_type as ProductTypeKey[] | null) ?? [],
-  );
+  // Rôles auto-maintenus (recipe←BOM, ingredient←composant, sellable←création). Non éditables ici.
+  const productTypes = (product.product_type as ProductTypeKey[] | null) ?? [];
   const [portionWeight, setPortionWeight] = useState(() =>
     product.portion_weight != null ? String(product.portion_weight) : "",
   );
@@ -186,11 +141,10 @@ export function ProductProprieteForm({
           allergens,
           labels,
           origins,
-          product_type: productTypes,
           portion_weight: Number.isFinite(pw) && pw > 0 ? pw : null,
           // Ingrédient : l'unité est gouvernée par product_stocks.unit (définie à la 1ère réception).
           // Recette : portion_unit = unité du poids de portion vendue (éditable ici).
-          portion_unit: isIngredientOnly ? (stockUnit ?? portionUnit ?? null) : (portionUnit ?? null),
+          portion_unit: isIngredientOnly ? (stockUnit ?? portionUnit) : portionUnit,
           sku: sku.trim() || null,
           food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
         })
@@ -211,16 +165,7 @@ export function ProductProprieteForm({
     invalidate();
   });
 
-  const { data: typeGuard } = useProductTypeGuard(productId, organizationId);
-
   const handleSaveCharacteristics = () => {
-    const oldTypes = (product.product_type as string[] | null) ?? [];
-    const result = validateTypeChange(oldTypes, productTypes, typeGuard);
-    if (result && "block" in result) {
-      toast.error(result.block);
-      return;
-    }
-    if (result && "warn" in result && !confirm(result.warn)) return;
     updateCharacteristicsMutation.mutate();
   };
 
@@ -410,25 +355,6 @@ export function ProductProprieteForm({
           {(() => {
             return (
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Type de produit{" "}
-                    <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
-                  </label>
-                  <ProductTypePicker value={productTypes} onChange={setProductTypes} />
-                  <label className="flex items-center gap-2 pt-1 text-sm">
-                    <Switch
-                      checked={productTypes.includes("sellable")}
-                      onCheckedChange={(v) =>
-                        setProductTypes((prev) => (v ? [...prev, "sellable"] : prev.filter((k) => k !== "sellable")))
-                      }
-                    />
-                    En vente{" "}
-                    <span className="text-muted-foreground text-xs font-normal">
-                      (affiche les prix et menus — indépendant du fait d&apos;avoir une recette)
-                    </span>
-                  </label>
-                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Référence interne (SKU)</label>
                   <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="EX-001" />

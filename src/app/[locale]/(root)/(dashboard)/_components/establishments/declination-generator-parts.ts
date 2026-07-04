@@ -47,8 +47,7 @@ export type Draft = {
   id: string; // id local (React)
   name: string;
   qtyStr: string; // quantité consommée (unité de stock)
-  priceStr: string; // prix de vente (optionnel)
-  enabled: boolean;
+  prices: Record<string, string>; // prix de vente par menuId (optionnel)
 };
 
 export function parsePositive(s: string): number | null {
@@ -63,9 +62,9 @@ export function draftCost(qtyStr: string, unitCost: number | null): number | nul
   return Math.round(qty * unitCost * 10000) / 10000;
 }
 
-/** Une déclinaison est créable si activée, nommée et avec une quantité > 0. */
+/** Une déclinaison est créable si nommée et avec une quantité > 0. */
 export function isDraftValid(d: Draft): boolean {
-  return d.enabled && d.name.trim() !== "" && parsePositive(d.qtyStr) != null;
+  return d.name.trim() !== "" && parsePositive(d.qtyStr) != null;
 }
 
 /** Au moins une déclinaison valide requise pour lancer la création. */

@@ -3,11 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ProductTypePicker } from "@/components/ui/product-attribute-pickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProductTypeKey } from "@/lib/constants/product-attributes";
 
 type VatRate = { id: string; name: string | null; value: number | null };
 type Printer = { id: string; name: string | null };
@@ -23,13 +21,12 @@ type Draft = {
 type Props = {
   draft: Draft;
   patch: (k: keyof Draft, v: string | boolean) => void;
-  productTypes: ProductTypeKey[];
-  setProductTypes: (v: ProductTypeKey[]) => void;
+  namePlaceholder?: string;
   vatRates: VatRate[];
   printers: Printer[];
 };
 
-export function Step1FormFields({ draft, patch, productTypes, setProductTypes, vatRates, printers }: Props) {
+export function Step1FormFields({ draft, patch, namePlaceholder, vatRates, printers }: Props) {
   return (
     <Card>
       <CardHeader>
@@ -47,24 +44,8 @@ export function Step1FormFields({ draft, patch, productTypes, setProductTypes, v
               autoFocus
               value={draft.name}
               onChange={(e) => patch("name", e.target.value)}
-              placeholder="Nom du produit"
+              placeholder={namePlaceholder ?? "Nom du produit"}
             />
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label>
-              Type <span className="text-muted-foreground text-xs font-normal">(plusieurs possibles)</span>
-            </Label>
-            <ProductTypePicker value={productTypes} onChange={setProductTypes} />
-            <label className="flex items-center gap-2 pt-1 text-sm">
-              <Switch
-                checked={productTypes.includes("sellable")}
-                onCheckedChange={(v) =>
-                  setProductTypes(v ? [...productTypes, "sellable"] : productTypes.filter((k) => k !== "sellable"))
-                }
-              />
-              En vente <span className="text-muted-foreground text-xs font-normal">(prix &amp; menus)</span>
-            </label>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

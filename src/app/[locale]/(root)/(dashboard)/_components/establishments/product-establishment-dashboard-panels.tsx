@@ -38,16 +38,12 @@ type TabFlags = {
   persoStockRows: CompositionStockRow[];
 };
 
-function computeTabFlags(
-  product: ProductWithCategoryName,
-  compositionStockRows: CompositionStockRow[],
-  isOnMenu: boolean,
-): TabFlags {
+function computeTabFlags(product: ProductWithCategoryName, compositionStockRows: CompositionStockRow[]): TabFlags {
   const types = (product.product_type as string[] | null) ?? [];
   const isRecipe = types.includes("recipe");
   const isIngredient = types.includes("ingredient");
-  // Vendu = intent explicite `sellable` OU déjà sur un menu (couvre les produits créés côté mobile).
-  const isForSale = types.includes("sellable") || isOnMenu;
+  // Vendu = marqueur `sellable` posé à la création (wizard Produit). Indépendant du menu/recette.
+  const isForSale = types.includes("sellable");
   return {
     isForSale,
     // Recette : recettes (BOM) et ingrédients composés.
@@ -95,7 +91,7 @@ export function ProductEstablishmentDashboardTabs({
   compositionStockRows,
   menuProductPricing,
 }: TabsProps) {
-  const flags = computeTabFlags(product, compositionStockRows, menuProductPricing.length > 0);
+  const flags = computeTabFlags(product, compositionStockRows);
   const { isForSale, hasFicheTechnique, hasAchatsTab, isPureIngredient, persoStockRows } = flags;
   const validTabs = buildValidTabs(flags);
   const persoCount = persoStockRows.length;

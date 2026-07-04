@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrganizationArchivedProducts, useOrganizationProducts } from "@/lib/queries/establishments";
+import { useEstablishmentRecipeEdges } from "@/lib/queries/recipe-graph-queries";
 import { exportProductsToCSV } from "@/lib/utils/csv-export";
 
 import { StocksTab } from "./_components/stocks-tab";
@@ -24,6 +25,7 @@ export function ProductsShared({
   const pathname = usePathname();
   const { data: products, isLoading, error } = useOrganizationProducts(organizationId);
   const { data: archivedProducts = [] } = useOrganizationArchivedProducts(organizationId);
+  const { data: recipeEdges = [] } = useEstablishmentRecipeEdges(establishmentId, organizationId);
 
   if (isLoading) {
     return (
@@ -55,8 +57,8 @@ export function ProductsShared({
         <div>
           <h1 className="text-2xl font-bold">Produits</h1>
           <p className="text-muted-foreground">
-            Catalogue de l&apos;organisation — produits groupés par type. «&nbsp;Nouveau produit&nbsp;» crée une fiche ;
-            la fiche établissement sert aux options, compositions et menus.
+            Catalogue de l&apos;organisation — matières et leurs formats de vente regroupés. «&nbsp;Nouveau
+            produit&nbsp;» crée une fiche à vendre ; «&nbsp;Nouvel ingrédient&nbsp;» une matière d&apos;achat/stock.
           </p>
         </div>
         <Button
@@ -81,6 +83,7 @@ export function ProductsShared({
             archivedProducts={archivedProducts}
             organizationId={organizationId}
             basePath={pathname.replace(/\/$/, "")}
+            recipeEdges={recipeEdges}
           />
         </TabsContent>
         <TabsContent value="stocks" className="mt-4">

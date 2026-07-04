@@ -18,12 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { insertMenusProductPriceHistoryRow } from "@/lib/menus-products-price-history";
 import { useEstablishmentMenus } from "@/lib/queries/establishments-menu-queries";
 import { useSupplierReferences } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 import {
   canGenerate,
@@ -35,7 +34,6 @@ import {
   type Draft,
 } from "./declination-generator-parts";
 
-const NO_MENU = "__none__";
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 export type Ingredient = {
@@ -46,21 +44,20 @@ export type Ingredient = {
   portion_unit: string | null;
 };
 
-/** Crée un produit recette + son BOM (consomme l'ingrédient) + rattachement menu optionnel. */
+/** Crée un produit recette (vendable) + son BOM (consomme l'ingrédient) + un tarif par menu. */
 async function createDeclination(
   supabase: ReturnType<typeof createClient>,
   args: {
     name: string;
     qty: number;
-    price: number | null;
     ingredient: Ingredient;
     establishmentId: string;
     organizationId: string;
     portionUnit: string;
-    menuId: string | null;
+    menuPrices: { menuId: string; price: number }[];
   },
 ) {
-  const { name, qty, price, ingredient, establishmentId, organizationId, portionUnit, menuId } = args;
+  const { name, qty, ingredient, establishmentId, organizationId, portionUnit, menuPrices } = args;
   const { data: prod, error } = await supabase
     .from("products")
     .insert({
@@ -68,7 +65,7 @@ async function createDeclination(
       name,
       category_id: ingredient.category_id,
       vat_rate_id: ingredient.vat_rate_id,
-      product_type: ["recipe"],
+      product_type: ["recipe", "sellable"],
       // La vente décrémente l'ingrédient (matière) via la fiche technique.
       stock_mode: "ingredients",
       is_available: true,
@@ -93,7 +90,8 @@ async function createDeclination(
   });
   if (cErr) throw cErr;
 
-  if (menuId && price != null) {
+  // Un rattachement menu + tarif par menu (une déclinaison peut être vendue sur N menus).
+  for (const { menuId, price } of menuPrices) {
     const { data: mp, error: mErr } = await supabase
       .from("menus_products")
       .insert({
@@ -114,22 +112,23 @@ function DraftRow({
   draft,
   unitLabel,
   unitCost,
-  showPrice,
+  menus,
   onChange,
   onRemove,
+  onPrice,
 }: {
   draft: Draft;
   unitLabel: string;
   unitCost: number | null;
-  showPrice: boolean;
+  menus: { id: string; name: string }[];
   onChange: (patch: Partial<Draft>) => void;
   onRemove: () => void;
+  onPrice: (menuId: string, value: string) => void;
 }) {
   const cost = draftCost(draft.qtyStr, unitCost);
   return (
     <div className="space-y-2 rounded-md border p-3">
       <div className="flex items-center gap-2">
-        <Switch checked={draft.enabled} onCheckedChange={(v) => onChange({ enabled: v })} />
         <Input
           value={draft.name}
           onChange={(e) => onChange({ name: e.target.value })}
@@ -153,20 +152,24 @@ function DraftRow({
             <span className="text-muted-foreground text-xs">{unitLabel}</span>
           </div>
         </div>
-        {showPrice && (
-          <div className="w-28 space-y-1">
-            <Label className="text-xs">Prix de vente</Label>
-            <Input
-              value={draft.priceStr}
-              onChange={(e) => onChange({ priceStr: e.target.value })}
-              inputMode="decimal"
-              placeholder="€"
-              className="tabular-nums"
-            />
-          </div>
-        )}
         {cost != null && <p className="text-muted-foreground pb-2 text-xs">coût matière ≈ {eur.format(cost)}</p>}
       </div>
+      {menus.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2 pl-9">
+          {menus.map((m) => (
+            <div key={m.id} className="w-28 space-y-1">
+              <Label className="text-xs">{m.name}</Label>
+              <Input
+                value={draft.prices[m.id] ?? ""}
+                onChange={(e) => onPrice(m.id, e.target.value)}
+                inputMode="decimal"
+                placeholder="€"
+                className="tabular-nums"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -185,7 +188,7 @@ export function DeclinationGeneratorCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Décliner en vente</CardTitle>
+        <CardTitle className="text-base">Créer des produits à partir de cet ingrédient</CardTitle>
         <CardDescription>
           Créez des produits vendables à partir de cette matière (au verre, à la bouteille, à la canette…). Chaque vente
           décrémente le stock dans son unité de gestion.
@@ -193,7 +196,7 @@ export function DeclinationGeneratorCard({
       </CardHeader>
       <CardContent>
         <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-          Créer des déclinaisons
+          Créer des produits
         </Button>
       </CardContent>
       {open && (
@@ -227,7 +230,7 @@ export function DeclinationGeneratorModal({
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [seeded, setSeeded] = useState(false);
-  const [menuId, setMenuId] = useState(NO_MENU);
+  const [selectedMenuIds, setSelectedMenuIds] = useState<string[]>([]);
   const [counter, setCounter] = useState(0);
 
   // Pré-remplissage : une déclinaison « conditionnement plein » par référence.
@@ -237,8 +240,7 @@ export function DeclinationGeneratorModal({
       id: s.key,
       name: `${ingredient.name} — ${s.label.toLowerCase()}`,
       qtyStr: String(s.qty),
-      priceStr: "",
-      enabled: true,
+      prices: {},
     }));
     setDrafts(seeds);
     setSeeded(true);
@@ -246,28 +248,38 @@ export function DeclinationGeneratorModal({
 
   const patchDraft = (id: string, patch: Partial<Draft>) =>
     setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  const setPrice = (id: string, menuId: string, value: string) =>
+    setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, prices: { ...d.prices, [menuId]: value } } : d)));
   const removeDraft = (id: string) => setDrafts((ds) => ds.filter((d) => d.id !== id));
   const addDraft = () => {
-    setDrafts((ds) => [...ds, { id: `custom-${counter}`, name: "", qtyStr: "", priceStr: "", enabled: true }]);
+    setDrafts((ds) => [...ds, { id: `custom-${counter}`, name: "", qtyStr: "", prices: {} }]);
     setCounter((c) => c + 1);
   };
+  const toggleMenu = (menuId: string) =>
+    setSelectedMenuIds((ids) => (ids.includes(menuId) ? ids.filter((i) => i !== menuId) : [...ids, menuId]));
 
-  const usesMenu = menuId !== NO_MENU;
+  // Menus retenus (id + nom) pour lesquels on saisit un prix par déclinaison.
+  const selectedMenus = menus
+    .filter((m) => selectedMenuIds.includes(m.id))
+    .map((m) => ({ id: m.id, name: m.name ?? "Menu" }));
 
   const mutation = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
       const valid = drafts.filter(isDraftValid);
       for (const d of valid) {
+        const menuPrices = selectedMenuIds
+          // eslint-disable-next-line security/detect-object-injection
+          .map((menuId) => ({ menuId, price: parsePositive(d.prices[menuId] ?? "") }))
+          .filter((mp): mp is { menuId: string; price: number } => mp.price != null);
         await createDeclination(supabase, {
           name: d.name.trim(),
           qty: parsePositive(d.qtyStr) as number,
-          price: usesMenu ? parsePositive(d.priceStr) : null,
           ingredient,
           establishmentId,
           organizationId,
           portionUnit,
-          menuId: usesMenu ? menuId : null,
+          menuPrices,
         });
       }
       return valid.length;
@@ -308,7 +320,42 @@ export function DeclinationGeneratorModal({
             Définissez d&apos;abord l&apos;unité de gestion de l&apos;ingrédient (onglet Stock) avant de le décliner.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            <div className="space-y-1">
+              <Label className="text-xs">Vendre sur quels menus ?</Label>
+              {menus.length === 0 ? (
+                <p className="text-muted-foreground text-[11px]">
+                  Aucun menu — les produits seront créés sans tarif (à ajouter plus tard dans l&apos;éditeur de menu).
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {menus.map((m) => {
+                    const on = selectedMenuIds.includes(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleMenu(m.id)}
+                        className={cn(
+                          "rounded-md border px-2 py-1 text-xs transition-colors",
+                          on
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {m.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedMenuIds.length > 0 && (
+                <p className="text-muted-foreground text-[11px]">
+                  Saisis un prix par menu sur chaque déclinaison. Colonne vide = pas de tarif sur ce menu.
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               {drafts.map((d) => (
                 <DraftRow
@@ -316,37 +363,15 @@ export function DeclinationGeneratorModal({
                   draft={d}
                   unitLabel={unitLabel}
                   unitCost={unitCost}
-                  showPrice={usesMenu}
+                  menus={selectedMenus}
                   onChange={(patch) => patchDraft(d.id, patch)}
                   onRemove={() => removeDraft(d.id)}
+                  onPrice={(menuId, value) => setPrice(d.id, menuId, value)}
                 />
               ))}
               <Button type="button" variant="outline" size="sm" onClick={addDraft}>
                 + Portion personnalisée
               </Button>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Rattacher à un menu (optionnel)</Label>
-              <Select value={menuId} onValueChange={setMenuId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_MENU}>— Ne pas rattacher maintenant</SelectItem>
-                  {menus.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {usesMenu && (
-                <p className="text-muted-foreground text-[11px]">
-                  Les prix saisis créent le tarif dans ce menu. Sans menu, les produits sont créés et se tarifent plus
-                  tard dans l&apos;éditeur de menu.
-                </p>
-              )}
             </div>
           </div>
         )}

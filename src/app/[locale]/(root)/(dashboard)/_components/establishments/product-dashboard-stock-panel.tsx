@@ -21,6 +21,7 @@ import {
 import { defaultProductStockInsert } from "@/lib/queries/stock-movement-queries";
 import { createClient } from "@/lib/supabase/client";
 
+import { CreateIngredientFromProductCard } from "./create-ingredient-from-product-modal";
 import { DeclinationGeneratorCard } from "./declination-generator-modal";
 import { ProductSection } from "./product-dashboard-stock-product-section";
 
@@ -382,6 +383,17 @@ export function ProductStockPanel({
           toggleMutation={toggleMutation}
         />
       )}
+
+      <CreateIngredientFromProductCard
+        product={{
+          id: productId,
+          name: product.name,
+          category_id: product.category_id,
+          vat_rate_id: product.vat_rate_id,
+        }}
+        establishmentId={establishmentId}
+        organizationId={organizationId}
+      />
     </div>
   );
 }

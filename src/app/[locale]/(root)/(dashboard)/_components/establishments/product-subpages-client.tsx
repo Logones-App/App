@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 
 import { Loader2 } from "lucide-react";
 
@@ -12,11 +12,13 @@ import { ProductNewForm } from "./product-new-form";
 export function ProductNewPageClient() {
   const pathname = usePathname();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgFromHook = useOrgaUserOrganizationId();
   const isAdminEstablishmentRoute = pathname.includes("/admin/organizations/");
   const organizationId = isAdminEstablishmentRoute ? (params.id as string) : (orgFromHook ?? "");
   const establishmentId = (params.establishmentId ?? params.id) as string;
   const listHref = pathname.replace(/\/new\/?$/, "");
+  const intent = searchParams.get("type") === "ingredient" ? "ingredient" : "product";
 
   if (!organizationId) {
     return (
@@ -33,6 +35,7 @@ export function ProductNewPageClient() {
       organizationId={organizationId}
       backHref={listHref}
       redirectBase={listHref}
+      intent={intent}
     />
   );
 }
