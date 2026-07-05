@@ -66,8 +66,8 @@ async function createDeclination(
       category_id: ingredient.category_id,
       vat_rate_id: ingredient.vat_rate_id,
       product_type: ["recipe", "sellable"],
-      // La vente décrémente l'ingrédient (matière) via la fiche technique.
-      stock_mode: "ingredients",
+      // stock_mode NON posé : le produit naît en `none` (défaut). Le décrément par ingrédients
+      // reste un choix explicite via le sélecteur manuel de l'onglet Stock (aucun basculement auto).
       is_available: true,
       deleted: false,
     })

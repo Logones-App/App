@@ -1,57 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { generateSlug } from "@/lib/slug";
+import {
+  createOrgaUser,
+  generateEstablishmentSlug,
+  seedEstablishmentDefaults,
+} from "@/lib/server/establishment-provisioning";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
-
-type Svc = ReturnType<typeof createServiceClient>;
-
-function generateSecurePassword(): string {
-  return (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 24);
-}
-
-async function generateEstablishmentSlug(svc: Svc, name: string): Promise<string> {
-  const base = generateSlug(name);
-  const candidates = [base, ...Array.from({ length: 9 }, (_, i) => `${base}-${i + 1}`)];
-  const { data } = await svc.from("establishments").select("slug").in("slug", candidates);
-  const taken = new Set((data ?? []).map((r) => r.slug).filter(Boolean));
-  return candidates.find((c) => !taken.has(c)) ?? `${base}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-async function createOrgaUser(
-  svc: Svc,
-  establishmentId: string,
-  organizationId: string,
-  slug: string,
-): Promise<{ email: string; password: string }> {
-  const email = `${slug}@logones.internal`;
-  const password = generateSecurePassword();
-
-  const { data: newUser, error: authError } = await svc.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    app_metadata: { role: "orga_user" },
-  });
-  if (authError) throw authError;
-  const userId = newUser.user.id;
-
-  const { error: uoError } = await svc.from("users_organizations").insert({
-    user_id: userId,
-    organization_id: organizationId,
-    role: "manager",
-    establishment_id: establishmentId,
-  });
-
-  if (uoError) {
-    await svc.auth.admin.deleteUser(userId).catch(() => {});
-    throw uoError;
-  }
-
-  return { email, password };
-}
 
 interface EstBody {
   name: string;
@@ -92,68 +49,6 @@ function buildEstData(est: EstBody, orgId: string, userId: string, slug: string)
   };
 }
 
-function generateSigningKey(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Buffer.from(bytes).toString("base64");
-}
-
-async function insertNf525Key(svc: Svc, estId: string, orgId: string): Promise<void> {
-  const { error } = await svc.from("nf525_signing_keys").insert({
-    establishment_id: estId,
-    organization_id: orgId,
-    signing_key_base64: generateSigningKey(),
-  });
-  if (error) throw error;
-}
-
-async function insertDefaultPaymentMethods(svc: Svc, estId: string, orgId: string): Promise<void> {
-  const { error } = await svc.from("payment_methods").insert([
-    {
-      establishment_id: estId,
-      organization_id: orgId,
-      payment_method_name: "Carte",
-      payment_method_type: "card",
-      deleted: false,
-      is_active: true,
-    },
-    {
-      establishment_id: estId,
-      organization_id: orgId,
-      payment_method_name: "Espèces",
-      payment_method_type: "cash",
-      deleted: false,
-      is_active: true,
-    },
-  ]);
-  if (error) throw error;
-}
-
-async function insertDefaultMenu(svc: Svc, estId: string, orgId: string): Promise<void> {
-  const { error } = await svc.from("menus").insert({
-    name: "Carte principale",
-    establishment_id: estId,
-    organization_id: orgId,
-    is_active: true,
-    deleted: false,
-    display_order: 1,
-  });
-  if (error) throw error;
-}
-
-async function insertVatRates(svc: Svc, rates: VatBody[], estId: string, orgId: string): Promise<void> {
-  const filtered = rates.filter((r) => r.value > 0);
-  if (filtered.length === 0) return;
-  const rows = filtered.map((r) => ({
-    establishment_id: estId,
-    organization_id: orgId,
-    name: r.name,
-    value: r.value,
-  }));
-  const { error } = await svc.from("vat_rate").insert(rows);
-  if (error) throw error;
-}
-
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
@@ -190,10 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (estError) throw estError;
 
-    await insertNf525Key(svc, newEst.id, orgId);
-    await insertDefaultPaymentMethods(svc, newEst.id, orgId);
-    await insertDefaultMenu(svc, newEst.id, orgId);
-    await insertVatRates(svc, body.vat_rates ?? [], newEst.id, orgId);
+    await seedEstablishmentDefaults(svc, newEst.id, orgId, body.vat_rates ?? []);
 
     let tabletCredentials: { email: string; password: string } | null = null;
     let tabletError: string | null = null;

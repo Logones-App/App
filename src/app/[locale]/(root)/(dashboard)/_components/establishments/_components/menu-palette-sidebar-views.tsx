@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from "react";
 
-import { Loader2, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MenuPaletteCategory } from "@/lib/queries/establishments";
 import type { Tables } from "@/lib/supabase/database.types";
+
+import { CategoryUpsertDialog } from "../product-category-dialogs";
 
 import { DraggableCategoryStrip, PaletteSystemActionsSection, ProductList } from "./menu-palette-sidebar-widgets";
 
@@ -48,13 +51,18 @@ export function MenuPaletteSidebarCatalog({
   products,
   priceByProductId,
   locale,
+  establishmentId,
+  organizationId,
 }: {
   categories: MenuPaletteCategory[];
   products: Tables<"products">[];
   priceByProductId: Record<string, number>;
   locale: string;
+  establishmentId: string;
+  organizationId: string;
 }) {
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -86,11 +94,21 @@ export function MenuPaletteSidebarCatalog({
       </TabsContent>
 
       {/* Dossiers POS */}
-      <TabsContent value="dossiers" className="mt-2">
+      <TabsContent value="dossiers" className="mt-2 space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-full text-xs"
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus className="mr-1.5 size-3.5" />
+          Nouveau dossier
+        </Button>
         {categories.length === 0 ? (
           <p className="text-muted-foreground p-3 text-xs">Aucun dossier disponible.</p>
         ) : (
-          <ScrollArea className="h-[538px] rounded-lg border">
+          <ScrollArea className="h-[498px] rounded-lg border">
             <div className="space-y-1.5 p-1">
               {categories.map((cat) => (
                 <DraggableCategoryStrip key={cat.id} categoryId={cat.id} label={cat.name} />
@@ -98,6 +116,13 @@ export function MenuPaletteSidebarCatalog({
             </div>
           </ScrollArea>
         )}
+        <CategoryUpsertDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          category={null}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+        />
       </TabsContent>
 
       {/* Catalogue produits */}

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  createOrgaUser,
+  generateEstablishmentSlug,
+  seedEstablishmentDefaults,
+} from "@/lib/server/establishment-provisioning";
 import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { generateSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
@@ -10,18 +15,6 @@ export const dynamic = "force-dynamic";
 type Svc = ReturnType<typeof createServiceClient>;
 
 class ValidationError extends Error {}
-
-function generateSecurePassword(): string {
-  return (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 24);
-}
-
-async function generateEstablishmentSlug(svc: Svc, name: string): Promise<string> {
-  const base = generateSlug(name);
-  const candidates = [base, ...Array.from({ length: 9 }, (_, i) => `${base}-${i + 1}`)];
-  const { data } = await svc.from("establishments").select("slug").in("slug", candidates);
-  const taken = new Set((data ?? []).map((r) => r.slug).filter(Boolean));
-  return candidates.find((c) => !taken.has(c)) ?? `${base}-${Math.random().toString(36).slice(2, 7)}`;
-}
 
 interface OrgPayload {
   name: string;
@@ -86,62 +79,6 @@ async function createEstablishment(
     .single();
   if (error) throw error;
   return { id: data.id, slug };
-}
-
-function generateSigningKey(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Buffer.from(bytes).toString("base64");
-}
-
-async function createNf525Key(svc: Svc, estId: string, orgId: string): Promise<void> {
-  const { error } = await svc.from("nf525_signing_keys").insert({
-    establishment_id: estId,
-    organization_id: orgId,
-    signing_key_base64: generateSigningKey(),
-  });
-  if (error) throw error;
-}
-
-async function createVatRates(svc: Svc, rates: VatPayload[], estId: string, orgId: string): Promise<void> {
-  if (rates.length === 0) return;
-  const rows = rates.map((r) => ({ establishment_id: estId, organization_id: orgId, name: r.name, value: r.value }));
-  const { error } = await svc.from("vat_rate").insert(rows);
-  if (error) throw error;
-}
-
-async function createOrgaUser(
-  svc: Svc,
-  establishmentId: string,
-  organizationId: string,
-  slug: string,
-): Promise<{ email: string; password: string }> {
-  const email = `${slug}@logones.internal`;
-  const password = generateSecurePassword();
-  let userId: string | null = null;
-
-  const { data: newUser, error: authError } = await svc.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    app_metadata: { role: "orga_user" },
-  });
-  if (authError) throw authError;
-  userId = newUser.user.id;
-
-  const { error: uoError } = await svc.from("users_organizations").insert({
-    user_id: userId,
-    organization_id: organizationId,
-    role: "manager",
-    establishment_id: establishmentId,
-  });
-
-  if (uoError) {
-    await svc.auth.admin.deleteUser(userId).catch(() => {});
-    throw uoError;
-  }
-
-  return { email, password };
 }
 
 async function createOrgAdmin(svc: Svc, email: string, name: string, orgId: string): Promise<void> {
@@ -212,8 +149,7 @@ async function resolveOrg(
   let tabletError: string | null = null;
   if (body.establishment?.name) {
     const { id: estId, slug } = await createEstablishment(svc, body.establishment, orgId, userId);
-    await createNf525Key(svc, estId, orgId);
-    await createVatRates(svc, body.vat_rates ?? [], estId, orgId);
+    await seedEstablishmentDefaults(svc, estId, orgId, body.vat_rates ?? []);
     try {
       tabletCredentials = await createOrgaUser(svc, estId, orgId, slug);
     } catch (err) {

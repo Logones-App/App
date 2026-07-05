@@ -40,6 +40,8 @@ export function MenuPaletteSidebar({
       products={products}
       priceByProductId={priceByProductId}
       locale={locale}
+      establishmentId={establishmentId}
+      organizationId={organizationId}
     />
   );
 }
