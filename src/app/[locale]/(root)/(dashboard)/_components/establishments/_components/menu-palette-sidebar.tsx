@@ -29,6 +29,7 @@ export function MenuPaletteSidebar({
   const categories = data?.categories ?? [];
   const products = data?.products ?? [];
   const priceByProductId = data?.priceByProductId ?? {};
+  const gridProductIds = data?.gridProductIds ?? [];
 
   if (categories.length === 0 && products.length === 0) {
     return <MenuPaletteSidebarEmptyCatalog />;
@@ -39,6 +40,7 @@ export function MenuPaletteSidebar({
       categories={categories}
       products={products}
       priceByProductId={priceByProductId}
+      gridProductIds={gridProductIds}
       locale={locale}
       establishmentId={establishmentId}
       organizationId={organizationId}

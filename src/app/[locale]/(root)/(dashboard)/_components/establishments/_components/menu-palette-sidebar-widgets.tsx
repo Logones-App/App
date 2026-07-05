@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, GripVertical, Home, Package, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, GripVertical, Home, Package, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { PALETTE_GRID_ACTION_PRESETS, type PaletteGridActionPreset } from "@/lib/menu-grid/category-grid-action";
@@ -14,17 +14,19 @@ import type { PaletteDragData } from "./menu-dnd-types";
 function DraggableProductRow({
   product,
   menuPrice,
+  inGrid,
   locale,
 }: {
   product: Tables<"products">;
   menuPrice?: number;
+  inGrid: boolean;
   locale: string;
 }) {
-  const t = useTranslations("establishments.menus_page");
   const formatted =
     menuPrice !== undefined
       ? new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(menuPrice)
       : null;
+  // Toute la ligne est la poignée de drag (pas seulement l'icône).
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-product-${product.id}`,
     data: {
@@ -39,22 +41,23 @@ function DraggableProductRow({
     <div
       ref={setNodeRef}
       style={style}
+      aria-label={product.name}
       className={cn(
-        "flex items-start justify-between gap-1 rounded-md border border-transparent px-1 py-1.5 text-xs",
-        "hover:bg-muted/60",
+        "flex touch-none items-center justify-between gap-1 rounded-md border border-transparent px-1 py-1.5 text-xs select-none",
+        "hover:bg-muted/60 cursor-grab active:cursor-grabbing",
+        inGrid && "opacity-55",
         isDragging && "ring-primary/30 z-50 opacity-60 ring-2",
       )}
+      {...listeners}
+      {...attributes}
     >
-      <button
-        type="button"
-        className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0 cursor-grab touch-none active:cursor-grabbing"
-        aria-label={t("products_palette_drag_handle_aria")}
-        {...listeners}
-        {...attributes}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+      <GripVertical className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1 leading-snug">{product.name}</span>
+      {inGrid && (
+        <span className="shrink-0 text-green-600" title="Déjà dans la grille">
+          <Check className="size-3.5" aria-label="Déjà dans la grille" />
+        </span>
+      )}
       {formatted !== null ? (
         <span className="text-muted-foreground shrink-0 tabular-nums">{formatted}</span>
       ) : (
@@ -84,7 +87,6 @@ export function DraggableGridActionStrip({
   actionType: PaletteGridActionPreset;
   label: string;
 }) {
-  const t = useTranslations("establishments.menus_page");
   const Icon = paletteActionIcon(actionType);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-grid-action-${actionType}`,
@@ -100,20 +102,16 @@ export function DraggableGridActionStrip({
     <div
       ref={setNodeRef}
       style={style}
+      aria-label={label}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-dashed border-amber-500/35 bg-amber-500/5 px-2 py-1.5 text-xs",
+        "flex touch-none items-center gap-2 rounded-md border border-dashed border-amber-500/35 bg-amber-500/5 px-2 py-1.5 text-xs select-none",
+        "cursor-grab active:cursor-grabbing",
         isDragging && "ring-primary/30 z-50 opacity-60 ring-2",
       )}
+      {...listeners}
+      {...attributes}
     >
-      <button
-        type="button"
-        className="text-muted-foreground hover:text-foreground shrink-0 cursor-grab touch-none active:cursor-grabbing"
-        aria-label={t("products_palette_drag_handle_aria")}
-        {...listeners}
-        {...attributes}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+      <GripVertical className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
       <Icon className="size-3.5 shrink-0 text-amber-700/80 dark:text-amber-400/90" aria-hidden />
       <span className="min-w-0 flex-1 leading-snug font-medium">{label}</span>
     </div>
@@ -136,20 +134,16 @@ export function DraggableCategoryStrip({ categoryId, label }: { categoryId: stri
     <div
       ref={setNodeRef}
       style={style}
+      aria-label={label}
       className={cn(
-        "border-muted-foreground/25 bg-muted/20 flex items-center gap-2 rounded-md border border-dashed px-2 py-1.5 text-xs",
+        "border-muted-foreground/25 bg-muted/20 flex touch-none items-center gap-2 rounded-md border border-dashed px-2 py-1.5 text-xs select-none",
+        "cursor-grab active:cursor-grabbing",
         isDragging && "ring-primary/30 z-50 opacity-60 ring-2",
       )}
+      {...listeners}
+      {...attributes}
     >
-      <button
-        type="button"
-        className="text-muted-foreground hover:text-foreground shrink-0 cursor-grab touch-none active:cursor-grabbing"
-        aria-label={t("products_palette_drag_handle_aria")}
-        {...listeners}
-        {...attributes}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+      <GripVertical className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
       <Package className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1 leading-snug font-medium">{label}</span>
       <span className="text-muted-foreground shrink-0 text-[10px]">{t("products_palette_drag_category_hint")}</span>
@@ -160,12 +154,15 @@ export function DraggableCategoryStrip({ categoryId, label }: { categoryId: stri
 export function ProductList({
   products,
   priceByProductId,
+  gridProductIds,
   locale,
 }: {
   products: Tables<"products">[];
   priceByProductId?: Record<string, number>;
+  gridProductIds?: string[];
   locale: string;
 }) {
+  const gridSet = new Set(gridProductIds ?? []);
   return (
     <ul className="space-y-0.5 pb-2" role="list">
       {products.map((p) => (
@@ -173,6 +170,7 @@ export function ProductList({
           <DraggableProductRow
             product={p}
             menuPrice={priceByProductId && Object.hasOwn(priceByProductId, p.id) ? priceByProductId[p.id] : undefined}
+            inGrid={gridSet.has(p.id)}
             locale={locale}
           />
         </li>

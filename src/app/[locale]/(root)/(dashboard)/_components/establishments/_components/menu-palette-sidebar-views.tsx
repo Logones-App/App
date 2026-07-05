@@ -50,6 +50,7 @@ export function MenuPaletteSidebarCatalog({
   categories,
   products,
   priceByProductId,
+  gridProductIds,
   locale,
   establishmentId,
   organizationId,
@@ -57,6 +58,7 @@ export function MenuPaletteSidebarCatalog({
   categories: MenuPaletteCategory[];
   products: Tables<"products">[];
   priceByProductId: Record<string, number>;
+  gridProductIds: string[];
   locale: string;
   establishmentId: string;
   organizationId: string;
@@ -150,7 +152,12 @@ export function MenuPaletteSidebarCatalog({
         ) : (
           <ScrollArea className="h-[498px] rounded-lg border">
             <div className="py-1 pr-3 pl-1">
-              <ProductList products={filtered} priceByProductId={priceByProductId} locale={locale} />
+              <ProductList
+                products={filtered}
+                priceByProductId={priceByProductId}
+                gridProductIds={gridProductIds}
+                locale={locale}
+              />
             </div>
           </ScrollArea>
         )}

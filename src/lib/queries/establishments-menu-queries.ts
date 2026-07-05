@@ -297,9 +297,10 @@ export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?:
       categories: MenuPaletteCategory[];
       products: ProductRow[];
       priceByProductId: Record<string, number>;
+      gridProductIds: string[];
     }> => {
       if (!establishmentId || !organizationId) {
-        return { categories: [], products: [], priceByProductId: {} };
+        return { categories: [], products: [], priceByProductId: {}, gridProductIds: [] };
       }
 
       const supabase = createClient();
@@ -328,22 +329,39 @@ export const useMenuPaletteCatalog = (establishmentId?: string, organizationId?:
         name: c.name,
       }));
 
-      const products = (productsRaw ?? []) as ProductRow[];
+      // Palette = uniquement les produits « à vendre » (marqueur `sellable`) ; on exclut les
+      // ingrédients/matières et les produits non vendables.
+      const products = ((productsRaw ?? []) as ProductRow[]).filter(
+        (p) => Array.isArray(p.product_type) && (p.product_type as string[]).includes("sellable"),
+      );
 
       const priceByProductId: Record<string, number> = {};
+      const gridProductIds: string[] = [];
       if (menuId) {
-        const { data: mpRaw } = await supabase
-          .from("menus_products")
-          .select("products_id, price")
-          .eq("menus_id", menuId)
-          .eq("establishment_id", establishmentId)
-          .eq("deleted", false);
+        const [{ data: mpRaw }, { data: gridRaw }] = await Promise.all([
+          supabase
+            .from("menus_products")
+            .select("products_id, price")
+            .eq("menus_id", menuId)
+            .eq("establishment_id", establishmentId)
+            .eq("deleted", false),
+          supabase
+            .from("category_grid_items")
+            .select("product_id")
+            .eq("menu_id", menuId)
+            .eq("establishment_id", establishmentId)
+            .eq("item_type", "product")
+            .eq("deleted", false),
+        ]);
         for (const row of mpRaw ?? []) {
           if (row.products_id != null) priceByProductId[row.products_id] = row.price ?? 0;
         }
+        for (const row of gridRaw ?? []) {
+          if (row.product_id != null) gridProductIds.push(row.product_id);
+        }
       }
 
-      return { categories, products, priceByProductId };
+      return { categories, products, priceByProductId, gridProductIds };
     },
     enabled: !!establishmentId && !!organizationId,
   });

@@ -108,6 +108,8 @@ export function useInsertMenuGridItemMutation() {
       queryClient.invalidateQueries({
         queryKey: ["menu-category-grid-items", p.menuId, p.establishmentId, p.organizationId],
       });
+      // Rafraîchit l'indicateur « déjà dans la grille » de la palette.
+      queryClient.invalidateQueries({ queryKey: ["menu-palette-catalog", p.establishmentId, p.organizationId] });
       if (p.itemType === "product" && p.productId) {
         queryClient.invalidateQueries({ queryKey: ["menu-products", p.menuId] });
         queryClient.invalidateQueries({
@@ -196,6 +198,7 @@ export function useSoftDeleteMenuGridItemMutation() {
       queryClient.invalidateQueries({
         queryKey: ["menu-category-grid-items", p.menuId, p.establishmentId, p.organizationId],
       });
+      queryClient.invalidateQueries({ queryKey: ["menu-palette-catalog", p.establishmentId, p.organizationId] });
     },
   });
 }

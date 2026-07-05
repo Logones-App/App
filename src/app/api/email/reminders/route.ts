@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
         country: null,
         no_tva: null,
         postal_code: null,
-        printer_id: null,
         siret: null,
         cover_image_url: null,
         created_at: null,

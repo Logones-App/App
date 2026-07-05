@@ -2627,7 +2627,6 @@ export type Database = {
           organization_id: string
           phone: string | null
           postal_code: number | null
-          printer_id: string | null
           seo_description: string | null
           seo_title: string | null
           siret: string | null
@@ -2654,7 +2653,6 @@ export type Database = {
           organization_id: string
           phone?: string | null
           postal_code?: number | null
-          printer_id?: string | null
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
@@ -2681,7 +2679,6 @@ export type Database = {
           organization_id?: string
           phone?: string | null
           postal_code?: number | null
-          printer_id?: string | null
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
@@ -2695,13 +2692,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "establishments_printer_id_fkey"
-            columns: ["printer_id"]
-            isOneToOne: false
-            referencedRelation: "printers"
             referencedColumns: ["id"]
           },
         ]
@@ -4927,6 +4917,7 @@ export type Database = {
           establishment_id: string | null
           id: string
           ipaddress: string | null
+          is_default: boolean
           location: string | null
           macaddress: string | null
           name: string | null
@@ -4944,6 +4935,7 @@ export type Database = {
           establishment_id?: string | null
           id?: string
           ipaddress?: string | null
+          is_default?: boolean
           location?: string | null
           macaddress?: string | null
           name?: string | null
@@ -4961,6 +4953,7 @@ export type Database = {
           establishment_id?: string | null
           id?: string
           ipaddress?: string | null
+          is_default?: boolean
           location?: string | null
           macaddress?: string | null
           name?: string | null
