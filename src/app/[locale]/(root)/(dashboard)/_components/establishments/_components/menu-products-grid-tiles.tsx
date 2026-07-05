@@ -2,13 +2,14 @@
 
 import { type CSSProperties, type ElementType } from "react";
 
-import { useDroppable } from "@dnd-kit/core";
-import { FolderOpen, Settings2, Tag, Zap } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { FolderOpen, GripVertical, Settings2, Tag, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import type { PaletteDragData } from "./menu-dnd-types";
 import { GRID_SIZE } from "./menu-products-grid-constants";
 import { getPanelMapAt, isCategoryNavigable, type GridItem } from "./menu-products-grid-model";
 
@@ -61,16 +62,7 @@ export function DroppableEmptyCell({
   );
 }
 
-export function GridTile({
-  item,
-  panelIndex,
-  row,
-  localCol,
-  selected,
-  onOpenInspector,
-  onCategoryEnter,
-  inspectorDisabled,
-}: {
+type GridTileProps = {
   item: GridItem | null;
   panelIndex: number;
   row: number;
@@ -79,26 +71,33 @@ export function GridTile({
   onOpenInspector: (item: GridItem) => void;
   onCategoryEnter?: (item: GridItem) => void;
   inspectorDisabled?: boolean;
-}) {
-  const t = useTranslations("establishments.menus_page");
+};
 
+export function GridTile({ item, panelIndex, row, localCol, ...rest }: GridTileProps) {
   if (!item) {
     return <DroppableEmptyCell panelIndex={panelIndex} row={row} localCol={localCol} />;
   }
+  return <FilledGridTile item={item} panelIndex={panelIndex} row={row} localCol={localCol} {...rest} />;
+}
 
-  const navigable = isCategoryNavigable(item) && Boolean(onCategoryEnter);
-  const isUnavailable = item.item_type === "product" && item.product?.is_available === false;
-  const TypeIcon = tileTypeIcon(item.item_type);
-  const price = tilePriceLabel(item);
-
+/** Chrome de la tuile : badge de type (haut gauche) + bouton paramètres (haut droite). */
+function TileChrome({
+  item,
+  TypeIcon,
+  inspectorDisabled,
+  onOpenInspector,
+}: {
+  item: GridItem;
+  TypeIcon: ElementType;
+  inspectorDisabled?: boolean;
+  onOpenInspector: (item: GridItem) => void;
+}) {
+  const t = useTranslations("establishments.menus_page");
   return (
-    <div className="relative h-full min-h-0 w-full min-w-0">
-      {/* Badge type — haut gauche */}
+    <>
       <span className="border-border/80 bg-background/95 absolute top-0 left-0 z-10 flex size-5 items-center justify-center rounded-full border shadow-sm">
         <TypeIcon className="size-2.5" aria-hidden />
       </span>
-
-      {/* Bouton paramètres — haut droite */}
       <Button
         type="button"
         variant="secondary"
@@ -115,6 +114,57 @@ export function GridTile({
       >
         <Settings2 className="size-2.5" aria-hidden />
       </Button>
+    </>
+  );
+}
+
+function FilledGridTile({
+  item,
+  panelIndex,
+  row,
+  localCol,
+  selected,
+  onOpenInspector,
+  onCategoryEnter,
+  inspectorDisabled,
+}: GridTileProps & { item: GridItem }) {
+  // Nœud draggable = la tuile entière (pour la taille/position de l'aperçu et le « fantôme »),
+  // mais les écouteurs (listeners) ne sont posés que sur la poignée bas-droite ci-dessous.
+  // L'aperçu pendant le glisser est rendu par <DragOverlay> côté panel (non rogné par le carrousel).
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `grid-item-${item.id}-${panelIndex}-${row}-${localCol}`,
+    data: { kind: "grid_item", itemId: item.id, label: item.label ?? "" } satisfies PaletteDragData,
+  });
+
+  const navigable = isCategoryNavigable(item) && Boolean(onCategoryEnter);
+  const isUnavailable = item.item_type === "product" && item.product?.is_available === false;
+  const price = tilePriceLabel(item);
+
+  const enter = () => {
+    if (navigable) onCategoryEnter?.(item);
+  };
+
+  return (
+    <div ref={setNodeRef} className={cn("relative h-full min-h-0 w-full min-w-0", isDragging && "opacity-40")}>
+      <TileChrome
+        item={item}
+        TypeIcon={tileTypeIcon(item.item_type)}
+        inspectorDisabled={inspectorDisabled}
+        onOpenInspector={onOpenInspector}
+      />
+
+      {/* Poignée de déplacement — bas droite. Seul déclencheur du drag ; `swiper-no-swiping` pour
+          que le carrousel n'intercepte pas le geste. Le reste de la tuile laisse passer tap et swipe. */}
+      <button
+        type="button"
+        aria-label="Déplacer la tuile"
+        className="swiper-no-swiping border-border/80 bg-background/95 hover:bg-muted absolute right-0 bottom-0 z-10 flex size-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-full border p-0 shadow-sm active:cursor-grabbing"
+        onClick={(e) => e.stopPropagation()}
+        {...listeners}
+        {...attributes}
+      >
+        <GripVertical className="size-2.5" aria-hidden />
+      </button>
 
       <div
         className={cn(
@@ -122,20 +172,18 @@ export function GridTile({
           !item.is_visible && "opacity-45",
           isUnavailable && "opacity-50 grayscale",
           item.item_type === "action" && "border-amber-500/40 bg-amber-500/5",
-          navigable && "cursor-pointer hover:brightness-95 active:scale-[0.98]",
-          !navigable && "cursor-default",
+          navigable ? "cursor-pointer hover:brightness-95 active:scale-[0.98]" : "cursor-default",
           selected && "ring-primary ring-offset-background ring-2 ring-offset-2",
         )}
         style={gridItemSurfaceStyle(item)}
         title={item.label ?? undefined}
         role={navigable ? "button" : undefined}
         tabIndex={navigable ? 0 : -1}
-        onClick={() => navigable && onCategoryEnter?.(item)}
+        onClick={enter}
         onKeyDown={(e) => {
-          if (!navigable) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onCategoryEnter?.(item);
+            enter();
           }
         }}
       >

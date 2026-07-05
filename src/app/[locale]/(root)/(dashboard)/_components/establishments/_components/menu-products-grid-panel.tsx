@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { DndContext, PointerSensor, pointerWithin, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -14,15 +22,17 @@ import { useMenuCategoryGridItems } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import type { PaletteDragData } from "./menu-dnd-types";
 import { MenuGridPriceModal } from "./menu-grid-price-modal";
 import { MenuPaletteSidebar } from "./menu-palette-sidebar";
-import { GRID_SIZE, PANEL_COUNT } from "./menu-products-grid-constants";
+import { PANEL_COUNT } from "./menu-products-grid-constants";
 import { MenuProductsGridInspector } from "./menu-products-grid-inspector";
 import { buildPanelMaps, type GridItem, isCategoryNavigable, type NavCrumb } from "./menu-products-grid-model";
 import { MenuGrid6x6 } from "./menu-products-grid-tiles";
 import {
   type InsertMenuGridItemPayload,
   useInsertMenuGridItemMutation,
+  useMoveMenuGridItemMutation,
   useSoftDeleteMenuGridItemMutation,
 } from "./use-insert-menu-grid-item";
 import { useMenuProductsGridDragEnd } from "./use-menu-products-grid-drag-end";
@@ -44,6 +54,7 @@ export function MenuProductsGridPanel({
   const [activePanel, setActivePanel] = useState(0);
   const [navStack, setNavStack] = useState<NavCrumb[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [activeDragLabel, setActiveDragLabel] = useState<string | null>(null);
   const [pendingDrop, setPendingDrop] = useState<{
     payload: Omit<InsertMenuGridItemPayload, "priceOverride">;
     productName: string;
@@ -60,9 +71,10 @@ export function MenuProductsGridPanel({
 
   const panelMaps = useMemo(() => buildPanelMaps(items), [items]);
   const insertMutation = useInsertMenuGridItemMutation();
+  const moveMutation = useMoveMenuGridItemMutation();
   const deleteMutation = useSoftDeleteMenuGridItemMutation();
 
-  const gridBusy = insertMutation.isPending || deleteMutation.isPending;
+  const gridBusy = insertMutation.isPending || moveMutation.isPending || deleteMutation.isPending;
 
   const selectedItem = useMemo(
     () => (selectedItemId ? (items.find((i) => i.id === selectedItemId) ?? null) : null),
@@ -89,6 +101,8 @@ export function MenuProductsGridPanel({
     [deleteMutation, menuId, establishmentId, organizationId, t],
   );
 
+  // Le drag ne part que de la poignée (coin bas droite) des tuiles → activation par distance suffit
+  // (pas d'appui long). Le corps de la tuile reste libre pour le tap et le swipe du carrousel.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -127,9 +141,15 @@ export function MenuProductsGridPanel({
     organizationId,
     parentItemId,
     insertMutation,
+    moveMutation,
     onProductDrop: handleProductDrop,
     t,
   });
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as PaletteDragData | undefined;
+    setActiveDragLabel(data?.label ?? "");
+  }, []);
 
   const parentNavKey = parentItemId ?? "root";
 
@@ -173,7 +193,16 @@ export function MenuProductsGridPanel({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={(event) => {
+        setActiveDragLabel(null);
+        handleDragEnd(event);
+      }}
+      onDragCancel={() => setActiveDragLabel(null)}
+    >
       <div
         className={cn(
           "grid grid-cols-1 gap-4 lg:grid-cols-4 lg:items-start",
@@ -304,6 +333,13 @@ export function MenuProductsGridPanel({
         }}
         onCancel={() => setPendingDrop(null)}
       />
+      <DragOverlay dropAnimation={null}>
+        {activeDragLabel !== null ? (
+          <div className="bg-card ring-primary flex h-full w-full items-center justify-center rounded-md border p-1 text-center shadow-lg ring-2">
+            <span className="line-clamp-3 text-[10px] leading-tight font-medium">{activeDragLabel}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

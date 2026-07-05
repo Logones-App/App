@@ -1,10 +1,11 @@
 import type { PaletteGridActionPreset } from "@/lib/menu-grid/category-grid-action";
 
-/** Données attachées aux draggables palette → grille menu. */
+/** Données attachées aux draggables palette → grille menu, et aux tuiles déjà posées (repositionnement). */
 export type PaletteDragData =
   | { kind: "category"; categoryId: string; label: string }
   | { kind: "product"; productId: string; label: string }
-  | { kind: "grid_action"; actionType: PaletteGridActionPreset; label: string };
+  | { kind: "grid_action"; actionType: PaletteGridActionPreset; label: string }
+  | { kind: "grid_item"; itemId: string; label: string };
 
 export function parseGridCellDroppableId(id: string): { panel: number; row: number; localCol: number } | null {
   if (!id.startsWith("grid-cell-")) return null;

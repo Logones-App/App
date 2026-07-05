@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { parseGridCellDroppableId, type PaletteDragData } from "./menu-dnd-types";
 import { GRID_SIZE } from "./menu-products-grid-constants";
 import { getCellOccupant, type GridItem } from "./menu-products-grid-model";
-import type { InsertMenuGridItemPayload } from "./use-insert-menu-grid-item";
+import type { InsertMenuGridItemPayload, MoveMenuGridItemPayload } from "./use-insert-menu-grid-item";
 
 type InsertMenuGridMutateOptions = {
   onSuccess?: () => void;
@@ -24,6 +24,9 @@ type DragEndDeps = {
   insertMutation: {
     mutate: (variables: InsertMenuGridItemPayload, options?: InsertMenuGridMutateOptions) => void;
   };
+  moveMutation: {
+    mutate: (variables: MoveMenuGridItemPayload, options?: InsertMenuGridMutateOptions) => void;
+  };
   onProductDrop: (payload: Omit<InsertMenuGridItemPayload, "priceOverride">, productName: string) => void;
   t: (key: string) => string;
 };
@@ -35,6 +38,7 @@ export function useMenuProductsGridDragEnd({
   organizationId,
   parentItemId,
   insertMutation,
+  moveMutation,
   onProductDrop,
   t,
 }: DragEndDeps) {
@@ -68,6 +72,14 @@ export function useMenuProductsGridDragEnd({
           description: err instanceof Error ? err.message : undefined,
         });
       };
+
+      if (raw.kind === "grid_item") {
+        moveMutation.mutate(
+          { gridItemId: raw.itemId, gridRow: row, gridColumn, menuId, establishmentId, organizationId },
+          { onError: onDropError },
+        );
+        return;
+      }
 
       if (raw.kind === "grid_action") {
         insertMutation.mutate(
@@ -115,6 +127,6 @@ export function useMenuProductsGridDragEnd({
         );
       }
     },
-    [panelMaps, menuId, establishmentId, organizationId, parentItemId, insertMutation, onProductDrop, t],
+    [panelMaps, menuId, establishmentId, organizationId, parentItemId, insertMutation, moveMutation, onProductDrop, t],
   );
 }

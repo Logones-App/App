@@ -153,6 +153,35 @@ export function usePatchMenuGridItemColorsMutation() {
   });
 }
 
+export type MoveMenuGridItemPayload = {
+  gridItemId: string;
+  gridRow: number;
+  gridColumn: number;
+  menuId: string;
+  establishmentId: string;
+  organizationId: string;
+};
+
+/** Repositionne une tuile déjà posée (déplacement par appui long) : met à jour sa case grid_row/grid_column. */
+export function useMoveMenuGridItemMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: MoveMenuGridItemPayload) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("category_grid_items")
+        .update({ grid_row: p.gridRow, grid_column: p.gridColumn })
+        .eq("id", p.gridItemId);
+      if (error) throw error;
+    },
+    onSuccess: (_data, p) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["menu-category-grid-items", p.menuId, p.establishmentId, p.organizationId],
+      });
+    },
+  });
+}
+
 /** Soft delete : `deleted = true` (aligné sur `useMenuCategoryGridItems` qui filtre `deleted = false`). */
 export function useSoftDeleteMenuGridItemMutation() {
   const queryClient = useQueryClient();
