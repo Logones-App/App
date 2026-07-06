@@ -34,10 +34,16 @@ export function QrCodeDialog({
   url,
   label = "QR Code",
   description,
+  title = "Carte client numérique",
+  downloadName = "qrcode-menu.png",
+  footer = "Imprimez ce QR code et placez-le sur vos tables. Vos clients accèdent directement à votre carte.",
 }: {
   url: string;
   label?: string;
   description?: string;
+  title?: string;
+  downloadName?: string;
+  footer?: string;
 }) {
   const { copied, copy } = useClipboard();
   const imgUrl = qrImageUrl(url);
@@ -45,7 +51,7 @@ export function QrCodeDialog({
   const handleDownload = () => {
     const a = document.createElement("a");
     a.href = qrImageUrl(url, 600);
-    a.download = "qrcode-menu.png";
+    a.download = downloadName;
     a.click();
   };
 
@@ -59,7 +65,7 @@ export function QrCodeDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Carte client numérique</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
@@ -107,10 +113,7 @@ export function QrCodeDialog({
             Télécharger le QR Code (600×600)
           </Button>
 
-          <p className="text-muted-foreground text-center text-xs">
-            Imprimez ce QR code et placez-le sur vos tables. Vos clients accèdent
-            directement à votre carte.
-          </p>
+          <p className="text-muted-foreground text-center text-xs">{footer}</p>
         </div>
       </DialogContent>
     </Dialog>

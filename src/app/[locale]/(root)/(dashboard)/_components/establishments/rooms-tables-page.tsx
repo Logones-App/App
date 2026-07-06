@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QrCodeDialog } from "@/components/ui/qr-code-dialog";
+import { useEstablishment } from "@/lib/queries/establishments";
 import {
   type RoomWithTables,
   type TableRow,
@@ -145,8 +147,66 @@ function TableModal({
 
 // ─── Room card ────────────────────────────────────────────────────────────────
 
+function TableTile({
+  table,
+  room,
+  orderUrl,
+  onEditTable,
+  onDeleteTable,
+}: {
+  table: TableRow;
+  room: RoomWithTables;
+  orderUrl: string | null;
+  onEditTable: (table: TableRow, room: RoomWithTables) => void;
+  onDeleteTable: (table: TableRow) => void;
+}) {
+  return (
+    <div className="bg-muted/40 flex flex-col justify-between gap-2 rounded-lg border p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{table.name}</p>
+          {table.seats != null && <p className="text-muted-foreground text-xs">{table.seats} places</p>}
+        </div>
+        <UtensilsCrossed className="text-muted-foreground h-4 w-4 shrink-0" />
+      </div>
+      <div className="flex items-center gap-1">
+        {orderUrl && (
+          <QrCodeDialog
+            url={orderUrl}
+            label="QR"
+            title={`QR commande — ${table.name}`}
+            description={`Commande à table pour ${table.name}`}
+            downloadName={`qr-${table.name}.png`}
+            footer="Placez ce QR sur la table. Les clients scannent pour commander directement."
+          />
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="ml-auto h-7 w-7"
+          onClick={() => onEditTable(table, room)}
+          aria-label="Modifier la table"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-destructive hover:text-destructive h-7 w-7"
+          onClick={() => onDeleteTable(table)}
+          aria-label="Supprimer la table"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function RoomCard({
   room,
+  establishmentSlug,
+  establishmentId,
   onEditRoom,
   onDeleteRoom,
   onAddTable,
@@ -154,12 +214,18 @@ function RoomCard({
   onDeleteTable,
 }: {
   room: RoomWithTables;
+  establishmentSlug: string;
+  establishmentId: string;
   onEditRoom: (room: RoomWithTables) => void;
   onDeleteRoom: (room: RoomWithTables) => void;
   onAddTable: (room: RoomWithTables) => void;
   onEditTable: (table: TableRow, room: RoomWithTables) => void;
   onDeleteTable: (table: TableRow) => void;
 }) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const orderUrlFor = (tableId: string) =>
+    establishmentSlug ? `${origin}/fr/${establishmentSlug}/commander?table=${tableId}&est=${establishmentId}` : null;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between px-4 py-3">
@@ -179,31 +245,29 @@ function RoomCard({
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {room.tables.map((table) => (
-            <div key={table.id} className="group bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
-              <UtensilsCrossed className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">{table.name}</span>
-              {table.seats != null && <span className="text-muted-foreground text-xs">{table.seats}p</span>}
-              <div className="ml-1 hidden gap-0.5 group-hover:flex">
-                <button
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={() => onEditTable(table, room)}
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button className="text-muted-foreground hover:text-destructive" onClick={() => onDeleteTable(table)}>
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
+            <TableTile
+              key={table.id}
+              table={table}
+              room={room}
+              orderUrl={orderUrlFor(table.id)}
+              onEditTable={onEditTable}
+              onDeleteTable={onDeleteTable}
+            />
           ))}
-          <Button size="sm" variant="outline" className="h-9" onClick={() => onAddTable(room)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <button
+            type="button"
+            onClick={() => onAddTable(room)}
+            className="text-muted-foreground hover:border-primary hover:text-foreground flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-sm transition-colors"
+          >
+            <Plus className="h-4 w-4" />
             Table
-          </Button>
+          </button>
         </div>
-        {room.tables.length === 0 && <p className="text-muted-foreground text-xs">Aucune table — ajoutez-en une.</p>}
+        {room.tables.length === 0 && (
+          <p className="text-muted-foreground mt-2 text-xs">Aucune table — ajoutez-en une.</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -219,6 +283,8 @@ export function RoomsTablesPage({
   organizationId: string;
 }) {
   const { data: rooms = [], isLoading } = useRoomsWithTables(establishmentId, organizationId);
+  const { data: establishment } = useEstablishment(establishmentId);
+  const establishmentSlug = establishment?.slug ?? "";
 
   const createRoom = useCreateRoom(establishmentId, organizationId);
   const updateRoom = useUpdateRoom(establishmentId);
@@ -334,6 +400,8 @@ export function RoomsTablesPage({
             <RoomCard
               key={room.id}
               room={room}
+              establishmentSlug={establishmentSlug}
+              establishmentId={establishmentId}
               onEditRoom={(r) => setRoomModal({ open: true, editing: r })}
               onDeleteRoom={handleDeleteRoom}
               onAddTable={(r) => setTableModal({ open: true, editing: null, room: r })}

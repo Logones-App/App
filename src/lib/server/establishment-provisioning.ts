@@ -107,6 +107,29 @@ async function insertDefaultRoomAndTable(svc: Svc, estId: string, orgId: string)
   if (tableErr) throw tableErr;
 }
 
+/**
+ * Seed du module POS activé avec des postes par défaut. Requis car l'appairage d'un device
+ * (`register_device` pose `mods=["pos"]`) sera refusé par l'enforcement DB si POS n'est pas
+ * activé pour l'établissement. `DEFAULT_POS_SEATS` = valeur de départ ajustable (page modules),
+ * ce n'est PAS la source de vérité de facturation (celle-ci vit au niveau organisation_modules).
+ */
+const DEFAULT_POS_SEATS = 2;
+
+async function insertDefaultModules(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const { error } = await svc.from("establishment_modules").upsert(
+    {
+      establishment_id: estId,
+      organization_id: orgId,
+      module: "pos",
+      enabled: true,
+      seats: DEFAULT_POS_SEATS,
+      deleted: false,
+    },
+    { onConflict: "establishment_id,module" },
+  );
+  if (error) throw error;
+}
+
 async function insertVatRates(svc: Svc, rates: VatRateSeed[], estId: string, orgId: string): Promise<void> {
   const filtered = rates.filter((r) => r.value > 0);
   if (filtered.length === 0) return;
@@ -134,6 +157,7 @@ export async function seedEstablishmentDefaults(
   await insertDefaultPaymentMethods(svc, estId, orgId);
   await insertDefaultMenu(svc, estId, orgId);
   await insertDefaultRoomAndTable(svc, estId, orgId);
+  await insertDefaultModules(svc, estId, orgId);
   await insertVatRates(svc, vatRates, estId, orgId);
 }
 

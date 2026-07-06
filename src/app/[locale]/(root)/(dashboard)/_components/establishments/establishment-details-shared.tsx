@@ -94,7 +94,7 @@ const SECTION_GROUPS: SectionGroup[] = [
     items: [
       {
         label: "Salles & Tables",
-        section: "caisse/salles",
+        section: "caisse/rooms",
         icon: LayoutDashboard,
         description: "Plan de salle et tables",
       },

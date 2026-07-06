@@ -9,6 +9,27 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Device = Database["public"]["Tables"]["devices"]["Row"];
 
+type DeviceInfo = {
+  brand?: string;
+  model?: string;
+  androidId?: string;
+  osVersion?: string;
+  deviceType?: number;
+};
+
+/** `device_info` est du jsonb : objet déjà parsé, ou string JSON selon la source. */
+function parseDeviceInfo(raw: Device["device_info"]): DeviceInfo {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as DeviceInfo;
+    } catch {
+      return {};
+    }
+  }
+  return typeof raw === "object" ? (raw as DeviceInfo) : {};
+}
+
 const MOD_LABELS: Record<string, string> = {
   pos: "POS",
   kds: "KDS",
@@ -103,64 +124,87 @@ export function DevicesList({
 
   return (
     <div className="space-y-4">
-      {devices.map((device) => (
-        <Card key={device.id}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {getDeviceIcon(device.device_role)}
-                <CardTitle className="text-base">{device.serial_number}</CardTitle>
+      {devices.map((device) => {
+        const info = parseDeviceInfo(device.device_info);
+        const manufacturer = info.brand ?? device.manufacturer ?? "—";
+        const model = info.model ?? device.model ?? "—";
+        return (
+          <Card key={device.id}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {getDeviceIcon(device.device_role)}
+                  <CardTitle className="text-base">{device.serial_number}</CardTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(device.status)}
+                  <Button variant="outline" size="sm" onClick={() => onEditClick(device)} disabled={isUpdateLoading}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDeleteClick(device.id)}
+                    disabled={isDeleteLoading}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {getStatusBadge(device.status)}
-                <Button variant="outline" size="sm" onClick={() => onEditClick(device)} disabled={isUpdateLoading}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => onDeleteClick(device.id)} disabled={isDeleteLoading}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rôle</span>
+                  <span className="font-medium">{ROLE_LABELS[device.device_role] ?? device.device_role}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Orientation</span>
+                  <span className="font-medium">{DISPLAY_LABELS[device.display] ?? device.display}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fabricant</span>
+                  <span>{manufacturer}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Modèle</span>
+                  <span>{model}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Android</span>
+                  <span>{info.osVersion ? `Android ${info.osVersion}` : "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dernière synchro</span>
+                  <span>{device.last_sync_at ? new Date(device.last_sync_at).toLocaleString("fr-FR") : "Jamais"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Créé le</span>
+                  <span>{device.created_at ? new Date(device.created_at).toLocaleDateString("fr-FR") : "—"}</span>
+                </div>
+                {info.androidId && (
+                  <div className="col-span-2 flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">Android ID</span>
+                    <span className="truncate font-mono text-xs" title={info.androidId}>
+                      {info.androidId}
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Rôle</span>
-                <span className="font-medium">{ROLE_LABELS[device.device_role] ?? device.device_role}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Orientation</span>
-                <span className="font-medium">{DISPLAY_LABELS[device.display] ?? device.display}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fabricant</span>
-                <span>{device.manufacturer ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Modèle</span>
-                <span>{device.model ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Dernière synchro</span>
-                <span>{device.last_sync_at ? new Date(device.last_sync_at).toLocaleString("fr-FR") : "Jamais"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Créé le</span>
-                <span>{device.created_at ? new Date(device.created_at).toLocaleDateString("fr-FR") : "—"}</span>
-              </div>
-            </div>
-            {device.mods.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1">
-                {device.mods.map((mod) => (
-                  <Badge key={mod} variant="secondary" className="text-xs">
-                    {MOD_LABELS[mod] ?? mod}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              {device.mods.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {device.mods.map((mod) => (
+                    <Badge key={mod} variant="secondary" className="text-xs">
+                      {/* eslint-disable-next-line security/detect-object-injection */}
+                      {MOD_LABELS[mod] ?? mod}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
