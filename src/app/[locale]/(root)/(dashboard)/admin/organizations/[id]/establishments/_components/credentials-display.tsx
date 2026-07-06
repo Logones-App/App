@@ -6,7 +6,15 @@ import { AlertTriangle, Check, CheckCircle2, Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-export function CredentialsDisplay({ email, password }: { email: string; password: string }) {
+export function CredentialsDisplay({
+  email,
+  password,
+  heading = "Établissement créé avec succès",
+}: {
+  email: string;
+  password: string;
+  heading?: string;
+}) {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPwd, setCopiedPwd] = useState(false);
 
@@ -23,7 +31,7 @@ export function CredentialsDisplay({ email, password }: { email: string; passwor
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-green-700 dark:bg-green-950/30 dark:text-green-300">
         <CheckCircle2 className="h-5 w-5 shrink-0" />
-        <p className="text-sm font-medium">Établissement créé avec succès</p>
+        <p className="text-sm font-medium">{heading}</p>
       </div>
       <div className="space-y-2">
         <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Identifiants tablette</p>

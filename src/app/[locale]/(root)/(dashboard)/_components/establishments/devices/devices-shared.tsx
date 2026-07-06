@@ -16,6 +16,7 @@ import { DeviceModal } from "./device-modal";
 import { DevicesList } from "./devices-list";
 import { PageHeader } from "./page-header";
 import { StatsCards } from "./stats-cards";
+import { TabletAccessCard } from "./tablet-access-card";
 
 type Device = Database["public"]["Tables"]["devices"]["Row"];
 
@@ -86,6 +87,8 @@ export function DevicesShared({ establishmentId, organizationId, isAdmin }: Devi
         onCreateClick={() => setIsCreateModalOpen(true)}
         isCreateLoading={createDeviceMutation.isPending}
       />
+
+      <TabletAccessCard establishmentId={establishmentId} />
 
       <StatsCards
         totalDevices={totalDevices}

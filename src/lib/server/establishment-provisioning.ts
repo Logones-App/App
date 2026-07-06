@@ -19,8 +19,15 @@ function generateSigningKey(): string {
   return Buffer.from(bytes).toString("base64");
 }
 
-function generateSecurePassword(): string {
-  return (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 24);
+/**
+ * Mot de passe tablette : court et lisible (10 caractères, alphabet sans I/l/O/0/1),
+ * facile à ressaisir sur une tablette si le QR n'est pas scannable.
+ */
+export function generateTabletPassword(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet.charAt(b % alphabet.length)).join("");
 }
 
 /** Slug unique (base + suffixes numériques, fallback aléatoire). */
@@ -138,13 +145,16 @@ export async function createOrgaUser(
   slug: string,
 ): Promise<{ email: string; password: string }> {
   const email = `${slug}@logones.internal`;
-  const password = generateSecurePassword();
+  const password = generateTabletPassword();
 
+  // On stocke le mot de passe en clair dans user_metadata pour pouvoir le réafficher côté SaaS
+  // (compte de device interne, jamais un compte humain). L'auth ne renvoie que le hash sinon.
   const { data: newUser, error: authError } = await svc.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     app_metadata: { role: "orga_user" },
+    user_metadata: { tablet_password: password },
   });
   if (authError) throw authError;
   const userId = newUser.user.id;
