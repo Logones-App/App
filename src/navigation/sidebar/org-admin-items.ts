@@ -165,6 +165,17 @@ export const getOrgAdminSidebarItems = (
       items: [
         { title: "Dashboard", url: u("haccp"), icon: ClipboardCheck },
         {
+          title: "Paramétrage",
+          url: u("haccp/equipements"),
+          icon: Settings,
+          subItems: [
+            { title: "Tâches HACCP", url: u("haccp/taches") },
+            { title: "Équipements & seuils", url: u("haccp/equipements") },
+            { title: "Zones de nettoyage", url: u("haccp/zones-nettoyage") },
+            { title: "Modèles de checklists", url: u("haccp/modeles-checklists") },
+          ],
+        },
+        {
           title: "Contrôles",
           url: u("haccp/temperatures"),
           icon: Thermometer,
