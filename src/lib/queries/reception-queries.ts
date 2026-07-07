@@ -161,8 +161,7 @@ export function useCreateReception(productId: string, organizationId: string, es
       notes: string;
     }) => {
       const supabase = createClient();
-      const { productStockId, stockUnit, supplierRefId, supplierId, orderQty, unitPrice, conversionFactor, notes } =
-        args;
+      const { productStockId, stockUnit, supplierRefId, orderQty, unitPrice, conversionFactor, notes } = args;
 
       // Résoudre / créer la fiche stock + connaître le stock courant.
       let stockId = productStockId;
@@ -215,18 +214,9 @@ export function useCreateReception(productId: string, organizationId: string, es
         .eq("id", stockId);
       if (stockErr) throw stockErr;
 
-      await Promise.all([
-        supabase.from("supplier_references").update({ unit_price: unitPrice }).eq("id", supplierRefId),
-        supabase.from("supplier_price_snapshots").insert({
-          product_id: productId,
-          organization_id: organizationId,
-          unit_cost: unitCost,
-          supplier_reference_id: supplierRefId,
-          supplier_id: supplierId,
-          effective_from: new Date().toISOString().slice(0, 10),
-          currency: "EUR",
-        }),
-      ]);
+      // Snapshot prix (supplier_price_snapshots) + MAJ supplier_references.unit_price :
+      // désormais centralisés dans le trigger serveur fn_snapshot_purchase_price (INSERT purchase),
+      // cohérent SaaS + mobile, online + offline. Ne plus écrire ici.
     },
     onSuccess: () => {
       toast.success("Réception enregistrée");

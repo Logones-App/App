@@ -72,6 +72,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "can_change_signing_key", label: "Changer la clé de signature", jet: "450", certifying: true },
       { key: "can_manage_permissions", label: "Gérer les droits des employés", jet: "130", certifying: true },
       { key: "can_manage_employees", label: "Créer / modifier des employés" },
+      { key: "can_manage_stock", label: "Gérer le stock (réceptions, inventaire)" },
+      { key: "can_view_costs", label: "Voir les coûts et marges" },
     ],
   },
 ];
@@ -122,6 +124,8 @@ export const ROLE_PRESETS: Record<EmployeeRole, string[]> = {
     "can_close_period",
     "can_access_training_mode",
     "can_manage_employees",
+    "can_manage_stock",
+    "can_view_costs",
   ],
 };
 

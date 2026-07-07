@@ -149,8 +149,6 @@ export function useAddStockMovement(
       currentStock,
       totalPrice,
       supplierRefId,
-      conversionFactor,
-      supplierId,
       referenceType,
       referenceId,
     }: {
@@ -199,26 +197,8 @@ export function useAddStockMovement(
         .eq("id", productStockId);
       if (stockErr) throw new Error(`Stock update: ${stockErr.message}`);
 
-      // Mettre à jour le prix catalogue + journaliser un snapshot après chaque réception
-      if (movementType === "purchase" && unitCost != null && supplierRefId) {
-        const unitPricePerOrderUnit =
-          conversionFactor != null && conversionFactor > 0
-            ? Math.round(unitCost * conversionFactor * 100000) / 100000
-            : unitCost;
-
-        await Promise.all([
-          supabase.from("supplier_references").update({ unit_price: unitPricePerOrderUnit }).eq("id", supplierRefId),
-          supabase.from("supplier_price_snapshots").insert({
-            product_id: productId,
-            organization_id: organizationId,
-            unit_cost: unitCost,
-            supplier_reference_id: supplierRefId,
-            supplier_id: supplierId ?? null,
-            effective_from: new Date().toISOString().slice(0, 10),
-            currency: "EUR",
-          }),
-        ]);
-      }
+      // Snapshot prix + MAJ supplier_references.unit_price : centralisés dans le trigger
+      // serveur fn_snapshot_purchase_price (INSERT purchase). Ne plus écrire ici.
 
       return quantityAfter;
     },
