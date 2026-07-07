@@ -65,6 +65,7 @@ export const getOrgAdminSidebarItems = (
         { title: "Commandes POS", url: u("orders"), icon: ShoppingBag },
         { title: "Rapport journalier", url: u("daily-report"), icon: BarChart3 },
         { title: "Appareils", url: u("devices"), icon: Monitor },
+        { title: "Modules", url: u("modules"), icon: LayoutGrid },
       ],
     },
 
@@ -140,6 +141,7 @@ export const getOrgAdminSidebarItems = (
           icon: Package,
           subItems: [
             { title: "Produits", url: u("products") },
+            { title: "Catégories", url: u("categories") },
             { title: "Options", url: u("options") },
             { title: "Menus", url: u("menus") },
           ],
@@ -210,6 +212,18 @@ export const getOrgAdminSidebarItems = (
         },
         { title: "Étiqueteuse DLC", url: u("haccp/etiqueteuse"), icon: Tag },
         { title: "Planning des tâches", url: u("haccp/planning"), icon: ListChecks },
+      ],
+    },
+
+    // ─── Site vitrine ─────────────────────────────────────────────────────────
+    {
+      id: 7,
+      label: "Site vitrine",
+      labelUrl: u("carte-publique"),
+      items: [
+        { title: "Carte publique", url: u("carte-publique"), icon: BookMarked },
+        { title: "Galerie", url: u("gallery"), icon: Image },
+        { title: "Configuration site", url: u("site-configuration"), icon: Settings },
       ],
     },
 
