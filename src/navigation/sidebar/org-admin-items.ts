@@ -171,10 +171,11 @@ export const getOrgAdminSidebarItems = (
           url: u("haccp/equipements"),
           icon: Settings,
           subItems: [
-            { title: "Tâches HACCP", url: u("haccp/taches") },
+            { title: "Zones", url: u("haccp/zones-nettoyage") },
             { title: "Équipements & seuils", url: u("haccp/equipements") },
-            { title: "Zones de nettoyage", url: u("haccp/zones-nettoyage") },
+            { title: "Surfaces de nettoyage", url: u("haccp/surfaces-nettoyage") },
             { title: "Modèles de checklists", url: u("haccp/modeles-checklists") },
+            { title: "Documents", url: u("haccp/documents") },
           ],
         },
         {

@@ -1,216 +1,257 @@
-import { Download, FileText, Info } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+
+import { useParams } from "next/navigation";
+
+import { ExternalLink, Loader2, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import {
+  type DocType,
+  type HaccpDocument,
+  getHaccpDocumentUrl,
+  useDeleteHaccpDocument,
+  useHaccpDocuments,
+  useUpsertHaccpDocument,
+} from "@/lib/queries/haccp-config-queries";
 
-type DocStatut = "valide" | "à renouveler" | "expiré";
-type DocCategorie = "pms" | "agrement" | "protocole" | "formation" | "controle" | "chimique";
-
-const CAT_LABEL: Record<DocCategorie, string> = {
-  pms: "Plan de Maîtrise Sanitaire",
-  agrement: "Agréments & certifications",
-  protocole: "Protocoles & procédures",
-  formation: "Formations HACCP",
-  controle: "Contrôles extérieurs",
-  chimique: "Produits chimiques",
-};
-
-const CAT_COLOR: Record<DocCategorie, "default" | "secondary" | "outline"> = {
-  pms: "default",
-  agrement: "default",
-  protocole: "secondary",
-  formation: "secondary",
-  controle: "outline",
-  chimique: "outline",
-};
-
-const DOCUMENTS: {
-  id: number;
-  nom: string;
-  categorie: DocCategorie;
-  version: string;
-  date_creation: string;
-  date_validite: string | null;
-  statut: DocStatut;
-  taille: string;
-  description: string;
-}[] = [
-  {
-    id: 1,
-    nom: "Plan de Maîtrise Sanitaire — Version 2.1",
-    categorie: "pms",
-    version: "v2.1",
-    date_creation: "1 janvier 2026",
-    date_validite: null,
-    statut: "valide",
-    taille: "1,2 Mo",
-    description: "Document principal HACCP — analyse des dangers, CCP, procédures de maîtrise",
-  },
-  {
-    id: 2,
-    nom: "Agrément sanitaire établissement",
-    categorie: "agrement",
-    version: "—",
-    date_creation: "15 mars 2022",
-    date_validite: null,
-    statut: "valide",
-    taille: "245 Ko",
-    description: "N° FR69.XXX.XXX CE — Délivré par la DDPP du Rhône",
-  },
-  {
-    id: 3,
-    nom: "Protocole nettoyage et désinfection",
-    categorie: "protocole",
-    version: "v1.3",
-    date_creation: "10 septembre 2025",
-    date_validite: null,
-    statut: "valide",
-    taille: "380 Ko",
-    description: "Protocoles par zone, produits utilisés, fréquences et méthodes",
-  },
-  {
-    id: 4,
-    nom: "Attestation formation HACCP — Jean Dupont",
-    categorie: "formation",
-    version: "—",
-    date_creation: "15 janvier 2025",
-    date_validite: "15 janvier 2027",
-    statut: "valide",
-    taille: "120 Ko",
-    description: "AFPA Lyon — Module hygiène alimentaire restauration commerciale",
-  },
-  {
-    id: 5,
-    nom: "Attestation formation HACCP — Marie Durand",
-    categorie: "formation",
-    version: "—",
-    date_creation: "3 mars 2024",
-    date_validite: "3 mars 2026",
-    statut: "valide",
-    taille: "118 Ko",
-    description: "CCI Rhône-Alpes — Module hygiène alimentaire",
-  },
-  {
-    id: 6,
-    nom: "Attestation formation HACCP — Sophie Laurent",
-    categorie: "formation",
-    version: "—",
-    date_creation: "15 juin 2023",
-    date_validite: "15 juin 2025",
-    statut: "expiré",
-    taille: "115 Ko",
-    description: "AFPA Lyon — Renouvellement à planifier",
-  },
-  {
-    id: 7,
-    nom: "Rapport contrôle antiparasitaire — Mai 2026",
-    categorie: "controle",
-    version: "—",
-    date_creation: "15 mai 2026",
-    date_validite: "15 novembre 2026",
-    statut: "valide",
-    taille: "290 Ko",
-    description: "Société Rentokil — Aucune infestation détectée — prochain passage novembre 2026",
-  },
-  {
-    id: 8,
-    nom: "Rapport contrôle antiparasitaire — Nov. 2025",
-    categorie: "controle",
-    version: "—",
-    date_creation: "8 novembre 2025",
-    date_validite: "15 mai 2026",
-    statut: "expiré",
-    taille: "275 Ko",
-    description: "Société Rentokil — Archivé",
-  },
-  {
-    id: 9,
-    nom: "Fiches de données sécurité — Produits nettoyants",
-    categorie: "chimique",
-    version: "2026",
-    date_creation: "1 janvier 2026",
-    date_validite: null,
-    statut: "valide",
-    taille: "2,1 Mo",
-    description: "FDS dégraissant, désinfectant, produit four, javel — obligatoire par règlement CE 1907/2006",
-  },
+const CATS: { value: DocType; label: string }[] = [
+  { value: "plan", label: "Plans" },
+  { value: "procedure", label: "Procédures" },
+  { value: "registre", label: "Registres" },
 ];
+const catLabel = (t: string) => CATS.find((c) => c.value === t)?.label ?? t;
 
-const statutBadge: Record<DocStatut, "default" | "destructive" | "secondary"> = {
-  valide: "default",
-  "à renouveler": "secondary",
-  expiré: "destructive",
-};
+function DocModal({
+  initial,
+  busy,
+  onClose,
+  onSave,
+}: {
+  initial: HaccpDocument | null;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (v: { title: string; doc_type: DocType; version: string; file: File | null }) => void;
+}) {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [docType, setDocType] = useState<DocType>((initial?.doc_type ?? "procedure") as DocType);
+  const [version, setVersion] = useState(initial?.version ?? "");
+  const [file, setFile] = useState<File | null>(null);
 
-const CATEGORIES = [...new Set(DOCUMENTS.map((d) => d.categorie))] as DocCategorie[];
+  return (
+    <Dialog
+      open
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{initial ? "Modifier le document" : "Nouveau document"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="space-y-1.5">
+            <Label>
+              Titre <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex : Plan de Maîtrise Sanitaire"
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Catégorie</Label>
+              <Select value={docType} onValueChange={(v) => setDocType(v as DocType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="plan">Plan</SelectItem>
+                  <SelectItem value="procedure">Procédure</SelectItem>
+                  <SelectItem value="registre">Registre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Version</Label>
+              <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="v1" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              Fichier <span className="text-muted-foreground text-xs font-normal">(PDF, image…)</span>
+            </Label>
+            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            {initial?.url && !file && <p className="text-muted-foreground text-xs">Un fichier est déjà joint.</p>}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Annuler
+          </Button>
+          <Button
+            onClick={() => onSave({ title: title.trim(), doc_type: docType, version, file })}
+            disabled={busy || !title.trim()}
+          >
+            {busy ? "Enregistrement…" : initial ? "Enregistrer" : "Créer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-export default function DocumentsHaccpPage() {
-  const expires = DOCUMENTS.filter((d) => d.statut === "expiré").length;
+function DocRow({
+  doc,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  doc: HaccpDocument;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const open = async () => {
+    if (!doc.url) return;
+    const signed = await getHaccpDocumentUrl(doc.url);
+    if (signed) window.open(signed, "_blank");
+  };
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md border p-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{doc.title}</p>
+        <p className="text-muted-foreground text-xs">{doc.version ? `Version ${doc.version}` : "—"}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        {doc.url && (
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={open} aria-label="Ouvrir le fichier">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {doc.url && <Paperclip className="text-muted-foreground mr-1 h-3.5 w-3.5" />}
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit} aria-label="Modifier">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-destructive hover:text-destructive h-7 w-7"
+          onClick={onDelete}
+          disabled={deleting}
+          aria-label="Supprimer"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function HaccpDocumentsPage() {
+  const params = useParams();
+  const establishmentId = params.id as string;
+  const organizationId = useOrgaUserOrganizationId();
+
+  const { data: docs = [], isLoading } = useHaccpDocuments(establishmentId);
+  const upsert = useUpsertHaccpDocument(establishmentId, organizationId ?? "");
+  const del = useDeleteHaccpDocument(establishmentId);
+
+  const [modal, setModal] = useState<{ open: boolean; editing: HaccpDocument | null }>({ open: false, editing: null });
+
+  if (!organizationId) {
+    return (
+      <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Chargement…</span>
+      </div>
+    );
+  }
+
+  const handleSave = (v: { title: string; doc_type: DocType; version: string; file: File | null }) => {
+    upsert.mutate({ id: modal.editing?.id, ...v }, { onSuccess: () => setModal({ open: false, editing: null }) });
+  };
+
+  const handleDelete = (d: HaccpDocument) => {
+    if (!confirm(`Supprimer « ${d.title} » ?`)) return;
+    del.mutate(d.id);
+  };
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Documents HACCP</h1>
-        <p className="text-muted-foreground text-sm">
-          {DOCUMENTS.length} documents · {expires} expiré{expires > 1 ? "s" : ""}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Documents</h1>
+          <p className="text-muted-foreground text-sm">
+            Bibliothèque documentaire de l&apos;établissement (plans, procédures, registres).
+          </p>
+        </div>
+        <Button onClick={() => setModal({ open: true, editing: null })}>
+          <Plus className="mr-2 h-4 w-4" />
+          Ajouter un document
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Chargement…
+        </div>
+      ) : docs.length === 0 ? (
+        <p className="text-muted-foreground rounded-md border border-dashed py-10 text-center text-sm">
+          Aucun document — ajoutez-en un.
         </p>
-      </div>
+      ) : (
+        <div className="space-y-6">
+          {CATS.map((cat) => {
+            const list = docs.filter((d) => d.doc_type === cat.value);
+            if (list.length === 0) return null;
+            return (
+              <Card key={cat.value}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    {catLabel(cat.value)}
+                    <Badge variant="secondary" className="text-xs">
+                      {list.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {list.map((d) => (
+                    <DocRow
+                      key={d.id}
+                      doc={d}
+                      deleting={del.isPending}
+                      onEdit={() => setModal({ open: true, editing: d })}
+                      onDelete={() => handleDelete(d)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-800">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Le Plan de Maîtrise Sanitaire et tous les justificatifs associés doivent être disponibles lors des contrôles
-        DDPP/DGCCRF. Durée de conservation minimale recommandée : 5 ans.
-      </div>
-
-      {CATEGORIES.map((cat) => {
-        const docs = DOCUMENTS.filter((d) => d.categorie === cat);
-        return (
-          <Card key={cat}>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-medium">{CAT_LABEL[cat]}</CardTitle>
-                <Badge variant={CAT_COLOR[cat]}>
-                  {docs.length} doc{docs.length > 1 ? "s" : ""}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {docs.map((doc) => (
-                <div
-                  key={doc.id}
-                  className={`flex items-start justify-between gap-3 rounded-lg border p-3 text-sm ${
-                    doc.statut === "expiré"
-                      ? "border-red-200 bg-red-50"
-                      : doc.statut === "à renouveler"
-                        ? "border-amber-200 bg-amber-50"
-                        : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <FileText className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-                    <div>
-                      <p className="font-semibold">{doc.nom}</p>
-                      <p className="text-muted-foreground text-xs">{doc.description}</p>
-                      <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
-                        <span>Ajouté le {doc.date_creation}</span>
-                        {doc.date_validite && <span>· Valide jusqu&apos;au {doc.date_validite}</span>}
-                        <span>· {doc.taille}</span>
-                        {doc.version !== "—" && <span>· {doc.version}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant={statutBadge[doc.statut]}>{doc.statut}</Badge>
-                    <button className="text-muted-foreground hover:text-foreground">
-                      <Download className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        );
-      })}
+      {modal.open && (
+        <DocModal
+          initial={modal.editing}
+          busy={upsert.isPending}
+          onClose={() => setModal({ open: false, editing: null })}
+          onSave={handleSave}
+        />
+      )}
     </div>
   );
 }

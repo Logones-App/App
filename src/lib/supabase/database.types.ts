@@ -2899,6 +2899,1119 @@ export type Database = {
           },
         ]
       }
+      haccp_checklist_runs: {
+        Row: {
+          checks: Json
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          note: string | null
+          organization_id: string
+          recorded_by: string | null
+          recorded_by_label: string | null
+          run_at: string
+          template_id: string | null
+          template_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          checks?: Json
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          run_at?: string
+          template_id?: string | null
+          template_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checks?: Json
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          run_at?: string
+          template_id?: string | null
+          template_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_checklist_runs_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_checklist_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_checklist_runs_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_checklist_runs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_checklist_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          frequency_label: string | null
+          id: string
+          items: Json
+          organization_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          frequency_label?: string | null
+          id?: string
+          items?: Json
+          organization_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          frequency_label?: string | null
+          id?: string
+          items?: Json
+          organization_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_checklist_templates_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_checklist_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_cleaning_surfaces: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          frequency: string
+          id: string
+          label: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+          zone_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          frequency?: string
+          id?: string
+          label: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          frequency?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_cleaning_surfaces_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cleaning_surfaces_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cleaning_surfaces_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_cleaning_validations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          photo_path: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          surface_id: string
+          updated_at: string
+          validated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          photo_path?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          surface_id: string
+          updated_at?: string
+          validated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          photo_path?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          surface_id?: string
+          updated_at?: string
+          validated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_cleaning_validations_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cleaning_validations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cleaning_validations_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cleaning_validations_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_cleaning_surfaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_cooling_records: {
+        Row: {
+          conform: boolean
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          end_temp_c: number
+          ended_at: string
+          establishment_id: string
+          id: string
+          organization_id: string
+          product_label: string
+          recorded_by: string | null
+          recorded_by_label: string | null
+          start_temp_c: number
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          conform: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          end_temp_c: number
+          ended_at: string
+          establishment_id: string
+          id?: string
+          organization_id: string
+          product_label: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          start_temp_c: number
+          started_at: string
+          updated_at?: string
+        }
+        Update: {
+          conform?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          end_temp_c?: number
+          ended_at?: string
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          product_label?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          start_temp_c?: number
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_cooling_records_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cooling_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_cooling_records_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          doc_type: string
+          establishment_id: string
+          id: string
+          organization_id: string
+          title: string
+          updated_at: string
+          url: string | null
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          doc_type?: string
+          establishment_id: string
+          id?: string
+          organization_id: string
+          title: string
+          updated_at?: string
+          url?: string | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          doc_type?: string
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_documents_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_labels: {
+        Row: {
+          allergens: string[]
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          produced_at: string
+          product_label: string
+          quantity_label: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          updated_at: string
+          use_by_at: string | null
+        }
+        Insert: {
+          allergens?: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          produced_at?: string
+          product_label: string
+          quantity_label?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+          use_by_at?: string | null
+        }
+        Update: {
+          allergens?: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          produced_at?: string
+          product_label?: string
+          quantity_label?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+          use_by_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_labels_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_labels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_labels_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_oil_baths: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          label: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          label: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_oil_baths_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_oil_baths_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_oil_tests: {
+        Row: {
+          bath_id: string | null
+          changed: boolean
+          conform: boolean
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          polarity_pct: number | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          tested_at: string
+          updated_at: string
+        }
+        Insert: {
+          bath_id?: string | null
+          changed?: boolean
+          conform?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          polarity_pct?: number | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          tested_at?: string
+          updated_at?: string
+        }
+        Update: {
+          bath_id?: string | null
+          changed?: boolean
+          conform?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          polarity_pct?: number | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          tested_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_oil_tests_bath_id_fkey"
+            columns: ["bath_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_oil_baths"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_oil_tests_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_oil_tests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_oil_tests_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_production_lots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          lot_code: string | null
+          note: string | null
+          organization_id: string
+          preparation_label: string
+          produced_at: string
+          quantity_label: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          lot_code?: string | null
+          note?: string | null
+          organization_id: string
+          preparation_label: string
+          produced_at?: string
+          quantity_label?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          lot_code?: string | null
+          note?: string | null
+          organization_id?: string
+          preparation_label?: string
+          produced_at?: string
+          quantity_label?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_production_lots_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_production_lots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_production_lots_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_receptions: {
+        Row: {
+          bl_number: string | null
+          cold_temp_c: number | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          delivery_nc: Json
+          doc_import_id: string | null
+          establishment_id: string
+          id: string
+          items: Json
+          organization_id: string
+          overall_conform: boolean
+          received_at: string
+          received_by: string | null
+          received_by_label: string | null
+          reserve: string | null
+          storage_types: string[]
+          supplier_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          bl_number?: string | null
+          cold_temp_c?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          delivery_nc?: Json
+          doc_import_id?: string | null
+          establishment_id: string
+          id?: string
+          items?: Json
+          organization_id: string
+          overall_conform?: boolean
+          received_at?: string
+          received_by?: string | null
+          received_by_label?: string | null
+          reserve?: string | null
+          storage_types?: string[]
+          supplier_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bl_number?: string | null
+          cold_temp_c?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          delivery_nc?: Json
+          doc_import_id?: string | null
+          establishment_id?: string
+          id?: string
+          items?: Json
+          organization_id?: string
+          overall_conform?: boolean
+          received_at?: string
+          received_by?: string | null
+          received_by_label?: string | null
+          reserve?: string | null
+          storage_types?: string[]
+          supplier_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_receptions_doc_import_id_fkey"
+            columns: ["doc_import_id"]
+            isOneToOne: false
+            referencedRelation: "doc_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_receptions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_receptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_receptions_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_temperature_probes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          label: string
+          max_c: number | null
+          min_c: number | null
+          organization_id: string
+          sort_order: number
+          updated_at: string
+          zone_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          label: string
+          max_c?: number | null
+          min_c?: number | null
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          label?: string
+          max_c?: number | null
+          min_c?: number | null
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_temperature_probes_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_temperature_probes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_temperature_probes_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_temperature_readings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          probe_id: string
+          recorded_at: string
+          recorded_by: string | null
+          recorded_by_label: string | null
+          updated_at: string
+          value_c: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          probe_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+          value_c: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          probe_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+          value_c?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_temperature_readings_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_temperature_readings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_temperature_readings_probe_id_fkey"
+            columns: ["probe_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_temperature_probes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_temperature_readings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_trace_detailed: {
+        Row: {
+          bl_number: string | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          lines: Json
+          organization_id: string
+          reception_id: string | null
+          recorded_at: string
+          recorded_by: string | null
+          recorded_by_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          bl_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          lines?: Json
+          organization_id: string
+          reception_id?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bl_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          lines?: Json
+          organization_id?: string
+          reception_id?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_trace_detailed_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_trace_detailed_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_trace_detailed_reception_id_fkey"
+            columns: ["reception_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_receptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_trace_detailed_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_trace_simple: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          organization_id: string
+          photo_path: string | null
+          recorded_at: string
+          recorded_by: string | null
+          recorded_by_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          organization_id: string
+          photo_path?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          photo_path?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_trace_simple_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_trace_simple_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_trace_simple_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_zones: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_zones_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_zones_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_activities: {
         Row: {
           brevo_message_id: string | null

@@ -2,141 +2,76 @@
 
 import { useState } from "react";
 
-import { GripVertical, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useParams } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// ─── Modèle (mock — sera relié à la base HACCP une fois le schéma créé) ────────
-
-type ChecklistModel = {
-  id: string;
-  name: string;
-  moment: string;
-  items: string[];
-};
-
-const MOMENTS = ["Ouverture", "Fermeture", "Service", "Réception", "Autre"];
-
-const SEED: ChecklistModel[] = [
-  {
-    id: "1",
-    name: "Checklist ouverture",
-    moment: "Ouverture",
-    items: [
-      "Tenue propre et complète",
-      "Lavage des mains",
-      "Relevé T° des frigos",
-      "Vérification des DLC",
-      "Plan de travail désinfecté",
-    ],
-  },
-  {
-    id: "2",
-    name: "Checklist fermeture",
-    moment: "Fermeture",
-    items: ["Surfaces nettoyées", "Poubelles sorties", "Frigos fermés", "Sols lavés", "Gaz et équipements coupés"],
-  },
-];
-
-// ─── Modale création / édition ────────────────────────────────────────────────
-
-type Draft = { name: string; moment: string; items: string[] };
-
-const toDraft = (c: ChecklistModel | null): Draft => ({
-  name: c?.name ?? "",
-  moment: c?.moment ?? MOMENTS[0],
-  items: c?.items.length ? [...c.items] : [""],
-});
+import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
+import {
+  type HaccpChecklistTemplate,
+  useDeleteHaccpChecklist,
+  useHaccpChecklists,
+  useUpsertHaccpChecklist,
+} from "@/lib/queries/haccp-config-queries";
 
 function ChecklistModal({
-  open,
   initial,
+  busy,
   onClose,
   onSave,
 }: {
-  open: boolean;
-  initial: ChecklistModel | null;
+  initial: HaccpChecklistTemplate | null;
+  busy: boolean;
   onClose: () => void;
-  onSave: (values: Omit<ChecklistModel, "id">) => void;
+  onSave: (v: { title: string; frequency_label: string; items: string[] }) => void;
 }) {
-  const [d, setD] = useState<Draft>(() => toDraft(initial));
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [freq, setFreq] = useState(initial?.frequency_label ?? "");
+  const [items, setItems] = useState<string[]>(() => ((initial?.items as string[] | null) ?? []).slice());
 
-  const handleOpen = (v: boolean) => {
-    if (v) setD(toDraft(initial));
-    else onClose();
-  };
-
-  const setItem = (i: number, value: string) =>
-    setD({ ...d, items: d.items.map((it, idx) => (idx === i ? value : it)) });
-  const addItem = () => setD({ ...d, items: [...d.items, ""] });
-  const removeItem = (i: number) => setD({ ...d, items: d.items.filter((_, idx) => idx !== i) });
-
-  const save = () => {
-    const items = d.items.map((it) => it.trim()).filter(Boolean);
-    if (!d.name.trim() || items.length === 0) return;
-    onSave({ name: d.name.trim(), moment: d.moment, items });
-  };
-
-  const canSave = d.name.trim() !== "" && d.items.some((it) => it.trim() !== "");
+  const setItem = (i: number, v: string) => setItems((prev) => prev.map((x, idx) => (idx === i ? v : x)));
+  const addItem = () => setItems((prev) => [...prev, ""]);
+  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial ? "Modifier le modèle" : "Nouveau modèle de checklist"}</DialogTitle>
+          <DialogTitle>{initial ? "Modifier la checklist" : "Nouvelle checklist"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>
-                Nom <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                value={d.name}
-                onChange={(e) => setD({ ...d, name: e.target.value })}
-                placeholder="Ex : Checklist ouverture"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Moment</Label>
-              <Select value={d.moment} onValueChange={(v) => setD({ ...d, moment: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MOMENTS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-1.5">
+            <Label>
+              Titre <span className="text-destructive">*</span>
+            </Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex : Ouverture" autoFocus />
           </div>
-
+          <div className="space-y-1.5">
+            <Label>
+              Fréquence <span className="text-muted-foreground text-xs font-normal">(libellé libre)</span>
+            </Label>
+            <Input value={freq} onChange={(e) => setFreq(e.target.value)} placeholder="Ex : Quotidien — matin" />
+          </div>
           <div className="space-y-1.5">
             <Label>Points à vérifier</Label>
             <div className="space-y-2">
-              {d.items.map((it, i) => (
+              {items.map((it, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <GripVertical className="text-muted-foreground/50 h-4 w-4 shrink-0" />
-                  <Input
-                    value={it}
-                    onChange={(e) => setItem(i, e.target.value)}
-                    placeholder={`Point ${i + 1}`}
-                    className="h-8 text-sm"
-                  />
+                  <Input value={it} onChange={(e) => setItem(i, e.target.value)} placeholder={`Point ${i + 1}`} />
                   <Button
                     type="button"
-                    variant="ghost"
                     size="icon"
+                    variant="ghost"
                     className="text-muted-foreground hover:text-destructive h-8 w-8 shrink-0"
                     onClick={() => removeItem(i)}
                     aria-label="Retirer"
@@ -145,19 +80,22 @@ function ChecklistModal({
                   </Button>
                 </div>
               ))}
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un point
+              </Button>
             </div>
-            <Button type="button" variant="outline" size="sm" className="mt-1 h-8" onClick={addItem}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Ajouter un point
-            </Button>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Annuler
           </Button>
-          <Button onClick={save} disabled={!canSave}>
-            {initial ? "Enregistrer" : "Créer"}
+          <Button
+            onClick={() => onSave({ title: title.trim(), frequency_label: freq, items })}
+            disabled={busy || !title.trim()}
+          >
+            {busy ? "…" : initial ? "Enregistrer" : "Créer"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -165,24 +103,36 @@ function ChecklistModal({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+export default function HaccpChecklistTemplatesPage() {
+  const params = useParams();
+  const establishmentId = params.id as string;
+  const organizationId = useOrgaUserOrganizationId();
 
-export default function HaccpModelesChecklistsPage() {
-  const [models, setModels] = useState<ChecklistModel[]>(SEED);
-  const [modal, setModal] = useState<{ open: boolean; editing: ChecklistModel | null }>({ open: false, editing: null });
+  const { data: checklists = [], isLoading } = useHaccpChecklists(establishmentId);
+  const upsert = useUpsertHaccpChecklist(establishmentId, organizationId ?? "");
+  const del = useDeleteHaccpChecklist(establishmentId);
 
-  const handleSave = (values: Omit<ChecklistModel, "id">) => {
-    setModels((prev) =>
-      modal.editing
-        ? prev.map((c) => (c.id === modal.editing!.id ? { ...c, ...values } : c))
-        : [...prev, { ...values, id: crypto.randomUUID() }],
+  const [modal, setModal] = useState<{ open: boolean; editing: HaccpChecklistTemplate | null }>({
+    open: false,
+    editing: null,
+  });
+
+  if (!organizationId) {
+    return (
+      <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Chargement…</span>
+      </div>
     );
-    setModal({ open: false, editing: null });
+  }
+
+  const handleSave = (v: { title: string; frequency_label: string; items: string[] }) => {
+    upsert.mutate({ id: modal.editing?.id, ...v }, { onSuccess: () => setModal({ open: false, editing: null }) });
   };
 
-  const handleDelete = (c: ChecklistModel) => {
-    if (!confirm(`Supprimer le modèle « ${c.name} » ?`)) return;
-    setModels((prev) => prev.filter((x) => x.id !== c.id));
+  const handleDelete = (c: HaccpChecklistTemplate) => {
+    if (!confirm(`Supprimer la checklist « ${c.title} » ?`)) return;
+    del.mutate(c.id);
   };
 
   return (
@@ -191,76 +141,79 @@ export default function HaccpModelesChecklistsPage() {
         <div>
           <h1 className="text-2xl font-bold">Modèles de checklists</h1>
           <p className="text-muted-foreground text-sm">
-            Modèles de checklists (ouverture, fermeture…) et leurs points. Les passages réalisés (mobile) partent de ces
-            modèles.
+            Listes de points à vérifier. Les passages (mobile) reprennent ces modèles.
           </p>
         </div>
         <Button onClick={() => setModal({ open: true, editing: null })}>
           <Plus className="mr-2 h-4 w-4" />
-          Nouveau modèle
+          Nouvelle checklist
         </Button>
       </div>
 
-      {models.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-10 text-center text-sm">
-            Aucun modèle — créez-en un.
-          </CardContent>
-        </Card>
+      {isLoading ? (
+        <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Chargement…
+        </div>
+      ) : checklists.length === 0 ? (
+        <p className="text-muted-foreground rounded-md border border-dashed py-10 text-center text-sm">
+          Aucune checklist — créez-en une.
+        </p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {models.map((c) => (
-            <Card key={c.id}>
-              <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-                <div className="min-w-0">
-                  <CardTitle className="text-base">{c.name}</CardTitle>
-                  <Badge variant="secondary" className="mt-1 text-xs">
-                    {c.moment}
-                  </Badge>
-                </div>
-                <div className="flex gap-0.5">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => setModal({ open: true, editing: c })}
-                    aria-label="Modifier"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive h-7 w-7"
-                    onClick={() => handleDelete(c)}
-                    aria-label="Supprimer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-2 text-xs">{c.items.length} point(s)</p>
-                <ul className="space-y-1">
-                  {c.items.map((it, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <span className="border-muted-foreground/40 h-3.5 w-3.5 shrink-0 rounded-[3px] border" />
-                      {it}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {checklists.map((c) => {
+            const items = (c.items as string[] | null) ?? [];
+            return (
+              <Card key={c.id}>
+                <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                  <div>
+                    <CardTitle className="text-base">{c.title}</CardTitle>
+                    {c.frequency_label && <p className="text-muted-foreground text-xs">{c.frequency_label}</p>}
+                  </div>
+                  <div className="flex gap-0.5">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => setModal({ open: true, editing: c })}
+                      aria-label="Modifier"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive h-7 w-7"
+                      onClick={() => handleDelete(c)}
+                      disabled={del.isPending}
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
+                    {items.map((it, i) => (
+                      <li key={i}>{it}</li>
+                    ))}
+                    {items.length === 0 && <li className="list-none italic">Aucun point.</li>}
+                  </ul>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      <ChecklistModal
-        open={modal.open}
-        initial={modal.editing}
-        onClose={() => setModal({ open: false, editing: null })}
-        onSave={handleSave}
-      />
+      {modal.open && (
+        <ChecklistModal
+          initial={modal.editing}
+          busy={upsert.isPending}
+          onClose={() => setModal({ open: false, editing: null })}
+          onSave={handleSave}
+        />
+      )}
     </div>
   );
 }
