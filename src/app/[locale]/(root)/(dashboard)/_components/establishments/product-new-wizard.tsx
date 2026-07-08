@@ -10,6 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import type { ProductTypeKey } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
@@ -18,18 +19,23 @@ import { Step1FormFields } from "./product-new-step1-base";
 
 export type CreationIntent = "product" | "ingredient";
 
-type IntentCopy = { title: string; namePlaceholder: string; success: string; role: ProductTypeKey };
+type CreationRole = "sellable" | "ingredient" | "both";
 
-/** Copie de l'UI + rôle posé à la création selon l'intention (les autres rôles émergent ensuite). */
-function intentCopy(intent: CreationIntent): IntentCopy {
-  return intent === "ingredient"
-    ? {
-        title: "Nouvel ingrédient",
-        namePlaceholder: "Nom de l'ingrédient",
-        success: "Ingrédient créé.",
-        role: "ingredient",
-      }
-    : { title: "Nouveau produit", namePlaceholder: "Nom du produit", success: "Produit créé.", role: "sellable" };
+const ROLE_OPTIONS: { value: CreationRole; label: string; hint: string }[] = [
+  { value: "sellable", label: "À vendre", hint: "Plat, boisson… vendu au client (a un prix dans un menu)." },
+  { value: "ingredient", label: "Matière / ingrédient", hint: "Matière première ou préparation, achetée et stockée." },
+  {
+    value: "both",
+    label: "Les deux",
+    hint: "Revente sèche : stockée et vendue telle quelle (ex. boisson en bouteille).",
+  },
+];
+
+/** Rôles product_type posés à la création (les autres, ex. « recette », émergent via les compositions). */
+function rolesForCreation(role: CreationRole): ProductTypeKey[] {
+  if (role === "ingredient") return ["ingredient"];
+  if (role === "both") return ["ingredient", "sellable"];
+  return ["sellable"];
 }
 
 type Draft = {
@@ -64,7 +70,8 @@ export function ProductNewWizard({
   const router = useRouter();
   const queryClient = useQueryClient();
   const normalizedBase = backHref.replace(/\/$/, "");
-  const copy = intentCopy(intent);
+  const [role, setRole] = useState<CreationRole>(intent === "ingredient" ? "ingredient" : "sellable");
+  const namePlaceholder = role === "ingredient" ? "Nom de l'ingrédient" : "Nom du produit";
 
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
@@ -89,7 +96,7 @@ export function ProductNewWizard({
           is_available: draft.is_available,
           printer_id: draft.printer_id === "__none__" ? null : draft.printer_id,
           vat_rate_id: draft.vat_rate_id,
-          product_type: [copy.role],
+          product_type: rolesForCreation(role),
           deleted: false,
         })
         .select("id")
@@ -98,7 +105,7 @@ export function ProductNewWizard({
       return data.id;
     },
     onSuccess: (productId) => {
-      toast.success(copy.success);
+      toast.success("Produit créé.");
       void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
       void queryClient.invalidateQueries({
         queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
@@ -140,7 +147,7 @@ export function ProductNewWizard({
               Retour à la liste
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold">{copy.title}</h1>
+          <h1 className="text-2xl font-bold">Nouveau produit</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => router.push(backHref)}>
@@ -155,10 +162,28 @@ export function ProductNewWizard({
         </div>
       </div>
 
+      <div className="space-y-2">
+        <Label>Que créez-vous&nbsp;?</Label>
+        <div className="flex flex-wrap gap-2">
+          {ROLE_OPTIONS.map((o) => (
+            <Button
+              key={o.value}
+              type="button"
+              variant={role === o.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setRole(o.value)}
+            >
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">{ROLE_OPTIONS.find((o) => o.value === role)?.hint}</p>
+      </div>
+
       <Step1FormFields
         draft={draft}
         patch={patch}
-        namePlaceholder={copy.namePlaceholder}
+        namePlaceholder={namePlaceholder}
         vatRates={vatRates}
         printers={printers}
       />

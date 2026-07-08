@@ -10,10 +10,19 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useProductEstablishmentDashboard } from "@/lib/queries/product-establishment-dashboard";
 
 import { ProductEstablishmentDashboardTabs } from "./product-establishment-dashboard-panels";
+import { ProductTypesInfoButton } from "./product-types-info-dialog";
+
+// Libellés des rôles product_type (jsonb) pour l'affichage à côté du nom.
+const TYPE_BADGES = new Map<string, { label: string; emoji: string }>([
+  ["recipe", { label: "Recette", emoji: "🍽️" }],
+  ["ingredient", { label: "Ingrédient", emoji: "🧄" }],
+  ["sellable", { label: "En vente", emoji: "🏷️" }],
+]);
 
 type Props = {
   productId: string;
@@ -88,7 +97,18 @@ export function ProductEstablishmentDashboard({ productId, establishmentId, orga
     <div className="space-y-6">
       <div className="space-y-1">
         {backButton}
-        <h1 className="text-2xl font-bold">{product.name}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold">{product.name}</h1>
+          {((product.product_type as string[] | null) ?? []).map((t) => {
+            const b = TYPE_BADGES.get(t);
+            return b ? (
+              <Badge key={t} variant="secondary" className="font-normal">
+                {b.emoji} {b.label}
+              </Badge>
+            ) : null;
+          })}
+          <ProductTypesInfoButton />
+        </div>
         <p className="text-muted-foreground text-sm">
           Tableau de bord par établissement : options, compositions et stocks correspondent à cet établissement
           uniquement. Le prix catalogue et la fiche produit viennent du catalogue organisation.

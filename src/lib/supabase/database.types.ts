@@ -5860,6 +5860,57 @@ export type Database = {
           },
         ]
       }
+      supplier_reference_barcodes: {
+        Row: {
+          barcode: string
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          id: string
+          organization_id: string
+          packaging_level: string | null
+          supplier_reference_id: string
+          updated_at: string
+        }
+        Insert: {
+          barcode: string
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          organization_id: string
+          packaging_level?: string | null
+          supplier_reference_id: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          id?: string
+          organization_id?: string
+          packaging_level?: string | null
+          supplier_reference_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_reference_barcodes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_reference_barcodes_supplier_reference_id_fkey"
+            columns: ["supplier_reference_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_references: {
         Row: {
           allergens: Json
@@ -5876,6 +5927,7 @@ export type Database = {
           origins: Json
           packaging: string | null
           product_id: string
+          storage_type: string | null
           supplier_id: string
           supplier_product_name: string | null
           supplier_product_ref: string | null
@@ -5897,6 +5949,7 @@ export type Database = {
           origins?: Json
           packaging?: string | null
           product_id: string
+          storage_type?: string | null
           supplier_id: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
@@ -5918,6 +5971,7 @@ export type Database = {
           origins?: Json
           packaging?: string | null
           product_id?: string
+          storage_type?: string | null
           supplier_id?: string
           supplier_product_name?: string | null
           supplier_product_ref?: string | null
@@ -6556,6 +6610,10 @@ export type Database = {
       }
     }
     Functions: {
+      assign_device_module: {
+        Args: { p_device_id: string; p_module: string }
+        Returns: undefined
+      }
       auth_can_access_establishment: {
         Args: { p_est_id: string; p_org_id: string }
         Returns: boolean
@@ -6564,6 +6622,14 @@ export type Database = {
       cleanup_old_email_logs: {
         Args: { days_to_keep?: number }
         Returns: number
+      }
+      ensure_self_stock: {
+        Args: {
+          p_establishment_id: string
+          p_product_id: string
+          p_unit?: string
+        }
+        Returns: string
       }
       match_knowledge_base: {
         Args: {
@@ -6634,6 +6700,10 @@ export type Database = {
           p_serial_number: string
         }
         Returns: Json
+      }
+      unassign_device_module: {
+        Args: { p_device_id: string; p_module: string }
+        Returns: undefined
       }
     }
     Enums: {

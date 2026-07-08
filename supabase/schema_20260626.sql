@@ -32,6 +32,17 @@ CREATE TYPE "public"."TodosWithChildren" AS ENUM (
 ALTER TYPE "public"."TodosWithChildren" OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."assign_device_module"("p_device_id" "uuid", "p_module" "text") RETURNS "void"
+    LANGUAGE "sql"
+    AS $$
+  UPDATE devices SET mods = (SELECT array_agg(DISTINCT x) FROM unnest(mods || ARRAY[p_module]) AS x)
+  WHERE id = p_device_id;
+$$;
+
+
+ALTER FUNCTION "public"."assign_device_module"("p_device_id" "uuid", "p_module" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."auth_can_access_establishment"("p_org_id" "uuid", "p_est_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -102,132 +113,217 @@ COMMENT ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) IS
 
 
 
+CREATE OR REPLACE FUNCTION "public"."enforce_device_mods"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE m text; used int; seat_limit int;
+BEGIN
+  IF COALESCE(NEW.deleted,false) THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND NEW.mods IS NOT DISTINCT FROM OLD.mods
+     AND NEW.establishment_id IS NOT DISTINCT FROM OLD.establishment_id THEN RETURN NEW; END IF;
+  FOREACH m IN ARRAY NEW.mods LOOP
+    SELECT em.seats INTO seat_limit FROM establishment_modules em
+    WHERE em.establishment_id = NEW.establishment_id AND em.module = m
+      AND em.enabled = true AND COALESCE(em.deleted,false) = false;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Module "%" non activé pour cet établissement', m USING ERRCODE='check_violation';
+    END IF;
+    SELECT count(*) INTO used FROM devices d
+    WHERE d.establishment_id = NEW.establishment_id AND d.deleted = false
+      AND d.id <> NEW.id AND m = ANY(d.mods);
+    IF used + 1 > seat_limit THEN
+      RAISE EXCEPTION 'Plus de poste disponible pour le module "%" (%/%)', m, used+1, seat_limit USING ERRCODE='check_violation';
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END; $$;
+
+
+ALTER FUNCTION "public"."enforce_device_mods"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."enforce_module_seats"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE used int;
+BEGIN
+  IF NEW.seats IS DISTINCT FROM OLD.seats AND NEW.seats < OLD.seats THEN
+    SELECT count(*) INTO used FROM devices d
+    WHERE d.establishment_id = NEW.establishment_id AND d.deleted = false AND NEW.module = ANY(d.mods);
+    IF used > NEW.seats THEN
+      RAISE EXCEPTION 'Impossible : % appareils utilisent le module "%" (nouveau quota %). Libérez-en d''abord.', used, NEW.module, NEW.seats USING ERRCODE='check_violation';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+ALTER FUNCTION "public"."enforce_module_seats"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."ensure_self_stock"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_unit" "text" DEFAULT NULL::"text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE v_org uuid; v_comp uuid; v_stock uuid; v_unit text;
+BEGIN
+  SELECT organization_id INTO v_org FROM establishments WHERE id = p_establishment_id AND deleted = false;
+  IF v_org IS NULL THEN RAISE EXCEPTION 'Établissement introuvable'; END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM users_organizations uo
+    WHERE uo.organization_id = v_org
+      AND uo.user_id = ((current_setting('request.jwt.claims', true)::json ->> 'sub'))::uuid
+      AND uo.deleted = false) THEN
+    RAISE EXCEPTION 'Accès refusé à cette organisation';
+  END IF;
+
+  v_unit := COALESCE(p_unit, (SELECT portion_unit FROM products WHERE id = p_product_id), 'piece');
+
+  SELECT id INTO v_comp FROM product_compositions
+   WHERE main_product_id = p_product_id AND component_product_id = p_product_id
+     AND establishment_id = p_establishment_id AND deleted = false LIMIT 1;
+  IF v_comp IS NULL THEN
+    INSERT INTO product_compositions(main_product_id, component_product_id, establishment_id,
+      organization_id, composition_kind, default_quantity, show_in_customization, is_required, deleted)
+    VALUES (p_product_id, p_product_id, p_establishment_id, v_org, 'recipe', 1, false, false, false)
+    RETURNING id INTO v_comp;
+  END IF;
+
+  SELECT id INTO v_stock FROM product_stocks
+   WHERE product_composition_id = v_comp AND establishment_id = p_establishment_id LIMIT 1;
+  IF v_stock IS NULL THEN
+    INSERT INTO product_stocks(product_composition_id, establishment_id, organization_id,
+      current_stock, min_stock, reserved_stock, unit, inventory_tracked, deleted)
+    VALUES (v_comp, p_establishment_id, v_org, 0, 0, 0, v_unit, true, false)
+    RETURNING id INTO v_stock;
+    UPDATE products SET portion_unit = v_unit WHERE id = p_product_id;
+  END IF;
+  RETURN v_stock;
+END; $$;
+
+
+ALTER FUNCTION "public"."ensure_self_stock"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_unit" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."fn_fifo_valorize"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 DECLARE
-  v_qty      numeric;
-  v_lot      RECORD;
-  v_take     numeric;
-  v_cost     numeric := 0;
-  v_qty_done numeric := 0;
-  v_allocs   jsonb   := '[]'::jsonb;
-  v_fallback numeric;
+  v_qty numeric; v_lot RECORD; v_take numeric;
+  v_cost numeric := 0; v_qty_done numeric := 0;
+  v_allocs jsonb := '[]'::jsonb; v_fallback numeric;
 BEGIN
-
-  -- Lot d'achat : initialiser remaining_quantity
   IF NEW.movement_type = 'purchase' THEN
-    UPDATE stock_movements
-    SET    remaining_quantity = NEW.quantity
-    WHERE  id = NEW.id;
+    UPDATE stock_movements SET remaining_quantity = NEW.quantity WHERE id = NEW.id;
     RETURN NEW;
   END IF;
 
-  -- Guard : uniquement sale/restore sans unit_cost
   IF NEW.unit_cost IS NOT NULL
-     OR NEW.movement_type NOT IN ('sale', 'restore') THEN
+     OR NEW.movement_type NOT IN ('sale','restore','production','waste','adjustment','transfer') THEN
     RETURN NEW;
   END IF;
 
-  -- ── SALE : allocation FIFO ──────────────────────────────────
-  IF NEW.movement_type = 'sale' THEN
-    v_qty := COALESCE(NEW.quantity_before, 0) - COALESCE(NEW.quantity_after, 0);
-
-    FOR v_lot IN
-      SELECT id, remaining_quantity, unit_cost
-      FROM   stock_movements
-      WHERE  product_stock_id  = NEW.product_stock_id
-        AND  movement_type     = 'purchase'
-        AND  remaining_quantity > 0
-        AND  deleted           = false
-      ORDER  BY created_at ASC
-      FOR UPDATE
-    LOOP
-      EXIT WHEN v_qty <= 0;
-      v_take     := LEAST(v_lot.remaining_quantity, v_qty);
-      UPDATE stock_movements
-      SET    remaining_quantity = remaining_quantity - v_take
-      WHERE  id = v_lot.id;
-      v_allocs   := v_allocs || jsonb_build_object(
-                     'lot_id', v_lot.id, 'qty', v_take, 'cost', v_lot.unit_cost);
-      v_cost     := v_cost     + v_take * v_lot.unit_cost;
-      v_qty_done := v_qty_done + v_take;
-      v_qty      := v_qty      - v_take;
-    END LOOP;
-
-    -- Lots épuisés : coût de repli + flag
-    IF v_qty > 0 THEN
-      SELECT unit_cost INTO v_fallback
-      FROM   stock_movements
-      WHERE  product_stock_id = NEW.product_stock_id
-        AND  movement_type    = 'purchase'
-        AND  unit_cost        IS NOT NULL
-        AND  deleted          = false
-      ORDER  BY created_at DESC
-      LIMIT  1;
-
-      IF v_fallback IS NOT NULL THEN
-        v_cost     := v_cost     + v_qty * v_fallback;
-        v_qty_done := v_qty_done + v_qty;
-      END IF;
-
-      UPDATE stock_movements SET needs_review = true WHERE id = NEW.id;
+  -- ENTRÉE d'inventaire (adjustment+) → crée un lot valorisé au CMP des lots COSTÉS restants
+  IF NEW.movement_type = 'adjustment' AND NEW.quantity > 0 THEN
+    SELECT SUM(remaining_quantity * unit_cost) / NULLIF(SUM(remaining_quantity),0)
+      INTO v_cost
+      FROM stock_movements
+     WHERE product_stock_id = NEW.product_stock_id
+       AND movement_type IN ('purchase','production','adjustment')   -- ✅ v4
+       AND remaining_quantity > 0 AND unit_cost IS NOT NULL AND deleted = false;
+    IF v_cost IS NULL THEN
+      SELECT unit_cost INTO v_cost FROM stock_movements
+       WHERE product_stock_id = NEW.product_stock_id
+         AND (movement_type IN ('purchase','production')
+              OR (movement_type = 'adjustment' AND quantity > 0))     -- ✅ v4
+         AND unit_cost IS NOT NULL AND deleted = false
+       ORDER BY created_at DESC LIMIT 1;
     END IF;
-
     UPDATE stock_movements
-    SET unit_cost       = CASE WHEN v_qty_done > 0
-                               THEN ROUND(v_cost / v_qty_done, 6)
-                               ELSE NULL END,
-        lot_allocations = v_allocs
-    WHERE  id = NEW.id;
+       SET remaining_quantity = NEW.quantity,
+           unit_cost    = CASE WHEN v_cost IS NOT NULL THEN ROUND(v_cost,6) ELSE NULL END,
+           needs_review = (v_cost IS NULL)
+     WHERE id = NEW.id;
+    RETURN NEW;
+  END IF;
 
-  -- ── RESTORE : contre-passe LIFO ─────────────────────────────
-  ELSIF NEW.movement_type = 'restore' THEN
-
-    -- Retrouver les allocations de la vente originale
-    SELECT lot_allocations INTO v_allocs
-    FROM   stock_movements
-    WHERE  reference_id     = NEW.reference_id
-      AND  product_stock_id = NEW.product_stock_id
-      AND  movement_type    = 'sale'
-      AND  lot_allocations  IS NOT NULL
-      AND  deleted          = false
-    ORDER  BY created_at DESC
-    LIMIT  1;
-
-    -- Restore arrivé avant sa vente (offline) → review manuel
-    IF v_allocs IS NULL THEN
-      UPDATE stock_movements SET needs_review = true WHERE id = NEW.id;
+  -- PRODUCTION : sortie de lot (quantity > 0) — inchangé
+  IF NEW.movement_type = 'production' AND NEW.quantity > 0 THEN
+    v_qty := COALESCE(NEW.quantity_after,0) - COALESCE(NEW.quantity_before,0);
+    IF NEW.reference_id IS NULL THEN
+      UPDATE stock_movements SET remaining_quantity = v_qty, needs_review = true WHERE id = NEW.id;
       RETURN NEW;
     END IF;
+    SELECT COALESCE(SUM(unit_cost * (COALESCE(quantity_before,0) - COALESCE(quantity_after,0))),0)
+      INTO v_cost FROM stock_movements
+      WHERE reference_id = NEW.reference_id AND movement_type = 'production'
+        AND quantity < 0 AND deleted = false;
+    UPDATE stock_movements
+    SET remaining_quantity = v_qty,
+        unit_cost = CASE WHEN v_qty > 0 THEN ROUND(v_cost / v_qty, 6) ELSE NULL END,
+        needs_review = (v_qty <= 0)
+                     OR EXISTS (SELECT 1 FROM stock_movements
+                                WHERE reference_id = NEW.reference_id AND movement_type = 'production'
+                                  AND quantity < 0 AND needs_review = true AND deleted = false)
+    WHERE id = NEW.id;
+    RETURN NEW;
+  END IF;
 
-    v_qty := COALESCE(NEW.quantity_after, 0) - COALESCE(NEW.quantity_before, 0);
-
-    -- LIFO des allocations (reverse order)
+  -- DÉPLÉTION FIFO : sale + sorties ; consomme purchase | production | adjustment+
+  IF NEW.movement_type = 'sale'
+     OR (NEW.movement_type IN ('production','waste','adjustment','transfer') AND NEW.quantity < 0) THEN
+    v_qty := COALESCE(NEW.quantity_before,0) - COALESCE(NEW.quantity_after,0);
     FOR v_lot IN
-      SELECT (e->>'lot_id')::uuid  AS lot_id,
-             (e->>'qty')::numeric  AS qty,
-             (e->>'cost')::numeric AS cost
-      FROM   jsonb_array_elements(v_allocs) WITH ORDINALITY t(e, ord)
-      ORDER  BY ord DESC
+      SELECT id, remaining_quantity, unit_cost FROM stock_movements
+      WHERE product_stock_id = NEW.product_stock_id
+        AND movement_type IN ('purchase','production','adjustment')   -- ✅ v4
+        AND remaining_quantity > 0 AND deleted = false
+      ORDER BY created_at ASC FOR UPDATE
     LOOP
       EXIT WHEN v_qty <= 0;
-      v_take     := LEAST(v_lot.qty, v_qty);
-      UPDATE stock_movements
-      SET    remaining_quantity = remaining_quantity + v_take
-      WHERE  id = v_lot.lot_id;
-      v_cost     := v_cost     + v_take * v_lot.cost;
-      v_qty_done := v_qty_done + v_take;
-      v_qty      := v_qty      - v_take;
+      v_take := LEAST(v_lot.remaining_quantity, v_qty);
+      UPDATE stock_movements SET remaining_quantity = remaining_quantity - v_take WHERE id = v_lot.id;
+      v_allocs := v_allocs || jsonb_build_object('lot_id', v_lot.id, 'qty', v_take, 'cost', v_lot.unit_cost);
+      v_cost := v_cost + v_take * COALESCE(v_lot.unit_cost,0); v_qty_done := v_qty_done + v_take; v_qty := v_qty - v_take;
     END LOOP;
-
+    IF v_qty > 0 THEN
+      SELECT unit_cost INTO v_fallback FROM stock_movements
+      WHERE product_stock_id = NEW.product_stock_id
+        AND (movement_type IN ('purchase','production')
+             OR (movement_type = 'adjustment' AND quantity > 0))       -- ✅ v4
+        AND unit_cost IS NOT NULL AND deleted = false ORDER BY created_at DESC LIMIT 1;
+      IF v_fallback IS NOT NULL THEN v_cost := v_cost + v_qty * v_fallback; v_qty_done := v_qty_done + v_qty; END IF;
+      UPDATE stock_movements SET needs_review = true WHERE id = NEW.id;
+    END IF;
     UPDATE stock_movements
-    SET unit_cost    = CASE WHEN v_qty_done > 0
-                            THEN ROUND(v_cost / v_qty_done, 6)
-                            ELSE NULL END,
-        needs_review = (v_qty > 0)
-    WHERE  id = NEW.id;
+    SET unit_cost = CASE WHEN v_qty_done > 0 THEN ROUND(v_cost / v_qty_done, 6) ELSE NULL END,
+        lot_allocations = v_allocs WHERE id = NEW.id;
+    RETURN NEW;
+  END IF;
 
+  -- RESTORE : contre-passe LIFO par lot_id — inchangé (marche quel que soit le type du lot)
+  IF NEW.movement_type = 'restore' THEN
+    SELECT lot_allocations INTO v_allocs FROM stock_movements
+    WHERE reference_id = NEW.reference_id AND product_stock_id = NEW.product_stock_id
+      AND movement_type = 'sale' AND lot_allocations IS NOT NULL AND deleted = false
+    ORDER BY created_at DESC LIMIT 1;
+    IF v_allocs IS NULL THEN
+      UPDATE stock_movements SET needs_review = true WHERE id = NEW.id; RETURN NEW;
+    END IF;
+    v_qty := COALESCE(NEW.quantity_after,0) - COALESCE(NEW.quantity_before,0);
+    FOR v_lot IN
+      SELECT (e->>'lot_id')::uuid AS lot_id, (e->>'qty')::numeric AS qty, (e->>'cost')::numeric AS cost
+      FROM jsonb_array_elements(v_allocs) WITH ORDINALITY t(e, ord) ORDER BY ord DESC
+    LOOP
+      EXIT WHEN v_qty <= 0;
+      v_take := LEAST(v_lot.qty, v_qty);
+      UPDATE stock_movements SET remaining_quantity = remaining_quantity + v_take WHERE id = v_lot.lot_id;
+      v_cost := v_cost + v_take * COALESCE(v_lot.cost,0); v_qty_done := v_qty_done + v_take; v_qty := v_qty - v_take;
+    END LOOP;
+    UPDATE stock_movements
+    SET unit_cost = CASE WHEN v_qty_done > 0 THEN ROUND(v_cost / v_qty_done, 6) ELSE NULL END,
+        needs_review = (v_qty > 0) WHERE id = NEW.id;
+    RETURN NEW;
   END IF;
 
   RETURN NEW;
@@ -264,6 +360,42 @@ $$;
 
 
 ALTER FUNCTION "public"."fn_lock_stock_unit"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fn_snapshot_purchase_price"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE v_factor numeric; v_supplier_id uuid; v_order_unit text; v_unit_price numeric;
+BEGIN
+  IF NEW.movement_type <> 'purchase'
+     OR NEW.deleted
+     OR NEW.supplier_reference_id IS NULL
+     OR NEW.unit_cost IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT conversion_factor, supplier_id, order_unit
+    INTO v_factor, v_supplier_id, v_order_unit
+    FROM supplier_references WHERE id = NEW.supplier_reference_id;
+
+  v_unit_price := NEW.unit_cost * COALESCE(NULLIF(v_factor, 0), 1);
+
+  UPDATE supplier_references SET unit_price = v_unit_price WHERE id = NEW.supplier_reference_id;
+
+  INSERT INTO supplier_price_snapshots(
+    product_id, organization_id, supplier_reference_id, supplier_id,
+    unit_cost, unit_price, order_unit, currency, effective_from, created_by
+  ) VALUES (
+    NEW.product_id, NEW.organization_id, NEW.supplier_reference_id, v_supplier_id,
+    NEW.unit_cost, v_unit_price, v_order_unit, 'EUR', NEW.created_at, NEW.created_by
+  );
+
+  RETURN NEW;
+END; $$;
+
+
+ALTER FUNCTION "public"."fn_snapshot_purchase_price"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."handle_times"() RETURNS "trigger"
@@ -311,6 +443,27 @@ $$;
 
 
 ALTER FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer DEFAULT 500) RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  current_count integer;
+BEGIN
+  INSERT INTO doc_import_usage (organization_id, month, doc_count)
+  VALUES (p_organization_id, p_month, 1)
+  ON CONFLICT (organization_id, month)
+  DO UPDATE SET doc_count = doc_import_usage.doc_count + 1
+  RETURNING doc_count INTO current_count;
+
+  RETURN current_count <= p_limit;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") RETURNS "void"
@@ -566,6 +719,22 @@ COMMENT ON FUNCTION "public"."nf525_sync_sequence_on_piece_insert"() IS 'Met à 
 
 
 
+CREATE OR REPLACE FUNCTION "public"."reconcile_module_disable"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  IF (OLD.enabled = true AND NEW.enabled = false)
+     OR (COALESCE(OLD.deleted,false) = false AND COALESCE(NEW.deleted,false) = true) THEN
+    UPDATE devices d SET mods = array_remove(d.mods, NEW.module)
+    WHERE d.establishment_id = NEW.establishment_id AND NEW.module = ANY(d.mods);
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+ALTER FUNCTION "public"."reconcile_module_disable"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb" DEFAULT NULL::"jsonb", "p_device_role" "text" DEFAULT 'master'::"text", "p_mods" "text"[] DEFAULT ARRAY['pos'::"text"], "p_display" "text" DEFAULT 'landscape'::"text") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -632,6 +801,16 @@ END; $$;
 
 
 ALTER FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."unassign_device_module"("p_device_id" "uuid", "p_module" "text") RETURNS "void"
+    LANGUAGE "sql"
+    AS $$
+  UPDATE devices SET mods = array_remove(mods, p_module) WHERE id = p_device_id;
+$$;
+
+
+ALTER FUNCTION "public"."unassign_device_module"("p_device_id" "uuid", "p_module" "text") OWNER TO "postgres";
 
 SET default_tablespace = '';
 
@@ -1767,8 +1946,7 @@ CREATE TABLE IF NOT EXISTS "public"."establishments" (
     "postal_code" numeric,
     "city" "text",
     "country" "text" DEFAULT 'France'::"text",
-    "code_naf" "text",
-    "printer_id" "uuid"
+    "code_naf" "text"
 );
 
 
@@ -1784,10 +1962,6 @@ COMMENT ON COLUMN "public"."establishments"."country" IS 'Pays de l''établissem
 
 
 COMMENT ON COLUMN "public"."establishments"."code_naf" IS 'Code NAF/APE (R13 émetteur).';
-
-
-
-COMMENT ON COLUMN "public"."establishments"."printer_id" IS 'Imprimante par défaut de l’établissement (fallback pour toutes les impressions).';
 
 
 
@@ -2784,7 +2958,8 @@ CREATE TABLE IF NOT EXISTS "public"."printers" (
     "organization_id" "uuid",
     "created_by" "uuid",
     "establishment_id" "uuid",
-    "name" "text"
+    "name" "text",
+    "is_default" boolean DEFAULT false NOT NULL
 );
 
 
@@ -2989,6 +3164,8 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "food_cost_target" numeric,
     "stock_mode" "text" DEFAULT 'none'::"text" NOT NULL,
     "origins" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "yield_quantity" numeric,
+    "yield_unit" "text",
     CONSTRAINT "products_food_cost_target_check" CHECK ((("food_cost_target" > (0)::numeric) AND ("food_cost_target" <= (1)::numeric))),
     CONSTRAINT "products_portion_weight_check" CHECK (("portion_weight" > (0)::numeric)),
     CONSTRAINT "products_stock_mode_check" CHECK (("stock_mode" = ANY (ARRAY['none'::"text", 'product'::"text", 'ingredients'::"text"])))
@@ -3035,6 +3212,14 @@ COMMENT ON COLUMN "public"."products"."sku" IS 'Référence interne / code artic
 
 
 COMMENT ON COLUMN "public"."products"."food_cost_target" IS 'Food cost cible (ratio 0–1, ex: 0.30 = 30%). Alerte si coût réel dépasse cette valeur.';
+
+
+
+COMMENT ON COLUMN "public"."products"."yield_quantity" IS 'Rendement d''une recette-préparation : quantité produite par le BOM tel que saisi (ex. 5 pour un lot de 5 kg). Sert à convertir la conso d''une sous-recette en proportion des ingrédients. NULL = non défini.';
+
+
+
+COMMENT ON COLUMN "public"."products"."yield_unit" IS 'Unité du rendement (kg, l, portion…). Défaut applicatif = portion_unit.';
 
 
 
@@ -3188,6 +3373,26 @@ COMMENT ON TABLE "public"."supplier_price_snapshots" IS 'Snapshots du coût d''a
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."supplier_reference_barcodes" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "organization_id" "uuid" NOT NULL,
+    "supplier_reference_id" "uuid" NOT NULL,
+    "barcode" "text" NOT NULL,
+    "packaging_level" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "deleted" boolean DEFAULT false NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."supplier_reference_barcodes" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."supplier_reference_barcodes" IS 'N codes-barres (EAN) par supplier_reference (SKU). Un EAN identifie un conditionnement précis, pas le produit.';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."supplier_references" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "organization_id" "uuid" NOT NULL,
@@ -3205,9 +3410,14 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_references" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone,
     "created_by" "uuid",
+    "packaging" "text",
+    "allergens" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "origins" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "storage_type" "text",
     CONSTRAINT "supplier_references_conversion_check" CHECK (("conversion_factor" > (0)::numeric)),
     CONSTRAINT "supplier_references_lead_time_check" CHECK (("lead_time_days" >= 0)),
-    CONSTRAINT "supplier_references_min_order_check" CHECK (("min_order_qty" > (0)::numeric))
+    CONSTRAINT "supplier_references_min_order_check" CHECK (("min_order_qty" > (0)::numeric)),
+    CONSTRAINT "supplier_references_storage_type_check" CHECK ((("storage_type" IS NULL) OR ("storage_type" = ANY (ARRAY['frais'::"text", 'surgele'::"text", 'sec'::"text"]))))
 );
 
 
@@ -3219,6 +3429,14 @@ COMMENT ON TABLE "public"."supplier_references" IS 'Références fournisseur par
 
 
 COMMENT ON COLUMN "public"."supplier_references"."conversion_factor" IS 'Nombre de portions (portion_unit) par unité de commande (order_unit).';
+
+
+
+COMMENT ON COLUMN "public"."supplier_references"."packaging" IS 'Conditionnement d''achat (liste fermée : bouteille, cubi, sac, plaquette, plateau…). NULL = vrac / à la pièce.';
+
+
+
+COMMENT ON COLUMN "public"."supplier_references"."storage_type" IS 'Type de conservation FIXE du SKU (frais/surgele/sec) : pilote les contrôles T°/DLC HACCP. NULL = non renseigné.';
 
 
 
@@ -4031,6 +4249,11 @@ ALTER TABLE ONLY "public"."supplier_price_snapshots"
 
 
 
+ALTER TABLE ONLY "public"."supplier_reference_barcodes"
+    ADD CONSTRAINT "supplier_reference_barcodes_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."supplier_references"
     ADD CONSTRAINT "supplier_references_pkey" PRIMARY KEY ("id");
 
@@ -4548,10 +4771,6 @@ CREATE INDEX "idx_establishments_org_public" ON "public"."establishments" USING 
 
 
 CREATE INDEX "idx_establishments_organization_id" ON "public"."establishments" USING "btree" ("organization_id");
-
-
-
-CREATE INDEX "idx_establishments_printer_id" ON "public"."establishments" USING "btree" ("printer_id");
 
 
 
@@ -5075,6 +5294,14 @@ CREATE INDEX "idx_sm_recipe_reporting" ON "public"."stock_movements" USING "btre
 
 
 
+CREATE INDEX "idx_srb_barcode" ON "public"."supplier_reference_barcodes" USING "btree" ("barcode");
+
+
+
+CREATE INDEX "idx_srb_ref" ON "public"."supplier_reference_barcodes" USING "btree" ("supplier_reference_id");
+
+
+
 CREATE INDEX "idx_stock_movements_date" ON "public"."stock_movements" USING "btree" ("created_at" DESC);
 
 
@@ -5219,6 +5446,10 @@ CREATE INDEX "mobile_users_pin_code_idx" ON "public"."employees" USING "btree" (
 
 
 
+CREATE UNIQUE INDEX "printers_one_default_per_establishment" ON "public"."printers" USING "btree" ("establishment_id") WHERE ("is_default" AND (COALESCE("deleted", false) = false));
+
+
+
 CREATE UNIQUE INDEX "product_compositions_unique_main_component_kind_establishment" ON "public"."product_compositions" USING "btree" ("establishment_id", "main_product_id", "component_product_id", "composition_kind") WHERE (COALESCE("deleted", false) = false);
 
 
@@ -5228,6 +5459,18 @@ COMMENT ON INDEX "public"."product_compositions_unique_main_component_kind_estab
 
 
 CREATE UNIQUE INDEX "product_option_group_products_unique" ON "public"."product_option_group_products" USING "btree" ("product_id", "option_group_id") WHERE ("deleted" = false);
+
+
+
+CREATE UNIQUE INDEX "uq_product_stock_per_composition" ON "public"."product_stocks" USING "btree" ("product_composition_id", "establishment_id") WHERE ("deleted" = false);
+
+
+
+CREATE UNIQUE INDEX "uq_self_composition" ON "public"."product_compositions" USING "btree" ("main_product_id", "establishment_id") WHERE (("main_product_id" = "component_product_id") AND ("deleted" = false));
+
+
+
+CREATE UNIQUE INDEX "uq_srb_org_barcode" ON "public"."supplier_reference_barcodes" USING "btree" ("organization_id", "barcode") WHERE ("deleted" = false);
 
 
 
@@ -5492,11 +5735,27 @@ CREATE OR REPLACE TRIGGER "nf525_after_piece_insert" AFTER INSERT ON "public"."n
 
 
 
+CREATE OR REPLACE TRIGGER "trg_enforce_device_mods" BEFORE INSERT OR UPDATE ON "public"."devices" FOR EACH ROW EXECUTE FUNCTION "public"."enforce_device_mods"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_enforce_module_seats" BEFORE UPDATE ON "public"."establishment_modules" FOR EACH ROW EXECUTE FUNCTION "public"."enforce_module_seats"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_fifo_valorize" AFTER INSERT ON "public"."stock_movements" FOR EACH ROW EXECUTE FUNCTION "public"."fn_fifo_valorize"();
 
 
 
 CREATE OR REPLACE TRIGGER "trg_lock_stock_unit" BEFORE UPDATE ON "public"."product_stocks" FOR EACH ROW EXECUTE FUNCTION "public"."fn_lock_stock_unit"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_reconcile_module_disable" AFTER UPDATE ON "public"."establishment_modules" FOR EACH ROW EXECUTE FUNCTION "public"."reconcile_module_disable"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_snapshot_purchase_price" AFTER INSERT ON "public"."stock_movements" FOR EACH ROW EXECUTE FUNCTION "public"."fn_snapshot_purchase_price"();
 
 
 
@@ -6037,11 +6296,6 @@ ALTER TABLE ONLY "public"."establishments"
 
 ALTER TABLE ONLY "public"."establishments"
     ADD CONSTRAINT "establishments_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
-
-
-
-ALTER TABLE ONLY "public"."establishments"
-    ADD CONSTRAINT "establishments_printer_id_fkey" FOREIGN KEY ("printer_id") REFERENCES "public"."printers"("id") ON UPDATE CASCADE ON DELETE SET NULL;
 
 
 
@@ -6787,6 +7041,16 @@ ALTER TABLE ONLY "public"."supplier_price_snapshots"
 
 ALTER TABLE ONLY "public"."supplier_price_snapshots"
     ADD CONSTRAINT "supplier_price_snapshots_supplier_reference_id_fkey" FOREIGN KEY ("supplier_reference_id") REFERENCES "public"."supplier_references"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_reference_barcodes"
+    ADD CONSTRAINT "supplier_reference_barcodes_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_reference_barcodes"
+    ADD CONSTRAINT "supplier_reference_barcodes_supplier_reference_id_fkey" FOREIGN KEY ("supplier_reference_id") REFERENCES "public"."supplier_references"("id") ON DELETE CASCADE;
 
 
 
@@ -9083,6 +9347,35 @@ CREATE POLICY "supplier_price_snapshots_update_universal" ON "public"."supplier_
 
 
 
+ALTER TABLE "public"."supplier_reference_barcodes" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_reference_barcodes_delete_universal" ON "public"."supplier_reference_barcodes" FOR DELETE TO "authenticated" USING (("organization_id" IN ( SELECT "uo"."organization_id"
+   FROM "public"."users_organizations" "uo"
+  WHERE (("uo"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("uo"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_reference_barcodes_insert_universal" ON "public"."supplier_reference_barcodes" FOR INSERT TO "authenticated" WITH CHECK (("organization_id" IN ( SELECT "uo"."organization_id"
+   FROM "public"."users_organizations" "uo"
+  WHERE (("uo"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("uo"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_reference_barcodes_select_universal" ON "public"."supplier_reference_barcodes" FOR SELECT TO "authenticated" USING (("organization_id" IN ( SELECT "uo"."organization_id"
+   FROM "public"."users_organizations" "uo"
+  WHERE (("uo"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("uo"."deleted" = false)))));
+
+
+
+CREATE POLICY "supplier_reference_barcodes_update_universal" ON "public"."supplier_reference_barcodes" FOR UPDATE TO "authenticated" USING (("organization_id" IN ( SELECT "uo"."organization_id"
+   FROM "public"."users_organizations" "uo"
+  WHERE (("uo"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("uo"."deleted" = false))))) WITH CHECK (("organization_id" IN ( SELECT "uo"."organization_id"
+   FROM "public"."users_organizations" "uo"
+  WHERE (("uo"."user_id" = ((("current_setting"('request.jwt.claims'::"text", true))::"json" ->> 'sub'::"text"))::"uuid") AND ("uo"."deleted" = false)))));
+
+
+
 ALTER TABLE "public"."supplier_references" ENABLE ROW LEVEL SECURITY;
 
 
@@ -9318,6 +9611,12 @@ GRANT USAGE ON SCHEMA "public" TO "e8d33df2-5a44-40b7-95c2-1b0cbc29838e";
 
 
 
+GRANT ALL ON FUNCTION "public"."assign_device_module"("p_device_id" "uuid", "p_module" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."assign_device_module"("p_device_id" "uuid", "p_module" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."assign_device_module"("p_device_id" "uuid", "p_module" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."auth_can_access_establishment"("p_org_id" "uuid", "p_est_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."auth_can_access_establishment"("p_org_id" "uuid", "p_est_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."auth_can_access_establishment"("p_org_id" "uuid", "p_est_id" "uuid") TO "service_role";
@@ -9336,6 +9635,24 @@ GRANT ALL ON FUNCTION "public"."cleanup_old_email_logs"("days_to_keep" integer) 
 
 
 
+GRANT ALL ON FUNCTION "public"."enforce_device_mods"() TO "anon";
+GRANT ALL ON FUNCTION "public"."enforce_device_mods"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."enforce_device_mods"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."enforce_module_seats"() TO "anon";
+GRANT ALL ON FUNCTION "public"."enforce_module_seats"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."enforce_module_seats"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."ensure_self_stock"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_unit" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."ensure_self_stock"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_unit" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."ensure_self_stock"("p_product_id" "uuid", "p_establishment_id" "uuid", "p_unit" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "service_role";
@@ -9345,6 +9662,12 @@ GRANT ALL ON FUNCTION "public"."fn_fifo_valorize"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fn_lock_stock_unit"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_snapshot_purchase_price"() TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_snapshot_purchase_price"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_snapshot_purchase_price"() TO "service_role";
 
 
 
@@ -9363,6 +9686,12 @@ GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"."vector", "match_threshold" double precision, "match_count" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "service_role";
 
 
 
@@ -9396,6 +9725,12 @@ GRANT ALL ON FUNCTION "public"."nf525_sync_sequence_on_piece_insert"() TO "servi
 
 
 
+GRANT ALL ON FUNCTION "public"."reconcile_module_disable"() TO "anon";
+GRANT ALL ON FUNCTION "public"."reconcile_module_disable"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reconcile_module_disable"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "service_role";
@@ -9405,6 +9740,12 @@ GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_es
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."unassign_device_module"("p_device_id" "uuid", "p_module" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."unassign_device_module"("p_device_id" "uuid", "p_module" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."unassign_device_module"("p_device_id" "uuid", "p_module" "text") TO "service_role";
 
 
 
@@ -9949,6 +10290,12 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public".
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_price_snapshots" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_reference_barcodes" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_reference_barcodes" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."supplier_reference_barcodes" TO "service_role";
 
 
 

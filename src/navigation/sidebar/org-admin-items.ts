@@ -244,7 +244,7 @@ export const getOrgAdminSidebarItems = (
 
     // ─── Configuration ────────────────────────────────────────────────────────
     {
-      id: 7,
+      id: 9,
       label: "Configuration",
       items: [
         {
