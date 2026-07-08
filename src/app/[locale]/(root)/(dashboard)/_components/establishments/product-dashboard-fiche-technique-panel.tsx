@@ -46,6 +46,7 @@ import { PurchaseReceptionCard } from "./product-dashboard-reception-form";
 import { RecipeAllergensCard } from "./product-dashboard-recipe-allergens-card";
 import { RecipeProductionCard } from "./product-dashboard-recipe-production-card";
 import { RecipeYieldCard } from "./product-dashboard-recipe-yield-card";
+import { SoldPortionCard } from "./product-dashboard-sold-portion-card";
 import { InlineIngredientAddRow } from "./product-fiche-ingredient-inline-row";
 import { useCompositionInlineEdit } from "./use-composition-inline-edit";
 
@@ -329,6 +330,16 @@ export function ProductFicheTechniquePanel({
             description="Réceptionnez et fixez les prix si ce plat est acheté prêt à l'emploi (plutôt que cuisiné)."
           />
         </div>
+      )}
+
+      {isForSale && (
+        <SoldPortionCard
+          productId={product.id}
+          establishmentId={establishmentId}
+          organizationId={organizationId}
+          portionWeight={product.portion_weight}
+          portionUnit={product.portion_unit}
+        />
       )}
 
       {isRecipe && (

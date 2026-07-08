@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useSearchParams } from "next/navigation";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   CompositionStockRow,
@@ -99,9 +101,16 @@ export function ProductEstablishmentDashboardTabs({
 
   const { hasStock, stockId, lineUnit, lineCurrentStock } = resolveSelfStock(compositionStockRows);
 
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("propriete");
 
   useEffect(() => {
+    // Priorité au deep-link ?tab= (venu du wizard « Prochaines étapes »), sinon dernier onglet mémorisé.
+    const fromUrl = searchParams.get("tab");
+    if (fromUrl && validTabs.includes(fromUrl)) {
+      setActiveTab(fromUrl);
+      return;
+    }
     try {
       const saved = localStorage.getItem(LS_KEY);
       if (saved && validTabs.includes(saved)) setActiveTab(saved);
@@ -138,7 +147,6 @@ export function ProductEstablishmentDashboardTabs({
           organizationId={organizationId}
           establishmentId={establishmentId}
           backHref={backHref}
-          stockUnit={lineUnit}
         />
       </TabsContent>
 

@@ -1,59 +1,59 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import type { ProductTypeKey } from "@/lib/constants/product-attributes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 
-import { Step1FormFields } from "./product-new-step1-base";
+import { ProductBaseFields, type ProductBaseDraft } from "./product-base-fields";
 
 export type CreationIntent = "product" | "ingredient";
 
-type CreationRole = "sellable" | "ingredient" | "both";
-
-const ROLE_OPTIONS: { value: CreationRole; label: string; hint: string }[] = [
-  { value: "sellable", label: "À vendre", hint: "Plat, boisson… vendu au client (a un prix dans un menu)." },
-  { value: "ingredient", label: "Matière / ingrédient", hint: "Matière première ou préparation, achetée et stockée." },
-  {
-    value: "both",
-    label: "Les deux",
-    hint: "Revente sèche : stockée et vendue telle quelle (ex. boisson en bouteille).",
-  },
-];
-
-/** Rôles product_type posés à la création (les autres, ex. « recette », émergent via les compositions). */
-function rolesForCreation(role: CreationRole): ProductTypeKey[] {
-  if (role === "ingredient") return ["ingredient"];
-  if (role === "both") return ["ingredient", "sellable"];
-  return ["sellable"];
-}
-
-type Draft = {
-  name: string;
-  description: string;
-  vat_rate_id: string;
-  printer_id: string;
-  is_available: boolean;
+// Chaque item décide QUOI créer ensuite : il pose le product_type déduit et enchaîne sur le bon onglet.
+type NextAction = {
+  key: string;
+  label: string;
+  types: ProductTypeKey[];
+  tab: string;
 };
 
-type Action = "fiche" | "new" | "close";
+const SELL_ACTIONS: NextAction[] = [
+  { key: "ingredients", label: "Cuisiné — ajouter des ingrédients", types: ["sellable"], tab: "recette" },
+  { key: "achat", label: "Acheté prêt — prix d'achat", types: ["ingredient", "sellable"], tab: "achats" },
+  { key: "prix", label: "Vendu tel quel — prix de vente", types: ["sellable"], tab: "prix-menus" },
+];
+const MATIERE_ACTION: NextAction = {
+  key: "matiere",
+  label: "Créer une matière (non vendue)",
+  types: ["ingredient"],
+  tab: "achats",
+};
 
-const emptyDraft = (): Draft => ({
+const emptyDraft = (): ProductBaseDraft => ({
   name: "",
   description: "",
-  vat_rate_id: "",
-  printer_id: "__none__",
   is_available: true,
+  printer_id: "__none__",
+  vat_rate_id: "",
+  sku: "",
+  food_cost_target: "",
 });
 
 export function ProductNewWizard({
@@ -70,21 +70,21 @@ export function ProductNewWizard({
   const router = useRouter();
   const queryClient = useQueryClient();
   const normalizedBase = backHref.replace(/\/$/, "");
-  const [role, setRole] = useState<CreationRole>(intent === "ingredient" ? "ingredient" : "sellable");
-  const namePlaceholder = role === "ingredient" ? "Nom de l'ingrédient" : "Nom du produit";
+  const namePlaceholder = intent === "ingredient" ? "Nom de l'ingrédient" : "Nom du produit";
 
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
 
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const actionRef = useRef<Action>("fiche");
+  const [draft, setDraft] = useState<ProductBaseDraft>(emptyDraft);
+  const [allergens, setAllergens] = useState<AllergenKey[]>([]);
+  const [labels, setLabels] = useState<LabelKey[]>([]);
+  const [origins, setOrigins] = useState<string[]>([]);
 
-  const patch = (k: keyof Draft, v: string | boolean) => setDraft((prev) => ({ ...prev, [k]: v }));
+  const patch = (k: keyof ProductBaseDraft, v: string | boolean) => setDraft((prev) => ({ ...prev, [k]: v }));
 
   const createMutation = useMutation({
-    mutationFn: async () => {
-      if (!draft.name.trim()) throw new Error("Le nom est requis.");
-      if (!draft.vat_rate_id) throw new Error("La TVA est requise.");
+    mutationFn: async (action: NextAction) => {
+      const fct = parseFloat(draft.food_cost_target.replace(",", ".").replace("%", "")) / 100;
       const supabase = createClient();
       const { data, error } = await supabase
         .from("products")
@@ -96,33 +96,31 @@ export function ProductNewWizard({
           is_available: draft.is_available,
           printer_id: draft.printer_id === "__none__" ? null : draft.printer_id,
           vat_rate_id: draft.vat_rate_id,
-          product_type: rolesForCreation(role),
+          product_type: action.types,
+          allergens,
+          labels,
+          origins,
+          sku: draft.sku.trim() || null,
+          food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
           deleted: false,
         })
         .select("id")
         .single();
       if (error) throw error;
-      return data.id;
+      return { id: data.id, tab: action.tab };
     },
-    onSuccess: (productId) => {
+    onSuccess: ({ id, tab }) => {
       toast.success("Produit créé.");
       void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
       void queryClient.invalidateQueries({
         queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
       });
-      const action = actionRef.current;
-      if (action === "fiche") {
-        router.push(`${normalizedBase}/${productId}`);
-      } else if (action === "close") {
-        router.push(backHref);
-      } else {
-        setDraft(emptyDraft());
-      }
+      router.push(`${normalizedBase}/${id}?tab=${tab}`);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Création impossible."),
   });
 
-  const handleSave = (action: Action) => {
+  const run = (action: NextAction) => {
     if (!draft.name.trim()) {
       toast.error("Le nom est requis.");
       return;
@@ -131,8 +129,7 @@ export function ProductNewWizard({
       toast.error("La TVA est requise.");
       return;
     }
-    actionRef.current = action;
-    createMutation.mutate();
+    createMutation.mutate(action);
   };
 
   const busy = createMutation.isPending;
@@ -148,44 +145,42 @@ export function ProductNewWizard({
             </Link>
           </Button>
           <h1 className="text-2xl font-bold">Nouveau produit</h1>
+          <p className="text-muted-foreground text-sm">
+            Renseignez la fiche, puis choisissez la suite selon ce qu&apos;est le produit.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => router.push(backHref)}>
-            Fermer
-          </Button>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => handleSave("new")}>
-            {busy && actionRef.current === "new" ? "Création…" : "Créer et Nouveau"}
-          </Button>
-          <Button size="sm" disabled={busy} onClick={() => handleSave("fiche")}>
-            {busy && actionRef.current === "fiche" ? "Création…" : "Créer et accéder à la fiche →"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Que créez-vous&nbsp;?</Label>
-        <div className="flex flex-wrap gap-2">
-          {ROLE_OPTIONS.map((o) => (
-            <Button
-              key={o.value}
-              type="button"
-              variant={role === o.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRole(o.value)}
-            >
-              {o.label}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" disabled={busy}>
+              {busy ? "Création…" : "Créer et…"}
+              <ChevronDown className="ml-1 h-4 w-4" />
             </Button>
-          ))}
-        </div>
-        <p className="text-muted-foreground text-xs">{ROLE_OPTIONS.find((o) => o.value === role)?.hint}</p>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel>Produit à vendre</DropdownMenuLabel>
+            {SELL_ACTIONS.map((a) => (
+              <DropdownMenuItem key={a.key} onSelect={() => run(a)}>
+                {a.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => run(MATIERE_ACTION)}>{MATIERE_ACTION.label}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <Step1FormFields
+      <ProductBaseFields
         draft={draft}
         patch={patch}
-        namePlaceholder={namePlaceholder}
+        allergens={allergens}
+        setAllergens={setAllergens}
+        labels={labels}
+        setLabels={setLabels}
+        origins={origins}
+        setOrigins={setOrigins}
         vatRates={vatRates}
         printers={printers}
+        namePlaceholder={namePlaceholder}
       />
     </div>
   );
