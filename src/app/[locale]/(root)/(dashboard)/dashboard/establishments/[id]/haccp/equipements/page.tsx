@@ -16,8 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import {
+  HACCP_FREQUENCY_OPTIONS,
+  type HaccpFrequency,
   type HaccpOilBath,
   type HaccpProbe,
+  haccpFrequencyLabel,
   useDeleteHaccpOilBath,
   useDeleteHaccpProbe,
   useHaccpOilBaths,
@@ -29,9 +32,92 @@ import {
 
 type Kind = "temperature" | "oil";
 type EquipRow = { kind: "temperature"; row: HaccpProbe } | { kind: "oil"; row: HaccpOilBath };
-type SaveInput = { kind: Kind; id?: string; label: string; zone_id: string | null; min_c: string; max_c: string };
+type SaveInput = {
+  kind: Kind;
+  id?: string;
+  label: string;
+  zone_id: string | null;
+  min_c: string;
+  max_c: string;
+  frequency: HaccpFrequency;
+};
 
 const NO_ZONE = "__none__";
+const defaultFrequency = (kind: Kind): HaccpFrequency => (kind === "temperature" ? "biquotidien" : "quotidien");
+const numToStr = (n: number | null | undefined): string => (n != null ? String(n) : "");
+const initialFrequency = (r: EquipRow | null): HaccpFrequency =>
+  (r?.row.frequency as HaccpFrequency | undefined) ?? defaultFrequency(r?.kind ?? "temperature");
+const submitLabel = (busy: boolean, editing: boolean): string => (busy ? "…" : editing ? "Enregistrer" : "Créer");
+
+function CadenceSelect({ value, onChange }: { value: HaccpFrequency; onChange: (v: HaccpFrequency) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>Cadence</Label>
+      <Select value={value} onValueChange={(v) => onChange(v as HaccpFrequency)}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {HACCP_FREQUENCY_OPTIONS.map((f) => (
+            <SelectItem key={f.value} value={f.value}>
+              {f.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-muted-foreground text-xs">Fréquence attendue des relevés (tableau de bord mobile).</p>
+    </div>
+  );
+}
+
+function TemperatureFields({
+  zones,
+  zoneId,
+  setZoneId,
+  minC,
+  setMinC,
+  maxC,
+  setMaxC,
+}: {
+  zones: { id: string; name: string }[];
+  zoneId: string;
+  setZoneId: (v: string) => void;
+  minC: string;
+  setMinC: (v: string) => void;
+  maxC: string;
+  setMaxC: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Zone</Label>
+        <Select value={zoneId} onValueChange={setZoneId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Aucune" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_ZONE}>— Aucune</SelectItem>
+            {zones.map((z) => (
+              <SelectItem key={z.id} value={z.id}>
+                {z.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Seuil min (°C)</Label>
+          <Input value={minC} onChange={(e) => setMinC(e.target.value)} inputMode="decimal" placeholder="0" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Seuil max (°C)</Label>
+          <Input value={maxC} onChange={(e) => setMaxC(e.target.value)} inputMode="decimal" placeholder="4" />
+        </div>
+      </div>
+    </>
+  );
+}
 
 function EquipModal({
   initial,
@@ -50,8 +136,9 @@ function EquipModal({
   const [kind, setKind] = useState<Kind>(initial?.kind ?? "temperature");
   const [label, setLabel] = useState(initial?.row.label ?? "");
   const [zoneId, setZoneId] = useState<string>(probe?.zone_id ?? NO_ZONE);
-  const [minC, setMinC] = useState(probe?.min_c != null ? String(probe.min_c) : "");
-  const [maxC, setMaxC] = useState(probe?.max_c != null ? String(probe.max_c) : "");
+  const [minC, setMinC] = useState(numToStr(probe?.min_c));
+  const [maxC, setMaxC] = useState(numToStr(probe?.max_c));
+  const [frequency, setFrequency] = useState<HaccpFrequency>(initialFrequency(initial));
 
   const save = () =>
     onSave({
@@ -61,6 +148,7 @@ function EquipModal({
       zone_id: zoneId === NO_ZONE ? null : zoneId,
       min_c: minC,
       max_c: maxC,
+      frequency,
     });
 
   return (
@@ -100,35 +188,18 @@ function EquipModal({
             />
           </div>
 
+          <CadenceSelect value={frequency} onChange={setFrequency} />
+
           {kind === "temperature" && (
-            <>
-              <div className="space-y-1.5">
-                <Label>Zone</Label>
-                <Select value={zoneId} onValueChange={setZoneId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Aucune" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_ZONE}>— Aucune</SelectItem>
-                    {zones.map((z) => (
-                      <SelectItem key={z.id} value={z.id}>
-                        {z.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Seuil min (°C)</Label>
-                  <Input value={minC} onChange={(e) => setMinC(e.target.value)} inputMode="decimal" placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Seuil max (°C)</Label>
-                  <Input value={maxC} onChange={(e) => setMaxC(e.target.value)} inputMode="decimal" placeholder="4" />
-                </div>
-              </div>
-            </>
+            <TemperatureFields
+              zones={zones}
+              zoneId={zoneId}
+              setZoneId={setZoneId}
+              minC={minC}
+              setMinC={setMinC}
+              maxC={maxC}
+              setMaxC={setMaxC}
+            />
           )}
         </div>
         <DialogFooter>
@@ -136,7 +207,7 @@ function EquipModal({
             Annuler
           </Button>
           <Button onClick={save} disabled={busy || !label.trim()}>
-            {busy ? "…" : initial ? "Enregistrer" : "Créer"}
+            {submitLabel(busy, !!initial)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -184,11 +255,18 @@ export default function HaccpEquipementsPage() {
     const done = { onSuccess: () => setModal({ open: false, editing: null }) };
     if (v.kind === "temperature") {
       upsertProbe.mutate(
-        { id: v.id, label: v.label, zone_id: v.zone_id, min_c: parseNum(v.min_c), max_c: parseNum(v.max_c) },
+        {
+          id: v.id,
+          label: v.label,
+          zone_id: v.zone_id,
+          min_c: parseNum(v.min_c),
+          max_c: parseNum(v.max_c),
+          frequency: v.frequency,
+        },
         done,
       );
     } else {
-      upsertBath.mutate({ id: v.id, label: v.label }, done);
+      upsertBath.mutate({ id: v.id, label: v.label, frequency: v.frequency }, done);
     }
   };
 
@@ -232,6 +310,7 @@ export default function HaccpEquipementsPage() {
                   <TableRow>
                     <TableHead>Équipement</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Cadence</TableHead>
                     <TableHead>Zone</TableHead>
                     <TableHead>Seuils</TableHead>
                     <TableHead className="w-[80px] text-right" />
@@ -246,6 +325,7 @@ export default function HaccpEquipementsPage() {
                           {e.kind === "temperature" ? "Température" : "Huile"}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-muted-foreground">{haccpFrequencyLabel(e.row.frequency)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {e.kind === "temperature" ? zoneName(e.row.zone_id) : "—"}
                       </TableCell>

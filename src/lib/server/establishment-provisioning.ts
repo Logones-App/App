@@ -144,8 +144,129 @@ async function insertVatRates(svc: Svc, rates: VatRateSeed[], estId: string, org
 }
 
 /**
+ * Seed HACCP de config par défaut (zones, sondes, surfaces, bains, checklists, documents).
+ * Reprend le jeu de démo. Best-effort : une erreur ici ne doit pas bloquer la création
+ * de l'établissement (config non critique).
+ */
+async function insertHaccpDefaults(svc: Svc, estId: string, orgId: string): Promise<void> {
+  const base = { organization_id: orgId, establishment_id: estId };
+
+  const zoneNames = ["Cuisine", "Salle", "Plonge", "Réserve", "Chambre froide positive", "Ligne froide"];
+  const { data: zones, error: zErr } = await svc
+    .from("haccp_zones")
+    .insert(zoneNames.map((name, i) => ({ ...base, name, sort_order: i + 1 })))
+    .select("id, name");
+  if (zErr) throw zErr;
+  const zoneId = (name: string) => zones.find((z) => z.name === name)?.id ?? null;
+
+  const { error: pErr } = await svc.from("haccp_temperature_probes").insert([
+    {
+      ...base,
+      zone_id: zoneId("Chambre froide positive"),
+      label: "Sonde centrale",
+      min_c: 0,
+      max_c: 4,
+      sort_order: 1,
+      frequency: "biquotidien",
+    },
+    {
+      ...base,
+      zone_id: zoneId("Ligne froide"),
+      label: "Vitrine entrées",
+      min_c: 0,
+      max_c: 3,
+      sort_order: 2,
+      frequency: "biquotidien",
+    },
+    {
+      ...base,
+      zone_id: zoneId("Plonge"),
+      label: "Eau sanitaire",
+      min_c: 45,
+      max_c: 55,
+      sort_order: 3,
+      frequency: "quotidien",
+    },
+  ]);
+  if (pErr) throw pErr;
+
+  const surfaces = [
+    { zone: "Cuisine", label: "Hotte", frequency: "hebdomadaire" },
+    { zone: "Cuisine", label: "Plan de travail", frequency: "quotidien" },
+    { zone: "Cuisine", label: "Tables inox", frequency: "quotidien" },
+    { zone: "Cuisine", label: "Sol", frequency: "quotidien" },
+    { zone: "Cuisine", label: "Poubelles", frequency: "quotidien" },
+    { zone: "Salle", label: "Tables", frequency: "quotidien" },
+    { zone: "Salle", label: "Sol", frequency: "quotidien" },
+    { zone: "Salle", label: "Vitres", frequency: "hebdomadaire" },
+    { zone: "Salle", label: "Sanitaires", frequency: "quotidien" },
+    { zone: "Plonge", label: "Bacs de plonge", frequency: "quotidien" },
+    { zone: "Plonge", label: "Sol", frequency: "quotidien" },
+    { zone: "Réserve", label: "Étagères", frequency: "mensuel" },
+    { zone: "Réserve", label: "Sol", frequency: "hebdomadaire" },
+  ];
+  const { error: sErr } = await svc
+    .from("haccp_cleaning_surfaces")
+    .insert(surfaces.map((s) => ({ ...base, zone_id: zoneId(s.zone), label: s.label, frequency: s.frequency })));
+  if (sErr) throw sErr;
+
+  const { error: oErr } = await svc.from("haccp_oil_baths").insert([
+    { ...base, label: "Friteuse 1", sort_order: 1, frequency: "quotidien" },
+    { ...base, label: "Friteuse 2", sort_order: 2, frequency: "quotidien" },
+  ]);
+  if (oErr) throw oErr;
+
+  const { error: cErr } = await svc.from("haccp_checklist_templates").insert([
+    {
+      ...base,
+      title: "Ouverture",
+      frequency: "quotidien",
+      frequency_label: "Quotidien — matin",
+      items: [
+        "Températures des enceintes froides relevées",
+        "Surfaces de travail propres",
+        "Absence de nuisibles constatée",
+        "DLC des produits entamés contrôlées",
+        "Lave-mains approvisionné (savon, essuie-mains)",
+      ],
+    },
+    {
+      ...base,
+      title: "Fermeture",
+      frequency: "quotidien",
+      frequency_label: "Quotidien — soir",
+      items: [
+        "Surfaces et plans de travail nettoyés/désinfectés",
+        "Sols nettoyés",
+        "Poubelles vidées",
+        "Denrées filmées et rangées",
+        "Fermeture des enceintes froides vérifiée",
+      ],
+    },
+    {
+      ...base,
+      title: "Hygiène du personnel",
+      frequency: "quotidien",
+      frequency_label: "Quotidien",
+      items: ["Tenue propre et complète", "Lavage des mains aux moments clés", "Absence de bijoux / plaies protégées"],
+    },
+  ]);
+  if (cErr) throw cErr;
+
+  const { error: dErr } = await svc.from("haccp_documents").insert([
+    { ...base, title: "Plan de Maîtrise Sanitaire (PMS)", doc_type: "plan", version: "v3" },
+    { ...base, title: "Plan de marche en avant", doc_type: "plan", version: "v1" },
+    { ...base, title: "Procédure de nettoyage / désinfection", doc_type: "procedure", version: "v2" },
+    { ...base, title: "Procédure de gestion des non-conformités", doc_type: "procedure", version: "v1" },
+    { ...base, title: "Registre de traçabilité", doc_type: "registre", version: "courant" },
+    { ...base, title: "Registre des températures", doc_type: "registre", version: "courant" },
+  ]);
+  if (dErr) throw dErr;
+}
+
+/**
  * Seeds par défaut d'un établissement fraîchement créé : clé NF525, moyens de paiement,
- * menu principal, salle + table de 4 couverts, et taux de TVA.
+ * menu principal, salle + table de 4 couverts, taux de TVA, et config HACCP.
  */
 export async function seedEstablishmentDefaults(
   svc: Svc,
@@ -159,6 +280,12 @@ export async function seedEstablishmentDefaults(
   await insertDefaultRoomAndTable(svc, estId, orgId);
   await insertDefaultModules(svc, estId, orgId);
   await insertVatRates(svc, vatRates, estId, orgId);
+  // Best-effort : ne bloque pas la création si le seed HACCP échoue.
+  try {
+    await insertHaccpDefaults(svc, estId, orgId);
+  } catch (e) {
+    console.error("Seed HACCP échoué (non bloquant) :", e);
+  }
 }
 
 /** Crée le compte tablette (orga_user, rôle manager) rattaché à l'établissement. */

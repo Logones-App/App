@@ -7,6 +7,21 @@ import type { Tables } from "@/lib/supabase/database.types";
 // ─── HACCP config (BIDIRECTIONAL) — CRUD establishment-scoped, soft-delete. ─────
 // Le mobile suit ces tables en realtime ; côté SaaS on écrit direct + invalidation.
 
+// Cadence partagée (enum 5 valeurs, CHECK en base) — pilote le tableau de bord des
+// tâches côté mobile. Défauts : sondes = biquotidien, bains/checklists = quotidien.
+export type HaccpFrequency = "biquotidien" | "quotidien" | "hebdomadaire" | "mensuel" | "ponctuel";
+
+export const HACCP_FREQUENCY_OPTIONS: { value: HaccpFrequency; label: string }[] = [
+  { value: "biquotidien", label: "Biquotidien (2×/jour)" },
+  { value: "quotidien", label: "Quotidien" },
+  { value: "hebdomadaire", label: "Hebdomadaire" },
+  { value: "mensuel", label: "Mensuel" },
+  { value: "ponctuel", label: "Ponctuel" },
+];
+
+export const haccpFrequencyLabel = (f: string): string =>
+  HACCP_FREQUENCY_OPTIONS.find((o) => o.value === f)?.label ?? f;
+
 export type HaccpZone = Tables<"haccp_zones">;
 
 const zonesKey = (establishmentId: string) => ["haccp-zones", establishmentId] as const;
@@ -137,11 +152,18 @@ export function useUpsertHaccpProbe(establishmentId: string, organizationId: str
       zone_id: string | null;
       min_c: number | null;
       max_c: number | null;
+      frequency: HaccpFrequency;
     }) => {
       const supabase = createClient();
       const label = input.label.trim();
       if (!label) throw new Error("Le nom est requis.");
-      const values = { label, zone_id: input.zone_id, min_c: input.min_c, max_c: input.max_c };
+      const values = {
+        label,
+        zone_id: input.zone_id,
+        min_c: input.min_c,
+        max_c: input.max_c,
+        frequency: input.frequency,
+      };
       if (input.id) {
         const { error } = await supabase
           .from("haccp_temperature_probes")
@@ -167,21 +189,22 @@ export function useUpsertHaccpProbe(establishmentId: string, organizationId: str
 export function useUpsertHaccpOilBath(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id?: string; label: string }) => {
+    mutationFn: async (input: { id?: string; label: string; frequency: HaccpFrequency }) => {
       const supabase = createClient();
       const label = input.label.trim();
       if (!label) throw new Error("Le nom est requis.");
+      const values = { label, frequency: input.frequency };
       if (input.id) {
         const { error } = await supabase
           .from("haccp_oil_baths")
-          .update({ label, updated_at: new Date().toISOString() })
+          .update({ ...values, updated_at: new Date().toISOString() })
           .eq("id", input.id)
           .eq("establishment_id", establishmentId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("haccp_oil_baths")
-          .insert({ organization_id: organizationId, establishment_id: establishmentId, label });
+          .insert({ organization_id: organizationId, establishment_id: establishmentId, ...values });
         if (error) throw error;
       }
     },
@@ -336,12 +359,19 @@ export function useHaccpChecklists(establishmentId: string) {
 export function useUpsertHaccpChecklist(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id?: string; title: string; frequency_label: string; items: string[] }) => {
+    mutationFn: async (input: {
+      id?: string;
+      title: string;
+      frequency: HaccpFrequency;
+      frequency_label: string;
+      items: string[];
+    }) => {
       const supabase = createClient();
       const title = input.title.trim();
       if (!title) throw new Error("Le titre est requis.");
       const values = {
         title,
+        frequency: input.frequency,
         frequency_label: input.frequency_label.trim() || null,
         items: input.items.map((i) => i.trim()).filter(Boolean),
       };

@@ -6,14 +6,19 @@ import { useParams } from "next/navigation";
 
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
 import {
+  HACCP_FREQUENCY_OPTIONS,
   type HaccpChecklistTemplate,
+  type HaccpFrequency,
+  haccpFrequencyLabel,
   useDeleteHaccpChecklist,
   useHaccpChecklists,
   useUpsertHaccpChecklist,
@@ -28,9 +33,12 @@ function ChecklistModal({
   initial: HaccpChecklistTemplate | null;
   busy: boolean;
   onClose: () => void;
-  onSave: (v: { title: string; frequency_label: string; items: string[] }) => void;
+  onSave: (v: { title: string; frequency: HaccpFrequency; frequency_label: string; items: string[] }) => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
+  const [frequency, setFrequency] = useState<HaccpFrequency>(
+    (initial?.frequency as HaccpFrequency | undefined) ?? "quotidien",
+  );
   const [freq, setFreq] = useState(initial?.frequency_label ?? "");
   const [items, setItems] = useState<string[]>(() => ((initial?.items as string[] | null) ?? []).slice());
 
@@ -57,8 +65,25 @@ function ChecklistModal({
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex : Ouverture" autoFocus />
           </div>
           <div className="space-y-1.5">
+            <Label>Cadence</Label>
+            <Select value={frequency} onValueChange={(v) => setFrequency(v as HaccpFrequency)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HACCP_FREQUENCY_OPTIONS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">Pilote le tableau de bord des tâches (mobile).</p>
+          </div>
+          <div className="space-y-1.5">
             <Label>
-              Fréquence <span className="text-muted-foreground text-xs font-normal">(libellé libre)</span>
+              Libellé de fréquence{" "}
+              <span className="text-muted-foreground text-xs font-normal">(affichage libre, optionnel)</span>
             </Label>
             <Input value={freq} onChange={(e) => setFreq(e.target.value)} placeholder="Ex : Quotidien — matin" />
           </div>
@@ -92,7 +117,7 @@ function ChecklistModal({
             Annuler
           </Button>
           <Button
-            onClick={() => onSave({ title: title.trim(), frequency_label: freq, items })}
+            onClick={() => onSave({ title: title.trim(), frequency, frequency_label: freq, items })}
             disabled={busy || !title.trim()}
           >
             {busy ? "…" : initial ? "Enregistrer" : "Créer"}
@@ -126,7 +151,7 @@ export default function HaccpChecklistTemplatesPage() {
     );
   }
 
-  const handleSave = (v: { title: string; frequency_label: string; items: string[] }) => {
+  const handleSave = (v: { title: string; frequency: HaccpFrequency; frequency_label: string; items: string[] }) => {
     upsert.mutate({ id: modal.editing?.id, ...v }, { onSuccess: () => setModal({ open: false, editing: null }) });
   };
 
@@ -166,9 +191,14 @@ export default function HaccpChecklistTemplatesPage() {
             return (
               <Card key={c.id}>
                 <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-                  <div>
+                  <div className="space-y-1">
                     <CardTitle className="text-base">{c.title}</CardTitle>
-                    {c.frequency_label && <p className="text-muted-foreground text-xs">{c.frequency_label}</p>}
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {haccpFrequencyLabel(c.frequency)}
+                      </Badge>
+                      {c.frequency_label && <span className="text-muted-foreground text-xs">{c.frequency_label}</span>}
+                    </div>
                   </div>
                   <div className="flex gap-0.5">
                     <Button

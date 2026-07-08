@@ -2985,6 +2985,7 @@ export type Database = {
           created_by: string | null
           deleted: boolean
           establishment_id: string
+          frequency: string
           frequency_label: string | null
           id: string
           items: Json
@@ -2997,6 +2998,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id: string
+          frequency?: string
           frequency_label?: string | null
           id?: string
           items?: Json
@@ -3009,6 +3011,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id?: string
+          frequency?: string
           frequency_label?: string | null
           id?: string
           items?: Json
@@ -3383,6 +3386,7 @@ export type Database = {
           created_by: string | null
           deleted: boolean
           establishment_id: string
+          frequency: string
           id: string
           label: string
           organization_id: string
@@ -3394,6 +3398,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id: string
+          frequency?: string
           id?: string
           label: string
           organization_id: string
@@ -3405,6 +3410,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id?: string
+          frequency?: string
           id?: string
           label?: string
           organization_id?: string
@@ -3685,6 +3691,7 @@ export type Database = {
           created_by: string | null
           deleted: boolean
           establishment_id: string
+          frequency: string
           id: string
           label: string
           max_c: number | null
@@ -3699,6 +3706,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id: string
+          frequency?: string
           id?: string
           label: string
           max_c?: number | null
@@ -3713,6 +3721,7 @@ export type Database = {
           created_by?: string | null
           deleted?: boolean
           establishment_id?: string
+          frequency?: string
           id?: string
           label?: string
           max_c?: number | null
