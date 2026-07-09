@@ -76,6 +76,7 @@ async function insertDefaultMenu(svc: Svc, estId: string, orgId: string): Promis
     establishment_id: estId,
     organization_id: orgId,
     is_active: true,
+    is_public: true, // visible sur la carte publique (menu → produits lisibles par anon)
     deleted: false,
     display_order: 1,
   });

@@ -25,6 +25,7 @@ export function useMenusManagement({ establishmentId, organizationId, menus }: U
     mutationFn: async (values: Partial<Tables<"menus">>) => {
       const supabase = createClient();
       const { error } = await supabase.from("menus").insert({
+        is_public: true, // défaut : nouveau menu public (surchargé par le formulaire si besoin)
         ...values,
         organization_id: organizationId,
         establishment_id: establishmentId,

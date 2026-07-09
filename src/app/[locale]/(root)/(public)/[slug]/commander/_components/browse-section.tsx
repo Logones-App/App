@@ -5,7 +5,12 @@ import { Plus } from "lucide-react";
 import type { Formula } from "@/app/api/table-order/formulas/route";
 import { Button } from "@/components/ui/button";
 
-import { formatPrice, type PublicProduct, type PublicSection } from "../../menu/_components/menu-utils";
+import {
+  formatPrice,
+  type PublicProduct,
+  type PublicSection,
+  sectionHasContent,
+} from "../../menu/_components/menu-utils";
 
 interface Props {
   sections: PublicSection[];
@@ -70,8 +75,7 @@ function SectionBlock({
   onAddProduct: (item: PublicProduct) => void;
 }) {
   const hasItems = section.items.length > 0;
-  const hasSubs = section.subsections.length > 0;
-  if (!hasItems && !hasSubs) return null;
+  if (!sectionHasContent(section)) return null;
   const isTop = depth === 0;
 
   return (

@@ -33,6 +33,11 @@ export function flattenSectionItems(sections: PublicSection[]): PublicProduct[] 
   return sections.flatMap((s) => [...s.items, ...flattenSectionItems(s.subsections)]);
 }
 
+/** Vrai si la section (ou l'un de ses descendants) contient au moins un produit. */
+export function sectionHasContent(section: PublicSection): boolean {
+  return section.items.length > 0 || section.subsections.some(sectionHasContent);
+}
+
 export type PublicEstablishment = {
   id: string;
   name: string;

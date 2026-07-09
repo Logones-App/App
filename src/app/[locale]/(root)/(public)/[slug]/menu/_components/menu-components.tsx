@@ -1,6 +1,13 @@
 "use client";
 
-import { allergenInfo, formatPrice, labelInfo, type PublicProduct, type PublicSection } from "./menu-utils";
+import {
+  allergenInfo,
+  formatPrice,
+  labelInfo,
+  type PublicProduct,
+  type PublicSection,
+  sectionHasContent,
+} from "./menu-utils";
 
 // ─── Badge allergène ──────────────────────────────────────────────────────────
 
@@ -75,8 +82,8 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
 export function SectionNode({ section, depth = 0 }: { section: PublicSection; depth?: number }) {
   const hasItems = section.items.length > 0;
-  const hasSubs = section.subsections.length > 0;
-  if (!hasItems && !hasSubs) return null;
+  // On masque une section dont tout le sous-arbre est vide (ex. items filtrés par RLS anon).
+  if (!sectionHasContent(section)) return null;
 
   return (
     <section className={depth === 0 ? "mb-10" : "border-primary/25 dark:border-primary/40 mt-6 border-l-2 pl-4"}>
