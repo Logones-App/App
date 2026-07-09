@@ -171,9 +171,8 @@ export const getOrgAdminSidebarItems = (
           url: u("haccp/equipements"),
           icon: Settings,
           subItems: [
-            { title: "Zones", url: u("haccp/zones-nettoyage") },
+            { title: "Zones & surfaces", url: u("haccp/zones-nettoyage") },
             { title: "Équipements & seuils", url: u("haccp/equipements") },
-            { title: "Surfaces de nettoyage", url: u("haccp/surfaces-nettoyage") },
             { title: "Modèles de checklists", url: u("haccp/modeles-checklists") },
             { title: "Documents", url: u("haccp/documents") },
           ],

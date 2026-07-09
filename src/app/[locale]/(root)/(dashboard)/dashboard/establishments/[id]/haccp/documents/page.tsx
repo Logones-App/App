@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 
 import { ExternalLink, Loader2, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,11 @@ import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id
 import {
   type DocType,
   type HaccpDocument,
-  getHaccpDocumentUrl,
   useDeleteHaccpDocument,
   useHaccpDocuments,
   useUpsertHaccpDocument,
 } from "@/lib/queries/haccp-config-queries";
+import { getHaccpDocumentSignedUrl } from "@/lib/server/haccp-document-url";
 
 const CATS: { value: DocType; label: string }[] = [
   { value: "plan", label: "Plans" },
@@ -125,8 +126,17 @@ function DocRow({
 }) {
   const open = async () => {
     if (!doc.url) return;
-    const signed = await getHaccpDocumentUrl(doc.url);
-    if (signed) window.open(signed, "_blank");
+    // Ouvrir l'onglet AVANT l'await : sinon le navigateur perd le geste
+    // utilisateur et bloque le popup. On redirige une fois l'URL signée obtenue.
+    const tab = window.open("", "_blank");
+    const signed = await getHaccpDocumentSignedUrl(doc.id);
+    if (signed) {
+      if (tab) tab.location.href = signed;
+      else window.open(signed, "_blank");
+    } else {
+      tab?.close();
+      toast.error("Impossible d'ouvrir le fichier (accès refusé ou fichier introuvable).");
+    }
   };
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border p-3">

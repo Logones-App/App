@@ -509,11 +509,3 @@ export function useDeleteHaccpDocument(establishmentId: string) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la suppression."),
   });
 }
-
-/** URL signée temporaire pour ouvrir un document stocké dans le bucket privé. */
-export async function getHaccpDocumentUrl(path: string): Promise<string | null> {
-  const supabase = createClient();
-  const { data, error } = await supabase.storage.from("haccp-photos").createSignedUrl(path, 3600);
-  if (error) return null;
-  return data.signedUrl;
-}
