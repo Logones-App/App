@@ -1,191 +1,134 @@
-import { CheckCircle2, Circle, Smartphone } from "lucide-react";
+"use client";
+
+import { useParams } from "next/navigation";
+
+import { ImageIcon, Loader2, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type HaccpSurface, useHaccpSurfaces, useHaccpZones } from "@/lib/queries/haccp-config-queries";
+import {
+  type HaccpCleaningValidation,
+  fmtDate,
+  fmtTime,
+  useHaccpCleaningValidations,
+} from "@/lib/queries/haccp-registers-queries";
 
-type Frequence = "quotidien" | "hebdomadaire" | "mensuel";
+const freqLabel = (f: string) => f.charAt(0).toUpperCase() + f.slice(1);
 
-const PLAN_NETTOYAGE: {
-  zone: string;
-  description: string;
-  frequence: Frequence;
-  produit: string;
-  responsable: string;
-  taches_du_jour: { heure: string | null; agent: string | null; fait: boolean }[];
-}[] = [
-  {
-    zone: "Plan de travail cuisine",
-    description: "Désinfection complète en fin de service",
-    frequence: "quotidien",
-    produit: "Dégraissant alimentaire + désinfectant",
-    responsable: "Équipe cuisine",
-    taches_du_jour: [
-      { heure: "14:30", agent: "Marie D.", fait: true },
-      { heure: null, agent: null, fait: false },
-    ],
-  },
-  {
-    zone: "Frigos (joints, clayettes, portes)",
-    description: "Nettoyage intérieur complet",
-    frequence: "quotidien",
-    produit: "Désinfectant alimentaire",
-    responsable: "Équipe cuisine",
-    taches_du_jour: [{ heure: "09:00", agent: "Jean D.", fait: true }],
-  },
-  {
-    zone: "Sols cuisine + plonge",
-    description: "Balayage humide + désinfection",
-    frequence: "quotidien",
-    produit: "Dégraissant sols + eau de javel diluée",
-    responsable: "Plongeur",
-    taches_du_jour: [{ heure: null, agent: null, fait: false }],
-  },
-  {
-    zone: "Hottes et filtres",
-    description: "Dégraissage filtres + surface extérieure hotte",
-    frequence: "hebdomadaire",
-    produit: "Dégraissant haute puissance",
-    responsable: "Chef de partie",
-    taches_du_jour: [],
-  },
-  {
-    zone: "WC personnel",
-    description: "Nettoyage complet sanitaires",
-    frequence: "quotidien",
-    produit: "Détartrant + désinfectant sanitaire",
-    responsable: "Équipe salle",
-    taches_du_jour: [{ heure: null, agent: null, fait: false }],
-  },
-  {
-    zone: "Chambre froide positive",
-    description: "Nettoyage sols, murs, étagères + joint porte",
-    frequence: "hebdomadaire",
-    produit: "Désinfectant alimentaire",
-    responsable: "Chef de partie",
-    taches_du_jour: [],
-  },
-  {
-    zone: "Friteuse",
-    description: "Vidange + nettoyage complet cuve",
-    frequence: "hebdomadaire",
-    produit: "Dégraissant friteuse",
-    responsable: "Commis",
-    taches_du_jour: [],
-  },
-  {
-    zone: "Four (cavité + joints)",
-    description: "Dégraissage complet four + plaque",
-    frequence: "hebdomadaire",
-    produit: "Produit four professionnel",
-    responsable: "Chef de partie",
-    taches_du_jour: [{ heure: null, agent: null, fait: false }],
-  },
-  {
-    zone: "Hottes (nettoyage complet + graisses)",
-    description: "Démontage complet + trempage filtres",
-    frequence: "mensuel",
-    produit: "Dégraissant pro + trempage",
-    responsable: "Chef de cuisine",
-    taches_du_jour: [],
-  },
-  {
-    zone: "Murs carrelés cuisine",
-    description: "Détartrage + désinfection",
-    frequence: "mensuel",
-    produit: "Détartrant alimentaire",
-    responsable: "Équipe cuisine",
-    taches_du_jour: [],
-  },
-];
-
-const FREQ_COLOR: Record<Frequence, "default" | "secondary" | "outline"> = {
-  quotidien: "default",
-  hebdomadaire: "secondary",
-  mensuel: "outline",
-};
-
-const FREQ_LABEL: Record<Frequence, string> = {
-  quotidien: "Quotidien",
-  hebdomadaire: "Hebdomadaire",
-  mensuel: "Mensuel",
-};
-
-const JOUR_SEMAINE = "lundi"; // mercredi déclencherait les hebdo
+function SurfaceCard({
+  surface,
+  zoneName,
+  last,
+}: {
+  surface: HaccpSurface;
+  zoneName: string;
+  last: HaccpCleaningValidation | undefined;
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <p className="min-w-0 truncate text-sm font-semibold">{surface.label}</p>
+          <Badge variant="outline" className="shrink-0 text-xs">
+            {freqLabel(surface.frequency)}
+          </Badge>
+        </div>
+        <p className="text-muted-foreground text-xs">{zoneName}</p>
+        <p className="mt-2 text-sm">
+          {last ? (
+            <>
+              Dernier nettoyage : <span className="font-medium">{fmtDate(last.validated_at)}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Jamais validé</span>
+          )}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function NettoyagePage() {
-  const quotidiens = PLAN_NETTOYAGE.filter((t) => t.frequence === "quotidien");
-  const faitsAujourdhui = quotidiens.filter((t) => t.taches_du_jour.every((td) => td.fait)).length;
+  const params = useParams();
+  const establishmentId = params.id as string;
+
+  const { data: surfaces = [], isLoading: ls } = useHaccpSurfaces(establishmentId);
+  const { data: zones = [] } = useHaccpZones(establishmentId);
+  const { data: validations = [], isLoading: lv } = useHaccpCleaningValidations(establishmentId);
+
+  const zoneName = (id: string | null) => (id ? (zones.find((z) => z.id === id)?.name ?? "—") : "—");
+  const surfaceById = new Map(surfaces.map((s) => [s.id, s]));
+  const lastBySurface = new Map<string, HaccpCleaningValidation>();
+  for (const v of validations) if (!lastBySurface.has(v.surface_id)) lastBySurface.set(v.surface_id, v);
+
+  if (ls || lv) {
+    return (
+      <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Chargement…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Plan de nettoyage</h1>
           <p className="text-muted-foreground text-sm">
-            Aujourd&apos;hui ({JOUR_SEMAINE}) · {faitsAujourdhui}/{quotidiens.length} tâches quotidiennes faites
+            {surfaces.length} surface{surfaces.length > 1 ? "s" : ""} · {validations.length} validation
+            {validations.length > 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+        <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
           <Smartphone className="h-3.5 w-3.5" />
-          Validation des tâches via l&apos;app mobile
+          Validations saisies via l&apos;app mobile
         </div>
       </div>
 
-      {/* Checklist du jour */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Tâches du jour</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {PLAN_NETTOYAGE.filter((t) => t.taches_du_jour.length > 0).map((t, i) => {
-            const fait = t.taches_du_jour.every((td) => td.fait);
-            const derniere = t.taches_du_jour.find((td) => td.fait);
-            return (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-2.5 text-sm">
-                {fait ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
-                ) : (
-                  <Circle className="text-muted-foreground h-4 w-4 shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className={fait ? "text-muted-foreground line-through" : "font-medium"}>{t.zone}</p>
-                  <p className="text-muted-foreground text-xs">{t.produit}</p>
-                </div>
-                {fait && derniere && (
-                  <span className="text-muted-foreground shrink-0 text-xs">
-                    {derniere.heure} · {derniere.agent}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+      {surfaces.length === 0 ? (
+        <p className="text-muted-foreground rounded-md border border-dashed py-10 text-center text-sm">
+          Aucune surface configurée (voir Paramétrage → Zones &amp; surfaces).
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {surfaces.map((s) => (
+            <SurfaceCard key={s.id} surface={s} zoneName={zoneName(s.zone_id)} last={lastBySurface.get(s.id)} />
+          ))}
+        </div>
+      )}
 
-      {/* Plan complet */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Plan complet de nettoyage</CardTitle>
+          <CardTitle className="text-sm font-medium">Historique des validations</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="divide-y">
-            {PLAN_NETTOYAGE.map((t, i) => (
-              <div key={i} className="py-3 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold">{t.zone}</p>
-                      <Badge variant={FREQ_COLOR[t.frequence]}>{FREQ_LABEL[t.frequence]}</Badge>
+          {validations.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">Aucune validation enregistrée.</p>
+          ) : (
+            <div className="divide-y">
+              {validations.map((v) => (
+                <div key={v.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="text-muted-foreground w-20 text-xs">
+                      <p>{fmtDate(v.validated_at)}</p>
+                      <p className="font-mono">{fmtTime(v.validated_at)}</p>
                     </div>
-                    <p className="text-muted-foreground text-xs">{t.description}</p>
-                    <p className="text-muted-foreground text-xs">
-                      Produit : {t.produit} · Responsable : {t.responsable}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {surfaceById.get(v.surface_id)?.label ?? "Surface supprimée"}
+                      </p>
+                      {v.recorded_by_label && (
+                        <p className="text-muted-foreground text-xs">par {v.recorded_by_label}</p>
+                      )}
+                    </div>
                   </div>
+                  {v.photo_path && <ImageIcon className="text-muted-foreground h-4 w-4" />}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

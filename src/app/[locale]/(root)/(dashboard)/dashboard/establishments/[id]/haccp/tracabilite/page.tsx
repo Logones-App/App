@@ -1,176 +1,113 @@
-import { Info, Smartphone } from "lucide-react";
+"use client";
+
+import { useParams } from "next/navigation";
+
+import { ImageIcon, Loader2, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  type HaccpTraceDetailed,
+  fmtDate,
+  fmtTime,
+  useHaccpTraceDetailed,
+  useHaccpTraceSimple,
+} from "@/lib/queries/haccp-registers-queries";
 
-const LOTS = [
-  {
-    id: "LOT-2026-0187",
-    produit: "Bœuf haché (5 kg)",
-    fournisseur: "Boucherie Martin",
-    date_reception: "22 juin",
-    dlc_fournisseur: "24 juin",
-    temperature_reception: "2,8 °C",
-    utilise_dans: [{ plat: "Burger Classic", service: "22 juin — déjeuner", couverts: 14 }],
-    statut: "en cours",
-  },
-  {
-    id: "LOT-2026-0186",
-    produit: "Saumon frais (3 kg)",
-    fournisseur: "Marée Bleue",
-    date_reception: "22 juin",
-    dlc_fournisseur: "23 juin",
-    temperature_reception: "1,2 °C",
-    utilise_dans: [{ plat: "Saumon grillé", service: "22 juin — déjeuner", couverts: 8 }],
-    statut: "en cours",
-  },
-  {
-    id: "LOT-2026-0185",
-    produit: "Volailles (4 pièces)",
-    fournisseur: "Boucherie Martin",
-    date_reception: "21 juin",
-    dlc_fournisseur: "23 juin",
-    temperature_reception: "3,5 °C",
-    utilise_dans: [
-      { plat: "Poulet rôti", service: "21 juin — déjeuner", couverts: 12 },
-      { plat: "Poulet rôti", service: "22 juin — déjeuner", couverts: 6 },
-    ],
-    statut: "en cours",
-  },
-  {
-    id: "LOT-2026-0184",
-    produit: "Crème fraîche (2 L)",
-    fournisseur: "Laiterie Régionale",
-    date_reception: "20 juin",
-    dlc_fournisseur: "25 juin",
-    temperature_reception: "3,4 °C",
-    utilise_dans: [
-      { plat: "Sauce normande", service: "20 juin — dîner", couverts: 10 },
-      { plat: "Blanquette de veau", service: "21 juin — déjeuner", couverts: 15 },
-    ],
-    statut: "épuisé",
-  },
-  {
-    id: "LOT-2026-0183",
-    produit: "Légumes frais (lot 2)",
-    fournisseur: "Rungis Express",
-    date_reception: "21 juin",
-    dlc_fournisseur: "24 juin",
-    temperature_reception: "6,1 °C",
-    utilise_dans: [
-      { plat: "Soupe de légumes", service: "21 juin — dîner", couverts: 20 },
-      { plat: "Salade César", service: "22 juin — déjeuner", couverts: 7 },
-    ],
-    statut: "en cours",
-  },
-  {
-    id: "LOT-2026-0182",
-    produit: "Légumes frais (lot 1 — REFUSÉ)",
-    fournisseur: "Rungis Express",
-    date_reception: "21 juin",
-    dlc_fournisseur: "24 juin",
-    temperature_reception: "8,5 °C",
-    utilise_dans: [],
-    statut: "retourné",
-  },
-];
-
-const statutBadge: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  "en cours": "default",
-  épuisé: "secondary",
-  retourné: "destructive",
-};
+const linesCount = (lines: HaccpTraceDetailed["lines"]) => (Array.isArray(lines) ? lines.length : 0);
 
 export default function TracabilitePage() {
-  const actifs = LOTS.filter((l) => l.statut === "en cours").length;
-  const retournes = LOTS.filter((l) => l.statut === "retourné").length;
+  const params = useParams();
+  const establishmentId = params.id as string;
+
+  const { data: detailed = [], isLoading: ld } = useHaccpTraceDetailed(establishmentId);
+  const { data: simple = [], isLoading: ls } = useHaccpTraceSimple(establishmentId);
+
+  if (ld || ls) {
+    return (
+      <div className="text-muted-foreground flex items-center justify-center gap-2 p-12">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Chargement…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Traçabilité</h1>
           <p className="text-muted-foreground text-sm">
-            Suivi des lots de matières premières · {actifs} lot{actifs > 1 ? "s" : ""} actif{actifs > 1 ? "s" : ""}
+            {detailed.length} relevé{detailed.length > 1 ? "s" : ""} détaillé{detailed.length > 1 ? "s" : ""} ·{" "}
+            {simple.length} photo{simple.length > 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+        <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
           <Smartphone className="h-3.5 w-3.5" />
-          Scan lots & saisie via l&apos;app mobile
+          Saisie via l&apos;app mobile
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{LOTS.length}</p>
-            <p className="text-muted-foreground text-sm">Lots tracés (7 jours)</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-2xl font-bold text-green-600">{actifs}</p>
-            <p className="text-muted-foreground text-sm">Lots en cours d&apos;utilisation</p>
-          </CardContent>
-        </Card>
-        <Card className={retournes > 0 ? "border-red-200 bg-red-50" : ""}>
-          <CardContent className="pt-4">
-            <p className={`text-2xl font-bold ${retournes > 0 ? "text-red-600" : ""}`}>{retournes}</p>
-            <p className="text-muted-foreground text-sm">
-              Lot{retournes > 1 ? "s" : ""} retourné{retournes > 1 ? "s" : ""} / refusé{retournes > 1 ? "s" : ""}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Explication */}
-      <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-800">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        La traçabilité permet de retrouver en cas d&apos;alerte sanitaire quels plats ont utilisé un lot donné et à
-        quels clients ils ont été servis. Obligation réglementaire depuis le règlement CE 178/2002.
-      </div>
-
-      {/* Liste des lots */}
-      <div className="space-y-3">
-        {LOTS.map((lot) => (
-          <Card key={lot.id} className={lot.statut === "retourné" ? "border-red-200 bg-red-50" : ""}>
-            <CardContent className="pt-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold">{lot.produit}</p>
-                    <Badge variant={statutBadge[lot.statut]}>{lot.statut}</Badge>
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    {lot.fournisseur} · Reçu le {lot.date_reception} à {lot.temperature_reception} · DLC fournisseur :{" "}
-                    {lot.dlc_fournisseur}
-                  </p>
-                </div>
-                <p className="text-muted-foreground shrink-0 font-mono text-xs">{lot.id}</p>
-              </div>
-
-              {lot.utilise_dans.length > 0 ? (
-                <div className="mt-3 space-y-1">
-                  <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Utilisé dans</p>
-                  {lot.utilise_dans.map((u, i) => (
-                    <div key={i} className="flex items-center justify-between rounded bg-gray-50 px-2.5 py-1.5 text-xs">
-                      <span className="font-medium">{u.plat}</span>
-                      <span className="text-muted-foreground">
-                        {u.service} · {u.couverts} couverts
-                      </span>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Traçabilité détaillée (produits / lots)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {detailed.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">Aucun relevé détaillé.</p>
+          ) : (
+            <div className="divide-y">
+              {detailed.map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="text-muted-foreground w-20 text-xs">
+                      <p>{fmtDate(t.recorded_at)}</p>
+                      <p className="font-mono">{fmtTime(t.recorded_at)}</p>
                     </div>
-                  ))}
+                    <div className="min-w-0">
+                      <p className="font-medium">{t.bl_number ? `BL ${t.bl_number}` : "Relevé"}</p>
+                      {t.recorded_by_label && (
+                        <p className="text-muted-foreground text-xs">par {t.recorded_by_label}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {linesCount(t.lines)} ligne(s)
+                  </Badge>
                 </div>
-              ) : (
-                <p className="text-muted-foreground mt-2 text-xs italic">
-                  Produit non utilisé — retourné au fournisseur
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Traçabilité simple (photos d&apos;étiquettes)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {simple.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">Aucune photo enregistrée.</p>
+          ) : (
+            <div className="divide-y">
+              {simple.map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="text-muted-foreground w-20 text-xs">
+                      <p>{fmtDate(t.recorded_at)}</p>
+                      <p className="font-mono">{fmtTime(t.recorded_at)}</p>
+                    </div>
+                    {t.recorded_by_label && (
+                      <span className="text-muted-foreground text-xs">par {t.recorded_by_label}</span>
+                    )}
+                  </div>
+                  {t.photo_path && <ImageIcon className="text-muted-foreground h-4 w-4" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

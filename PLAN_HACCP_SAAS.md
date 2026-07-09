@@ -41,5 +41,6 @@ Config statique (pas forcément SQL) : 14 allergènes, limites T° de référenc
 2. Cadrer ensemble le schéma **Contrôles T° produit à cœur** (🟢-1) et **NC pivot simple** (🟢-3, SaaS propose).
 3. Allergènes sur `products` (🟢-2) : chantier SaaS (ajouter allergens[]/traces[] au catalogue).
 
-## Pages encore mock (par choix, lecture opérationnelle plus tard)
-dashboard, temperatures, temperatures-produit, huiles, nettoyage, receptions, tracabilite, non-conformites, allergenes, checklists, etiqueteuse, planning, employes, fournisseurs.
+## Vues inspecteur (lecture registres) — FAIT ✅ (2026-07)
+Réelles : dashboard, temperatures, temperatures-produit, huiles, nettoyage, receptions, tracabilite, etiqueteuse, checklists, non-conformites. Via `haccp-registers-queries.ts` (lecture seule).
+**Restent mock (par choix / hors source)** : `planning` (aucune table — tâches dérivées), `allergenes` (déjà couvert par `products`), `employes` (module RH), `fournisseurs` (redirige vers module Stock enrichi).
