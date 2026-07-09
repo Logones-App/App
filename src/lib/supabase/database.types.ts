@@ -3389,6 +3389,152 @@ export type Database = {
           },
         ]
       }
+      haccp_non_conformities: {
+        Row: {
+          assigned_to: string | null
+          assigned_to_label: string | null
+          category: string
+          closed_at: string | null
+          closed_by: string | null
+          closed_by_label: string | null
+          corrective_action: string | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          description: string
+          detected_at: string
+          due_at: string | null
+          establishment_id: string
+          id: string
+          organization_id: string
+          photo_path: string | null
+          preventive_action: string | null
+          reception_id: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          reference: string | null
+          severity: string
+          source_id: string | null
+          source_type: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          zone_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          assigned_to_label?: string | null
+          category: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_label?: string | null
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          description: string
+          detected_at?: string
+          due_at?: string | null
+          establishment_id: string
+          id?: string
+          organization_id: string
+          photo_path?: string | null
+          preventive_action?: string | null
+          reception_id?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          reference?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          assigned_to_label?: string | null
+          category?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_label?: string | null
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          description?: string
+          detected_at?: string
+          due_at?: string | null
+          establishment_id?: string
+          id?: string
+          organization_id?: string
+          photo_path?: string | null
+          preventive_action?: string | null
+          reception_id?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          reference?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_non_conformities_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_reception_id_fkey"
+            columns: ["reception_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_receptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_non_conformities_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       haccp_oil_baths: {
         Row: {
           capacity_l: number | null
@@ -3535,6 +3681,98 @@ export type Database = {
           },
           {
             foreignKeyName: "haccp_oil_tests_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haccp_product_temp_controls: {
+        Row: {
+          conform: boolean
+          control_type: string
+          corrective_action: string | null
+          created_at: string
+          created_by: string | null
+          deleted: boolean
+          establishment_id: string
+          id: string
+          measured_at: string
+          min_temp_c: number | null
+          note: string | null
+          organization_id: string
+          product_label: string
+          production_lot_id: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          temperature_c: number
+          updated_at: string
+        }
+        Insert: {
+          conform: boolean
+          control_type: string
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          measured_at?: string
+          min_temp_c?: number | null
+          note?: string | null
+          organization_id: string
+          product_label: string
+          production_lot_id?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          temperature_c: number
+          updated_at?: string
+        }
+        Update: {
+          conform?: boolean
+          control_type?: string
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          measured_at?: string
+          min_temp_c?: number | null
+          note?: string | null
+          organization_id?: string
+          product_label?: string
+          production_lot_id?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          temperature_c?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "haccp_product_temp_controls_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_product_temp_controls_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_product_temp_controls_production_lot_id_fkey"
+            columns: ["production_lot_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_production_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_product_temp_controls_recorded_by_fkey"
             columns: ["recorded_by"]
             isOneToOne: false
             referencedRelation: "employees"
