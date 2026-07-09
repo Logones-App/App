@@ -1204,7 +1204,7 @@ export type Database = {
         Row: {
           created_at: string | null
           device_id: string
-          employee_id: string
+          employee_id: string | null
           establishment_id: string | null
           expires_at: string | null
           id: string
@@ -1218,7 +1218,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           device_id: string
-          employee_id: string
+          employee_id?: string | null
           establishment_id?: string | null
           expires_at?: string | null
           id?: string
@@ -1232,7 +1232,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           device_id?: string
-          employee_id?: string
+          employee_id?: string | null
           establishment_id?: string | null
           expires_at?: string | null
           id?: string

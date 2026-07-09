@@ -72,12 +72,18 @@ function SectionBlock({
   const hasItems = section.items.length > 0;
   const hasSubs = section.subsections.length > 0;
   if (!hasItems && !hasSubs) return null;
+  const isTop = depth === 0;
 
   return (
-    <div className={depth === 0 ? "px-4 py-5" : "mt-4 border-l-2 pl-3"}>
-      <h2 className={depth === 0 ? "mb-3 text-base font-semibold" : "text-muted-foreground mb-2 text-sm font-semibold"}>
-        {section.name}
-      </h2>
+    <div className={isTop ? "px-4 py-5" : "border-primary/25 mt-5 ml-4 border-l-2 pl-3"}>
+      {isTop ? (
+        <h2 className="mb-3 text-lg font-bold">{section.name}</h2>
+      ) : (
+        <h3 className="text-primary mb-3 flex items-center gap-1.5 text-xs font-bold tracking-[0.12em] uppercase">
+          <span className="bg-primary inline-block h-1 w-1 rounded-full" />
+          {section.name}
+        </h3>
+      )}
       {hasItems && (
         <div className="space-y-4">
           {section.items.map((item) => (

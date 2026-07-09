@@ -79,16 +79,19 @@ export function SectionNode({ section, depth = 0 }: { section: PublicSection; de
   if (!hasItems && !hasSubs) return null;
 
   return (
-    <section className={depth === 0 ? "mb-8" : "mt-5 border-l-2 pl-3 dark:border-gray-800"}>
+    <section className={depth === 0 ? "mb-10" : "border-primary/25 dark:border-primary/40 mt-6 border-l-2 pl-4"}>
       {depth === 0 ? (
-        <>
-          <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="mb-4">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
             {section.name || "Autres"}
           </h2>
-          <div className="bg-primary mb-2 h-0.5 w-12 rounded" />
-        </>
+          <div className="bg-primary mt-1.5 h-1 w-10 rounded-full" />
+        </div>
       ) : (
-        <h3 className="mb-1 text-base font-semibold text-gray-800 dark:text-gray-200">{section.name}</h3>
+        <h3 className="text-primary mb-2 flex items-center gap-1.5 text-xs font-bold tracking-[0.14em] uppercase">
+          <span className="bg-primary inline-block h-1 w-1 rounded-full" />
+          {section.name}
+        </h3>
       )}
       {section.description && <p className="text-muted-foreground mb-3 text-sm">{section.description}</p>}
       {hasItems && (
