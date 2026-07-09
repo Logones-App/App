@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
-  ClipboardCheck,
   PackageCheck,
   Smartphone,
   Sparkles,
@@ -15,6 +14,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { NcOpenKpiCard, NcRecentCard } from "./_components/nc-dashboard";
 
 const KpiCard = ({ label, value, sub, alert }: { label: string; value: string; sub?: string; alert?: boolean }) => (
   <Card className={alert ? "border-red-200 bg-red-50" : ""}>
@@ -37,11 +38,6 @@ const RELEVES_JOUR = [
   { zone: "Bain-marie sauces", heure: "12:00", temp: "63 °C", limite: "> 63 °C", statut: "ok" },
 ];
 
-const NC_RECENTES = [
-  { date: "8 juin", zone: "Chambre froide positive", desc: "Temp. 5,2 °C à 15h00", statut: "en cours" },
-  { date: "5 juin", zone: "Réception marchandises", desc: "Viande reçue à 9 °C", statut: "clôturé" },
-];
-
 const SECTIONS = [
   { label: "Températures", href: "haccp/temperatures", icon: Thermometer, ok: 4, total: 6 },
   { label: "Réceptions", href: "haccp/receptions", icon: PackageCheck, ok: 3, total: 3 },
@@ -53,11 +49,6 @@ const statutBadge: Record<string, "default" | "secondary" | "destructive"> = {
   ok: "default",
   alerte: "destructive",
   manquant: "secondary",
-};
-
-const ncBadge: Record<string, "default" | "secondary"> = {
-  "en cours": "secondary",
-  clôturé: "default",
 };
 
 export default function HaccpPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
@@ -81,7 +72,7 @@ export default function HaccpPage({ params }: { params: Promise<{ id: string; lo
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Contrôles du jour" value="5 / 6" sub="1 relevé manquant" />
         <KpiCard label="Conformité du jour" value="83 %" sub="1 alerte température" alert />
-        <KpiCard label="Non-conformités ouvertes" value="1" sub="depuis le 8 juin" alert />
+        <NcOpenKpiCard establishmentId={id} />
         <KpiCard label="Prochaine échéance" value="19:00" sub="Relevé soir — chambre froide" />
       </div>
 
@@ -136,29 +127,8 @@ export default function HaccpPage({ params }: { params: Promise<{ id: string; lo
         </CardContent>
       </Card>
 
-      {/* Non-conformités récentes */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-medium">Non-conformités récentes</CardTitle>
-          <Link href={`${base}/haccp/non-conformites`} className="text-primary text-xs hover:underline">
-            Voir tout →
-          </Link>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {NC_RECENTES.map((nc, i) => (
-            <div key={i} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <div>
-                <p className="font-medium">{nc.zone}</p>
-                <p className="text-muted-foreground text-xs">{nc.desc}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">{nc.date}</span>
-                <Badge variant={ncBadge[nc.statut]}>{nc.statut}</Badge>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {/* Non-conformités récentes (réelles) */}
+      <NcRecentCard establishmentId={id} base={base} />
 
       {/* Checklist du jour nettoyage */}
       <Card>

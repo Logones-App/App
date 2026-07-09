@@ -3875,6 +3875,7 @@ export type Database = {
           received_by_label: string | null
           reserve: string | null
           storage_types: string[]
+          supplier_id: string | null
           supplier_label: string | null
           updated_at: string
         }
@@ -3896,6 +3897,7 @@ export type Database = {
           received_by_label?: string | null
           reserve?: string | null
           storage_types?: string[]
+          supplier_id?: string | null
           supplier_label?: string | null
           updated_at?: string
         }
@@ -3917,6 +3919,7 @@ export type Database = {
           received_by_label?: string | null
           reserve?: string | null
           storage_types?: string[]
+          supplier_id?: string | null
           supplier_label?: string | null
           updated_at?: string
         }
@@ -3947,6 +3950,13 @@ export type Database = {
             columns: ["received_by"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_receptions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -7393,6 +7403,8 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          ce_approval_number: string | null
+          certifications: string[] | null
           contact_name: string | null
           created_at: string
           created_by: string | null
@@ -7404,6 +7416,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          quality_rating: number | null
           siret: string | null
           tva_intracommunautaire: string | null
           updated_at: string | null
@@ -7411,6 +7424,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ce_approval_number?: string | null
+          certifications?: string[] | null
           contact_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -7422,6 +7437,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          quality_rating?: number | null
           siret?: string | null
           tva_intracommunautaire?: string | null
           updated_at?: string | null
@@ -7429,6 +7445,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ce_approval_number?: string | null
+          certifications?: string[] | null
           contact_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -7440,6 +7458,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          quality_rating?: number | null
           siret?: string | null
           tva_intracommunautaire?: string | null
           updated_at?: string | null

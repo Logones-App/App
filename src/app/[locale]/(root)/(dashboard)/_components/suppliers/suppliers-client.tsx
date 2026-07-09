@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +47,9 @@ type SupplierForm = {
   website: string;
   notes: string;
   is_active: boolean;
+  ce_approval_number: string;
+  certifications: string; // saisie séparée par virgules → text[]
+  quality_rating: string; // "" | "1".."5"
 };
 
 const emptyForm = (): SupplierForm => ({
@@ -57,6 +61,9 @@ const emptyForm = (): SupplierForm => ({
   website: "",
   notes: "",
   is_active: true,
+  ce_approval_number: "",
+  certifications: "",
+  quality_rating: "",
 });
 
 const rowToForm = (s: SupplierRow): SupplierForm => ({
@@ -68,7 +75,23 @@ const rowToForm = (s: SupplierRow): SupplierForm => ({
   website: s.website ?? "",
   notes: s.notes ?? "",
   is_active: s.is_active,
+  ce_approval_number: s.ce_approval_number ?? "",
+  certifications: (s.certifications ?? []).join(", "),
+  quality_rating: s.quality_rating != null ? String(s.quality_rating) : "",
 });
+
+/** Convertit les champs qualité/HACCP du formulaire vers le patch table `suppliers`. */
+const haccpPatch = (v: SupplierForm) => ({
+  ce_approval_number: v.ce_approval_number.trim() || null,
+  certifications: v.certifications
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean),
+  quality_rating: v.quality_rating ? Number(v.quality_rating) : null,
+});
+
+const RATINGS = ["1", "2", "3", "4", "5"];
+const NO_RATING = "__none__";
 
 function SupplierFormCard({
   title,
@@ -164,6 +187,53 @@ function SupplierFormCard({
             <Label htmlFor="sup-active">Actif</Label>
           </div>
         </div>
+
+        <div className="space-y-4 border-t pt-4">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Qualité &amp; HACCP</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="sup-ce">N° d&apos;agrément sanitaire CE</Label>
+              <Input
+                id="sup-ce"
+                value={form.ce_approval_number}
+                onChange={(e) => patch("ce_approval_number", e.target.value)}
+                placeholder="FR 12.345.678 CE"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sup-rating">Note qualité</Label>
+              <Select
+                value={form.quality_rating || NO_RATING}
+                onValueChange={(v) => patch("quality_rating", v === NO_RATING ? "" : v)}
+              >
+                <SelectTrigger id="sup-rating">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_RATING}>— Non notée</SelectItem>
+                  {RATINGS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r} / 5
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="sup-certs">
+                Certifications{" "}
+                <span className="text-muted-foreground text-xs font-normal">(séparées par des virgules)</span>
+              </Label>
+              <Input
+                id="sup-certs"
+                value={form.certifications}
+                onChange={(e) => patch("certifications", e.target.value)}
+                placeholder="IFS, ISO 22000, BIO, Label Rouge"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button type="button" size="sm" onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}>
             {isPending ? "Enregistrement…" : "Enregistrer"}
@@ -213,6 +283,7 @@ function SupplierTableRow({
                     website: values.website || null,
                     notes: values.notes || null,
                     is_active: values.is_active,
+                    ...haccpPatch(values),
                   },
                 },
                 { onSuccess: () => setEditing(false) },
@@ -230,7 +301,7 @@ function SupplierTableRow({
     <>
       <TableRow>
         <TableCell className="font-medium">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href={`${basePath}/${supplier.id}`} className="hover:underline">
               {supplier.name}
             </Link>
@@ -238,6 +309,14 @@ function SupplierTableRow({
               <Badge variant="secondary" className="text-xs">
                 Inactif
               </Badge>
+            )}
+            {supplier.ce_approval_number && (
+              <Badge variant="outline" className="text-xs" title={supplier.ce_approval_number}>
+                CE ✓
+              </Badge>
+            )}
+            {supplier.quality_rating != null && (
+              <span className="text-muted-foreground text-xs">★ {supplier.quality_rating}/5</span>
             )}
           </div>
         </TableCell>
@@ -370,6 +449,7 @@ export function SuppliersClient({ organizationId: orgIdProp }: { organizationId?
                 website: values.website || null,
                 notes: values.notes || null,
                 is_active: values.is_active,
+                ...haccpPatch(values),
               },
               { onSuccess: () => setShowCreate(false) },
             )
