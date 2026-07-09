@@ -189,11 +189,24 @@ export function useUpsertHaccpProbe(establishmentId: string, organizationId: str
 export function useUpsertHaccpOilBath(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id?: string; label: string; frequency: HaccpFrequency }) => {
+    mutationFn: async (input: {
+      id?: string;
+      label: string;
+      frequency: HaccpFrequency;
+      capacity_l: number | null;
+      oil_type: string | null;
+      zone_id: string | null;
+    }) => {
       const supabase = createClient();
       const label = input.label.trim();
       if (!label) throw new Error("Le nom est requis.");
-      const values = { label, frequency: input.frequency };
+      const values = {
+        label,
+        frequency: input.frequency,
+        capacity_l: input.capacity_l,
+        oil_type: input.oil_type,
+        zone_id: input.zone_id,
+      };
       if (input.id) {
         const { error } = await supabase
           .from("haccp_oil_baths")
@@ -285,11 +298,26 @@ export function useHaccpSurfaces(establishmentId: string) {
 export function useUpsertHaccpSurface(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id?: string; label: string; zone_id: string | null; frequency: CleaningFrequency }) => {
+    mutationFn: async (input: {
+      id?: string;
+      label: string;
+      zone_id: string | null;
+      frequency: CleaningFrequency;
+      description: string | null;
+      product: string | null;
+      responsible: string | null;
+    }) => {
       const supabase = createClient();
       const label = input.label.trim();
       if (!label) throw new Error("Le nom est requis.");
-      const values = { label, zone_id: input.zone_id, frequency: input.frequency };
+      const values = {
+        label,
+        zone_id: input.zone_id,
+        frequency: input.frequency,
+        description: input.description,
+        product: input.product,
+        responsible: input.responsible,
+      };
       if (input.id) {
         const { error } = await supabase
           .from("haccp_cleaning_surfaces")

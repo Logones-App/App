@@ -89,13 +89,23 @@ function SurfaceModal({
   zones: { id: string; name: string }[];
   busy: boolean;
   onClose: () => void;
-  onSave: (v: { label: string; zone_id: string | null; frequency: CleaningFrequency }) => void;
+  onSave: (v: {
+    label: string;
+    zone_id: string | null;
+    frequency: CleaningFrequency;
+    description: string | null;
+    product: string | null;
+    responsible: string | null;
+  }) => void;
 }) {
   const [label, setLabel] = useState(initial?.label ?? "");
   const [zoneId, setZoneId] = useState<string>(initial?.zone_id ?? presetZoneId ?? NO_ZONE);
   const [frequency, setFrequency] = useState<CleaningFrequency>(
     (initial?.frequency ?? "quotidien") as CleaningFrequency,
   );
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [product, setProduct] = useState(initial?.product ?? "");
+  const [responsible, setResponsible] = useState(initial?.responsible ?? "");
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -146,13 +156,51 @@ function SurfaceModal({
               </SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Produit d&apos;entretien</Label>
+              <Input
+                value={product}
+                onChange={(e) => setProduct(e.target.value)}
+                placeholder="Ex : Dégraissant HACCP"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Responsable</Label>
+              <Input
+                value={responsible}
+                onChange={(e) => setResponsible(e.target.value)}
+                placeholder="Ex : Chef de partie"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              Description{" "}
+              <span className="text-muted-foreground text-xs font-normal">(mode opératoire, optionnel)</span>
+            </Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex : Nettoyer puis désinfecter, laisser agir 5 min"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Annuler
           </Button>
           <Button
-            onClick={() => onSave({ label: label.trim(), zone_id: zoneId === NO_ZONE ? null : zoneId, frequency })}
+            onClick={() =>
+              onSave({
+                label: label.trim(),
+                zone_id: zoneId === NO_ZONE ? null : zoneId,
+                frequency,
+                description: description.trim() || null,
+                product: product.trim() || null,
+                responsible: responsible.trim() || null,
+              })
+            }
             disabled={busy || !label.trim()}
           >
             {busy ? "…" : initial ? "Enregistrer" : "Créer"}
@@ -176,11 +224,18 @@ function SurfaceRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border p-2.5">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">{surface.label}</span>
-        <Badge variant="secondary" className="text-xs">
-          {freqLabel(surface.frequency)}
-        </Badge>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{surface.label}</span>
+          <Badge variant="secondary" className="text-xs">
+            {freqLabel(surface.frequency)}
+          </Badge>
+        </div>
+        {(surface.product ?? surface.responsible) && (
+          <p className="text-muted-foreground truncate text-xs">
+            {[surface.product, surface.responsible].filter(Boolean).join(" · ")}
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 gap-0.5">
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit} aria-label="Modifier">
@@ -302,7 +357,14 @@ export default function HaccpZonesPage() {
     if (modal?.kind !== "zone") return;
     upsertZone.mutate({ id: modal.editing?.id, name }, { onSuccess: close });
   };
-  const saveSurface = (v: { label: string; zone_id: string | null; frequency: CleaningFrequency }) => {
+  const saveSurface = (v: {
+    label: string;
+    zone_id: string | null;
+    frequency: CleaningFrequency;
+    description: string | null;
+    product: string | null;
+    responsible: string | null;
+  }) => {
     if (modal?.kind !== "surface") return;
     upsertSurface.mutate({ id: modal.editing?.id, ...v }, { onSuccess: close });
   };

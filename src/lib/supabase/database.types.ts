@@ -3041,11 +3041,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted: boolean
+          description: string | null
           establishment_id: string
           frequency: string
           id: string
           label: string
           organization_id: string
+          product: string | null
+          responsible: string | null
           sort_order: number
           updated_at: string
           zone_id: string | null
@@ -3054,11 +3057,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          description?: string | null
           establishment_id: string
           frequency?: string
           id?: string
           label: string
           organization_id: string
+          product?: string | null
+          responsible?: string | null
           sort_order?: number
           updated_at?: string
           zone_id?: string | null
@@ -3067,11 +3073,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted?: boolean
+          description?: string | null
           establishment_id?: string
           frequency?: string
           id?: string
           label?: string
           organization_id?: string
+          product?: string | null
+          responsible?: string | null
           sort_order?: number
           updated_at?: string
           zone_id?: string | null
@@ -3382,6 +3391,7 @@ export type Database = {
       }
       haccp_oil_baths: {
         Row: {
+          capacity_l: number | null
           created_at: string
           created_by: string | null
           deleted: boolean
@@ -3389,11 +3399,14 @@ export type Database = {
           frequency: string
           id: string
           label: string
+          oil_type: string | null
           organization_id: string
           sort_order: number
           updated_at: string
+          zone_id: string | null
         }
         Insert: {
+          capacity_l?: number | null
           created_at?: string
           created_by?: string | null
           deleted?: boolean
@@ -3401,11 +3414,14 @@ export type Database = {
           frequency?: string
           id?: string
           label: string
+          oil_type?: string | null
           organization_id: string
           sort_order?: number
           updated_at?: string
+          zone_id?: string | null
         }
         Update: {
+          capacity_l?: number | null
           created_at?: string
           created_by?: string | null
           deleted?: boolean
@@ -3413,9 +3429,11 @@ export type Database = {
           frequency?: string
           id?: string
           label?: string
+          oil_type?: string | null
           organization_id?: string
           sort_order?: number
           updated_at?: string
+          zone_id?: string | null
         }
         Relationships: [
           {
@@ -3432,6 +3450,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "haccp_oil_baths_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_zones"
+            referencedColumns: ["id"]
+          },
         ]
       }
       haccp_oil_tests: {
@@ -3445,6 +3470,7 @@ export type Database = {
           establishment_id: string
           id: string
           organization_id: string
+          organoleptic_ok: boolean | null
           polarity_pct: number | null
           recorded_by: string | null
           recorded_by_label: string | null
@@ -3461,6 +3487,7 @@ export type Database = {
           establishment_id: string
           id?: string
           organization_id: string
+          organoleptic_ok?: boolean | null
           polarity_pct?: number | null
           recorded_by?: string | null
           recorded_by_label?: string | null
@@ -3477,6 +3504,7 @@ export type Database = {
           establishment_id?: string
           id?: string
           organization_id?: string
+          organoleptic_ok?: boolean | null
           polarity_pct?: number | null
           recorded_by?: string | null
           recorded_by_label?: string | null

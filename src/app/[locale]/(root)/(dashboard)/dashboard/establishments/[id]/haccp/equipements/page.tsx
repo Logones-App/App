@@ -40,6 +40,8 @@ type SaveInput = {
   min_c: string;
   max_c: string;
   frequency: HaccpFrequency;
+  capacity: string;
+  oil_type: string;
 };
 
 const NO_ZONE = "__none__";
@@ -48,6 +50,21 @@ const numToStr = (n: number | null | undefined): string => (n != null ? String(n
 const initialFrequency = (r: EquipRow | null): HaccpFrequency =>
   (r?.row.frequency as HaccpFrequency | undefined) ?? defaultFrequency(r?.kind ?? "temperature");
 const submitLabel = (busy: boolean, editing: boolean): string => (busy ? "…" : editing ? "Enregistrer" : "Créer");
+
+function initialEquipState(initial: EquipRow | null) {
+  const probe = initial?.kind === "temperature" ? initial.row : null;
+  const bath = initial?.kind === "oil" ? initial.row : null;
+  return {
+    kind: initial?.kind ?? "temperature",
+    label: initial?.row.label ?? "",
+    zoneId: initial?.row.zone_id ?? NO_ZONE,
+    minC: numToStr(probe?.min_c),
+    maxC: numToStr(probe?.max_c),
+    capacity: numToStr(bath?.capacity_l),
+    oilType: bath?.oil_type ?? "",
+    frequency: initialFrequency(initial),
+  };
+}
 
 function CadenceSelect({ value, onChange }: { value: HaccpFrequency; onChange: (v: HaccpFrequency) => void }) {
   return (
@@ -66,6 +83,35 @@ function CadenceSelect({ value, onChange }: { value: HaccpFrequency; onChange: (
         </SelectContent>
       </Select>
       <p className="text-muted-foreground text-xs">Fréquence attendue des relevés (tableau de bord mobile).</p>
+    </div>
+  );
+}
+
+function ZoneSelect({
+  zones,
+  value,
+  onChange,
+}: {
+  zones: { id: string; name: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>Zone</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Aucune" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_ZONE}>— Aucune</SelectItem>
+          {zones.map((z) => (
+            <SelectItem key={z.id} value={z.id}>
+              {z.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -89,22 +135,7 @@ function TemperatureFields({
 }) {
   return (
     <>
-      <div className="space-y-1.5">
-        <Label>Zone</Label>
-        <Select value={zoneId} onValueChange={setZoneId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Aucune" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_ZONE}>— Aucune</SelectItem>
-            {zones.map((z) => (
-              <SelectItem key={z.id} value={z.id}>
-                {z.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <ZoneSelect zones={zones} value={zoneId} onChange={setZoneId} />
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>Seuil min (°C)</Label>
@@ -113,6 +144,40 @@ function TemperatureFields({
         <div className="space-y-1.5">
           <Label>Seuil max (°C)</Label>
           <Input value={maxC} onChange={(e) => setMaxC(e.target.value)} inputMode="decimal" placeholder="4" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function OilBathFields({
+  zones,
+  zoneId,
+  setZoneId,
+  capacity,
+  setCapacity,
+  oilType,
+  setOilType,
+}: {
+  zones: { id: string; name: string }[];
+  zoneId: string;
+  setZoneId: (v: string) => void;
+  capacity: string;
+  setCapacity: (v: string) => void;
+  oilType: string;
+  setOilType: (v: string) => void;
+}) {
+  return (
+    <>
+      <ZoneSelect zones={zones} value={zoneId} onChange={setZoneId} />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Capacité (litres)</Label>
+          <Input value={capacity} onChange={(e) => setCapacity(e.target.value)} inputMode="decimal" placeholder="10" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Type d&apos;huile</Label>
+          <Input value={oilType} onChange={(e) => setOilType(e.target.value)} placeholder="Ex : Tournesol" />
         </div>
       </div>
     </>
@@ -132,13 +197,15 @@ function EquipModal({
   onClose: () => void;
   onSave: (v: SaveInput) => void;
 }) {
-  const probe = initial?.kind === "temperature" ? initial.row : null;
-  const [kind, setKind] = useState<Kind>(initial?.kind ?? "temperature");
-  const [label, setLabel] = useState(initial?.row.label ?? "");
-  const [zoneId, setZoneId] = useState<string>(probe?.zone_id ?? NO_ZONE);
-  const [minC, setMinC] = useState(numToStr(probe?.min_c));
-  const [maxC, setMaxC] = useState(numToStr(probe?.max_c));
-  const [frequency, setFrequency] = useState<HaccpFrequency>(initialFrequency(initial));
+  const init = initialEquipState(initial);
+  const [kind, setKind] = useState<Kind>(init.kind);
+  const [label, setLabel] = useState(init.label);
+  const [zoneId, setZoneId] = useState<string>(init.zoneId);
+  const [minC, setMinC] = useState(init.minC);
+  const [maxC, setMaxC] = useState(init.maxC);
+  const [capacity, setCapacity] = useState(init.capacity);
+  const [oilType, setOilType] = useState(init.oilType);
+  const [frequency, setFrequency] = useState<HaccpFrequency>(init.frequency);
 
   const save = () =>
     onSave({
@@ -149,6 +216,8 @@ function EquipModal({
       min_c: minC,
       max_c: maxC,
       frequency,
+      capacity,
+      oil_type: oilType,
     });
 
   return (
@@ -190,7 +259,7 @@ function EquipModal({
 
           <CadenceSelect value={frequency} onChange={setFrequency} />
 
-          {kind === "temperature" && (
+          {kind === "temperature" ? (
             <TemperatureFields
               zones={zones}
               zoneId={zoneId}
@@ -199,6 +268,16 @@ function EquipModal({
               setMinC={setMinC}
               maxC={maxC}
               setMaxC={setMaxC}
+            />
+          ) : (
+            <OilBathFields
+              zones={zones}
+              zoneId={zoneId}
+              setZoneId={setZoneId}
+              capacity={capacity}
+              setCapacity={setCapacity}
+              oilType={oilType}
+              setOilType={setOilType}
             />
           )}
         </div>
@@ -266,7 +345,17 @@ export default function HaccpEquipementsPage() {
         done,
       );
     } else {
-      upsertBath.mutate({ id: v.id, label: v.label, frequency: v.frequency }, done);
+      upsertBath.mutate(
+        {
+          id: v.id,
+          label: v.label,
+          frequency: v.frequency,
+          capacity_l: parseNum(v.capacity),
+          oil_type: v.oil_type.trim() || null,
+          zone_id: v.zone_id,
+        },
+        done,
+      );
     }
   };
 
@@ -312,7 +401,7 @@ export default function HaccpEquipementsPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Cadence</TableHead>
                     <TableHead>Zone</TableHead>
-                    <TableHead>Seuils</TableHead>
+                    <TableHead>Détail</TableHead>
                     <TableHead className="w-[80px] text-right" />
                   </TableRow>
                 </TableHeader>
@@ -326,13 +415,15 @@ export default function HaccpEquipementsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{haccpFrequencyLabel(e.row.frequency)}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {e.kind === "temperature" ? zoneName(e.row.zone_id) : "—"}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{zoneName(e.row.zone_id)}</TableCell>
                       <TableCell className="text-muted-foreground tabular-nums">
-                        {e.kind === "temperature" && (e.row.min_c != null || e.row.max_c != null)
-                          ? `${e.row.min_c ?? "…"} – ${e.row.max_c ?? "…"} °C`
-                          : "—"}
+                        {e.kind === "temperature"
+                          ? e.row.min_c != null || e.row.max_c != null
+                            ? `${e.row.min_c ?? "…"} – ${e.row.max_c ?? "…"} °C`
+                            : "—"
+                          : [e.row.capacity_l != null ? `${e.row.capacity_l} L` : null, e.row.oil_type]
+                              .filter(Boolean)
+                              .join(" · ") || "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-0.5">
