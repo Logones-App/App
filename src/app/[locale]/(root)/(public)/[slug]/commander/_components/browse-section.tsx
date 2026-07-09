@@ -20,6 +20,89 @@ interface Props {
   onGoToCheckout: () => void;
 }
 
+function ItemLine({
+  item,
+  count,
+  onAddProduct,
+}: {
+  item: PublicProduct;
+  count: number;
+  onAddProduct: (item: PublicProduct) => void;
+}) {
+  return (
+    <div className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{item.name}</p>
+        {item.description && <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>}
+        {item.price !== null && (
+          <p className="mt-0.5 text-sm font-semibold">{item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}</p>
+        )}
+      </div>
+      {item.price !== null && (
+        <div className="relative shrink-0">
+          <button
+            onClick={() => onAddProduct(item)}
+            disabled={item.isOutOfStock}
+            className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          {count > 0 && (
+            <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
+              {count}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionBlock({
+  section,
+  depth,
+  getProductCount,
+  onAddProduct,
+}: {
+  section: PublicSection;
+  depth: number;
+  getProductCount: (menuProductId: string) => number;
+  onAddProduct: (item: PublicProduct) => void;
+}) {
+  const hasItems = section.items.length > 0;
+  const hasSubs = section.subsections.length > 0;
+  if (!hasItems && !hasSubs) return null;
+
+  return (
+    <div className={depth === 0 ? "px-4 py-5" : "mt-4 border-l-2 pl-3"}>
+      <h2 className={depth === 0 ? "mb-3 text-base font-semibold" : "text-muted-foreground mb-2 text-sm font-semibold"}>
+        {section.name}
+      </h2>
+      {hasItems && (
+        <div className="space-y-4">
+          {section.items.map((item) => (
+            <ItemLine
+              key={item.menuProductId}
+              item={item}
+              count={getProductCount(item.menuProductId)}
+              onAddProduct={onAddProduct}
+            />
+          ))}
+        </div>
+      )}
+      {section.subsections.map((sub) => (
+        <SectionBlock
+          key={sub.id}
+          section={sub}
+          depth={depth + 1}
+          getProductCount={getProductCount}
+          onAddProduct={onAddProduct}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function BrowseSection({
   sections,
   formulas,
@@ -63,49 +146,14 @@ export function BrowseSection({
       {sections.length === 0 && (
         <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">Menu non disponible</div>
       )}
-      {sections.map((section: PublicSection) => (
-        <div key={section.id} className="px-4 py-5">
-          <h2 className="mb-3 text-base font-semibold">{section.name}</h2>
-          <div className="space-y-4">
-            {section.items.map((item: PublicProduct) => {
-              const count = getProductCount(item.menuProductId);
-              return (
-                <div
-                  key={item.menuProductId}
-                  className={`flex items-center gap-3 ${item.isOutOfStock ? "opacity-50" : ""}`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{item.name}</p>
-                    {item.description && (
-                      <p className="text-muted-foreground line-clamp-2 text-xs">{item.description}</p>
-                    )}
-                    {item.price !== null && (
-                      <p className="mt-0.5 text-sm font-semibold">
-                        {item.isOutOfStock ? "Épuisé" : formatPrice(item.price)}
-                      </p>
-                    )}
-                  </div>
-                  {item.price !== null && (
-                    <div className="relative shrink-0">
-                      <button
-                        onClick={() => onAddProduct(item)}
-                        disabled={item.isOutOfStock}
-                        className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-40"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                      {count > 0 && (
-                        <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
-                          {count}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {sections.map((section) => (
+        <SectionBlock
+          key={section.id}
+          section={section}
+          depth={0}
+          getProductCount={getProductCount}
+          onAddProduct={onAddProduct}
+        />
       ))}
       {cartLength > 0 && (
         <div className="fixed right-0 bottom-0 left-0 border-t bg-white p-4 shadow-lg">

@@ -7,9 +7,7 @@ import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Plus, Trash2 } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -29,62 +27,9 @@ import {
   useUpdateSection,
 } from "@/lib/queries/public-menu-queries";
 
+import { AddProductCombobox } from "./public-menu-add-product-combobox";
+
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-// ─── Combobox ajout produit ───────────────────────────────────────────────────
-
-function AddProductCombobox({
-  picker,
-  alreadyInSection,
-  isPending,
-  onAdd,
-}: {
-  picker: MenuProductPickerItem[];
-  alreadyInSection: Set<string>;
-  isPending: boolean;
-  onAdd: (menusProductId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const available = picker.filter((p) => !alreadyInSection.has(p.menusProductId));
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={isPending || available.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          Ajouter un produit
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Rechercher…" />
-          <CommandList>
-            <CommandEmpty>Aucun produit disponible.</CommandEmpty>
-            <CommandGroup>
-              {available.map((p) => (
-                <CommandItem
-                  key={p.menusProductId}
-                  value={`${p.productName} ${p.menuName ?? ""}`}
-                  onSelect={() => {
-                    onAdd(p.menusProductId);
-                    setOpen(false);
-                  }}
-                >
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate">{p.productName}</span>
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {p.price != null ? eur.format(p.price) : "—"}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 // ─── Ligne item ───────────────────────────────────────────────────────────────
 
@@ -206,6 +151,47 @@ function ItemRow({
 
 // ─── Carte section ─────────────────────────────────────────────────────────────
 
+function SubSectionAdder({ onCreate, isPending }: { onCreate: (name: string) => void; isPending: boolean }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const submit = () => {
+    const n = name.trim();
+    if (!n) return;
+    onCreate(n);
+    setName("");
+    setAdding(false);
+  };
+  if (!adding) {
+    return (
+      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setAdding(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        Ajouter une sous-section
+      </Button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        autoFocus
+        placeholder="Nom de la sous-section…"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") setAdding(false);
+        }}
+        className="h-8 flex-1"
+      />
+      <Button type="button" size="sm" onClick={submit} disabled={isPending || !name.trim()}>
+        Créer
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(false)}>
+        Annuler
+      </Button>
+    </div>
+  );
+}
+
 function SectionCard({
   section,
   isFirst,
@@ -213,6 +199,8 @@ function SectionCard({
   picker,
   establishmentId,
   organizationId,
+  depth = 0,
+  subsections = [],
 }: {
   section: PublicMenuSectionWithItems;
   isFirst: boolean;
@@ -220,12 +208,15 @@ function SectionCard({
   picker: MenuProductPickerItem[];
   establishmentId: string;
   organizationId: string;
+  depth?: number;
+  subsections?: PublicMenuSectionWithItems[];
 }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(section.name);
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState(section.description ?? "");
 
+  const createSection = useCreateSection(establishmentId, organizationId);
   const updateSection = useUpdateSection(establishmentId, organizationId);
   const deleteSection = useDeleteSection(establishmentId, organizationId);
   const moveSection = useMoveSection(establishmentId, organizationId);
@@ -391,6 +382,27 @@ function SectionCard({
           isPending={isPending}
           onAdd={(menusProductId) => addItem.mutate({ section_id: section.id, menus_product_id: menusProductId })}
         />
+
+        {depth === 0 && (
+          <div className="space-y-3 border-t pt-3">
+            {subsections.map((sub, i) => (
+              <SectionCard
+                key={sub.id}
+                section={sub}
+                depth={1}
+                isFirst={i === 0}
+                isLast={i === subsections.length - 1}
+                picker={picker}
+                establishmentId={establishmentId}
+                organizationId={organizationId}
+              />
+            ))}
+            <SubSectionAdder
+              isPending={createSection.isPending}
+              onCreate={(name) => createSection.mutate({ name, parentId: section.id })}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -415,13 +427,19 @@ export function PublicMenuEditorShared({
   const handleCreateSection = () => {
     const name = newSectionName.trim();
     if (!name) return;
-    createSection.mutate(name, {
-      onSuccess: () => {
-        setNewSectionName("");
-        setAddingSection(false);
+    createSection.mutate(
+      { name },
+      {
+        onSuccess: () => {
+          setNewSectionName("");
+          setAddingSection(false);
+        },
       },
-    });
+    );
   };
+
+  const topSections = sections.filter((s) => s.parent_id == null);
+  const childrenOf = (id: string) => sections.filter((s) => s.parent_id === id);
 
   return (
     <div className="space-y-6">
@@ -483,12 +501,14 @@ export function PublicMenuEditorShared({
         </p>
       )}
 
-      {sections.map((section, idx) => (
+      {topSections.map((section, idx) => (
         <SectionCard
           key={section.id}
           section={section}
+          depth={0}
+          subsections={childrenOf(section.id)}
           isFirst={idx === 0}
-          isLast={idx === sections.length - 1}
+          isLast={idx === topSections.length - 1}
           picker={picker}
           establishmentId={establishmentId}
           organizationId={organizationId}

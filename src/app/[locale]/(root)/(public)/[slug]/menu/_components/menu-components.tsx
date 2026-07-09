@@ -1,6 +1,6 @@
 "use client";
 
-import { allergenInfo, formatPrice, labelInfo, type PublicProduct } from "./menu-utils";
+import { allergenInfo, formatPrice, labelInfo, type PublicProduct, type PublicSection } from "./menu-utils";
 
 // ─── Badge allergène ──────────────────────────────────────────────────────────
 
@@ -71,28 +71,36 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   );
 }
 
-// ─── Section catégorie ────────────────────────────────────────────────────────
+// ─── Section (récursive : gère les sous-sections à n niveaux) ──────────────────
 
-export function CategorySection({
-  name,
-  description,
-  products,
-}: {
-  name: string | null;
-  description?: string | null;
-  products: PublicProduct[];
-}) {
-  if (!products.length) return null;
+export function SectionNode({ section, depth = 0 }: { section: PublicSection; depth?: number }) {
+  const hasItems = section.items.length > 0;
+  const hasSubs = section.subsections.length > 0;
+  if (!hasItems && !hasSubs) return null;
+
   return (
-    <section className="mb-8">
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{name ?? "Autres"}</h2>
-      <div className="bg-primary mb-2 h-0.5 w-12 rounded" />
-      {description && <p className="text-muted-foreground mb-3 text-sm">{description}</p>}
-      <div>
-        {products.map((p) => (
-          <ProductCard key={p.menuProductId} product={p} />
-        ))}
-      </div>
+    <section className={depth === 0 ? "mb-8" : "mt-5 border-l-2 pl-3 dark:border-gray-800"}>
+      {depth === 0 ? (
+        <>
+          <h2 className="mb-1 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            {section.name || "Autres"}
+          </h2>
+          <div className="bg-primary mb-2 h-0.5 w-12 rounded" />
+        </>
+      ) : (
+        <h3 className="mb-1 text-base font-semibold text-gray-800 dark:text-gray-200">{section.name}</h3>
+      )}
+      {section.description && <p className="text-muted-foreground mb-3 text-sm">{section.description}</p>}
+      {hasItems && (
+        <div>
+          {section.items.map((p) => (
+            <ProductCard key={p.menuProductId} product={p} />
+          ))}
+        </div>
+      )}
+      {section.subsections.map((sub) => (
+        <SectionNode key={sub.id} section={sub} depth={depth + 1} />
+      ))}
     </section>
   );
 }

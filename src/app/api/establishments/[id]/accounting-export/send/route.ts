@@ -25,7 +25,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-    // V1 : réservé aux org-admins (le check employé can_export_accounting viendra avec l'enforcement global).
+    // Export comptable : réservé à system_admin + org_admin. JAMAIS orga_user (tablette) ni employé
+    // (l'export SaaS n'est pas une action déléguable côté caisse). Politique définitive.
     const role = user.app_metadata.role as string | undefined;
     if (role !== "system_admin" && role !== "org_admin") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });

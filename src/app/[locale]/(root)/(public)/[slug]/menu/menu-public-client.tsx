@@ -6,8 +6,9 @@ import Link from "next/link";
 
 import { ArrowLeft, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 
-import { CategorySection } from "./_components/menu-components";
+import { SectionNode } from "./_components/menu-components";
 import {
+  flattenSectionItems,
   getPublicCarteSections,
   getPublicEstablishmentBySlug,
   type PublicEstablishment,
@@ -61,7 +62,7 @@ export default function MenuPublicClient({ params }: Props) {
     );
   }
 
-  const hasAllergens = sections.some((s) => s.items.some((p) => p.allergens.length > 0));
+  const hasAllergens = flattenSectionItems(sections).some((p) => p.allergens.length > 0);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -116,12 +117,7 @@ export default function MenuPublicClient({ params }: Props) {
         ) : (
           <div>
             {sections.map((section) => (
-              <CategorySection
-                key={section.id}
-                name={section.name}
-                description={section.description}
-                products={section.items}
-              />
+              <SectionNode key={section.id} section={section} depth={0} />
             ))}
           </div>
         )}

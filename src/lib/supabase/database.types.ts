@@ -6948,6 +6948,7 @@ export type Database = {
           id: string
           name: string
           organization_id: string
+          parent_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -6959,6 +6960,7 @@ export type Database = {
           id?: string
           name: string
           organization_id: string
+          parent_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -6970,6 +6972,7 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string
+          parent_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -6985,6 +6988,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_menu_sections_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "public_menu_sections"
             referencedColumns: ["id"]
           },
         ]

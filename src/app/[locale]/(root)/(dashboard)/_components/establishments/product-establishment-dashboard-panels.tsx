@@ -51,9 +51,11 @@ function computeTabFlags(product: ProductWithCategoryName, compositionStockRows:
     // Recette : recettes (BOM), ingrédients composés, et tout produit vendable (pour lui construire
     // sa recette — l'ajout d'un 1er ingrédient pose alors le rôle `recipe`).
     hasFicheTechnique: isRecipe || isIngredient || isForSale,
-    // Achats (réception + fournisseurs) : ce qu'on ACHÈTE réellement (ingrédient brut).
-    // Une préparation maison (ingrédient + recette) se produit (pas de réception).
-    hasAchatsTab: isIngredient && !isRecipe,
+    // Achats (réception + fournisseurs) : tout ce qu'on ACHÈTE et qui n'est PAS produit maison.
+    // = ingrédient brut OU produit vendu tel quel (acheté prêt puis revendu). Une recette (produite)
+    // n'a pas de réception. Un sellable sans recette est indéterminé : on peut le cuisiner (Recette)
+    // OU renseigner son achat (Achats) — d'où l'inclusion de isForSale.
+    hasAchatsTab: !isRecipe && (isIngredient || isForSale),
     // Onglet Stock : seul un ingrédient pur utilise la fiche stock directe (les autres ont le sélecteur de mode).
     isPureIngredient: isIngredient && !isForSale,
     portionUnit: product.portion_unit ?? null,

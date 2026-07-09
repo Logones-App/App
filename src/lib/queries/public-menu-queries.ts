@@ -148,15 +148,23 @@ export function useMenuProductsPicker(establishmentId: string, organizationId: s
 export function useCreateSection(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, parentId = null }: { name: string; parentId?: string | null }) => {
       const supabase = createClient();
-      const existing = queryClient.getQueryData<PublicMenuSectionWithItems[]>(
-        publicMenuSectionsKey(establishmentId, organizationId),
-      );
-      const display_order = existing?.length ?? 0;
+      const existing =
+        queryClient.getQueryData<PublicMenuSectionWithItems[]>(
+          publicMenuSectionsKey(establishmentId, organizationId),
+        ) ?? [];
+      // display_order au sein du même parent (racine ou sous-section).
+      const display_order = existing.filter((s) => s.parent_id === parentId).length;
       const { data, error } = await supabase
         .from("public_menu_sections")
-        .insert({ name, establishment_id: establishmentId, organization_id: organizationId, display_order })
+        .insert({
+          name,
+          establishment_id: establishmentId,
+          organization_id: organizationId,
+          display_order,
+          parent_id: parentId,
+        })
         .select()
         .single();
       if (error) throw error;
@@ -212,10 +220,13 @@ export function useDeleteSection(establishmentId: string, organizationId: string
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
+      // Supprime la section ET ses sous-sections directes (soft-delete ; le CASCADE SQL
+      // ne s'applique qu'au hard-delete). Les items des sous-sections deviennent naturellement
+      // invisibles (leur section n'est plus dans la liste des sections non supprimées).
       const { error } = await supabase
         .from("public_menu_sections")
         .update({ deleted: true })
-        .eq("id", id)
+        .or(`id.eq.${id},parent_id.eq.${id}`)
         .eq("organization_id", organizationId);
       if (error) throw error;
     },
@@ -230,10 +241,14 @@ export function useMoveSection(establishmentId: string, organizationId: string) 
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
-      const sections =
+      const all =
         queryClient.getQueryData<PublicMenuSectionWithItems[]>(
           publicMenuSectionsKey(establishmentId, organizationId),
         ) ?? [];
+      const target = all.find((s) => s.id === id);
+      if (!target) return;
+      // Réordonner uniquement au sein du même parent (frères).
+      const sections = all.filter((s) => s.parent_id === target.parent_id);
       const idx = sections.findIndex((s) => s.id === id);
       const swapIdx = direction === "up" ? idx - 1 : idx + 1;
       if (idx < 0 || swapIdx < 0 || swapIdx >= sections.length) return;

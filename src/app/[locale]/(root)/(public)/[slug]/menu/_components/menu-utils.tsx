@@ -25,7 +25,13 @@ export type PublicSection = {
   name: string;
   description: string | null;
   items: PublicProduct[];
+  subsections: PublicSection[];
 };
+
+/** Aplatit tous les produits d'un arbre de sections (tous niveaux). */
+export function flattenSectionItems(sections: PublicSection[]): PublicProduct[] {
+  return sections.flatMap((s) => [...s.items, ...flattenSectionItems(s.subsections)]);
+}
 
 export type PublicEstablishment = {
   id: string;
@@ -57,7 +63,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   const { data: sections, error: secError } = await supabase
     .from("public_menu_sections")
-    .select("id, name, description")
+    .select("id, name, description, parent_id, display_order")
     .eq("establishment_id", establishmentId)
     .eq("deleted", false)
     .order("display_order", { ascending: true });
@@ -100,6 +106,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     note: string | null;
     menus_product: { id: string; menus_id: string; price: number | null; product: RawProduct | null } | null;
   };
+  type RawSection = { id: string; name: string; description: string | null; parent_id: string | null };
 
   const itemsBySection = new Map<string, PublicProduct[]>();
 
@@ -130,12 +137,25 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     itemsBySection.set(raw.section_id, list);
   }
 
-  return sections.map((s) => ({
+  // Arbre par parent_id (l'ordre display_order est préservé au sein de chaque groupe).
+  const ROOT = "__root__";
+  const childrenByParent = new Map<string, RawSection[]>();
+  for (const s of sections as RawSection[]) {
+    const key = s.parent_id ?? ROOT;
+    const arr = childrenByParent.get(key) ?? [];
+    arr.push(s);
+    childrenByParent.set(key, arr);
+  }
+
+  const build = (s: RawSection): PublicSection => ({
     id: s.id,
     name: s.name,
     description: s.description ?? null,
     items: itemsBySection.get(s.id) ?? [],
-  }));
+    subsections: (childrenByParent.get(s.id) ?? []).map(build),
+  });
+
+  return (childrenByParent.get(ROOT) ?? []).map(build);
 }
 
 export async function getPublicCarteSectionsWithStock(establishmentId: string): Promise<PublicSection[]> {
@@ -152,14 +172,18 @@ export async function getPublicCarteSectionsWithStock(establishmentId: string): 
       .then((d) => new Set<string>((d as { ids: string[] }).ids))
       .catch((): CustomizableSet => new Set()),
   ]);
-  return sections.map((section) => ({
+
+  const enrich = (section: PublicSection): PublicSection => ({
     ...section,
     items: section.items.map((item) => ({
       ...item,
       isOutOfStock: (stockRes[item.productId]?.current_stock ?? 1) <= 0,
       isCustomizable: customizableRes.has(item.productId),
     })),
-  }));
+    subsections: section.subsections.map(enrich),
+  });
+
+  return sections.map(enrich);
 }
 
 // ─── Helpers affichage ────────────────────────────────────────────────────────

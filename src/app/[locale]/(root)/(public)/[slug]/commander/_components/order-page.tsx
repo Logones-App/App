@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   type PublicProduct,
   type PublicSection,
+  flattenSectionItems,
   getPublicCarteSectionsWithStock,
 } from "../../menu/_components/menu-utils";
 
@@ -87,7 +88,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   }, [establishmentId]);
 
   useEffect(() => {
-    const menuId = sections.flatMap((s) => s.items).find((i) => i.menusId)?.menusId;
+    const menuId = flattenSectionItems(sections).find((i) => i.menusId)?.menusId;
     if (!menuId) return;
     fetch(`/api/table-order/formulas?menu_id=${menuId}&est=${establishmentId}`)
       .then((r) => r.json() as Promise<Formula[]>)
@@ -220,7 +221,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
 
   function editCartItem(cartItemId: string) {
     const item = cart.find((c) => c.id === cartItemId);
-    const section = sections.flatMap((s) => s.items).find((p) => p.menuProductId === (item?.menuProductId ?? ""));
+    const section = flattenSectionItems(sections).find((p) => p.menuProductId === (item?.menuProductId ?? ""));
     if (!item || !section) return;
     setModalState({ product: section, cartItemId });
   }
@@ -457,7 +458,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
             isSubmitting={isSubmitting}
             error={error}
             isItemCustomizable={(id) =>
-              sections.flatMap((s) => s.items).some((p) => p.menuProductId === id && p.isCustomizable)
+              flattenSectionItems(sections).some((p) => p.menuProductId === id && p.isCustomizable)
             }
             onGuestNameChange={setGuestName}
             onNoteChange={handleNoteChange}
