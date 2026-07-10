@@ -33,7 +33,7 @@ export function AddProductCombobox({
           Ajouter un produit
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-80 p-0" align="start">
         <Command>
           <CommandInput placeholder="Rechercher…" />
           <CommandList>
@@ -49,7 +49,10 @@ export function AddProductCombobox({
                   }}
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate">{p.productName}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate">{p.productName}</span>
+                      {p.menuName && <span className="text-muted-foreground truncate text-xs">{p.menuName}</span>}
+                    </div>
                     <span className="text-muted-foreground shrink-0 text-xs">
                       {p.price != null ? eur.format(p.price) : "—"}
                     </span>
