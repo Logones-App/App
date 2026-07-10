@@ -8,11 +8,14 @@ import { ArrowLeft, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 
 import { SectionNode } from "./_components/menu-components";
 import {
+  filterSectionsByCard,
   flattenSectionItems,
   getPublicCarteSections,
   getPublicEstablishmentBySlug,
+  getPublicMenus,
   localizeSections,
   type PublicEstablishment,
+  type PublicMenuCard,
   type PublicSection,
 } from "./_components/menu-utils";
 
@@ -34,6 +37,8 @@ export default function MenuPublicClient({ params }: Props) {
   const [establishment, setEstablishment] = useState<PublicEstablishment | null>(null);
   const [rawSections, setRawSections] = useState<PublicSection[]>([]);
   const [locale, setLocale] = useState("fr");
+  const [cards, setCards] = useState<PublicMenuCard[]>([]);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -47,13 +52,20 @@ export default function MenuPublicClient({ params }: Props) {
       }
       setEstablishment(estab);
       setLocale(estab.locales.includes(urlLocale) ? urlLocale : estab.locales[0]);
-      setRawSections(await getPublicCarteSections(estab.id));
+      const [secs, publicMenus] = await Promise.all([getPublicCarteSections(estab.id), getPublicMenus(estab.id)]);
+      setRawSections(secs);
+      setCards(publicMenus);
+      setSelectedCard(publicMenus[0]?.id ?? null);
       setLoading(false);
     });
   }, [params]);
 
   const primary = establishment?.locales[0] ?? "fr";
-  const sections = useMemo(() => localizeSections(rawSections, locale, primary), [rawSections, locale, primary]);
+  const localized = useMemo(() => localizeSections(rawSections, locale, primary), [rawSections, locale, primary]);
+  const sections = useMemo(
+    () => (cards.length > 0 ? filterSectionsByCard(localized, selectedCard) : localized),
+    [localized, cards, selectedCard],
+  );
 
   if (loading) {
     return (
@@ -142,6 +154,26 @@ export default function MenuPublicClient({ params }: Props) {
             )}
           </div>
         </div>
+
+        {cards.length > 1 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {cards.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedCard(c.id)}
+                aria-pressed={selectedCard === c.id}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                  selectedCard === c.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted border"
+                }`}
+              >
+                {c.name ?? "Carte"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {sections.length === 0 ? (
           <div className="rounded-xl border border-dashed p-12 text-center">

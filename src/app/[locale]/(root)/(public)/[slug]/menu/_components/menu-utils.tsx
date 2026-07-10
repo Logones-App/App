@@ -33,9 +33,37 @@ export type PublicSection = {
   description: string | null;
   items: PublicProduct[];
   subsections: PublicSection[];
+  /** Carte (menu) à laquelle la section appartient ; null = commune à toutes les cartes. */
+  menuId: string | null;
   /** JSONB `public_menu_sections.translations` (name/description par locale). */
   translations: unknown;
 };
+
+/** Carte publique = un menu public de l'établissement. */
+export type PublicMenuCard = { id: string; name: string | null };
+
+/** Menus publics de l'établissement = les cartes sélectionnables (Midi, Soir…). */
+export async function getPublicMenus(establishmentId: string): Promise<PublicMenuCard[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("menus")
+    .select("id, name")
+    .eq("establishment_id", establishmentId)
+    .eq("is_public", true)
+    .eq("deleted", false)
+    .order("display_order", { ascending: true, nullsFirst: false })
+    .order("name", { ascending: true });
+  if (error) return [];
+  return data;
+}
+
+/**
+ * Sections d'une carte donnée : celles propres au menu `cardMenuId` + les communes (menuId null).
+ * Les sous-sections héritant du menu de leur parent, filtrer au niveau racine suffit.
+ */
+export function filterSectionsByCard(sections: PublicSection[], cardMenuId: string | null): PublicSection[] {
+  return sections.filter((s) => s.menuId === cardMenuId || s.menuId === null);
+}
 
 /** Aplatit tous les produits d'un arbre de sections (tous niveaux). */
 export function flattenSectionItems(sections: PublicSection[]): PublicProduct[] {
@@ -80,7 +108,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   const { data: sections, error: secError } = await supabase
     .from("public_menu_sections")
-    .select("id, name, description, parent_id, display_order, translations")
+    .select("id, name, description, parent_id, display_order, menu_id, translations")
     .eq("establishment_id", establishmentId)
     .eq("deleted", false)
     .order("display_order", { ascending: true });
@@ -130,6 +158,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     name: string;
     description: string | null;
     parent_id: string | null;
+    menu_id: string | null;
     translations: unknown;
   };
 
@@ -181,6 +210,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     description: s.description ?? null,
     items: itemsBySection.get(s.id) ?? [],
     subsections: (childrenByParent.get(s.id) ?? []).map(build),
+    menuId: s.menu_id,
     translations: s.translations,
   });
 
