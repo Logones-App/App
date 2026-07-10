@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { createClient } from "@supabase/supabase-js";
 import { Loader2, XCircle } from "lucide-react";
 
 import type { Formula, FormulaProduct } from "@/app/api/table-order/formulas/route";
 import { Button } from "@/components/ui/button";
+import { localeLabel } from "@/lib/i18n/localized";
 
 import {
   type PublicProduct,
   type PublicSection,
   flattenSectionItems,
   getPublicCarteSectionsWithStock,
+  getPublicEstablishmentBySlug,
+  localizeSections,
 } from "../../menu/_components/menu-utils";
 
 import { BrowseSection } from "./browse-section";
@@ -40,6 +43,8 @@ type CartItem = {
   menuProductId: string;
   productId: string;
   name: string;
+  /** Nom en langue primaire (fr) — envoyé en cuisine, indépendant de la langue d'affichage. */
+  baseName: string;
   unitPrice: number;
   vatRate: number | null;
   note: string;
@@ -62,6 +67,8 @@ interface Props {
 
 export function OrderPage({ establishment, tableId, tableName, establishmentId }: Props) {
   const [sections, setSections] = useState<PublicSection[]>([]);
+  const [locales, setLocales] = useState<string[]>(["fr"]);
+  const [locale, setLocale] = useState("fr");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [guestName, setGuestName] = useState("");
   const [step, setStep] = useState<Step>("browse");
@@ -86,6 +93,20 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   useEffect(() => {
     void getPublicCarteSectionsWithStock(establishmentId).then(setSections);
   }, [establishmentId]);
+
+  useEffect(() => {
+    void getPublicEstablishmentBySlug(establishment.slug).then((e) => {
+      if (!e) return;
+      setLocales(e.locales);
+      setLocale((cur) => (e.locales.includes(cur) ? cur : e.locales[0]));
+    });
+  }, [establishment.slug]);
+
+  const primaryLocale = locales[0] ?? "fr";
+  const localizedSections = useMemo(
+    () => localizeSections(sections, locale, primaryLocale),
+    [sections, locale, primaryLocale],
+  );
 
   useEffect(() => {
     const menuId = flattenSectionItems(sections).find((i) => i.menusId)?.menusId;
@@ -186,6 +207,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         menuProductId: item.menuProductId,
         productId: item.productId,
         name: item.name,
+        baseName: item.baseName,
         unitPrice: item.price!,
         vatRate: item.vatRate,
         note: "",
@@ -208,6 +230,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           menuProductId: product.menuProductId,
           productId: product.productId,
           name: product.name,
+          baseName: product.baseName,
           unitPrice,
           vatRate: product.vatRate,
           note: "",
@@ -221,7 +244,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
 
   function editCartItem(cartItemId: string) {
     const item = cart.find((c) => c.id === cartItemId);
-    const section = flattenSectionItems(sections).find((p) => p.menuProductId === (item?.menuProductId ?? ""));
+    const section = flattenSectionItems(localizedSections).find((p) => p.menuProductId === (item?.menuProductId ?? ""));
     if (!item || !section) return;
     setModalState({ product: section, cartItemId });
   }
@@ -246,6 +269,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         menuProductId: "",
         productId: sels[sl.id]?.product_id ?? "",
         name: sels[sl.id]?.product_name ?? "",
+        baseName: sels[sl.id]?.product_name ?? "",
         unitPrice: i === 0 ? groupPrice : 0,
         vatRate: null,
         note: "",
@@ -277,7 +301,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
           items: cart.map((c) =>
             buildOrderItem({
               productId: c.productId,
-              name: c.name,
+              name: c.baseName,
               unitPrice: c.formulaInstanceId ? 0 : c.unitPrice,
               vatRate: c.vatRate,
               note: c.note,
@@ -429,15 +453,39 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
       )}
       <div className="min-h-screen pb-28">
         <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
-          <p className="text-muted-foreground text-xs">{establishment.name}</p>
-          <h1 className="font-bold">{tableName}</h1>
-          <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
-            ← Commande en cours
-          </button>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-muted-foreground text-xs">{establishment.name}</p>
+              <h1 className="font-bold">{tableName}</h1>
+              <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
+                ← Commande en cours
+              </button>
+            </div>
+            {locales.length > 1 && (
+              <div className="flex shrink-0 items-center gap-1">
+                {locales.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLocale(code)}
+                    aria-pressed={locale === code}
+                    title={localeLabel(code)}
+                    className={`rounded px-2 py-1 text-xs font-medium uppercase transition-colors ${
+                      locale === code
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </header>
         {step === "browse" && (
           <BrowseSection
-            sections={sections}
+            sections={localizedSections}
             formulas={formulas}
             cartLength={cart.length}
             totalPrice={totalPrice}
@@ -458,7 +506,7 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
             isSubmitting={isSubmitting}
             error={error}
             isItemCustomizable={(id) =>
-              flattenSectionItems(sections).some((p) => p.menuProductId === id && p.isCustomizable)
+              flattenSectionItems(localizedSections).some((p) => p.menuProductId === id && p.isCustomizable)
             }
             onGuestNameChange={setGuestName}
             onNoteChange={handleNoteChange}

@@ -6,6 +6,8 @@ export type PublicProduct = {
   menuProductId: string;
   productId: string;
   name: string;
+  /** Nom en langue primaire (fr), non traduit — à envoyer en cuisine/commande. */
+  baseName: string;
   description: string | null;
   note: string | null;
   price: number | null;
@@ -143,6 +145,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       menuProductId: mp.id,
       productId: mp.product.id,
       name: mp.product.name,
+      baseName: mp.product.name,
       description: mp.product.description,
       note: raw.note,
       price: mp.price,
