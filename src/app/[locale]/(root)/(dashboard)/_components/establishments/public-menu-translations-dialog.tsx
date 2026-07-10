@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { Languages } from "lucide-react";
+import { Copy, Languages } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -102,7 +103,22 @@ export function TranslationsButton({
                     const value = rawLocalized(drafts.at(gi), code, f.key);
                     return (
                       <div key={f.key} className="space-y-1">
-                        <Label className="text-xs">{f.label}</Label>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label className="text-xs">{f.label}</Label>
+                          {f.base && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(f.base ?? "");
+                                toast.success("Référence copiée");
+                              }}
+                              title="Copier le texte de référence dans le presse-papier"
+                              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11px]"
+                            >
+                              <Copy className="h-3 w-3" /> Copier la réf.
+                            </button>
+                          )}
+                        </div>
                         {f.multiline ? (
                           <Textarea
                             value={value}
