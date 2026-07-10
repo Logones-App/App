@@ -149,14 +149,24 @@ export function useMenuProductsPicker(establishmentId: string, organizationId: s
 export function useCreateSection(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, parentId = null }: { name: string; parentId?: string | null }) => {
+    mutationFn: async ({
+      name,
+      parentId = null,
+      menuId = null,
+    }: {
+      name: string;
+      parentId?: string | null;
+      menuId?: string | null;
+    }) => {
       const supabase = createClient();
       const existing =
         queryClient.getQueryData<PublicMenuSectionWithItems[]>(
           publicMenuSectionsKey(establishmentId, organizationId),
         ) ?? [];
-      // display_order au sein du même parent (racine ou sous-section).
-      const display_order = existing.filter((s) => s.parent_id === parentId).length;
+      // display_order au sein du même parent ET de la même carte (menu_id).
+      const display_order = existing.filter(
+        (s) => s.parent_id === parentId && (s.menu_id ?? null) === (menuId ?? null),
+      ).length;
       const { data, error } = await supabase
         .from("public_menu_sections")
         .insert({
@@ -165,6 +175,7 @@ export function useCreateSection(establishmentId: string, organizationId: string
           organization_id: organizationId,
           display_order,
           parent_id: parentId,
+          menu_id: menuId,
         })
         .select()
         .single();

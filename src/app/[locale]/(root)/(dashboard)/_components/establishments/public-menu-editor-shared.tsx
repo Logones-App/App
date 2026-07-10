@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { LocalizedContent } from "@/lib/i18n/localized";
+import { useEstablishmentMenus } from "@/lib/queries/establishments-menu-queries";
 import {
   type MenuProductPickerItem,
   type PublicMenuSectionWithItems,
@@ -34,6 +36,9 @@ import { AddProductCombobox } from "./public-menu-add-product-combobox";
 import { ItemRow } from "./public-menu-item-row";
 import { CardLocalesControl } from "./public-menu-locales-control";
 import { TranslationsButton } from "./public-menu-translations-dialog";
+
+/** Valeur du sélecteur de carte pour les sections communes (menu_id NULL). */
+const COMMON = "__common__";
 
 // ─── Carte section ─────────────────────────────────────────────────────────────
 
@@ -319,7 +324,7 @@ function SectionCard({
             ))}
             <SubSectionAdder
               isPending={createSection.isPending}
-              onCreate={(name) => createSection.mutate({ name, parentId: section.id })}
+              onCreate={(name) => createSection.mutate({ name, parentId: section.id, menuId: section.menu_id })}
             />
           </div>
         )}
@@ -343,13 +348,18 @@ export function PublicMenuEditorShared({
   const { data: sections = [], isLoading } = usePublicMenuSections(establishmentId, organizationId);
   const { data: picker = [] } = useMenuProductsPicker(establishmentId, organizationId);
   const { data: locales = ["fr"] } = useCardLocales(establishmentId);
+  const { data: menus = [] } = useEstablishmentMenus(establishmentId, organizationId);
   const createSection = useCreateSection(establishmentId, organizationId);
+
+  const [scope, setScope] = useState<string>(COMMON);
+  const scopeMenuId = scope === COMMON ? null : scope;
+  const scopedPicker = scopeMenuId ? picker.filter((p) => p.menuId === scopeMenuId) : picker;
 
   const handleCreateSection = () => {
     const name = newSectionName.trim();
     if (!name) return;
     createSection.mutate(
-      { name },
+      { name, menuId: scopeMenuId },
       {
         onSuccess: () => {
           setNewSectionName("");
@@ -359,7 +369,7 @@ export function PublicMenuEditorShared({
     );
   };
 
-  const topSections = sections.filter((s) => s.parent_id == null);
+  const topSections = sections.filter((s) => s.parent_id == null && (s.menu_id ?? null) === scopeMenuId);
   const childrenOf = (id: string) => sections.filter((s) => s.parent_id === id);
 
   return (
@@ -380,6 +390,27 @@ export function PublicMenuEditorShared({
       </div>
 
       <CardLocalesControl establishmentId={establishmentId} locales={locales} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-sm">Carte :</span>
+        <Select value={scope} onValueChange={setScope}>
+          <SelectTrigger className="w-64">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={COMMON}>Communes (toutes les cartes)</SelectItem>
+            {menus.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name ?? "Menu"}
+                {m.is_public ? "" : " · privé"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground text-xs">
+          {scopeMenuId ? "Sections propres à cette carte." : "Sections affichées sur toutes les cartes."}
+        </span>
+      </div>
 
       {addingSection && (
         <Card>
@@ -418,9 +449,10 @@ export function PublicMenuEditorShared({
         </div>
       )}
 
-      {!isLoading && sections.length === 0 && !addingSection && (
+      {!isLoading && topSections.length === 0 && !addingSection && (
         <p className="text-muted-foreground text-sm">
-          Aucune section. Cliquez sur &quot;Ajouter une section&quot; pour commencer.
+          {scopeMenuId ? "Aucune section pour cette carte." : "Aucune section commune."} Cliquez sur « Ajouter une
+          section » pour commencer.
         </p>
       )}
 
@@ -432,7 +464,7 @@ export function PublicMenuEditorShared({
           subsections={childrenOf(section.id)}
           isFirst={idx === 0}
           isLast={idx === topSections.length - 1}
-          picker={picker}
+          picker={scopedPicker}
           establishmentId={establishmentId}
           organizationId={organizationId}
           locales={locales}

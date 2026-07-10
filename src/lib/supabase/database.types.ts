@@ -6955,6 +6955,7 @@ export type Database = {
           display_order: number
           establishment_id: string
           id: string
+          menu_id: string | null
           name: string
           organization_id: string
           parent_id: string | null
@@ -6968,6 +6969,7 @@ export type Database = {
           display_order?: number
           establishment_id: string
           id?: string
+          menu_id?: string | null
           name: string
           organization_id: string
           parent_id?: string | null
@@ -6981,6 +6983,7 @@ export type Database = {
           display_order?: number
           establishment_id?: string
           id?: string
+          menu_id?: string | null
           name?: string
           organization_id?: string
           parent_id?: string | null
@@ -6993,6 +6996,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_menu_sections_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "menus"
             referencedColumns: ["id"]
           },
           {
