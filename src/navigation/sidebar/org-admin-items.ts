@@ -211,7 +211,7 @@ export const getOrgAdminSidebarItems = (
           ],
         },
         { title: "Étiqueteuse DLC", url: u("haccp/etiqueteuse"), icon: Tag },
-        { title: "Planning des tâches", url: u("haccp/planning"), icon: ListChecks },
+        { title: "Tâches du jour", url: u("haccp/planning"), icon: ListChecks },
       ],
     },
 

@@ -40,7 +40,7 @@ function LabelTag({ labelKey }: { labelKey: string }) {
 
 // ─── Carte produit ────────────────────────────────────────────────────────────
 
-export function ProductCard({ product }: { product: PublicProduct }) {
+export function ProductCard({ product, locale = "fr" }: { product: PublicProduct; locale?: string }) {
   const hasAllergens = product.allergens.length > 0;
   const hasLabels = product.labels.length > 0;
   const portion =
@@ -71,7 +71,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
       {product.price != null && (
         <p className="shrink-0 text-right font-semibold text-gray-900 tabular-nums dark:text-gray-100">
-          {formatPrice(product.price)}
+          {formatPrice(product.price, locale)}
         </p>
       )}
     </div>
@@ -80,7 +80,15 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
 // ─── Section (récursive : gère les sous-sections à n niveaux) ──────────────────
 
-export function SectionNode({ section, depth = 0 }: { section: PublicSection; depth?: number }) {
+export function SectionNode({
+  section,
+  depth = 0,
+  locale = "fr",
+}: {
+  section: PublicSection;
+  depth?: number;
+  locale?: string;
+}) {
   const hasItems = section.items.length > 0;
   // On masque une section dont tout le sous-arbre est vide (ex. items filtrés par RLS anon).
   if (!sectionHasContent(section)) return null;
@@ -104,12 +112,12 @@ export function SectionNode({ section, depth = 0 }: { section: PublicSection; de
       {hasItems && (
         <div>
           {section.items.map((p) => (
-            <ProductCard key={p.menuProductId} product={p} />
+            <ProductCard key={p.menuProductId} product={p} locale={locale} />
           ))}
         </div>
       )}
       {section.subsections.map((sub) => (
-        <SectionNode key={sub.id} section={sub} depth={depth + 1} />
+        <SectionNode key={sub.id} section={sub} depth={depth + 1} locale={locale} />
       ))}
     </section>
   );

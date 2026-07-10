@@ -10,16 +10,20 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type AllergenKey, type LabelKey } from "@/lib/constants/product-attributes";
+import type { LocalizedContent } from "@/lib/i18n/localized";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
 import { useRestoreProduct } from "@/lib/queries/product-archive";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
   type ProductWithCategoryName,
 } from "@/lib/queries/product-establishment-dashboard";
+import { useOrgCardLocales } from "@/lib/queries/public-menu-queries";
 import { createClient } from "@/lib/supabase/client";
 
 import { ArchiveProductDialog } from "./archive-product-dialog";
 import { ProductBaseFields, type ProductBaseDraft } from "./product-base-fields";
+
+const toTranslations = (v: unknown): LocalizedContent => (v && typeof v === "object" ? (v as LocalizedContent) : {});
 
 function toDraft(product: ProductWithCategoryName): ProductBaseDraft {
   return {
@@ -50,11 +54,13 @@ export function ProductProprieteForm({
   const queryClient = useQueryClient();
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
+  const { data: orgLocales = ["fr"] } = useOrgCardLocales(organizationId);
 
   const [draft, setDraft] = useState<ProductBaseDraft>(() => toDraft(product));
   const [allergens, setAllergens] = useState<AllergenKey[]>(() => (product.allergens as AllergenKey[] | null) ?? []);
   const [labels, setLabels] = useState<LabelKey[]>(() => (product.labels as LabelKey[] | null) ?? []);
   const [origins, setOrigins] = useState<string[]>(() => (product.origins as string[] | null) ?? []);
+  const [translations, setTranslations] = useState<LocalizedContent>(() => toTranslations(product.translations));
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   useEffect(() => {
@@ -62,6 +68,7 @@ export function ProductProprieteForm({
     setAllergens((product.allergens as AllergenKey[] | null) ?? []);
     setLabels((product.labels as LabelKey[] | null) ?? []);
     setOrigins((product.origins as string[] | null) ?? []);
+    setTranslations(toTranslations(product.translations));
   }, [product]);
 
   const patch = (k: keyof ProductBaseDraft, v: string | boolean) => setDraft((prev) => ({ ...prev, [k]: v }));
@@ -96,6 +103,7 @@ export function ProductProprieteForm({
           origins,
           sku: draft.sku.trim() || null,
           food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
+          translations,
         })
         .eq("id", productId)
         .eq("organization_id", organizationId);
@@ -175,6 +183,9 @@ export function ProductProprieteForm({
         headerRight={archiveButton}
         orphanPrinterId={orphanPrinterId}
         orphanVatId={orphanVatId}
+        translations={translations}
+        onTranslationsChange={setTranslations}
+        orgLocales={orgLocales}
       />
 
       <Button type="button" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>

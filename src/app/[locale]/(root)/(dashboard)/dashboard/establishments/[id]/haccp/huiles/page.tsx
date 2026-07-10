@@ -6,8 +6,10 @@ import { Loader2, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type HaccpOilBath, useHaccpOilBaths } from "@/lib/queries/haccp-config-queries";
+import { type HaccpOilBath, useHaccpOilBaths, useHaccpZones } from "@/lib/queries/haccp-config-queries";
 import { type HaccpOilTest, fmtDate, fmtTime, useHaccpOilTests } from "@/lib/queries/haccp-registers-queries";
+
+import { OilCadence } from "./_components/oil-cadence";
 
 const conformVariant = (conform: boolean): "default" | "destructive" => (conform ? "default" : "destructive");
 const fmtPct = (v: number | null) => (v != null ? `${v.toLocaleString("fr-FR")} %` : "—");
@@ -55,6 +57,7 @@ export default function HuilesPage() {
   const establishmentId = params.id as string;
 
   const { data: baths = [], isLoading: lb } = useHaccpOilBaths(establishmentId);
+  const { data: zones = [] } = useHaccpZones(establishmentId);
   const { data: tests = [], isLoading: lt } = useHaccpOilTests(establishmentId);
 
   const bathById = new Map(baths.map((b) => [b.id, b]));
@@ -99,6 +102,8 @@ export default function HuilesPage() {
           ))}
         </div>
       )}
+
+      {baths.length > 0 && <OilCadence baths={baths} tests={tests} zones={zones} />}
 
       <Card>
         <CardHeader>

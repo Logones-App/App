@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 
-import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import type { LocalizedContent } from "@/lib/i18n/localized";
 import {
   type MenuProductPickerItem,
-  type PublicMenuItemWithProduct,
   type PublicMenuSectionWithItems,
   useAddPublicMenuItem,
+  useCardLocales,
   useCreateSection,
   useDeleteSection,
   useMenuProductsPicker,
@@ -24,130 +25,15 @@ import {
   useRemovePublicMenuItem,
   useTogglePublicMenuItemVisibility,
   useUpdateItemNote,
+  useUpdateItemTranslations,
+  useUpdateProductTranslations,
   useUpdateSection,
 } from "@/lib/queries/public-menu-queries";
 
 import { AddProductCombobox } from "./public-menu-add-product-combobox";
-
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-// ─── Ligne item ───────────────────────────────────────────────────────────────
-
-function ItemRow({
-  item,
-  isFirst,
-  isLast,
-  isPending,
-  onToggle,
-  onRemove,
-  onMove,
-  onSaveNote,
-}: {
-  item: PublicMenuItemWithProduct;
-  isFirst: boolean;
-  isLast: boolean;
-  isPending: boolean;
-  onToggle: (v: boolean) => void;
-  onRemove: () => void;
-  onMove: (dir: "up" | "down") => void;
-  onSaveNote: (note: string | null) => void;
-}) {
-  const [editingNote, setEditingNote] = useState(false);
-  const [noteDraft, setNoteDraft] = useState(item.note ?? "");
-
-  const mp = item.menus_product;
-  const productName = mp?.product?.name ?? "—";
-  const price = mp?.price ?? null;
-
-  const commitNote = () => {
-    const trimmed = noteDraft.trim();
-    onSaveNote(trimmed || null);
-    setEditingNote(false);
-  };
-
-  return (
-    <TableRow className={item.is_visible ? undefined : "opacity-50"}>
-      <TableCell className="font-medium">
-        <div className="space-y-0.5">
-          <span>{productName}</span>
-          {editingNote ? (
-            <Input
-              autoFocus
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              onBlur={commitNote}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitNote();
-                if (e.key === "Escape") setEditingNote(false);
-              }}
-              placeholder="Note pour la carte…"
-              className="h-6 text-xs"
-            />
-          ) : (
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground block text-left text-xs"
-              onClick={() => {
-                setNoteDraft(item.note ?? "");
-                setEditingNote(true);
-              }}
-            >
-              {item.note ?? <span className="opacity-50">+ note</span>}
-            </button>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {price != null ? eur.format(price) : <span className="text-muted-foreground">—</span>}
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center justify-end gap-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            disabled={isFirst || isPending}
-            onClick={() => onMove("up")}
-          >
-            <ChevronUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            disabled={isLast || isPending}
-            onClick={() => onMove("down")}
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            disabled={isPending}
-            onClick={() => onToggle(!item.is_visible)}
-            title={item.is_visible ? "Masquer" : "Afficher"}
-          >
-            {item.is_visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:text-destructive h-7 w-7"
-            disabled={isPending}
-            onClick={onRemove}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
+import { ItemRow } from "./public-menu-item-row";
+import { CardLocalesControl } from "./public-menu-locales-control";
+import { TranslationsButton } from "./public-menu-translations-dialog";
 
 // ─── Carte section ─────────────────────────────────────────────────────────────
 
@@ -199,6 +85,7 @@ function SectionCard({
   picker,
   establishmentId,
   organizationId,
+  locales,
   depth = 0,
   subsections = [],
 }: {
@@ -208,6 +95,7 @@ function SectionCard({
   picker: MenuProductPickerItem[];
   establishmentId: string;
   organizationId: string;
+  locales: string[];
   depth?: number;
   subsections?: PublicMenuSectionWithItems[];
 }) {
@@ -225,16 +113,24 @@ function SectionCard({
   const toggleVisibility = useTogglePublicMenuItemVisibility(establishmentId, organizationId);
   const moveItem = useMovePublicMenuItem(establishmentId, organizationId);
   const updateItemNote = useUpdateItemNote(establishmentId, organizationId);
+  const updateItemTranslations = useUpdateItemTranslations(establishmentId, organizationId);
+  const updateProductTranslations = useUpdateProductTranslations(establishmentId, organizationId);
 
-  const isPending =
-    updateSection.isPending ||
-    deleteSection.isPending ||
-    moveSection.isPending ||
-    addItem.isPending ||
-    removeItem.isPending ||
-    toggleVisibility.isPending ||
-    moveItem.isPending ||
-    updateItemNote.isPending;
+  const isPending = [
+    updateSection,
+    deleteSection,
+    moveSection,
+    addItem,
+    removeItem,
+    toggleVisibility,
+    moveItem,
+    updateItemNote,
+    updateItemTranslations,
+    updateProductTranslations,
+  ].some((m) => m.isPending);
+
+  const saveSectionTranslations = (next: LocalizedContent) =>
+    updateSection.mutate({ id: section.id, patch: { translations: next } });
 
   const alreadyInSection = new Set(section.items.map((i) => i.menus_product_id));
 
@@ -307,6 +203,23 @@ function SectionCard({
             {section.items.length} produit{section.items.length !== 1 ? "s" : ""}
           </Badge>
 
+          <TranslationsButton
+            title={section.name}
+            triggerTitle="Traduire la section"
+            locales={locales}
+            groups={[
+              {
+                translations: section.translations,
+                onSave: saveSectionTranslations,
+                fields: [
+                  { key: "name", label: "Nom de la section", base: section.name },
+                  { key: "description", label: "Description", base: section.description, multiline: true },
+                ],
+              },
+            ]}
+            isPending={isPending}
+          />
+
           <Button
             type="button"
             variant="ghost"
@@ -365,10 +278,16 @@ function SectionCard({
                     isFirst={idx === 0}
                     isLast={idx === section.items.length - 1}
                     isPending={isPending}
+                    locales={locales}
                     onToggle={(v) => toggleVisibility.mutate({ id: item.id, is_visible: v })}
                     onRemove={() => removeItem.mutate(item.id)}
                     onMove={(dir) => moveItem.mutate({ id: item.id, section_id: section.id, direction: dir })}
                     onSaveNote={(note) => updateItemNote.mutate({ id: item.id, note })}
+                    onSaveTranslations={(t) => updateItemTranslations.mutate({ id: item.id, translations: t })}
+                    onSaveProductTranslations={(t) => {
+                      const pid = item.menus_product?.product?.id;
+                      if (pid) updateProductTranslations.mutate({ productId: pid, translations: t });
+                    }}
                   />
                 ))}
               </TableBody>
@@ -395,6 +314,7 @@ function SectionCard({
                 picker={picker}
                 establishmentId={establishmentId}
                 organizationId={organizationId}
+                locales={locales}
               />
             ))}
             <SubSectionAdder
@@ -422,6 +342,7 @@ export function PublicMenuEditorShared({
 
   const { data: sections = [], isLoading } = usePublicMenuSections(establishmentId, organizationId);
   const { data: picker = [] } = useMenuProductsPicker(establishmentId, organizationId);
+  const { data: locales = ["fr"] } = useCardLocales(establishmentId);
   const createSection = useCreateSection(establishmentId, organizationId);
 
   const handleCreateSection = () => {
@@ -457,6 +378,8 @@ export function PublicMenuEditorShared({
           </Button>
         )}
       </div>
+
+      <CardLocalesControl establishmentId={establishmentId} locales={locales} />
 
       {addingSection && (
         <Card>
@@ -512,6 +435,7 @@ export function PublicMenuEditorShared({
           picker={picker}
           establishmentId={establishmentId}
           organizationId={organizationId}
+          locales={locales}
         />
       ))}
     </div>

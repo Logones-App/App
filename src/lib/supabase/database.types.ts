@@ -2627,6 +2627,7 @@ export type Database = {
           organization_id: string
           phone: string | null
           postal_code: number | null
+          public_menu_locales: string[]
           seo_description: string | null
           seo_title: string | null
           siret: string | null
@@ -2653,6 +2654,7 @@ export type Database = {
           organization_id: string
           phone?: string | null
           postal_code?: number | null
+          public_menu_locales?: string[]
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
@@ -2679,6 +2681,7 @@ export type Database = {
           organization_id?: string
           phone?: string | null
           postal_code?: number | null
+          public_menu_locales?: string[]
           seo_description?: string | null
           seo_title?: string | null
           siret?: string | null
@@ -6745,6 +6748,7 @@ export type Database = {
           product_type: Json
           sku: string | null
           stock_mode: string
+          translations: Json
           updated_at: string | null
           vat_rate_id: string | null
           yield_quantity: number | null
@@ -6771,6 +6775,7 @@ export type Database = {
           product_type?: Json
           sku?: string | null
           stock_mode?: string
+          translations?: Json
           updated_at?: string | null
           vat_rate_id?: string | null
           yield_quantity?: number | null
@@ -6797,6 +6802,7 @@ export type Database = {
           product_type?: Json
           sku?: string | null
           stock_mode?: string
+          translations?: Json
           updated_at?: string | null
           vat_rate_id?: string | null
           yield_quantity?: number | null
@@ -6888,6 +6894,7 @@ export type Database = {
           note: string | null
           organization_id: string
           section_id: string
+          translations: Json
           updated_at: string | null
         }
         Insert: {
@@ -6900,6 +6907,7 @@ export type Database = {
           note?: string | null
           organization_id: string
           section_id: string
+          translations?: Json
           updated_at?: string | null
         }
         Update: {
@@ -6912,6 +6920,7 @@ export type Database = {
           note?: string | null
           organization_id?: string
           section_id?: string
+          translations?: Json
           updated_at?: string | null
         }
         Relationships: [
@@ -6949,6 +6958,7 @@ export type Database = {
           name: string
           organization_id: string
           parent_id: string | null
+          translations: Json
           updated_at: string | null
         }
         Insert: {
@@ -6961,6 +6971,7 @@ export type Database = {
           name: string
           organization_id: string
           parent_id?: string | null
+          translations?: Json
           updated_at?: string | null
         }
         Update: {
@@ -6973,6 +6984,7 @@ export type Database = {
           name?: string
           organization_id?: string
           parent_id?: string | null
+          translations?: Json
           updated_at?: string | null
         }
         Relationships: [

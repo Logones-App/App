@@ -15,6 +15,8 @@ import {
   useHaccpTemperatureReadings,
 } from "@/lib/queries/haccp-registers-queries";
 
+import { TemperatureCadence } from "./_components/temperature-cadence";
+
 const statBadgeVariant = (s: TempStatus): "default" | "destructive" => (s === "alerte" ? "destructive" : "default");
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
@@ -118,6 +120,8 @@ export default function TemperaturesPage() {
           ))}
         </div>
       )}
+
+      {probes.length > 0 && <TemperatureCadence probes={probes} readings={readings} zones={zones} />}
 
       <Card>
         <CardHeader>

@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import { NcOpenKpiCard, NcRecentCard } from "./_components/nc-dashboard";
 import { RecentCleaning, RecentTemperatures } from "./_components/registers-recent";
+import { TasksTodayKpiCard } from "./_components/tasks-today-kpi";
 
 const SECTIONS = [
   { label: "Températures", href: "haccp/temperatures", icon: Thermometer },
@@ -52,6 +53,7 @@ export default function HaccpPage({ params }: { params: Promise<{ id: string; lo
       {/* KPI temps réel */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <NcOpenKpiCard establishmentId={id} />
+        <TasksTodayKpiCard establishmentId={id} base={base} />
       </div>
 
       {/* Accès aux registres */}

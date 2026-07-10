@@ -6,7 +6,10 @@ import { Loader2, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useHaccpChecklists } from "@/lib/queries/haccp-config-queries";
 import { type HaccpChecklistRun, fmtDate, fmtTime, useHaccpChecklistRuns } from "@/lib/queries/haccp-registers-queries";
+
+import { ChecklistCadence } from "./_components/checklist-cadence";
 
 type Check = { checked?: boolean; ok?: boolean; done?: boolean };
 
@@ -44,6 +47,7 @@ export default function ChecklistsPage() {
   const establishmentId = params.id as string;
 
   const { data: runs = [], isLoading } = useHaccpChecklistRuns(establishmentId);
+  const { data: templates = [] } = useHaccpChecklists(establishmentId);
 
   if (isLoading) {
     return (
@@ -68,6 +72,8 @@ export default function ChecklistsPage() {
           Passages saisis via l&apos;app mobile
         </div>
       </div>
+
+      {templates.length > 0 && <ChecklistCadence templates={templates} runs={runs} />}
 
       <Card>
         <CardHeader>

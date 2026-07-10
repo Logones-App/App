@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
-import type { Tables } from "@/lib/supabase/database.types";
+import type { Json, Tables } from "@/lib/supabase/database.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,7 @@ export type PublicMenuItemWithProduct = ItemRow & {
       id: string;
       name: string;
       description: string | null;
+      translations: unknown;
       allergens: unknown;
       labels: unknown;
       product_type: unknown;
@@ -74,7 +75,7 @@ export function usePublicMenuSections(establishmentId: string, organizationId: s
         .select(
           `*, menus_product:menus_products(
             id, price,
-            product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available)
+            product:products(id, name, description, translations, allergens, labels, product_type, portion_unit, portion_weight, is_available)
           )`,
         )
         .in("section_id", sectionIds)
@@ -180,7 +181,13 @@ export function useCreateSection(establishmentId: string, organizationId: string
 export function useUpdateSection(establishmentId: string, organizationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { name?: string; description?: string | null } }) => {
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { name?: string; description?: string | null; translations?: Json };
+    }) => {
       const supabase = createClient();
       const { error } = await supabase
         .from("public_menu_sections")
@@ -193,6 +200,106 @@ export function useUpdateSection(establishmentId: string, organizationId: string
       void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
     },
     onError: () => toast.error("Impossible de mettre à jour la section."),
+  });
+}
+
+/** Traductions globales du produit (products.translations) éditables depuis la carte. */
+export function useUpdateProductTranslations(establishmentId: string, organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ productId, translations }: { productId: string; translations: Json }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("products")
+        .update({ translations })
+        .eq("id", productId)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
+      void queryClient.invalidateQueries({ queryKey: ["organization-products", organizationId] });
+    },
+    onError: () => toast.error("Impossible de sauvegarder les traductions du produit."),
+  });
+}
+
+export function useUpdateItemTranslations(establishmentId: string, organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, translations }: { id: string; translations: Json }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("public_menu_items")
+        .update({ translations })
+        .eq("id", id)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
+    },
+    onError: () => toast.error("Impossible de sauvegarder les traductions."),
+  });
+}
+
+// ─── Langues de la carte (establishments.public_menu_locales) ───────────────────
+
+export const cardLocalesKey = (establishmentId: string) => ["card-locales", establishmentId] as const;
+
+export function useCardLocales(establishmentId: string) {
+  return useQuery({
+    queryKey: cardLocalesKey(establishmentId),
+    queryFn: async (): Promise<string[]> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("establishments")
+        .select("public_menu_locales")
+        .eq("id", establishmentId)
+        .single();
+      if (error) throw error;
+      return data.public_menu_locales?.length ? data.public_menu_locales : ["fr"];
+    },
+    enabled: !!establishmentId,
+  });
+}
+
+/** Union des langues activées sur les cartes des établissements de l'organisation (primaire fr en tête). */
+export function useOrgCardLocales(organizationId: string) {
+  return useQuery({
+    queryKey: ["org-card-locales", organizationId] as const,
+    queryFn: async (): Promise<string[]> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("establishments")
+        .select("public_menu_locales")
+        .eq("organization_id", organizationId)
+        .eq("deleted", false);
+      if (error) throw error;
+      const set = new Set<string>();
+      for (const row of data ?? []) for (const code of row.public_menu_locales) set.add(code);
+      return ["fr", ...[...set].filter((code) => code !== "fr")];
+    },
+    enabled: !!organizationId,
+  });
+}
+
+export function useUpdateCardLocales(establishmentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (locales: string[]) => {
+      const supabase = createClient();
+      const next = locales.length ? locales : ["fr"];
+      const { error } = await supabase
+        .from("establishments")
+        .update({ public_menu_locales: next })
+        .eq("id", establishmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: cardLocalesKey(establishmentId) });
+    },
+    onError: () => toast.error("Impossible de mettre à jour les langues."),
   });
 }
 

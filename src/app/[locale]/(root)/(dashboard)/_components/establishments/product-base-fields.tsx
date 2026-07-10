@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { AllergenKey, LabelKey } from "@/lib/constants/product-attributes";
+import type { LocalizedContent } from "@/lib/i18n/localized";
 
 import { OriginPicker } from "./product-origin-picker";
+import { TranslationsButton } from "./public-menu-translations-dialog";
 
 /** Champs de base « Propriété + Caractéristiques » (une seule carte) — partagés fiche (edit) et wizard (create). */
 export type ProductBaseDraft = {
@@ -42,6 +44,9 @@ export function ProductBaseFields({
   headerRight,
   orphanPrinterId = null,
   orphanVatId = null,
+  translations,
+  onTranslationsChange,
+  orgLocales,
 }: {
   draft: ProductBaseDraft;
   patch: (k: keyof ProductBaseDraft, v: string | boolean) => void;
@@ -58,6 +63,10 @@ export function ProductBaseFields({
   headerRight?: ReactNode;
   orphanPrinterId?: string | null;
   orphanVatId?: string | null;
+  /** Traductions du produit (name/description par locale) + langues proposées à la saisie. */
+  translations?: unknown;
+  onTranslationsChange?: (t: LocalizedContent) => void;
+  orgLocales?: string[];
 }) {
   return (
     <Card>
@@ -72,7 +81,26 @@ export function ProductBaseFields({
         {/* Identité */}
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Nom</Label>
+            <div className="flex items-center justify-between">
+              <Label>Nom</Label>
+              {onTranslationsChange && orgLocales && (
+                <TranslationsButton
+                  title={draft.name || "Produit"}
+                  triggerTitle="Traduire le produit"
+                  locales={orgLocales}
+                  groups={[
+                    {
+                      translations,
+                      onSave: onTranslationsChange,
+                      fields: [
+                        { key: "name", label: "Nom", base: draft.name || null },
+                        { key: "description", label: "Description", base: draft.description || null, multiline: true },
+                      ],
+                    },
+                  ]}
+                />
+              )}
+            </div>
             <Input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder={namePlaceholder} />
           </div>
           <div className="space-y-2">

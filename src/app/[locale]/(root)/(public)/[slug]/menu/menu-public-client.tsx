@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 
@@ -11,6 +11,7 @@ import {
   flattenSectionItems,
   getPublicCarteSections,
   getPublicEstablishmentBySlug,
+  localizeSections,
   type PublicEstablishment,
   type PublicSection,
 } from "./_components/menu-utils";
@@ -19,14 +20,25 @@ interface Props {
   params: Promise<{ slug: string; locale: string }>;
 }
 
+/** Nom natif d'une langue (endonyme), repli sur le code en majuscules. */
+function localeName(code: string): string {
+  try {
+    const label = new Intl.DisplayNames([code], { type: "language" }).of(code);
+    return label ? label.charAt(0).toUpperCase() + label.slice(1) : code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+}
+
 export default function MenuPublicClient({ params }: Props) {
   const [establishment, setEstablishment] = useState<PublicEstablishment | null>(null);
-  const [sections, setSections] = useState<PublicSection[]>([]);
+  const [rawSections, setRawSections] = useState<PublicSection[]>([]);
+  const [locale, setLocale] = useState("fr");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    params.then(async ({ slug }) => {
+    params.then(async ({ slug, locale: urlLocale }) => {
       const estab = await getPublicEstablishmentBySlug(slug);
       if (!estab) {
         setNotFound(true);
@@ -34,10 +46,14 @@ export default function MenuPublicClient({ params }: Props) {
         return;
       }
       setEstablishment(estab);
-      setSections(await getPublicCarteSections(estab.id));
+      setLocale(estab.locales.includes(urlLocale) ? urlLocale : estab.locales[0]);
+      setRawSections(await getPublicCarteSections(estab.id));
       setLoading(false);
     });
   }, [params]);
+
+  const primary = establishment?.locales[0] ?? "fr";
+  const sections = useMemo(() => localizeSections(rawSections, locale, primary), [rawSections, locale, primary]);
 
   if (loading) {
     return (
@@ -63,6 +79,7 @@ export default function MenuPublicClient({ params }: Props) {
   }
 
   const hasAllergens = flattenSectionItems(sections).some((p) => p.allergens.length > 0);
+  const showSwitcher = establishment.locales.length > 1;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -78,6 +95,26 @@ export default function MenuPublicClient({ params }: Props) {
           <div className="flex-1 truncate">
             <h1 className="truncate font-semibold">{establishment.name}</h1>
           </div>
+          {showSwitcher && (
+            <div className="flex shrink-0 items-center gap-1">
+              {establishment.locales.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLocale(code)}
+                  aria-pressed={locale === code}
+                  title={localeName(code)}
+                  className={`rounded px-2 py-1 text-xs font-medium uppercase transition-colors ${
+                    locale === code
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -117,7 +154,7 @@ export default function MenuPublicClient({ params }: Props) {
         ) : (
           <div>
             {sections.map((section) => (
-              <SectionNode key={section.id} section={section} depth={0} />
+              <SectionNode key={section.id} section={section} depth={0} locale={locale} />
             ))}
           </div>
         )}

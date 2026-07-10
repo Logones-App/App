@@ -1,4 +1,5 @@
 import { ALLERGENS, LABELS } from "@/lib/constants/product-attributes";
+import { pickLocalized } from "@/lib/i18n/localized";
 import { createClient } from "@/lib/supabase/client";
 
 export type PublicProduct = {
@@ -18,6 +19,10 @@ export type PublicProduct = {
   isOutOfStock: boolean;
   isCustomizable: boolean;
   menusId: string;
+  /** JSONB `products.translations` (name/description par locale). */
+  productTranslations: unknown;
+  /** JSONB `public_menu_items.translations` (note par locale). */
+  noteTranslations: unknown;
 };
 
 export type PublicSection = {
@@ -26,6 +31,8 @@ export type PublicSection = {
   description: string | null;
   items: PublicProduct[];
   subsections: PublicSection[];
+  /** JSONB `public_menu_sections.translations` (name/description par locale). */
+  translations: unknown;
 };
 
 /** Aplatit tous les produits d'un arbre de sections (tous niveaux). */
@@ -48,19 +55,22 @@ export type PublicEstablishment = {
   email: string | null;
   website: string | null;
   logo_url: string | null;
+  /** Langues proposées sur la carte (1ʳᵉ = primaire = contenu des colonnes de base). */
+  locales: string[];
 };
 
 export async function getPublicEstablishmentBySlug(slug: string): Promise<PublicEstablishment | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("establishments")
-    .select("id, name, slug, description, address, phone, email, website, logo_url")
+    .select("id, name, slug, description, address, phone, email, website, logo_url, public_menu_locales")
     .eq("slug", slug)
     .eq("deleted", false)
     .eq("is_public", true)
     .single();
   if (error) return null;
-  return data as PublicEstablishment;
+  const { public_menu_locales, ...rest } = data;
+  return { ...rest, locales: public_menu_locales.length ? public_menu_locales : ["fr"] } as PublicEstablishment;
 }
 
 export async function getPublicCarteSections(establishmentId: string): Promise<PublicSection[]> {
@@ -68,7 +78,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
 
   const { data: sections, error: secError } = await supabase
     .from("public_menu_sections")
-    .select("id, name, description, parent_id, display_order")
+    .select("id, name, description, parent_id, display_order, translations")
     .eq("establishment_id", establishmentId)
     .eq("deleted", false)
     .order("display_order", { ascending: true });
@@ -80,10 +90,10 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
   const { data: items, error: itemError } = await supabase
     .from("public_menu_items")
     .select(
-      `id, section_id, note,
+      `id, section_id, note, translations,
       menus_product:menus_products(
         id, menus_id, price,
-        product:products(id, name, description, allergens, labels, product_type, portion_unit, portion_weight, is_available, vat_rate_entry:vat_rate_id(value))
+        product:products(id, name, description, translations, allergens, labels, product_type, portion_unit, portion_weight, is_available, vat_rate_entry:vat_rate_id(value))
       )`,
     )
     .in("section_id", sectionIds)
@@ -97,6 +107,7 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     id: string;
     name: string;
     description: string | null;
+    translations: unknown;
     allergens: unknown;
     labels: unknown;
     product_type: string | null;
@@ -109,9 +120,16 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     id: string;
     section_id: string;
     note: string | null;
+    translations: unknown;
     menus_product: { id: string; menus_id: string; price: number | null; product: RawProduct | null } | null;
   };
-  type RawSection = { id: string; name: string; description: string | null; parent_id: string | null };
+  type RawSection = {
+    id: string;
+    name: string;
+    description: string | null;
+    parent_id: string | null;
+    translations: unknown;
+  };
 
   const itemsBySection = new Map<string, PublicProduct[]>();
 
@@ -138,6 +156,8 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
       isOutOfStock: false,
       isCustomizable: false,
       menusId: mp.menus_id,
+      productTranslations: mp.product.translations,
+      noteTranslations: raw.translations,
     });
     itemsBySection.set(raw.section_id, list);
   }
@@ -158,9 +178,37 @@ export async function getPublicCarteSections(establishmentId: string): Promise<P
     description: s.description ?? null,
     items: itemsBySection.get(s.id) ?? [],
     subsections: (childrenByParent.get(s.id) ?? []).map(build),
+    translations: s.translations,
   });
 
   return (childrenByParent.get(ROOT) ?? []).map(build);
+}
+
+// ─── Localisation (résolution client-side selon la langue choisie) ──────────────
+
+function localizeProduct(p: PublicProduct, locale: string, primary: string): PublicProduct {
+  return {
+    ...p,
+    name: pickLocalized(p.name, p.productTranslations, locale, "name", primary) ?? p.name,
+    description: pickLocalized(p.description, p.productTranslations, locale, "description", primary),
+    note: pickLocalized(p.note, p.noteTranslations, locale, "note", primary),
+  };
+}
+
+function localizeSection(s: PublicSection, locale: string, primary: string): PublicSection {
+  return {
+    ...s,
+    name: pickLocalized(s.name, s.translations, locale, "name", primary) ?? s.name,
+    description: pickLocalized(s.description, s.translations, locale, "description", primary),
+    items: s.items.map((p) => localizeProduct(p, locale, primary)),
+    subsections: s.subsections.map((sub) => localizeSection(sub, locale, primary)),
+  };
+}
+
+/** Applique les traductions à tout l'arbre pour la locale choisie (repli sur la langue primaire). */
+export function localizeSections(sections: PublicSection[], locale: string, primary: string): PublicSection[] {
+  if (locale === primary) return sections;
+  return sections.map((s) => localizeSection(s, locale, primary));
 }
 
 export async function getPublicCarteSectionsWithStock(establishmentId: string): Promise<PublicSection[]> {
@@ -201,9 +249,9 @@ export function labelInfo(key: string) {
   return LABELS.find((l) => l.key === key);
 }
 
-export function formatPrice(price: number | null): string {
+export function formatPrice(price: number | null, locale = "fr"): string {
   if (price === null) return "";
-  return new Intl.NumberFormat("fr-FR", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "EUR",
   }).format(price);

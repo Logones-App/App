@@ -4,50 +4,11 @@ import { useParams } from "next/navigation";
 
 import { ImageIcon, Loader2, Smartphone } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type HaccpSurface, useHaccpSurfaces, useHaccpZones } from "@/lib/queries/haccp-config-queries";
-import {
-  type HaccpCleaningValidation,
-  fmtDate,
-  fmtTime,
-  useHaccpCleaningValidations,
-} from "@/lib/queries/haccp-registers-queries";
+import { useHaccpSurfaces, useHaccpZones } from "@/lib/queries/haccp-config-queries";
+import { fmtDate, fmtTime, useHaccpCleaningValidations } from "@/lib/queries/haccp-registers-queries";
 
-const freqLabel = (f: string) => f.charAt(0).toUpperCase() + f.slice(1);
-
-function SurfaceCard({
-  surface,
-  zoneName,
-  last,
-}: {
-  surface: HaccpSurface;
-  zoneName: string;
-  last: HaccpCleaningValidation | undefined;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="mb-1 flex items-start justify-between gap-2">
-          <p className="min-w-0 truncate text-sm font-semibold">{surface.label}</p>
-          <Badge variant="outline" className="shrink-0 text-xs">
-            {freqLabel(surface.frequency)}
-          </Badge>
-        </div>
-        <p className="text-muted-foreground text-xs">{zoneName}</p>
-        <p className="mt-2 text-sm">
-          {last ? (
-            <>
-              Dernier nettoyage : <span className="font-medium">{fmtDate(last.validated_at)}</span>
-            </>
-          ) : (
-            <span className="text-muted-foreground">Jamais validé</span>
-          )}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
+import { CleaningCadence } from "./_components/cleaning-cadence";
 
 export default function NettoyagePage() {
   const params = useParams();
@@ -57,10 +18,7 @@ export default function NettoyagePage() {
   const { data: zones = [] } = useHaccpZones(establishmentId);
   const { data: validations = [], isLoading: lv } = useHaccpCleaningValidations(establishmentId);
 
-  const zoneName = (id: string | null) => (id ? (zones.find((z) => z.id === id)?.name ?? "—") : "—");
   const surfaceById = new Map(surfaces.map((s) => [s.id, s]));
-  const lastBySurface = new Map<string, HaccpCleaningValidation>();
-  for (const v of validations) if (!lastBySurface.has(v.surface_id)) lastBySurface.set(v.surface_id, v);
 
   if (ls || lv) {
     return (
@@ -75,7 +33,7 @@ export default function NettoyagePage() {
     <div className="space-y-6 p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Plan de nettoyage</h1>
+          <h1 className="text-2xl font-bold">Plan de nettoyage — Contrôle</h1>
           <p className="text-muted-foreground text-sm">
             {surfaces.length} surface{surfaces.length > 1 ? "s" : ""} · {validations.length} validation
             {validations.length > 1 ? "s" : ""}
@@ -92,11 +50,7 @@ export default function NettoyagePage() {
           Aucune surface configurée (voir Paramétrage → Zones &amp; surfaces).
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {surfaces.map((s) => (
-            <SurfaceCard key={s.id} surface={s} zoneName={zoneName(s.zone_id)} last={lastBySurface.get(s.id)} />
-          ))}
-        </div>
+        <CleaningCadence surfaces={surfaces} validations={validations} zones={zones} />
       )}
 
       <Card>

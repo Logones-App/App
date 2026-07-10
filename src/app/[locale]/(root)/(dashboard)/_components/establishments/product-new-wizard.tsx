@@ -19,7 +19,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
+import type { LocalizedContent } from "@/lib/i18n/localized";
 import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useOrgCardLocales } from "@/lib/queries/public-menu-queries";
 import { createClient } from "@/lib/supabase/client";
 
 import { ProductBaseFields, type ProductBaseDraft } from "./product-base-fields";
@@ -74,11 +76,13 @@ export function ProductNewWizard({
 
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
+  const { data: orgLocales = ["fr"] } = useOrgCardLocales(organizationId);
 
   const [draft, setDraft] = useState<ProductBaseDraft>(emptyDraft);
   const [allergens, setAllergens] = useState<AllergenKey[]>([]);
   const [labels, setLabels] = useState<LabelKey[]>([]);
   const [origins, setOrigins] = useState<string[]>([]);
+  const [translations, setTranslations] = useState<LocalizedContent>({});
 
   const patch = (k: keyof ProductBaseDraft, v: string | boolean) => setDraft((prev) => ({ ...prev, [k]: v }));
 
@@ -102,6 +106,7 @@ export function ProductNewWizard({
           origins,
           sku: draft.sku.trim() || null,
           food_cost_target: Number.isFinite(fct) && fct > 0 && fct <= 1 ? Math.round(fct * 10000) / 10000 : null,
+          translations,
           deleted: false,
         })
         .select("id")
@@ -181,6 +186,9 @@ export function ProductNewWizard({
         vatRates={vatRates}
         printers={printers}
         namePlaceholder={namePlaceholder}
+        translations={translations}
+        onTranslationsChange={setTranslations}
+        orgLocales={orgLocales}
       />
     </div>
   );
