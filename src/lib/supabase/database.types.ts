@@ -3319,52 +3319,112 @@ export type Database = {
           },
         ]
       }
-      haccp_labels: {
+      haccp_label_types: {
         Row: {
-          allergens: string[]
           created_at: string
           created_by: string | null
           deleted: boolean
           establishment_id: string
           id: string
+          is_default: boolean
+          name: string
           organization_id: string
-          produced_at: string
-          product_label: string
-          quantity_label: string | null
-          recorded_by: string | null
-          recorded_by_label: string | null
+          sort_order: number
           updated_at: string
-          use_by_at: string | null
         }
         Insert: {
-          allergens?: string[]
           created_at?: string
           created_by?: string | null
           deleted?: boolean
           establishment_id: string
           id?: string
+          is_default?: boolean
+          name: string
           organization_id: string
-          produced_at?: string
-          product_label: string
-          quantity_label?: string | null
-          recorded_by?: string | null
-          recorded_by_label?: string | null
+          sort_order?: number
           updated_at?: string
-          use_by_at?: string | null
         }
         Update: {
-          allergens?: string[]
           created_at?: string
           created_by?: string | null
           deleted?: boolean
           establishment_id?: string
           id?: string
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      haccp_labels: {
+        Row: {
+          allergens: string[]
+          barcode: string | null
+          copies: number
+          created_at: string
+          created_by: string | null
+          date_type: string
+          deleted: boolean
+          establishment_id: string
+          id: string
+          label_type_id: string | null
+          lot_number: string | null
+          organization_id: string
+          produced_at: string
+          product_id: string | null
+          product_label: string
+          quantity_label: string | null
+          recorded_by: string | null
+          recorded_by_label: string | null
+          storage_temp: string | null
+          updated_at: string
+          use_by_at: string | null
+        }
+        Insert: {
+          allergens?: string[]
+          barcode?: string | null
+          copies?: number
+          created_at?: string
+          created_by?: string | null
+          date_type?: string
+          deleted?: boolean
+          establishment_id: string
+          id?: string
+          label_type_id?: string | null
+          lot_number?: string | null
+          organization_id: string
+          produced_at?: string
+          product_id?: string | null
+          product_label: string
+          quantity_label?: string | null
+          recorded_by?: string | null
+          recorded_by_label?: string | null
+          storage_temp?: string | null
+          updated_at?: string
+          use_by_at?: string | null
+        }
+        Update: {
+          allergens?: string[]
+          barcode?: string | null
+          copies?: number
+          created_at?: string
+          created_by?: string | null
+          date_type?: string
+          deleted?: boolean
+          establishment_id?: string
+          id?: string
+          label_type_id?: string | null
+          lot_number?: string | null
           organization_id?: string
           produced_at?: string
+          product_id?: string | null
           product_label?: string
           quantity_label?: string | null
           recorded_by?: string | null
           recorded_by_label?: string | null
+          storage_temp?: string | null
           updated_at?: string
           use_by_at?: string | null
         }
@@ -3374,6 +3434,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "haccp_labels_label_type_id_fkey"
+            columns: ["label_type_id"]
+            isOneToOne: false
+            referencedRelation: "haccp_label_types"
             referencedColumns: ["id"]
           },
           {
@@ -6325,6 +6392,7 @@ export type Database = {
           organization_id: string | null
           target: string | null
           updated_at: string | null
+          vendor: string | null
         }
         Insert: {
           bdaddress?: string | null
@@ -6343,6 +6411,7 @@ export type Database = {
           organization_id?: string | null
           target?: string | null
           updated_at?: string | null
+          vendor?: string | null
         }
         Update: {
           bdaddress?: string | null
@@ -6361,6 +6430,7 @@ export type Database = {
           organization_id?: string | null
           target?: string | null
           updated_at?: string | null
+          vendor?: string | null
         }
         Relationships: [
           {

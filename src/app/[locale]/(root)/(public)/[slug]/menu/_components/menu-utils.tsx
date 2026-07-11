@@ -65,6 +65,57 @@ export function filterSectionsByCard(sections: PublicSection[], cardMenuId: stri
   return sections.filter((s) => s.menuId === cardMenuId || s.menuId === null);
 }
 
+/** Plage horaire d'un menu. `day_of_week` : 1=lundi … 7=dimanche ; null = tous les jours. */
+export type MenuSchedule = {
+  menu_id: string;
+  day_of_week: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+};
+
+export async function getMenuSchedules(menuIds: string[]): Promise<MenuSchedule[]> {
+  if (menuIds.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("menu_schedules")
+    .select("menu_id, day_of_week, start_time, end_time, valid_from, valid_until")
+    .in("menu_id", menuIds)
+    .eq("deleted", false);
+  if (error) return [];
+  return data;
+}
+
+const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+
+/**
+ * Carte active selon l'heure locale (le client QR est sur place) : on cherche un menu dont une
+ * plage `menu_schedules` couvre maintenant (jour + heure + fenêtre de validité). Repli sur la 1ʳᵉ carte.
+ */
+export function pickCurrentCardId(cards: PublicMenuCard[], schedules: MenuSchedule[], now: Date): string | null {
+  if (cards.length === 0) return null;
+  const jsDay = now.getDay(); // 0=dim … 6=sam
+  const schedDay = jsDay === 0 ? 7 : jsDay; // 1=lun … 7=dim
+  const hm = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  const dateStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+  const activeMenuIds = new Set(
+    schedules
+      .filter((s) => {
+        if (s.day_of_week != null && s.day_of_week !== schedDay) return false;
+        if (s.start_time && hm < s.start_time) return false;
+        if (s.end_time && hm > s.end_time) return false;
+        if (s.valid_from && dateStr < s.valid_from) return false;
+        if (s.valid_until && dateStr > s.valid_until) return false;
+        return true;
+      })
+      .map((s) => s.menu_id),
+  );
+
+  return cards.find((c) => activeMenuIds.has(c.id))?.id ?? cards[0].id;
+}
+
 /** Aplatit tous les produits d'un arbre de sections (tous niveaux). */
 export function flattenSectionItems(sections: PublicSection[]): PublicProduct[] {
   return sections.flatMap((s) => [...s.items, ...flattenSectionItems(s.subsections)]);

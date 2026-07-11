@@ -7,15 +7,19 @@ import { Loader2, XCircle } from "lucide-react";
 
 import type { Formula, FormulaProduct } from "@/app/api/table-order/formulas/route";
 import { Button } from "@/components/ui/button";
-import { localeLabel } from "@/lib/i18n/localized";
 
 import {
+  type PublicMenuCard,
   type PublicProduct,
   type PublicSection,
+  filterSectionsByCard,
   flattenSectionItems,
+  getMenuSchedules,
   getPublicCarteSectionsWithStock,
   getPublicEstablishmentBySlug,
+  getPublicMenus,
   localizeSections,
+  pickCurrentCardId,
 } from "../../menu/_components/menu-utils";
 
 import { BrowseSection } from "./browse-section";
@@ -23,6 +27,7 @@ import { CheckoutStep } from "./checkout-step";
 import { CustomizationModal } from "./customization-modal";
 import { type CartItemSelections, buildOrderItem } from "./customization-utils";
 import { FormulaPicker } from "./formula-picker";
+import { OrderBrowseHeader } from "./order-browse-header";
 import { TableView } from "./table-view";
 import { WaitingScreen } from "./waiting-screen";
 
@@ -89,6 +94,8 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [formulaModal, setFormulaModal] = useState<Formula | null>(null);
+  const [cards, setCards] = useState<PublicMenuCard[]>([]);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
   useEffect(() => {
     void getPublicCarteSectionsWithStock(establishmentId).then(setSections);
@@ -102,10 +109,23 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     });
   }, [establishment.slug]);
 
+  // Cartes (menus publics) + sélection auto selon l'heure via menu_schedules.
+  useEffect(() => {
+    void getPublicMenus(establishmentId).then(async (cs) => {
+      setCards(cs);
+      const schedules = await getMenuSchedules(cs.map((c) => c.id));
+      setSelectedCard(pickCurrentCardId(cs, schedules, new Date()));
+    });
+  }, [establishmentId]);
+
   const primaryLocale = locales[0] ?? "fr";
   const localizedSections = useMemo(
     () => localizeSections(sections, locale, primaryLocale),
     [sections, locale, primaryLocale],
+  );
+  const displayedSections = useMemo(
+    () => (cards.length > 0 ? filterSectionsByCard(localizedSections, selectedCard) : localizedSections),
+    [localizedSections, cards, selectedCard],
   );
 
   useEffect(() => {
@@ -452,40 +472,22 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
         />
       )}
       <div className="min-h-screen pb-28">
-        <header className="bg-background/95 sticky top-0 z-10 border-b px-4 py-3 backdrop-blur">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-muted-foreground text-xs">{establishment.name}</p>
-              <h1 className="font-bold">{tableName}</h1>
-              <button hidden={!ordersId} onClick={backToTable} className="text-primary mt-0.5 text-xs underline">
-                ← Commande en cours
-              </button>
-            </div>
-            {locales.length > 1 && (
-              <div className="flex shrink-0 items-center gap-1">
-                {locales.map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => setLocale(code)}
-                    aria-pressed={locale === code}
-                    title={localeLabel(code)}
-                    className={`rounded px-2 py-1 text-xs font-medium uppercase transition-colors ${
-                      locale === code
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {code}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </header>
+        <OrderBrowseHeader
+          establishmentName={establishment.name}
+          tableName={tableName}
+          showBack={!!ordersId}
+          onBack={backToTable}
+          locales={locales}
+          locale={locale}
+          onLocale={setLocale}
+          cards={cards}
+          selectedCard={selectedCard}
+          onCard={setSelectedCard}
+          showCards={step === "browse"}
+        />
         {step === "browse" && (
           <BrowseSection
-            sections={localizedSections}
+            sections={displayedSections}
             formulas={formulas}
             cartLength={cart.length}
             totalPrice={totalPrice}

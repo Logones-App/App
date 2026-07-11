@@ -263,6 +263,14 @@ async function insertHaccpDefaults(svc: Svc, estId: string, orgId: string): Prom
     { ...base, title: "Registre des températures", doc_type: "registre", version: "courant" },
   ]);
   if (dErr) throw dErr;
+
+  // Types d'étiquettes (lus par le module mobile « Étiquettes ») — socle identique à la
+  // migration mobile 20260711100000. Un seul is_default=true par établissement.
+  const { error: ltErr } = await svc.from("haccp_label_types").insert([
+    { ...base, name: "Fait / ouvert", is_default: true, sort_order: 0 },
+    { ...base, name: "Décongelé", is_default: false, sort_order: 1 },
+  ]);
+  if (ltErr) throw ltErr;
 }
 
 /**

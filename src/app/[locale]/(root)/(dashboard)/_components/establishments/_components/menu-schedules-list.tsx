@@ -3,191 +3,201 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
-interface MenuSchedulesListProps {
-  menuId: string;
-  organizationId: string;
-}
+type Schedule = Tables<"menu_schedules">;
 
-export function MenuSchedulesList({ menuId, organizationId }: MenuSchedulesListProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<Tables<"menu_schedules"> | null>(null);
+const ALL_DAYS = "all";
+// day_of_week : 1=lundi … 7=dimanche (aligné sur le calendrier des menus).
+const DAY_OPTIONS = [
+  { value: "1", label: "Lundi" },
+  { value: "2", label: "Mardi" },
+  { value: "3", label: "Mercredi" },
+  { value: "4", label: "Jeudi" },
+  { value: "5", label: "Vendredi" },
+  { value: "6", label: "Samedi" },
+  { value: "7", label: "Dimanche" },
+];
+
+const dayLabel = (n: number | null): string =>
+  n == null ? "Tous les jours" : (DAY_OPTIONS.find((d) => d.value === String(n))?.label ?? `Jour ${n}`);
+
+export function MenuSchedulesList({ menuId, organizationId }: { menuId: string; organizationId: string }) {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Schedule | null>(null);
+  const [day, setDay] = useState<string>(ALL_DAYS);
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
 
-  const { data: schedules } = useQuery({
+  const { data: schedules = [] } = useQuery({
     queryKey: ["menu-schedules", menuId],
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase.from("menu_schedules").select("*").eq("menu_id", menuId);
+      const { data, error } = await supabase
+        .from("menu_schedules")
+        .select("*")
+        .eq("menu_id", menuId)
+        .eq("deleted", false)
+        .order("day_of_week", { ascending: true, nullsFirst: true });
       if (error) throw error;
       return data;
     },
   });
 
-  const form = useForm();
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["menu-schedules", menuId] });
 
-  const mutation = useMutation({
-    mutationFn: async (schedule: any) => {
+  const openAdd = () => {
+    setEditing(null);
+    setDay(ALL_DAYS);
+    setStart("");
+    setEnd("");
+    setOpen(true);
+  };
+
+  const openEdit = (s: Schedule) => {
+    setEditing(s);
+    setDay(s.day_of_week == null ? ALL_DAYS : String(s.day_of_week));
+    setStart(s.start_time ?? "");
+    setEnd(s.end_time ?? "");
+    setOpen(true);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const supabase = createClient();
-      if (editingSchedule) {
-        const { error } = await supabase.from("menu_schedules").update(schedule).eq("id", editingSchedule.id);
+      const payload = {
+        day_of_week: day === ALL_DAYS ? null : Number(day),
+        start_time: start || null,
+        end_time: end || null,
+      };
+      if (editing) {
+        const { error } = await supabase.from("menu_schedules").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("menu_schedules").insert({
-          ...schedule,
-          menu_id: menuId,
-        });
+        const { error } = await supabase
+          .from("menu_schedules")
+          .insert({ ...payload, menu_id: menuId, organization_id: organizationId });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
-      setEditingSchedule(null);
-      setIsModalOpen(false);
+      invalidate();
+      setOpen(false);
     },
+    onError: () => toast.error("Impossible d'enregistrer la plage horaire."),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (scheduleId: string) => {
+    mutationFn: async (id: string) => {
       const supabase = createClient();
-      const { error } = await supabase.from("menu_schedules").delete().eq("id", scheduleId);
+      const { error } = await supabase.from("menu_schedules").update({ deleted: true }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-    },
+    onSuccess: invalidate,
+    onError: () => toast.error("Impossible de supprimer la plage horaire."),
   });
-
-  const handleSubmit = (values: any) => {
-    mutation.mutate(values);
-  };
-
-  const handleEdit = (schedule: any) => {
-    setEditingSchedule(schedule);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (scheduleId: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette plage horaire ?")) {
-      deleteMutation.mutate(scheduleId);
-    }
-  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Plages horaires du menu</h3>
-        <Button size="sm" onClick={() => setIsModalOpen(true)}>
+        <Button size="sm" onClick={openAdd}>
           + Ajouter une plage
         </Button>
       </div>
 
-      {schedules?.map((schedule: Tables<"menu_schedules">) => (
-        <Card key={schedule.id}>
-          <CardHeader>
-            <CardTitle className="text-sm">
-              {schedule.day_of_week} - {schedule.start_time} à {schedule.end_time}
+      {schedules.length === 0 && (
+        <p className="text-muted-foreground text-sm">
+          Aucune plage. Sans plage, ce menu n&apos;est pas sélectionné automatiquement selon l&apos;heure (commande QR).
+        </p>
+      )}
+
+      {schedules.map((s) => (
+        <Card key={s.id}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 py-3">
+            <CardTitle className="text-sm font-medium">
+              {dayLabel(s.day_of_week)}
+              {s.start_time || s.end_time ? ` · ${s.start_time ?? "…"} → ${s.end_time ?? "…"}` : " · toute la journée"}
             </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex space-x-2">
-              <Button size="sm" variant="outline" onClick={() => handleEdit(schedule)}>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
                 Modifier
               </Button>
-              <Button size="sm" variant="destructive" onClick={() => handleDelete(schedule.id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(s.id)}
+              >
                 Supprimer
               </Button>
             </div>
-          </CardContent>
+          </CardHeader>
         </Card>
       ))}
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingSchedule ? "Modifier la plage horaire" : "Ajouter une plage horaire"}</DialogTitle>
-            <DialogDescription>Configurez les horaires d&apos;application de ce menu.</DialogDescription>
+            <DialogTitle>{editing ? "Modifier la plage" : "Ajouter une plage"}</DialogTitle>
+            <DialogDescription>
+              Jour et heures où ce menu s&apos;applique (sélection automatique Midi/Soir sur la commande QR).
+            </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit((data) => {
-                handleSubmit({
-                  day_of_week: data.day_of_week,
-                  start_time: data.start_time,
-                  end_time: data.end_time,
-                });
-              })}
-              className="space-y-4"
-            >
-              <FormField
-                name="day_of_week"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jour de la semaine</FormLabel>
-                    <FormControl>
-                      <Select defaultValue={editingSchedule?.day_of_week?.toString()} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un jour" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monday">Lundi</SelectItem>
-                          <SelectItem value="tuesday">Mardi</SelectItem>
-                          <SelectItem value="wednesday">Mercredi</SelectItem>
-                          <SelectItem value="thursday">Jeudi</SelectItem>
-                          <SelectItem value="friday">Vendredi</SelectItem>
-                          <SelectItem value="saturday">Samedi</SelectItem>
-                          <SelectItem value="sunday">Dimanche</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                name="start_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Heure de début</FormLabel>
-                    <FormControl>
-                      <Input type="time" defaultValue={editingSchedule?.start_time ?? ""} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                name="end_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Heure de fin</FormLabel>
-                    <FormControl>
-                      <Input type="time" defaultValue={editingSchedule?.end_time ?? ""} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={mutation.isPending}>
-                  {mutation.isPending ? "Enregistrement..." : editingSchedule ? "Modifier" : "Ajouter"}
-                </Button>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Jour</Label>
+              <Select value={day} onValueChange={setDay}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_DAYS}>Tous les jours</SelectItem>
+                  {DAY_OPTIONS.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Heure de début</Label>
+                <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
               </div>
-            </form>
-          </Form>
+              <div className="space-y-1.5">
+                <Label>Heure de fin</Label>
+                <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "Enregistrement…" : editing ? "Modifier" : "Ajouter"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
