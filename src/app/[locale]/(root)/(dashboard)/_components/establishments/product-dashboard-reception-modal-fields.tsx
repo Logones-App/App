@@ -8,6 +8,7 @@ import { type AllergenKey, PORTION_UNITS, type PortionUnit } from "@/lib/constan
 import {
   compatibleUnits,
   orderQtyToStockQty,
+  suggestConversionFactor,
   toFriendlyUnitCost,
   unitCostFromTotal,
 } from "@/lib/utils/unit-conversion";
@@ -55,7 +56,7 @@ function referenceEquivalences(ru: ReferenceUnits, stockUnit: string, packaging:
   return out.join(" · ");
 }
 
-/** Aperçu des équivalences depuis les champs bruts (chaîne vide si non calculable). */
+/** Aperçu des équivalences depuis les champs bruts + drapeau d'incompatibilité d'unités. */
 function previewEquivalences(
   packaging: string,
   contenanceStr: string,
@@ -63,12 +64,12 @@ function previewEquivalences(
   stockUnit: string,
   priceStr: string,
   priceBasis: string,
-): string {
+): { text: string; incompatible: boolean } {
   const price = parsePositive(priceStr);
-  if (stockUnit === "" || price == null || priceBasis === "") return "";
+  if (stockUnit === "" || price == null || priceBasis === "") return { text: "", incompatible: false };
   const contenance = parsePositive(contenanceStr);
   const needsContenance = packaging !== VRAC && packaging !== A_LA_PIECE;
-  if (needsContenance && contenance == null) return "";
+  if (needsContenance && contenance == null) return { text: "", incompatible: false };
   const ru = computeReferenceUnits({
     packaging,
     contenance: contenance ?? 1,
@@ -77,7 +78,8 @@ function previewEquivalences(
     priceValue: price,
     priceBasis,
   });
-  return referenceEquivalences(ru, stockUnit, packaging);
+  if (!ru.conversionOk) return { text: "", incompatible: true };
+  return { text: referenceEquivalences(ru, stockUnit, packaging), incompatible: false };
 }
 
 /**
@@ -177,7 +179,14 @@ export function ReferencePhraseFields({
   const showContenance = !isVrac && !isPiece;
   const unitOptions = isVrac ? PORTION_UNITS.filter((u) => u !== "piece") : PORTION_UNITS;
   const basisOptions = priceBasisOptions(packaging, stockUnit, t);
-  const equiv = previewEquivalences(packaging, contenanceStr, contenanceUnit, stockUnit, priceStr, priceBasis);
+  const { text: equiv, incompatible } = previewEquivalences(
+    packaging,
+    contenanceStr,
+    contenanceUnit,
+    stockUnit,
+    priceStr,
+    priceBasis,
+  );
   // Unité de la contenance (ex. « 75 cl » géré en L) : proposée dès que l'unité de stock est connue.
   const contenanceUnitOptions = stockUnit !== "" ? compatibleUnits(stockUnit, PORTION_UNITS) : [];
   const showContenanceUnit = showContenance && contenanceUnitOptions.length > 0;
@@ -304,6 +313,12 @@ export function ReferencePhraseFields({
         </div>
       </div>
 
+      {incompatible && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          ⚠ Unités incompatibles : la contenance ou le prix ne peuvent pas être convertis vers l&apos;unité de stock.
+          Choisissez une unité compatible (même catégorie : poids, volume…).
+        </p>
+      )}
       {equiv !== "" && <p className="text-muted-foreground text-xs">→ {equiv}</p>}
 
       <div className="space-y-1">
@@ -359,9 +374,20 @@ export function AmountsFields({
   const { stockQty, total, fifoCost, stockAfter, normalizedCost } = computeAmounts(qtyStr, puStr, factor, currentStock);
   // Aperçus masqués tant que l'unité de gestion n'est pas connue (sinon « €/— » trompeur).
   const hasUnit = stockUnit !== "" && stockUnit !== "—";
+  // Facteur incohérent : les unités sont dimensionnellement liées mais le facteur de la référence
+  // ≠ la conversion réelle (ex. kg→g devrait valoir 1000, la réf dit 180) → stock + coût faux.
+  const suggested = suggestConversionFactor(orderUnit, stockUnit);
+  const factorMismatch = suggested != null && factor > 0 && Math.abs(suggested - factor) > 1e-6;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {factorMismatch && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-700 sm:col-span-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          ⚠ Facteur de conversion incohérent : cette référence indique « 1 {orderUnit} = {factor} {stockUnit} », or 1{" "}
+          {orderUnit} = {suggested} {stockUnit}. Le stock et le coût seront faux — corrigez la référence (bouton «
+          Modifier ») avant de réceptionner.
+        </p>
+      )}
       {showQty && (
         <div className="space-y-2">
           <Label>Quantité reçue{orderUnit ? ` (${orderUnit})` : ""}</Label>

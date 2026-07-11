@@ -42,6 +42,8 @@ export type ReferenceUnits = {
   unitPrice: number; // par order_unit (ce que stocke supplier_references.unit_price)
   unitCost: number; // par unité de stock (source de vérité food cost)
   packaging: string | null;
+  /** false si une conversion d'unité requise est impossible (unités incompatibles) → valeurs non fiables. */
+  conversionOk: boolean;
 };
 
 /**
@@ -64,7 +66,21 @@ export function computeReferenceUnits(input: {
   const isVrac = packaging === VRAC;
   const isPiece = packaging === A_LA_PIECE;
   const cUnit = input.contenanceUnit && input.contenanceUnit !== "" ? input.contenanceUnit : stockUnit;
-  const contenanceStock = convertUnit(contenance, cUnit, stockUnit) ?? contenance; // contenance en unités de stock
+
+  // Conversion « non silencieuse » : si une conversion requise est impossible (unités
+  // incompatibles, ex. masse↔volume), on garde une valeur brute MAIS on lève le flag `ok=false`
+  // pour que l'UI avertisse au lieu de produire un facteur/coût faux en douce.
+  let ok = true;
+  const conv = (v: number, from: string, to: string): number => {
+    const r = convertUnit(v, from, to);
+    if (r == null) {
+      ok = false;
+      return v;
+    }
+    return r;
+  };
+
+  const contenanceStock = conv(contenance, cUnit, stockUnit); // contenance en unités de stock
   const packSize = isVrac || isPiece ? 1 : contenanceStock; // unités de stock par pack
 
   // Coût par unité de stock (source de vérité).
@@ -73,12 +89,12 @@ export function computeReferenceUnits(input: {
     unitCost = priceValue / (packSize > 0 ? packSize : 1);
   } else {
     // base = unité de mesure (kg, L…) — y compris le cas vrac
-    const k = convertUnit(1, priceBasis, stockUnit) ?? 1;
+    const k = conv(1, priceBasis, stockUnit);
     unitCost = priceValue / (k > 0 ? k : 1);
   }
 
   const orderUnit = isVrac ? priceBasis : "piece";
-  const conversionFactor = isVrac ? (convertUnit(1, priceBasis, stockUnit) ?? 1) : packSize;
+  const conversionFactor = isVrac ? conv(1, priceBasis, stockUnit) : packSize;
   const packagingStore = isVrac ? null : isPiece ? "piece" : packaging;
 
   return {
@@ -87,6 +103,7 @@ export function computeReferenceUnits(input: {
     unitPrice: round5(unitCost * conversionFactor),
     unitCost: round5(unitCost),
     packaging: packagingStore,
+    conversionOk: ok,
   };
 }
 

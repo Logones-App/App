@@ -14,6 +14,7 @@ import { type DocImportLineRow } from "@/lib/queries/doc-import-lines-queries";
 import { useEstablishmentVatRates } from "@/lib/queries/establishments-related-queries";
 import { useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
+import { suggestConversionFactor } from "@/lib/utils/unit-conversion";
 
 import { OrderUnitField, ProductCombobox, SupplierCombobox } from "./doc-line-create-controls";
 
@@ -142,6 +143,15 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
   const [unitsPerPackage, setUnitsPerPackage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Le facteur n'a de sens qu'avec une unité de stock résolue. Nouvel ingrédient → on connaît son
+  // unité (portionUnit) : si elle est dimensionnellement liée à l'unité de commande, on DÉRIVE le
+  // facteur (kg→g = 1000) au lieu d'un champ libre (source du bug « 180 »). Sinon (conditionnement
+  // non convertible, ou produit existant dont l'unité n'est pas connue ici) → saisie libre / provisoire.
+  const orderUnitTrim = unit.trim();
+  const resolvedStockUnit = createNewIngredient ? portionUnit : "";
+  const derivedFactor =
+    orderUnitTrim !== "" && resolvedStockUnit !== "" ? suggestConversionFactor(orderUnitTrim, resolvedStockUnit) : null;
+
   const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
   const createSupplierMutation = useCreateSupplier(organizationId);
 
@@ -178,6 +188,9 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
       const unitsPerPackageNum = parseFloat(unitsPerPackage.replace(",", "."));
       const safeUnitPrice = Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null;
       const safeUnitsPerPkg = Number.isFinite(unitsPerPackageNum) && unitsPerPackageNum > 0 ? unitsPerPackageNum : null;
+      // Facteur dérivé (unités convertibles) prioritaire sur la saisie libre → jamais de facteur
+      // dimensionnellement faux quand l'unité de stock est connue.
+      const effectiveFactor = derivedFactor ?? safeUnitsPerPkg ?? undefined;
       const { data: newPs, error: psError } = await supabase
         .from("supplier_references")
         .insert({
@@ -188,7 +201,7 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
           supplier_product_name: designation.trim() || null,
           unit_price: safeUnitPrice,
           order_unit: unit.trim() || null,
-          conversion_factor: safeUnitsPerPkg ?? undefined,
+          conversion_factor: effectiveFactor,
           deleted: false,
         })
         .select("id")
@@ -208,7 +221,7 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
         supplierName: supplier.name,
         unitPrice: safeUnitPrice,
         orderUnit: unit.trim() || null,
-        unitsPerPackage: safeUnitsPerPkg,
+        unitsPerPackage: effectiveFactor ?? null,
       });
     } finally {
       setBusy(false);
@@ -357,15 +370,29 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label className="text-xs">Contenance par unité commandée</Label>
-              <Input
-                value={unitsPerPackage}
-                onChange={(e) => setUnitsPerPackage(e.target.value)}
-                inputMode="decimal"
-                placeholder="ex : 1 (kg par bouteille, litres par bidon…)"
-              />
-              <p className="text-muted-foreground text-xs">
-                Quantité en unité de stockage reçue pour 1 unité commandée. Laissez vide si identique.
-              </p>
+              {derivedFactor != null ? (
+                <p className="bg-muted/30 text-muted-foreground rounded-md border px-2 py-1.5 text-xs">
+                  Dérivé automatiquement : 1 {orderUnitTrim} ={" "}
+                  <strong>
+                    {derivedFactor} {resolvedStockUnit}
+                  </strong>{" "}
+                  — pas de saisie manuelle (unités convertibles).
+                </p>
+              ) : (
+                <>
+                  <Input
+                    value={unitsPerPackage}
+                    onChange={(e) => setUnitsPerPackage(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="ex : 6 (pièces par carton…)"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Quantité en unité de stockage pour 1 unité commandée.
+                    {createNewIngredient ? "" : " Se fiabilise une fois l'unité de stock du produit connue."} Laissez
+                    vide si identique.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

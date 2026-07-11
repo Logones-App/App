@@ -1,0 +1,159 @@
+# SQL — `fn_convert` canonique + validation du `conversion_factor` (en FLAG)
+
+_Socle partagé POS ↔ SaaS. Principe convergé : la garde **dure** est côté **app** (à la création de référence, sur les deux clients) ; la base **flague** (`needs_review`), **jamais reject** — car `supplier_references` **et** `stock_movements` sont sync-offline chez le POS (un reject bloquerait une ligne créée hors ligne → orphelines/divergence)._
+
+## 1. `fn_convert` — conversion d'unités canonique, STRICTE
+
+Miroir exact de `src/lib/utils/unit-conversion.ts` (`UNIT_FACTORS`). Retourne **NULL** si non convertible (unités de catégories différentes ou inconnues). Identité si unités égales ou nulles.
+
+```sql
+create or replace function public.fn_convert(p_value numeric, p_from text, p_to text)
+returns numeric
+language sql
+immutable
+as $$
+  select case
+    when p_from is null or p_to is null           then p_value      -- pas d'unité → identité (comme le helper)
+    when lower(p_from) = lower(p_to)               then p_value
+    when lower(p_from)||'_'||lower(p_to) = 'kg_g'  then p_value * 1000
+    when lower(p_from)||'_'||lower(p_to) = 'g_kg'  then p_value * 0.001
+    when lower(p_from)||'_'||lower(p_to) = 'l_ml'  then p_value * 1000
+    when lower(p_from)||'_'||lower(p_to) = 'ml_l'  then p_value * 0.001
+    when lower(p_from)||'_'||lower(p_to) = 'l_cl'  then p_value * 100
+    when lower(p_from)||'_'||lower(p_to) = 'cl_l'  then p_value * 0.01
+    when lower(p_from)||'_'||lower(p_to) = 'cl_ml' then p_value * 10
+    when lower(p_from)||'_'||lower(p_to) = 'ml_cl' then p_value * 0.1
+    else null                                                        -- non convertible → NULL (strict)
+  end;
+$$;
+```
+
+### Table de cas (pour le test de concordance POS ↔ SaaS)
+`fn_convert(1, from, to)` doit égaler `convertUnit(1, from, to)` de `unit-conversion.ts` :
+
+| from | to | attendu |
+|---|---|---|
+| kg | g | 1000 |
+| g | kg | 0.001 |
+| l | ml | 1000 |
+| ml | l | 0.001 |
+| l | cl | 100 |
+| cl | l | 0.01 |
+| cl | ml | 10 |
+| ml | cl | 0.1 |
+| kg | kg | 1 |
+| piece | piece | 1 |
+| kg | l | **NULL** (masse↔volume) |
+| kg | piece | **NULL** |
+| Carton | piece | **NULL** (unité inconnue) |
+| NULL | g | 1 (identité) |
+
+> Côté app, `suggestConversionFactor(from, to)` = `fn_convert(1, from, to)` mais **null si ≤ 0 ou null** (usage validation).
+
+## 2. Corriger le commentaire schéma (le code faisait foi, pas le commentaire)
+
+```sql
+comment on column public.supplier_references.conversion_factor is
+  'Nombre d''unités de stock (portion_unit du produit) contenues dans 1 unité de commande (order_unit). '
+  'Ex : 1 kg = 1000 g → 1000. Doit valoir fn_convert(1, order_unit, stock_unit) quand les unités sont convertibles.';
+```
+
+## 3. Validation en FLAG (jamais reject)
+
+### 3a. `stock_movements` — point de validation FIABLE (l'unité de stock y est résoluble)
+Au moment où un mouvement d'achat utilise une référence, on connaît `product_stock_id → unit`. On compare le facteur de la référence à la conversion réelle ; incohérent ⇒ `needs_review = true`. **BEFORE INSERT** → fire aussi à la **sync des lignes POS**, sans jamais bloquer.
+
+```sql
+create or replace function public.fn_flag_factor_mismatch()
+returns trigger language plpgsql as $$
+declare v_order_unit text; v_factor numeric; v_stock_unit text; v_expected numeric;
+begin
+  if new.movement_type <> 'purchase' or new.supplier_reference_id is null then
+    return new;
+  end if;
+  select order_unit, conversion_factor into v_order_unit, v_factor
+    from supplier_references where id = new.supplier_reference_id;
+  select unit into v_stock_unit from product_stocks where id = new.product_stock_id;
+
+  v_expected := public.fn_convert(1, v_order_unit, v_stock_unit);
+  -- unités convertibles ET facteur ≠ conversion réelle → on FLAGue (ne bloque pas)
+  if v_expected is not null and v_factor is not null and abs(v_expected - v_factor) > 1e-6 then
+    new.needs_review := true;
+  end if;
+  return new;
+end $$;
+
+create or replace trigger trg_flag_factor_mismatch
+  before insert on public.stock_movements
+  for each row execute function public.fn_flag_factor_mismatch();
+```
+
+### 3b. `supplier_references` — flag à la source (l'unité de stock doit être RÉSOLUE)
+Principe (accord POS) : **un facteur n'a de sens qu'avec une unité de stock résolue.** Prérequis : une colonne de flag.
+
+```sql
+alter table public.supplier_references
+  add column if not exists needs_review boolean not null default false;
+```
+
+Trigger de flag (BEFORE INSERT/UPDATE) — flague si (a) une unité de stock est résoluble pour ce produit **et** le facteur diverge, **ou** (b) un facteur non-NULL est posé alors qu'aucune unité de stock n'est résoluble (facteur « dans le vide ») :
+
+```sql
+create or replace function public.fn_flag_ref_factor()
+returns trigger language plpgsql as $$
+declare v_stock_unit text; v_expected numeric;
+begin
+  if new.conversion_factor is null or new.order_unit is null then
+    return new;
+  end if;
+  -- unité de stock du produit (org-scoped ; on prend une ligne product_stocks non supprimée)
+  select ps.unit into v_stock_unit
+    from product_stocks ps
+    join product_compositions pc on pc.id = ps.product_composition_id
+   where pc.main_product_id = new.product_id and ps.deleted = false
+   limit 1;
+
+  v_expected := public.fn_convert(1, new.order_unit, v_stock_unit);
+  -- (a) convertible et divergent → flag ; (b) facteur posé sans unité résoluble → flag
+  if (v_expected is not null and abs(v_expected - new.conversion_factor) > 1e-6)
+     or (v_stock_unit is null) then
+    new.needs_review := true;
+  end if;
+  return new;
+end $$;
+
+create or replace trigger trg_flag_ref_factor
+  before insert or update on public.supplier_references
+  for each row execute function public.fn_flag_ref_factor();
+```
+
+> ⚠ Point ouvert (à confirmer POS) : la résolution de l'unité de stock d'une référence **org-level** via une ligne `product_stocks` **par établissement** peut être ambiguë si le produit est suivi dans des unités différentes selon l'établissement (rare). À défaut, on flague — jamais on ne rejette.
+
+### 3c. (optionnel partagé) cohérence `movement.unit == product_stocks.unit` — EN FLAG
+```sql
+-- dans fn_flag_factor_mismatch (ou un trigger jumeau) :
+--   if new.unit is distinct from v_stock_unit then new.needs_review := true; end if;
+```
+
+## 4. Réparation de l'existant
+```sql
+-- Références au facteur incohérent (à re-dériver côté app via « Modifier ») :
+select sr.id, sr.order_unit, sr.conversion_factor,
+       ps.unit as stock_unit, public.fn_convert(1, sr.order_unit, ps.unit) as expected
+from supplier_references sr
+join product_compositions pc on pc.main_product_id = sr.product_id
+join product_stocks ps on ps.product_composition_id = pc.id and ps.deleted = false
+where sr.deleted = false
+  and public.fn_convert(1, sr.order_unit, ps.unit) is not null
+  and abs(public.fn_convert(1, sr.order_unit, ps.unit) - sr.conversion_factor) > 1e-6;
+
+-- Stocks dérivés (drift) : cf. vue existante v_stock_reconciliation (has_drift).
+```
+
+## 5. Côté app (déjà fait, SaaS)
+- **Fermé le champ facteur libre** au doc-import : le facteur est **dérivé** de `fn_convert(1, order_unit, portion_unit)` quand l'unité de stock est connue (nouvel ingrédient) ; sinon provisoire — plus de « 180 » saisi à la main. (`doc-line-create-modal.tsx`)
+- **`computeReferenceUnits` durci** : plus de repli silencieux sur unités incompatibles (flag `conversionOk` → avertissement UI). (`reception-modal-parts.tsx` / `-fields.tsx`)
+- **Alerte réception** si le facteur d'une réf ≠ conversion réelle. (`AmountsFields`)
+
+## Ce qu'attend le POS pour enchaîner
+`fn_convert` ci-dessus = **signature stable + table de cas** → le POS écrit le **test de concordance** `unitConversion.ts ↔ fn_convert` en face.
