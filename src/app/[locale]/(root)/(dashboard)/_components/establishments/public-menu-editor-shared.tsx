@@ -23,6 +23,7 @@ import {
   useMenuProductsPicker,
   useMovePublicMenuItem,
   useMoveSection,
+  useMoveSectionToCard,
   usePublicMenuSections,
   useRemovePublicMenuItem,
   useTogglePublicMenuItemVisibility,
@@ -91,6 +92,7 @@ function SectionCard({
   establishmentId,
   organizationId,
   locales,
+  menus,
   depth = 0,
   subsections = [],
 }: {
@@ -101,6 +103,7 @@ function SectionCard({
   establishmentId: string;
   organizationId: string;
   locales: string[];
+  menus: { id: string; name: string | null }[];
   depth?: number;
   subsections?: PublicMenuSectionWithItems[];
 }) {
@@ -113,6 +116,7 @@ function SectionCard({
   const updateSection = useUpdateSection(establishmentId, organizationId);
   const deleteSection = useDeleteSection(establishmentId, organizationId);
   const moveSection = useMoveSection(establishmentId, organizationId);
+  const moveSectionToCard = useMoveSectionToCard(establishmentId, organizationId);
   const addItem = useAddPublicMenuItem(establishmentId, organizationId);
   const removeItem = useRemovePublicMenuItem(establishmentId, organizationId);
   const toggleVisibility = useTogglePublicMenuItemVisibility(establishmentId, organizationId);
@@ -125,6 +129,7 @@ function SectionCard({
     updateSection,
     deleteSection,
     moveSection,
+    moveSectionToCard,
     addItem,
     removeItem,
     toggleVisibility,
@@ -262,6 +267,30 @@ function SectionCard({
             {section.description ?? <span className="italic opacity-40">+ description de section</span>}
           </button>
         )}
+
+        {depth === 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-muted-foreground text-xs">Carte :</span>
+            <Select
+              value={section.menu_id ?? COMMON}
+              onValueChange={(v) =>
+                moveSectionToCard.mutate({ sectionId: section.id, menuId: v === COMMON ? null : v })
+              }
+            >
+              <SelectTrigger className="h-7 w-56 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={COMMON}>Communes (toutes les cartes)</SelectItem>
+                {menus.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name ?? "Menu"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-3">
@@ -284,6 +313,7 @@ function SectionCard({
                     isLast={idx === section.items.length - 1}
                     isPending={isPending}
                     locales={locales}
+                    sectionMenuId={section.menu_id}
                     onToggle={(v) => toggleVisibility.mutate({ id: item.id, is_visible: v })}
                     onRemove={() => removeItem.mutate(item.id)}
                     onMove={(dir) => moveItem.mutate({ id: item.id, section_id: section.id, direction: dir })}
@@ -320,6 +350,7 @@ function SectionCard({
                 establishmentId={establishmentId}
                 organizationId={organizationId}
                 locales={locales}
+                menus={menus}
               />
             ))}
             <SubSectionAdder
@@ -468,6 +499,7 @@ export function PublicMenuEditorShared({
           establishmentId={establishmentId}
           organizationId={organizationId}
           locales={locales}
+          menus={menus}
         />
       ))}
     </div>

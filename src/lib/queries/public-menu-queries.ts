@@ -13,6 +13,8 @@ export type PublicMenuItemWithProduct = ItemRow & {
   menus_product: {
     id: string;
     price: number | null;
+    menus_id: string | null;
+    menu: { name: string | null } | null;
     product: {
       id: string;
       name: string;
@@ -74,7 +76,7 @@ export function usePublicMenuSections(establishmentId: string, organizationId: s
         .from("public_menu_items")
         .select(
           `*, menus_product:menus_products(
-            id, price,
+            id, price, menus_id, menu:menus(name),
             product:products(id, name, description, translations, allergens, labels, product_type, portion_unit, portion_weight, is_available)
           )`,
         )
@@ -186,6 +188,26 @@ export function useCreateSection(establishmentId: string, organizationId: string
       void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
     },
     onError: () => toast.error("Impossible de créer la section."),
+  });
+}
+
+/** Déplace une section (racine) et ses sous-sections vers une carte (menu_id) ; null = communes. */
+export function useMoveSectionToCard(establishmentId: string, organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sectionId, menuId }: { sectionId: string; menuId: string | null }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("public_menu_sections")
+        .update({ menu_id: menuId })
+        .or(`id.eq.${sectionId},parent_id.eq.${sectionId}`)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: publicMenuSectionsKey(establishmentId, organizationId) });
+    },
+    onError: () => toast.error("Impossible de déplacer la section."),
   });
 }
 
