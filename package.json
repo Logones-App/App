@@ -12,7 +12,8 @@
     "prepare": "husky",
     "type-check": "tsc --noEmit",
     "update-types-remote": "npx supabase gen types typescript --project-id vhjaiftoxttkygixepkw --schema public > src\\lib\\supabase\\database.types.ts",
-    "seed:knowledge-base": "npx tsx scripts/seed-knowledge-base.ts"
+    "seed:knowledge-base": "npx tsx scripts/seed-knowledge-base.ts",
+    "check:unit-conversion": "npx tsx scripts/check-unit-conversion.ts"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

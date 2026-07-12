@@ -30,7 +30,8 @@ import {
 } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
 
-import { AmountsFields, GestionUnitField, NewRefSection } from "./product-dashboard-reception-modal-fields";
+import { AmountsFields } from "./product-dashboard-reception-amounts";
+import { GestionUnitField, NewRefSection } from "./product-dashboard-reception-modal-fields";
 import {
   A_LA_PIECE,
   BASIS_PACK,
@@ -38,6 +39,7 @@ import {
   computeReferenceUnits,
   deriveState,
   NEW,
+  ORDER_BASIS,
   parsePositive,
   qtyOrderLabel,
   resolveStockUnit,
@@ -45,6 +47,7 @@ import {
   type Ref,
   refLabel,
   stockUnitFromRef,
+  toOrderUnitPrice,
   VRAC,
 } from "./product-dashboard-reception-modal-parts";
 
@@ -69,6 +72,11 @@ function modalText(isPrice: boolean, showFirstRefHint: boolean) {
     ? `${base} L'unité de gestion du stock sera figée à cette première référence.`
     : base;
   return { title, description };
+}
+
+/** Prix ramené à l'unité de commande selon la base choisie (null si pas de prix). */
+function orderPrice(pu: number | null, basis: string, factor: number, stockUnit: string): number | null {
+  return pu != null ? toOrderUnitPrice(pu, basis, factor, stockUnit) : null;
 }
 
 export function ReceptionModal(props: Props) {
@@ -103,6 +111,7 @@ export function ReceptionModal(props: Props) {
   const [gestionUnit, setGestionUnit] = useState("");
   const [qtyStr, setQtyStr] = useState("");
   const [puStr, setPuStr] = useState("");
+  const [recPriceBasis, setRecPriceBasis] = useState(ORDER_BASIS);
   const [notes, setNotes] = useState("");
   const [packaging, setPackaging] = useState(VRAC);
   const [priceBasis, setPriceBasis] = useState("");
@@ -118,6 +127,8 @@ export function ReceptionModal(props: Props) {
   const effectiveStockUnit = resolveStockUnit(stockUnit, gestionUnit, derivedRefStockUnit);
   const qty = parsePositive(qtyStr);
   const pu = parsePositive(puStr);
+  // Prix ramené à l'unité de commande selon la base choisie (€/plaquette ou €/kg) — réf existante.
+  const puPerOrder = orderPrice(pu, recPriceBasis, d.factor, effectiveStockUnit);
   const contenance = parsePositive(contenanceStr) ?? 1;
   // Traduction de la « phrase » (pour la création de référence et l'aperçu quantité).
   const ru = computeReferenceUnits({
@@ -192,7 +203,7 @@ export function ReceptionModal(props: Props) {
           supplierRefId: d.selectedRef.id,
           supplierId,
           orderQty: qty as number,
-          unitPrice: pu as number,
+          unitPrice: puPerOrder as number,
           conversionFactor: d.factor,
           notes,
         },
@@ -232,8 +243,8 @@ export function ReceptionModal(props: Props) {
 
     // Référence existante : on met juste à jour le prix.
     if (d.selectedRef) {
-      await updateRef.mutateAsync({ id: d.selectedRef.id, patch: { unit_price: pu } });
-      const unitCost = Math.round(((pu as number) / (d.factor > 0 ? d.factor : 1)) * 100000) / 100000;
+      await updateRef.mutateAsync({ id: d.selectedRef.id, patch: { unit_price: puPerOrder } });
+      const unitCost = Math.round(((puPerOrder as number) / (d.factor > 0 ? d.factor : 1)) * 100000) / 100000;
       addPrice.mutate(
         {
           unit_cost: unitCost,
@@ -385,6 +396,8 @@ export function ReceptionModal(props: Props) {
               stockUnit={stockUnitLabel}
               factor={d.factor}
               currentStock={currentStock}
+              priceBasis={recPriceBasis}
+              setPriceBasis={setRecPriceBasis}
             />
           )}
 

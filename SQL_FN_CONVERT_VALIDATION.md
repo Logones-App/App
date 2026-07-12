@@ -66,13 +66,18 @@ Au moment où un mouvement d'achat utilise une référence, on connaît `product
 ```sql
 create or replace function public.fn_flag_factor_mismatch()
 returns trigger language plpgsql as $$
-declare v_order_unit text; v_factor numeric; v_stock_unit text; v_expected numeric;
+declare v_order_unit text; v_factor numeric; v_stock_unit text; v_expected numeric; v_packaging text;
 begin
   if new.movement_type <> 'purchase' or new.supplier_reference_id is null then
     return new;
   end if;
-  select order_unit, conversion_factor into v_order_unit, v_factor
+  select order_unit, conversion_factor, packaging into v_order_unit, v_factor, v_packaging
     from supplier_references where id = new.supplier_reference_id;
+  -- Colisage compté (Boîte/Sac/Sachet/Plaquette…) : le facteur = nb d'unités par colis,
+  -- PAS une conversion dimensionnelle → rien à valider (ex. 1 boîte = 25 sachets, order=stock='piece').
+  if v_packaging is not null then
+    return new;
+  end if;
   select unit into v_stock_unit from product_stocks where id = new.product_stock_id;
 
   v_expected := public.fn_convert(1, v_order_unit, v_stock_unit);
@@ -103,22 +108,26 @@ create or replace function public.fn_flag_ref_factor()
 returns trigger language plpgsql as $$
 declare v_stock_unit text; v_expected numeric;
 begin
-  if new.conversion_factor is null or new.order_unit is null then
+  -- Colisage compté (Boîte/Sac/Sachet/Plaquette…) : le facteur = nb d'unités par colis,
+  -- PAS une conversion dimensionnelle → rien à valider (ex. 1 boîte = 25 sachets, order=stock='piece').
+  if new.packaging is not null then
+    new.needs_review := false;
     return new;
   end if;
-  -- unité de stock du produit (org-scoped ; on prend une ligne product_stocks non supprimée)
-  select ps.unit into v_stock_unit
-    from product_stocks ps
-    join product_compositions pc on pc.id = ps.product_composition_id
-   where pc.main_product_id = new.product_id and ps.deleted = false
-   limit 1;
+  if new.conversion_factor is null or new.order_unit is null then
+    new.needs_review := false;
+    return new;
+  end if;
+  -- Unité de stock = attribut PRODUIT (org-level, valeur unique posée une fois), pas une ligne
+  -- product_stocks par établissement → pas de limit 1 ambigu (reco POS). Flag-not-reject en
+  -- filet si portion_unit pas encore posé (v_stock_unit NULL).
+  select portion_unit into v_stock_unit from products where id = new.product_id;
 
   v_expected := public.fn_convert(1, new.order_unit, v_stock_unit);
+  -- SET DÉTERMINISTE (true OU false) → corriger une réf efface le flag automatiquement.
   -- (a) convertible et divergent → flag ; (b) facteur posé sans unité résoluble → flag
-  if (v_expected is not null and abs(v_expected - new.conversion_factor) > 1e-6)
-     or (v_stock_unit is null) then
-    new.needs_review := true;
-  end if;
+  new.needs_review := (v_expected is not null and abs(v_expected - new.conversion_factor) > 1e-6)
+                      or (v_stock_unit is null);
   return new;
 end $$;
 
@@ -127,7 +136,7 @@ create or replace trigger trg_flag_ref_factor
   for each row execute function public.fn_flag_ref_factor();
 ```
 
-> ⚠ Point ouvert (à confirmer POS) : la résolution de l'unité de stock d'une référence **org-level** via une ligne `product_stocks` **par établissement** peut être ambiguë si le produit est suivi dans des unités différentes selon l'établissement (rare). À défaut, on flague — jamais on ne rejette.
+> ✅ Point tranché (POS) : l'unité de stock est un **attribut produit** (`products.portion_unit`, posé une fois, non écrasé) ; `product_stocks.unit` en dérive et est normalement **identique** pour un produit donné. On résout donc via `products.portion_unit` (valeur unique org-level) → plus d'ambiguïté `limit 1`. Flag-not-reject en filet si `portion_unit` pas encore posé.
 
 ### 3c. (optionnel partagé) cohérence `movement.unit == product_stocks.unit` — EN FLAG
 ```sql
@@ -138,14 +147,14 @@ create or replace trigger trg_flag_ref_factor
 ## 4. Réparation de l'existant
 ```sql
 -- Références au facteur incohérent (à re-dériver côté app via « Modifier ») :
+-- unité de stock résolue via products.portion_unit (org-level, cohérent avec fn_flag_ref_factor).
 select sr.id, sr.order_unit, sr.conversion_factor,
-       ps.unit as stock_unit, public.fn_convert(1, sr.order_unit, ps.unit) as expected
+       p.portion_unit as stock_unit, public.fn_convert(1, sr.order_unit, p.portion_unit) as expected
 from supplier_references sr
-join product_compositions pc on pc.main_product_id = sr.product_id
-join product_stocks ps on ps.product_composition_id = pc.id and ps.deleted = false
+join products p on p.id = sr.product_id
 where sr.deleted = false
-  and public.fn_convert(1, sr.order_unit, ps.unit) is not null
-  and abs(public.fn_convert(1, sr.order_unit, ps.unit) - sr.conversion_factor) > 1e-6;
+  and public.fn_convert(1, sr.order_unit, p.portion_unit) is not null
+  and abs(public.fn_convert(1, sr.order_unit, p.portion_unit) - sr.conversion_factor) > 1e-6;
 
 -- Stocks dérivés (drift) : cf. vue existante v_stock_reconciliation (has_drift).
 ```
@@ -155,5 +164,14 @@ where sr.deleted = false
 - **`computeReferenceUnits` durci** : plus de repli silencieux sur unités incompatibles (flag `conversionOk` → avertissement UI). (`reception-modal-parts.tsx` / `-fields.tsx`)
 - **Alerte réception** si le facteur d'une réf ≠ conversion réelle. (`AmountsFields`)
 
-## Ce qu'attend le POS pour enchaîner
-`fn_convert` ci-dessus = **signature stable + table de cas** → le POS écrit le **test de concordance** `unitConversion.ts ↔ fn_convert` en face.
+## Test de concordance (SaaS FAIT — symétrique pour le POS)
+La **table de cas canonique** vit désormais dans le code : `src/lib/utils/unit-conversion-cases.ts`
+(`CONVERSION_CASES` + `checkConversionConcordance()`) — miroir exact de la table §1. Un runner
+`scripts/check-unit-conversion.ts` la joue contre `convertUnit` :
+
+```
+npm run check:unit-conversion     # ✅ 14 cas, exit 0 si concordance
+```
+
+→ Le POS écrit le **même test** contre `fn_convert` (mêmes 14 cas). Tant que les deux passent, les
+implémentations TS et SQL ne peuvent pas diverger. (Ajouter un cas = l'ajouter des deux côtés.)

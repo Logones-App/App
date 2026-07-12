@@ -5,7 +5,9 @@ import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 
+import { purchasePriceQueryKey, repriceReferenceFromLatestSnapshot } from "./purchase-price-queries";
 import { stockMovementsQueryKey } from "./stock-movement-queries";
+import { supplierReferenceQueryKey } from "./supplier-queries";
 
 export type ReceptionRow = {
   id: string;
@@ -141,6 +143,9 @@ function receptionInvalidate(
   void queryClient.invalidateQueries({
     queryKey: ["establishment-products-with-stocks", establishmentId, organizationId],
   });
+  // Une réception écrit/retire aussi un snapshot de prix (trigger + suppression liée) → historique & prix catalogue.
+  void queryClient.invalidateQueries({ queryKey: purchasePriceQueryKey(productId, organizationId) });
+  void queryClient.invalidateQueries({ queryKey: supplierReferenceQueryKey(productId) });
 }
 
 /**
@@ -235,11 +240,17 @@ export function useDeleteReception(productId: string, organizationId: string, es
       productStockId,
       quantity,
       remainingQuantity,
+      supplierReferenceId,
+      createdAt,
+      alsoDeletePrice,
     }: {
       movementId: string;
       productStockId: string;
       quantity: number;
       remainingQuantity: number | null;
+      supplierReferenceId?: string | null;
+      createdAt?: string | null;
+      alsoDeletePrice?: boolean;
     }) => {
       if (!isLotIntact(quantity, remainingQuantity)) {
         throw new Error("Réception déjà entamée par des ventes — corrigez via un ajustement de stock.");
@@ -264,6 +275,19 @@ export function useDeleteReception(productId: string, organizationId: string, es
         .update({ current_stock: next })
         .eq("id", productStockId);
       if (stockErr) throw stockErr;
+
+      // Le snapshot de prix créé par cette réception (fn_snapshot_purchase_price) porte
+      // `effective_from == stock_movements.created_at` → on le retrouve par (référence, date)
+      // puis on recale le prix catalogue sur le snapshot restant le plus récent.
+      if (alsoDeletePrice && supplierReferenceId && createdAt) {
+        const { error: snapErr } = await supabase
+          .from("supplier_price_snapshots")
+          .delete()
+          .eq("supplier_reference_id", supplierReferenceId)
+          .eq("effective_from", createdAt);
+        if (snapErr) throw snapErr;
+        await repriceReferenceFromLatestSnapshot(supabase, supplierReferenceId);
+      }
     },
     onSuccess: () => {
       toast.success("Réception supprimée");

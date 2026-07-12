@@ -6,7 +6,18 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Check, Lock, Pencil, Trash2, X } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -52,10 +63,56 @@ type RowProps = {
   updateMutation: ReturnType<typeof useUpdateReception>;
 };
 
+function DeleteReceptionDialog({
+  open,
+  onOpenChange,
+  hasPrice,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  hasPrice: boolean;
+  onConfirm: (alsoDeletePrice: boolean) => void;
+}) {
+  const [alsoDeletePrice, setAlsoDeletePrice] = useState(true);
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Supprimer cette réception ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Le stock sera diminué de la quantité reçue. Cette action est irréversible.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {hasPrice && (
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox
+              checked={alsoDeletePrice}
+              onCheckedChange={(v) => setAlsoDeletePrice(v === true)}
+              className="mt-0.5"
+            />
+            <span>
+              Supprimer aussi le <strong>prix d&apos;achat</strong> enregistré par cette réception.
+              <span className="text-muted-foreground block text-xs">
+                Le prix catalogue sera recalculé sur la réception précédente.
+              </span>
+            </span>
+          </label>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={() => onConfirm(hasPrice && alsoDeletePrice)}>Supprimer</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation }: RowProps) {
   const { factor, orderUnit, qtyOrder, pu, total, intact } = computeRowView(row);
 
   const [editing, setEditing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [qtyStr, setQtyStr] = useState("");
   const [puStr, setPuStr] = useState("");
 
@@ -128,15 +185,23 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
           onStartEdit={startEdit}
           onSave={saveEdit}
           onCancel={() => setEditing(false)}
-          onDelete={() => {
-            if (confirm("Supprimer cette réception ? Le stock sera diminué d'autant.")) {
-              deleteMutation.mutate({
-                movementId: row.id,
-                productStockId,
-                quantity: row.quantity,
-                remainingQuantity: row.remaining_quantity,
-              });
-            }
+          onDelete={() => setConfirmOpen(true)}
+        />
+        <DeleteReceptionDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          hasPrice={row.supplier_reference_id != null}
+          onConfirm={(alsoDeletePrice) => {
+            deleteMutation.mutate({
+              movementId: row.id,
+              productStockId,
+              quantity: row.quantity,
+              remainingQuantity: row.remaining_quantity,
+              supplierReferenceId: row.supplier_reference_id,
+              createdAt: row.created_at,
+              alsoDeletePrice,
+            });
+            setConfirmOpen(false);
           }}
         />
       </TableCell>

@@ -36,6 +36,22 @@ export const PACKAGINGS = [
 
 const round5 = (n: number) => Math.round(n * 100000) / 100000;
 
+/** Base de prix « par unité de commande » (par opposition à une unité de mesure du stock, ex. kg). */
+export const ORDER_BASIS = "__order__";
+
+/**
+ * Convertit un prix saisi selon `basis` en prix PAR UNITÉ DE COMMANDE (ce que stocke la réception).
+ * - `basis === ORDER_BASIS` → déjà par unité de commande (ex. € / plaquette).
+ * - `basis` = une unité de mesure (kg, L…) → coût par unité de stock (€/stockUnit via convertUnit)
+ *   puis × `conversionFactor` (= unités de stock par unité de commande).
+ * Ex. stock kg, 1 plaquette = 0,25 kg (factor 0,25), prix 6,667 €/kg → 6,667 × 0,25 = 1,667 €/plaquette.
+ */
+export function toOrderUnitPrice(price: number, basis: string, conversionFactor: number, stockUnit: string): number {
+  if (basis === ORDER_BASIS) return price;
+  const perStock = price * (convertUnit(1, stockUnit, basis) ?? 1); // €/unité de stock
+  return round5(perStock * conversionFactor);
+}
+
 export type ReferenceUnits = {
   orderUnit: string;
   conversionFactor: number;

@@ -5,13 +5,7 @@ import { Label } from "@/components/ui/label";
 import { AllergenPicker } from "@/components/ui/product-attribute-pickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type AllergenKey, PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import {
-  compatibleUnits,
-  orderQtyToStockQty,
-  suggestConversionFactor,
-  toFriendlyUnitCost,
-  unitCostFromTotal,
-} from "@/lib/utils/unit-conversion";
+import { compatibleUnits, toFriendlyUnitCost } from "@/lib/utils/unit-conversion";
 
 import {
   A_LA_PIECE,
@@ -333,108 +327,6 @@ export function ReferencePhraseFields({
         </Label>
         <OriginPicker value={origins} onChange={setOrigins} />
       </div>
-    </div>
-  );
-}
-
-function computeAmounts(qtyStr: string, puStr: string, factor: number, currentStock: number) {
-  const qty = parsePositive(qtyStr);
-  const pu = parsePositive(puStr);
-  const stockQty = qty != null ? orderQtyToStockQty(qty, factor) : null;
-  const total = qty != null && pu != null ? Math.round(qty * pu * 100) / 100 : null;
-  const fifoCost = stockQty != null && total != null ? unitCostFromTotal(total, stockQty) : null;
-  const stockAfter = stockQty != null ? Math.round((currentStock + stockQty) * 1000) / 1000 : null;
-  const normalizedCost = pu != null ? Math.round((pu / (factor > 0 ? factor : 1)) * 100000) / 100000 : null;
-  return { stockQty, total, fifoCost, stockAfter, normalizedCost };
-}
-
-export function AmountsFields({
-  showQty,
-  showPrice = true,
-  qtyStr,
-  setQtyStr,
-  puStr,
-  setPuStr,
-  orderUnit,
-  stockUnit,
-  factor,
-  currentStock,
-}: {
-  showQty: boolean;
-  showPrice?: boolean;
-  qtyStr: string;
-  setQtyStr: (v: string) => void;
-  puStr: string;
-  setPuStr: (v: string) => void;
-  orderUnit: string | null;
-  stockUnit: string;
-  factor: number;
-  currentStock: number;
-}) {
-  const { stockQty, total, fifoCost, stockAfter, normalizedCost } = computeAmounts(qtyStr, puStr, factor, currentStock);
-  // Aperçus masqués tant que l'unité de gestion n'est pas connue (sinon « €/— » trompeur).
-  const hasUnit = stockUnit !== "" && stockUnit !== "—";
-  // Facteur incohérent : les unités sont dimensionnellement liées mais le facteur de la référence
-  // ≠ la conversion réelle (ex. kg→g devrait valoir 1000, la réf dit 180) → stock + coût faux.
-  const suggested = suggestConversionFactor(orderUnit, stockUnit);
-  const factorMismatch = suggested != null && factor > 0 && Math.abs(suggested - factor) > 1e-6;
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {factorMismatch && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-700 sm:col-span-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-          ⚠ Facteur de conversion incohérent : cette référence indique « 1 {orderUnit} = {factor} {stockUnit} », or 1{" "}
-          {orderUnit} = {suggested} {stockUnit}. Le stock et le coût seront faux — corrigez la référence (bouton «
-          Modifier ») avant de réceptionner.
-        </p>
-      )}
-      {showQty && (
-        <div className="space-y-2">
-          <Label>Quantité reçue{orderUnit ? ` (${orderUnit})` : ""}</Label>
-          <Input
-            value={qtyStr}
-            onChange={(e) => setQtyStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="0"
-            className="tabular-nums"
-          />
-          {hasUnit && stockQty != null && (
-            <p className="text-muted-foreground text-xs">
-              →{" "}
-              <strong>
-                {stockQty} {stockUnit}
-              </strong>{" "}
-              en stock{stockAfter != null ? ` · après : ${stockAfter} ${stockUnit}` : ""}
-            </p>
-          )}
-        </div>
-      )}
-      {showPrice && (
-        <div className="space-y-2">
-          <Label>Prix unitaire HT{orderUnit ? ` / ${orderUnit}` : ""} (€)</Label>
-          <Input
-            value={puStr}
-            onChange={(e) => setPuStr(e.target.value)}
-            inputMode="decimal"
-            placeholder="ex: 20.00"
-            className="tabular-nums"
-          />
-          {showQty && total != null && (
-            <p className="text-muted-foreground text-xs">
-              Total : <strong>{total} €</strong>
-              {hasUnit && fifoCost != null ? ` · coût FIFO : ${fifoCost} €/${stockUnit}` : ""}
-            </p>
-          )}
-          {!showQty && hasUnit && normalizedCost != null && (
-            <p className="text-muted-foreground text-xs">
-              → coût normalisé :{" "}
-              <strong>
-                {normalizedCost} €/{stockUnit}
-              </strong>
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

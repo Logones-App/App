@@ -106,6 +106,32 @@ export function useAddPurchasePrice(productId: string, organizationId: string) {
 }
 
 /**
+ * Recale le cache `supplier_references.unit_price` sur le snapshot restant le plus récent
+ * de la même référence (× conversion_factor), ou le vide s'il n'y en a plus, pour éviter un
+ * prix « fantôme ». Partagé entre la suppression d'un snapshot et la suppression d'une réception
+ * (qui retire aussi le snapshot qu'elle avait créé).
+ */
+export async function repriceReferenceFromLatestSnapshot(
+  supabase: ReturnType<typeof createClient>,
+  refId: string,
+): Promise<void> {
+  const [{ data: latest }, { data: ref }] = await Promise.all([
+    supabase
+      .from("supplier_price_snapshots")
+      .select("unit_cost")
+      .eq("supplier_reference_id", refId)
+      .order("effective_from", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("supplier_references").select("conversion_factor").eq("id", refId).single(),
+  ]);
+  const factor = ref?.conversion_factor && ref.conversion_factor > 0 ? ref.conversion_factor : 1;
+  const nextUnitPrice = latest ? Math.round(latest.unit_cost * factor * 10000) / 10000 : null;
+  await supabase.from("supplier_references").update({ unit_price: nextUnitPrice }).eq("id", refId);
+}
+
+/**
  * Supprimer un snapshot (hard delete — historique).
  * Recale le cache `supplier_references.unit_price` sur le snapshot restant le plus récent
  * de la même référence (ou le vide s'il n'y en a plus) pour éviter un prix « fantôme ».
@@ -127,23 +153,7 @@ export function useDeletePurchasePrice(productId: string, organizationId: string
       const { error } = await supabase.from("supplier_price_snapshots").delete().eq("id", id);
       if (error) throw error;
 
-      const refId = snap.supplier_reference_id;
-      if (refId) {
-        const [{ data: latest }, { data: ref }] = await Promise.all([
-          supabase
-            .from("supplier_price_snapshots")
-            .select("unit_cost")
-            .eq("supplier_reference_id", refId)
-            .order("effective_from", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from("supplier_references").select("conversion_factor").eq("id", refId).single(),
-        ]);
-        const factor = ref?.conversion_factor && ref.conversion_factor > 0 ? ref.conversion_factor : 1;
-        const nextUnitPrice = latest ? Math.round(latest.unit_cost * factor * 10000) / 10000 : null;
-        await supabase.from("supplier_references").update({ unit_price: nextUnitPrice }).eq("id", refId);
-      }
+      if (snap.supplier_reference_id) await repriceReferenceFromLatestSnapshot(supabase, snap.supplier_reference_id);
     },
     onSuccess: () => {
       toast.success("Entrée supprimée");
