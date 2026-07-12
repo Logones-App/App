@@ -21,12 +21,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 import {
   useDeleteReception,
+  useProductPendingReceptions,
   useProductReceptions,
   useUpdateReception,
   type ReceptionRow,
 } from "@/lib/queries/reception-queries";
+
+import { PendingReceptions } from "./product-dashboard-pending-receptions";
 
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -59,6 +63,7 @@ function computeRowView(row: ReceptionRow): RowView {
 type RowProps = {
   row: ReceptionRow;
   productStockId: string;
+  stockOwner: "pos" | "saas";
   deleteMutation: ReturnType<typeof useDeleteReception>;
   updateMutation: ReturnType<typeof useUpdateReception>;
 };
@@ -67,11 +72,13 @@ function DeleteReceptionDialog({
   open,
   onOpenChange,
   hasPrice,
+  isPos,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   hasPrice: boolean;
+  isPos: boolean;
   onConfirm: (alsoDeletePrice: boolean) => void;
 }) {
   const [alsoDeletePrice, setAlsoDeletePrice] = useState(true);
@@ -81,10 +88,12 @@ function DeleteReceptionDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Supprimer cette réception ?</AlertDialogTitle>
           <AlertDialogDescription>
-            Le stock sera diminué de la quantité reçue. Cette action est irréversible.
+            {isPos
+              ? "Une correction (−quantité) sera envoyée à la caisse ; le stock sera ajusté après validation côté POS."
+              : "Le stock sera diminué de la quantité reçue. Cette action est irréversible."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {hasPrice && (
+        {!isPos && hasPrice && (
           <label className="flex items-start gap-2 text-sm">
             <Checkbox
               checked={alsoDeletePrice}
@@ -101,14 +110,16 @@ function DeleteReceptionDialog({
         )}
         <AlertDialogFooter>
           <AlertDialogCancel>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={() => onConfirm(hasPrice && alsoDeletePrice)}>Supprimer</AlertDialogAction>
+          <AlertDialogAction onClick={() => onConfirm(!isPos && hasPrice && alsoDeletePrice)}>
+            Supprimer
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
 
-function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation }: RowProps) {
+function ReceptionTableRow({ row, productStockId, stockOwner, deleteMutation, updateMutation }: RowProps) {
   const { factor, orderUnit, qtyOrder, pu, total, intact } = computeRowView(row);
 
   const [editing, setEditing] = useState(false);
@@ -136,6 +147,8 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
         factor,
         newOrderQty,
         newUnitPrice,
+        stockOwner,
+        supplierReferenceId: row.supplier_reference_id,
       },
       { onSuccess: () => setEditing(false) },
     );
@@ -181,6 +194,7 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
         <RowActions
           editing={editing}
           intact={intact}
+          readOnly={stockOwner === "pos"}
           pending={updateMutation.isPending || deleteMutation.isPending}
           onStartEdit={startEdit}
           onSave={saveEdit}
@@ -191,6 +205,7 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           hasPrice={row.supplier_reference_id != null}
+          isPos={stockOwner === "pos"}
           onConfirm={(alsoDeletePrice) => {
             deleteMutation.mutate({
               movementId: row.id,
@@ -200,6 +215,8 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
               supplierReferenceId: row.supplier_reference_id,
               createdAt: row.created_at,
               alsoDeletePrice,
+              stockOwner,
+              factor,
             });
             setConfirmOpen(false);
           }}
@@ -212,6 +229,7 @@ function ReceptionTableRow({ row, productStockId, deleteMutation, updateMutation
 function RowActions({
   editing,
   intact,
+  readOnly,
   pending,
   onStartEdit,
   onSave,
@@ -220,6 +238,7 @@ function RowActions({
 }: {
   editing: boolean;
   intact: boolean;
+  readOnly: boolean;
   pending: boolean;
   onStartEdit: () => void;
   onSave: () => void;
@@ -238,6 +257,20 @@ function RowActions({
       </div>
     );
   }
+  // En 'pos', une réception validée est possédée par le POS → lecture seule (correction sur la caisse).
+  if (readOnly) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-muted-foreground inline-flex h-7 w-7 items-center justify-center">
+            <Lock className="h-3.5 w-3.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Réception validée — correction sur la caisse.</TooltipContent>
+      </Tooltip>
+    );
+  }
+  // 'saas' : lot déjà entamé par des ventes → verrouillé (FIFO/audit).
   if (!intact) {
     return (
       <Tooltip>
@@ -252,7 +285,15 @@ function RowActions({
   }
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onStartEdit} disabled={pending}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={onStartEdit}
+        disabled={pending}
+        title="Modifier"
+      >
         <Pencil className="h-3.5 w-3.5" />
       </Button>
       <Button
@@ -262,6 +303,7 @@ function RowActions({
         className="text-destructive hover:text-destructive h-7 w-7"
         onClick={onDelete}
         disabled={pending}
+        title="Supprimer"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </Button>
@@ -281,38 +323,60 @@ export function ReceptionHistoryTable({
   productStockId: string;
 }) {
   const { data: rows = [], isLoading } = useProductReceptions(productId, establishmentId);
+  const { data: pending = [] } = useProductPendingReceptions(productId, establishmentId);
+  const stockOwner = useEstablishmentStockOwner(establishmentId);
   const deleteMutation = useDeleteReception(productId, organizationId, establishmentId);
   const updateMutation = useUpdateReception(productId, organizationId, establishmentId);
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Chargement…</p>;
-  if (rows.length === 0) return <p className="text-muted-foreground text-sm">Aucune réception enregistrée.</p>;
+  if (rows.length === 0 && pending.length === 0)
+    return <p className="text-muted-foreground text-sm">Aucune réception enregistrée.</p>;
+
+  if (rows.length === 0)
+    return (
+      <PendingReceptions
+        rows={pending}
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+      />
+    );
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Fournisseur</TableHead>
-            <TableHead>Référence</TableHead>
-            <TableHead className="text-right">Qté</TableHead>
-            <TableHead className="text-right">PU HT</TableHead>
-            <TableHead className="text-right">Total HT</TableHead>
-            <TableHead className="w-[80px]" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <ReceptionTableRow
-              key={row.id}
-              row={row}
-              productStockId={productStockId}
-              deleteMutation={deleteMutation}
-              updateMutation={updateMutation}
-            />
-          ))}
-        </TableBody>
-      </Table>
+    <div>
+      <PendingReceptions
+        rows={pending}
+        productId={productId}
+        organizationId={organizationId}
+        establishmentId={establishmentId}
+      />
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Fournisseur</TableHead>
+              <TableHead>Référence</TableHead>
+              <TableHead className="text-right">Qté</TableHead>
+              <TableHead className="text-right">PU HT</TableHead>
+              <TableHead className="text-right">Total HT</TableHead>
+              <TableHead className="w-[80px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <ReceptionTableRow
+                key={row.id}
+                row={row}
+                productStockId={productStockId}
+                stockOwner={stockOwner}
+                deleteMutation={deleteMutation}
+                updateMutation={updateMutation}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

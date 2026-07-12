@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 import { PRODUCT_DASHBOARD_QUERY_KEY } from "@/lib/queries/product-establishment-dashboard";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
@@ -70,6 +71,21 @@ export function ProductStockQuickAdjust({
       toast.error(e instanceof Error ? e.message : "Mise à jour impossible.");
     },
   });
+
+  const stockOwner = useEstablishmentStockOwner(establishmentId);
+
+  // En 'pos', l'inventaire/le stock réel est possédé par le POS (règle d'or) → lecture seule.
+  if (stockOwner === "pos") {
+    return (
+      <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
+        <span className="text-muted-foreground text-xs">{label} :</span>
+        <span className="text-sm tabular-nums">
+          {stock.current_stock} {stock.unit ?? ""}
+        </span>
+        <span className="text-muted-foreground text-xs italic">— inventaire géré sur la caisse</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-end gap-2 border-t border-dashed pt-3">

@@ -143,12 +143,99 @@ export type ApplyDocLinePayload = {
   supplierRef: string | null;
   importId: string;
   contenanceUnitaire: number;
+  stockOwner: "pos" | "saas";
   convertUnit?: {
     fromUnit: string;
     toUnit: string;
     conversionFactor: number;
   };
 };
+
+/**
+ * Applique le STOCK d'une ligne doc_import — **mode `'saas'` uniquement** (écriture directe,
+ * établissement sans caisse). En `'pos'`, le stock est appliqué par le POS (on ne passe jamais ici).
+ */
+async function applyDocLineStock(
+  supabase: ReturnType<typeof createClient>,
+  payload: ApplyDocLinePayload,
+  userId: string,
+): Promise<void> {
+  // ensureSelfStock fige l'unité de gestion + miroir products.portion_unit.
+  const desiredUnit = payload.portionUnit ?? payload.orderUnit ?? "piece";
+  const resolved = await ensureSelfStock(supabase, {
+    productId: payload.productId,
+    establishmentId: payload.establishmentId,
+    organizationId: payload.organizationId,
+    desiredUnit,
+  });
+  let currentStock = resolved.currentStock;
+  let effectivePortionUnit = payload.portionUnit;
+
+  if (payload.convertUnit) {
+    const { fromUnit, toUnit, conversionFactor } = payload.convertUnit;
+    const convertedQty = Math.round(currentStock * conversionFactor * 1000) / 1000;
+    const { error: unitErr } = await supabase
+      .from("product_stocks")
+      .update({ unit: toUnit, current_stock: convertedQty })
+      .eq("id", resolved.productStockId);
+    if (unitErr) throw unitErr;
+    const { error: prodErr } = await supabase
+      .from("products")
+      .update({ portion_unit: toUnit })
+      .eq("id", payload.productId);
+    if (prodErr) throw prodErr;
+    await supabase.from("stock_movements").insert({
+      product_id: payload.productId,
+      organization_id: payload.organizationId,
+      establishment_id: payload.establishmentId,
+      product_stock_id: resolved.productStockId,
+      movement_type: "adjustment",
+      quantity: convertedQty - currentStock,
+      quantity_before: currentStock,
+      quantity_after: convertedQty,
+      unit: toUnit,
+      notes: `Conversion d'unité : ${currentStock} ${fromUnit} → ${convertedQty} ${toUnit}`,
+      created_by: userId,
+      deleted: false,
+    });
+    currentStock = convertedQty;
+    effectivePortionUnit = toUnit;
+  }
+
+  const stockQty = payload.quantity * payload.contenanceUnitaire;
+  const quantityAfter = currentStock + stockQty;
+  const stockUnit = effectivePortionUnit ?? payload.orderUnit;
+  const { error: mvtError } = await supabase.from("stock_movements").insert({
+    product_id: payload.productId,
+    organization_id: payload.organizationId,
+    establishment_id: payload.establishmentId,
+    product_stock_id: resolved.productStockId,
+    supplier_reference_id: payload.supplierRefId,
+    movement_type: "purchase",
+    quantity: stockQty,
+    quantity_before: currentStock,
+    quantity_after: quantityAfter,
+    unit: stockUnit,
+    unit_cost: payload.unitCost,
+    reference_type: "doc_import",
+    reference_id: payload.importId,
+    created_by: userId,
+    deleted: false,
+  });
+  if (mvtError) throw mvtError;
+  const { error: stockError } = await supabase
+    .from("product_stocks")
+    .update({ current_stock: quantityAfter })
+    .eq("id", resolved.productStockId);
+  if (stockError) throw stockError;
+  if (payload.contenanceUnitaire !== 1) {
+    const { error: psError } = await supabase
+      .from("supplier_references")
+      .update({ conversion_factor: payload.contenanceUnitaire })
+      .eq("id", payload.supplierRefId);
+    if (psError) throw psError;
+  }
+}
 
 export function useApplyDocLine(importId: string) {
   const queryClient = useQueryClient();
@@ -163,6 +250,9 @@ export function useApplyDocLine(importId: string) {
 
       const today = new Date().toISOString().slice(0, 10);
 
+      // PRIX — owned SaaS, immédiat, dans les 2 modes. Snapshot lié à la livraison + MAJ prix
+      // catalogue. Source UNIQUE du prix : le trigger fn_snapshot_purchase_price skippe les
+      // mouvements reference_type='doc_import', donc il ne le fait plus (ni le snapshot ni unit_price).
       if (payload.applyPrice && payload.unitCost != null) {
         const { error } = await supabase.from("supplier_price_snapshots").insert({
           product_id: payload.productId,
@@ -171,97 +261,37 @@ export function useApplyDocLine(importId: string) {
           supplier_id: payload.supplierId,
           unit_price: payload.unitPrice,
           unit_cost: payload.unitCost,
+          order_unit: payload.orderUnit,
           effective_from: today,
+          source_doc_import_id: payload.importId,
           currency: "EUR",
+          created_by: userId,
         });
         if (error) throw error;
-      }
-
-      if (payload.applyStock) {
-        // ensureSelfStock fige l'unité de gestion + miroir products.portion_unit (cohérence avec le modèle référence).
-        const desiredUnit = payload.portionUnit ?? payload.orderUnit ?? "piece";
-        const resolved = await ensureSelfStock(supabase, {
-          productId: payload.productId,
-          establishmentId: payload.establishmentId,
-          organizationId: payload.organizationId,
-          desiredUnit,
-        });
-        let currentStock = resolved.currentStock;
-        let effectivePortionUnit = payload.portionUnit;
-
-        if (payload.convertUnit) {
-          const { fromUnit, toUnit, conversionFactor } = payload.convertUnit;
-          const convertedQty = Math.round(currentStock * conversionFactor * 1000) / 1000;
-          const { error: unitErr } = await supabase
-            .from("product_stocks")
-            .update({ unit: toUnit, current_stock: convertedQty })
-            .eq("id", resolved.productStockId);
-          if (unitErr) throw unitErr;
-          const { error: prodErr } = await supabase
-            .from("products")
-            .update({ portion_unit: toUnit })
-            .eq("id", payload.productId);
-          if (prodErr) throw prodErr;
-          await supabase.from("stock_movements").insert({
-            product_id: payload.productId,
-            organization_id: payload.organizationId,
-            establishment_id: payload.establishmentId,
-            product_stock_id: resolved.productStockId,
-            movement_type: "adjustment",
-            quantity: convertedQty - currentStock,
-            quantity_before: currentStock,
-            quantity_after: convertedQty,
-            unit: toUnit,
-            notes: `Conversion d'unité : ${currentStock} ${fromUnit} → ${convertedQty} ${toUnit}`,
-            created_by: userId,
-            deleted: false,
-          });
-          currentStock = convertedQty;
-          effectivePortionUnit = toUnit;
-        }
-
-        const stockQty = payload.quantity * payload.contenanceUnitaire;
-        const quantityAfter = currentStock + stockQty;
-        const stockUnit = effectivePortionUnit ?? payload.orderUnit;
-        const { error: mvtError } = await supabase.from("stock_movements").insert({
-          product_id: payload.productId,
-          organization_id: payload.organizationId,
-          establishment_id: payload.establishmentId,
-          product_stock_id: resolved.productStockId,
-          supplier_reference_id: payload.supplierRefId,
-          movement_type: "purchase",
-          quantity: stockQty,
-          quantity_before: currentStock,
-          quantity_after: quantityAfter,
-          unit: stockUnit,
-          unit_cost: payload.unitCost,
-          reference_type: "doc_import",
-          reference_id: payload.importId,
-          created_by: userId,
-          deleted: false,
-        });
-        if (mvtError) throw mvtError;
-        const { error: stockError } = await supabase
-          .from("product_stocks")
-          .update({ current_stock: quantityAfter })
-          .eq("id", resolved.productStockId);
-        if (stockError) throw stockError;
-        if (payload.contenanceUnitaire !== 1) {
-          const { error: psError } = await supabase
+        if (payload.unitPrice != null) {
+          await supabase
             .from("supplier_references")
-            .update({ conversion_factor: payload.contenanceUnitaire })
+            .update({ unit_price: payload.unitPrice })
             .eq("id", payload.supplierRefId);
-          if (psError) throw psError;
         }
       }
 
-      const { error } = await supabase
-        .from("doc_import_lines")
-        .update({ automation_status: "applied", applied_at: new Date().toISOString() })
-        .eq("id", payload.lineId);
+      // STOCK — en 'saas' seulement (écriture directe). En 'pos', la ligne (apply_stock=true,
+      // applied_at=NULL) est appliquée par le POS → on n'y touche pas.
+      if (payload.applyStock && payload.stockOwner === "saas") {
+        await applyDocLineStock(supabase, payload, userId);
+      }
+
+      // Marquage : 'saas' → appliquée (applied_at). 'pos' → le SaaS a fait le prix ; le STOCK reste
+      // au POS → PAS de applied_at (son jeton d'idempotence), juste 'matched' pour l'UI SaaS.
+      const linePatch =
+        payload.stockOwner === "pos"
+          ? { automation_status: "matched" as const }
+          : { automation_status: "applied" as const, applied_at: new Date().toISOString() };
+      const { error } = await supabase.from("doc_import_lines").update(linePatch).eq("id", payload.lineId);
       if (error) throw error;
 
-      return { stockApplied: payload.applyStock };
+      return { stockApplied: payload.applyStock && payload.stockOwner === "saas" };
     },
     onSuccess: () => {
       toast.success("Ligne appliquée");

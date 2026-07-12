@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 import {
   MOVEMENT_TYPES,
   type MovementType,
@@ -157,8 +158,11 @@ export function StockMovementsSection({
   const [showForm, setShowForm] = useState(false);
   const { data: movements = [], isLoading } = useProductStockMovements(productId, organizationId, establishmentId);
   const { data: activeLots = 0 } = useActiveFifoLotsCount(productStockId);
+  const stockOwner = useEstablishmentStockOwner(establishmentId);
 
-  const canDeclare = activeLots > 0;
+  // En 'pos', inventaire/pertes/corrections sont gérés sur la caisse (règle d'or) → pas de déclaration SaaS.
+  const isPos = stockOwner === "pos";
+  const canDeclare = activeLots > 0 && !isPos;
 
   return (
     <Card>
@@ -182,9 +186,14 @@ export function StockMovementsSection({
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Pour réceptionner une commande fournisseur, utilisez l&apos;onglet <strong>Achats</strong>.
         </div>
-        {productStockId && !canDeclare && (
+        {productStockId && !canDeclare && !isPos && (
           <p className="text-muted-foreground text-sm">
             Aucun stock disponible (lots FIFO épuisés). Faites une réception dans l&apos;onglet Achats.
+          </p>
+        )}
+        {isPos && (
+          <p className="text-muted-foreground text-sm">
+            Inventaire, pertes et corrections de stock sont gérés <strong>sur la caisse</strong>.
           </p>
         )}
         {showForm && productStockId && (

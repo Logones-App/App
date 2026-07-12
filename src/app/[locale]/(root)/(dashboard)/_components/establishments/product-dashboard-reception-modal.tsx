@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { type AllergenKey } from "@/lib/constants/product-attributes";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 import { useAddPurchasePrice } from "@/lib/queries/purchase-price-queries";
 import { ensureSelfStock, useCreateReception } from "@/lib/queries/reception-queries";
 import {
@@ -99,6 +100,7 @@ export function ReceptionModal(props: Props) {
   const createRef = useCreateSupplierReference(productId);
   const updateRef = useUpdateSupplierReference(productId);
   const createReception = useCreateReception(productId, organizationId, establishmentId);
+  const stockOwner = useEstablishmentStockOwner(establishmentId);
   const addPrice = useAddPurchasePrice(productId, organizationId);
 
   const [supplierId, setSupplierId] = useState("");
@@ -206,6 +208,7 @@ export function ReceptionModal(props: Props) {
           unitPrice: puPerOrder as number,
           conversionFactor: d.factor,
           notes,
+          stockOwner,
         },
         { onSuccess: onClose },
       );
@@ -223,6 +226,7 @@ export function ReceptionModal(props: Props) {
         unitPrice: ru.unitPrice,
         conversionFactor: ru.conversionFactor,
         notes,
+        stockOwner,
       },
       { onSuccess: onClose },
     );

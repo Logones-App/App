@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { type Json } from "@/lib/supabase/database.types";
 
+import { SAAS_RECEPTION_DOC_TYPE } from "./reception-delta";
+
 export type DocStatus = "processing" | "auto_valide" | "a_valider" | "valide" | "erreur";
 export type DocType = "facture" | "bl" | "facture_bl" | "ticket";
 
@@ -74,6 +76,9 @@ export function useDocImports(
       if (establishmentId) q = q.eq("establishment_id", establishmentId);
       if (filters?.status) q = q.eq("status", filters.status);
       if (filters?.doc_type) q = q.eq("doc_type", filters.doc_type);
+      // Exclure les réceptions SaaS synthétiques (mode 'pos') de l'inbox OCR — sauf filtre explicite.
+      // `or(is null …)` pour ne pas écarter les vrais docs OCR sans doc_type.
+      else q = q.or(`doc_type.is.null,doc_type.neq.${SAAS_RECEPTION_DOC_TYPE}`);
       const { data, error, count } = await q;
       if (error) throw error;
       return { data: data ?? [], count: count ?? 0 };

@@ -251,13 +251,13 @@ BEGIN
       INTO v_cost
       FROM stock_movements
      WHERE product_stock_id = NEW.product_stock_id
-       AND movement_type IN ('purchase','production','adjustment')   -- ✅ v4
+       AND movement_type IN ('purchase','production','adjustment')
        AND remaining_quantity > 0 AND unit_cost IS NOT NULL AND deleted = false;
     IF v_cost IS NULL THEN
       SELECT unit_cost INTO v_cost FROM stock_movements
        WHERE product_stock_id = NEW.product_stock_id
          AND (movement_type IN ('purchase','production')
-              OR (movement_type = 'adjustment' AND quantity > 0))     -- ✅ v4
+              OR (movement_type = 'adjustment' AND quantity > 0))
          AND unit_cost IS NOT NULL AND deleted = false
        ORDER BY created_at DESC LIMIT 1;
     END IF;
@@ -298,8 +298,9 @@ BEGIN
     FOR v_lot IN
       SELECT id, remaining_quantity, unit_cost FROM stock_movements
       WHERE product_stock_id = NEW.product_stock_id
-        AND movement_type IN ('purchase','production','adjustment')   -- ✅ v4
+        AND movement_type IN ('purchase','production','adjustment')
         AND remaining_quantity > 0 AND deleted = false
+        AND (NEW.supplier_reference_id IS NULL OR supplier_reference_id = NEW.supplier_reference_id)  -- ⬅ AJOUT scope réf
       ORDER BY created_at ASC FOR UPDATE
     LOOP
       EXIT WHEN v_qty <= 0;
@@ -312,7 +313,7 @@ BEGIN
       SELECT unit_cost INTO v_fallback FROM stock_movements
       WHERE product_stock_id = NEW.product_stock_id
         AND (movement_type IN ('purchase','production')
-             OR (movement_type = 'adjustment' AND quantity > 0))       -- ✅ v4
+             OR (movement_type = 'adjustment' AND quantity > 0))
         AND unit_cost IS NOT NULL AND deleted = false ORDER BY created_at DESC LIMIT 1;
       IF v_fallback IS NOT NULL THEN v_cost := v_cost + v_qty * v_fallback; v_qty_done := v_qty_done + v_qty; END IF;
       UPDATE stock_movements SET needs_review = true WHERE id = NEW.id;
@@ -323,7 +324,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- RESTORE : contre-passe LIFO par lot_id — inchangé (marche quel que soit le type du lot)
+  -- RESTORE : contre-passe LIFO par lot_id — inchangé
   IF NEW.movement_type = 'restore' THEN
     SELECT lot_allocations INTO v_allocs FROM stock_movements
     WHERE reference_id = NEW.reference_id AND product_stock_id = NEW.product_stock_id
@@ -869,6 +870,26 @@ END; $$;
 
 
 ALTER FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."stock_by_reference"("p_product_stock_id" "uuid") RETURNS TABLE("supplier_reference_id" "uuid", "label" "text", "remaining" numeric)
+    LANGUAGE "sql" STABLE
+    AS $$
+  SELECT sm.supplier_reference_id,
+         COALESCE(s.name, sr.supplier_product_name, 'Sans référence') AS label,
+         SUM(sm.remaining_quantity) AS remaining
+  FROM stock_movements sm
+  LEFT JOIN supplier_references sr ON sr.id = sm.supplier_reference_id
+  LEFT JOIN suppliers s ON s.id = sr.supplier_id
+  WHERE sm.product_stock_id = p_product_stock_id
+    AND sm.remaining_quantity > 0
+    AND sm.movement_type IN ('purchase','production','adjustment')
+    AND sm.deleted = false
+  GROUP BY sm.supplier_reference_id, COALESCE(s.name, sr.supplier_product_name, 'Sans référence');
+$$;
+
+
+ALTER FUNCTION "public"."stock_by_reference"("p_product_stock_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."transfer_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid") RETURNS "json"
@@ -11337,6 +11358,12 @@ GRANT ALL ON FUNCTION "public"."reconcile_module_disable"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."register_device"("p_serial_number" "text", "p_establishment_id" "uuid", "p_organization_id" "uuid", "p_device_info" "jsonb", "p_device_role" "text", "p_mods" "text"[], "p_display" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."stock_by_reference"("p_product_stock_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."stock_by_reference"("p_product_stock_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."stock_by_reference"("p_product_stock_id" "uuid") TO "service_role";
 
 
 

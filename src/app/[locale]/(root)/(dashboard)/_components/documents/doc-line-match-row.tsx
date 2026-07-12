@@ -18,6 +18,7 @@ import {
   useSkipDocLine,
   useUpdateDocLineOptions,
 } from "@/lib/queries/doc-import-lines-queries";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 
 import { DocLineCreateModal } from "./doc-line-create-modal";
 import { type MatchedProductSupplier, ProductSupplierCombobox } from "./product-supplier-combobox";
@@ -73,6 +74,7 @@ type BuildPayloadArgs = {
   doConvertUnit: boolean;
   suggestConversion: boolean;
   productPortionUnit: string | null;
+  stockOwner: "pos" | "saas";
 };
 
 function buildApplyPayload(args: BuildPayloadArgs): ApplyDocLinePayload | null {
@@ -100,6 +102,7 @@ function buildApplyPayload(args: BuildPayloadArgs): ApplyDocLinePayload | null {
     supplierRef: ps?.supplier_product_ref ?? line.reference ?? null,
     importId: docId,
     contenanceUnitaire: args.effectiveConversion,
+    stockOwner: args.stockOwner,
     convertUnit: shouldConvert
       ? {
           fromUnit: args.productPortionUnit ?? "piece",
@@ -344,6 +347,7 @@ export function DocLineMatchRow({ line, docId, organizationId, establishmentId, 
 
   const matchMutation = useMatchDocLine(docId, organizationId);
   const applyMutation = useApplyDocLine(docId);
+  const stockOwner = useEstablishmentStockOwner(establishmentId);
   const skipMutation = useSkipDocLine(docId);
   const optionsMutation = useUpdateDocLineOptions(docId);
 
@@ -386,6 +390,7 @@ export function DocLineMatchRow({ line, docId, organizationId, establishmentId, 
       doConvertUnit,
       suggestConversion,
       productPortionUnit,
+      stockOwner,
     });
     if (payload) applyMutation.mutate(payload);
   };

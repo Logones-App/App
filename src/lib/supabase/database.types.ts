@@ -1411,6 +1411,7 @@ export type Database = {
           designation: string | null
           id: string
           import_id: string
+          movement_type: string | null
           prix_unitaire: number | null
           product_id: string | null
           quantite: number | null
@@ -1430,6 +1431,7 @@ export type Database = {
           designation?: string | null
           id?: string
           import_id: string
+          movement_type?: string | null
           prix_unitaire?: number | null
           product_id?: string | null
           quantite?: number | null
@@ -1449,6 +1451,7 @@ export type Database = {
           designation?: string | null
           id?: string
           import_id?: string
+          movement_type?: string | null
           prix_unitaire?: number | null
           product_id?: string | null
           quantite?: number | null
@@ -2632,6 +2635,7 @@ export type Database = {
           seo_title: string | null
           siret: string | null
           slug: string
+          stock_owner: string
           updated_at: string | null
           website: string | null
         }
@@ -2659,6 +2663,7 @@ export type Database = {
           seo_title?: string | null
           siret?: string | null
           slug: string
+          stock_owner?: string
           updated_at?: string | null
           website?: string | null
         }
@@ -2686,6 +2691,7 @@ export type Database = {
           seo_title?: string | null
           siret?: string | null
           slug?: string
+          stock_owner?: string
           updated_at?: string | null
           website?: string | null
         }
@@ -7421,6 +7427,7 @@ export type Database = {
           id: string
           lead_time_days: number | null
           min_order_qty: number | null
+          needs_review: boolean
           notes: string | null
           order_unit: string | null
           organization_id: string
@@ -7443,6 +7450,7 @@ export type Database = {
           id?: string
           lead_time_days?: number | null
           min_order_qty?: number | null
+          needs_review?: boolean
           notes?: string | null
           order_unit?: string | null
           organization_id: string
@@ -7465,6 +7473,7 @@ export type Database = {
           id?: string
           lead_time_days?: number | null
           min_order_qty?: number | null
+          needs_review?: boolean
           notes?: string | null
           order_unit?: string | null
           organization_id?: string
@@ -8139,6 +8148,10 @@ export type Database = {
           p_unit?: string
         }
         Returns: string
+      }
+      fn_convert: {
+        Args: { p_from: string; p_to: string; p_value: number }
+        Returns: number
       }
       match_knowledge_base: {
         Args: {

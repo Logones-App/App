@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
+import { useEstablishmentStockOwner } from "@/lib/queries/establishments-queries";
 import {
   useActiveFifoLotsCount,
   useChangeProductStockUnit,
@@ -68,6 +69,17 @@ function AffectedRecipesList({ compositions, toUnit }: { compositions: RecipeEnt
 export function ChangeStockUnitSection(props: Props) {
   const [open, setOpen] = useState(false);
   const { data: activeLots = 0 } = useActiveFifoLotsCount(props.stockId);
+  const stockOwner = useEstablishmentStockOwner(props.establishmentId);
+
+  // En 'pos', l'unité et le compteur de stock appartiennent au POS (règle d'or) → changement bloqué.
+  if (stockOwner === "pos") {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <Lock className="h-3 w-3 shrink-0" />
+        Unité de stock gérée sur la caisse.
+      </p>
+    );
+  }
 
   // Verrou FIFO : tant que des lots sont en stock, l'unité est figée. On masque l'action
   // (au lieu d'afficher un mur d'erreur) et on explique brièvement pourquoi.

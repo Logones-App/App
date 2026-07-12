@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
 import { purchasePriceQueryKey, repriceReferenceFromLatestSnapshot } from "./purchase-price-queries";
+import { createReceptionAsDelta, SAAS_RECEPTION_DOC_TYPE } from "./reception-delta";
 import { stockMovementsQueryKey } from "./stock-movement-queries";
 import { supplierReferenceQueryKey } from "./supplier-queries";
 
@@ -124,6 +125,47 @@ export function useProductReceptions(productId: string, establishmentId: string)
   });
 }
 
+export function pendingReceptionsQueryKey(productId: string, establishmentId: string) {
+  return ["product-pending-receptions", productId, establishmentId] as const;
+}
+
+export type PendingReceptionRow = {
+  id: string;
+  quantite: number | null;
+  unite: string | null;
+  prix_unitaire: number | null;
+  supplier_reference_id: string | null;
+  doc: { id: string; date_livraison: string | null; created_at: string; supplier: { name: string } | null } | null;
+};
+
+/**
+ * Réceptions SaaS (mode `'pos'`) **en attente de validation caisse** : lignes `doc_import` synthétiques
+ * non encore appliquées par le POS (`applied_at IS NULL`, `apply_stock ≠ false`). Le mouvement de stock
+ * n'existe pas tant que le POS n'a pas validé → on les affiche à part, en attente.
+ */
+export function useProductPendingReceptions(productId: string, establishmentId: string) {
+  return useQuery({
+    queryKey: pendingReceptionsQueryKey(productId, establishmentId),
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("doc_import_lines")
+        .select(
+          "id, quantite, unite, prix_unitaire, supplier_reference_id, doc:doc_imports!inner(id, date_livraison, created_at, establishment_id, doc_type, supplier:suppliers(name))",
+        )
+        .eq("product_id", productId)
+        .is("applied_at", null)
+        .neq("apply_stock", false)
+        .eq("doc.establishment_id", establishmentId)
+        .eq("doc.doc_type", SAAS_RECEPTION_DOC_TYPE)
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as PendingReceptionRow[];
+    },
+    enabled: !!productId && !!establishmentId,
+  });
+}
+
 // Un lot est « intact » (non entamé par des ventes) si sa quantité restante == quantité reçue.
 function isLotIntact(quantity: number, remainingQuantity: number | null): boolean {
   return remainingQuantity != null && Math.abs(remainingQuantity - quantity) < 0.001;
@@ -136,6 +178,7 @@ function receptionInvalidate(
   establishmentId: string,
 ) {
   void queryClient.invalidateQueries({ queryKey: receptionsQueryKey(productId, establishmentId) });
+  void queryClient.invalidateQueries({ queryKey: pendingReceptionsQueryKey(productId, establishmentId) });
   void queryClient.invalidateQueries({
     queryKey: stockMovementsQueryKey(productId, organizationId, establishmentId),
   });
@@ -151,6 +194,7 @@ function receptionInvalidate(
 /**
  * Enregistre une réception (mouvement purchase). Crée la fiche stock à la volée si elle
  * n'existe pas encore (1ère référence) en figeant l'unité de gestion `stockUnit`.
+ * En `stock_owner='pos'`, délègue à `createReceptionAsDelta` (prix immédiat + stock en delta).
  */
 export function useCreateReception(productId: string, organizationId: string, establishmentId: string) {
   const queryClient = useQueryClient();
@@ -164,10 +208,40 @@ export function useCreateReception(productId: string, organizationId: string, es
       unitPrice: number;
       conversionFactor: number;
       notes: string;
+      stockOwner: "pos" | "saas";
     }) => {
       const supabase = createClient();
-      const { productStockId, stockUnit, supplierRefId, orderQty, unitPrice, conversionFactor, notes } = args;
+      const {
+        productStockId,
+        stockUnit,
+        supplierRefId,
+        supplierId,
+        orderQty,
+        unitPrice,
+        conversionFactor,
+        notes,
+        stockOwner,
+      } = args;
+      const f = conversionFactor > 0 ? conversionFactor : 1;
 
+      // Mode 'pos' : le SaaS n'écrit jamais current_stock → prix immédiat (owned SaaS) + stock
+      // émis en delta via un doc_import synthétique que le POS applique.
+      if (stockOwner === "pos") {
+        await createReceptionAsDelta(supabase, {
+          productId,
+          organizationId,
+          establishmentId,
+          supplierRefId,
+          supplierId,
+          orderQty,
+          unitPrice,
+          factor: f,
+          notes,
+        });
+        return;
+      }
+
+      // Mode 'saas' (établissement sans caisse) : écriture directe.
       // Résoudre / créer la fiche stock + connaître le stock courant.
       let stockId = productStockId;
       let currentStock = 0;
@@ -190,7 +264,6 @@ export function useCreateReception(productId: string, organizationId: string, es
         currentStock = ensured.currentStock;
       }
 
-      const f = conversionFactor > 0 ? conversionFactor : 1;
       const stockQty = Math.round(orderQty * f * 1000) / 1000;
       const unitCost = Math.round((unitPrice / f) * 100000) / 100000;
       const quantityAfter = Math.round((currentStock + stockQty) * 1000) / 1000;
@@ -231,7 +304,10 @@ export function useCreateReception(productId: string, organizationId: string, es
   });
 }
 
-/** Supprime une réception — uniquement si le lot est intact (sinon FIFO/audit corrompus). */
+/**
+ * Supprime une réception. En `'saas'` : soft-delete du mouvement + `current_stock` (lot intact requis).
+ * En `'pos'` : émet un ajustement `-orderQty` (le POS applique la déplétion) — sans muter le mouvement.
+ */
 export function useDeleteReception(productId: string, organizationId: string, establishmentId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -243,6 +319,7 @@ export function useDeleteReception(productId: string, organizationId: string, es
       supplierReferenceId,
       createdAt,
       alsoDeletePrice,
+      stockOwner,
     }: {
       movementId: string;
       productStockId: string;
@@ -251,11 +328,21 @@ export function useDeleteReception(productId: string, organizationId: string, es
       supplierReferenceId?: string | null;
       createdAt?: string | null;
       alsoDeletePrice?: boolean;
+      stockOwner: "pos" | "saas";
+      factor?: number;
     }) => {
+      const supabase = createClient();
+
+      // Mode 'pos' : une réception VALIDÉE est possédée par le POS → correction sur la caisse
+      // (l'UI met ces réceptions en lecture seule ; garde défensive ici, le SaaS n'émet plus d'ajustement).
+      if (stockOwner === "pos") {
+        throw new Error("Réception validée : la correction se fait sur la caisse.");
+      }
+
+      // Mode 'saas' : soft-delete direct (lot intact requis).
       if (!isLotIntact(quantity, remainingQuantity)) {
         throw new Error("Réception déjà entamée par des ventes — corrigez via un ajustement de stock.");
       }
-      const supabase = createClient();
       const { data: stock, error: readErr } = await supabase
         .from("product_stocks")
         .select("current_stock")
@@ -310,6 +397,7 @@ export function useUpdateReception(productId: string, organizationId: string, es
       factor,
       newOrderQty,
       newUnitPrice,
+      stockOwner,
     }: {
       movementId: string;
       productStockId: string;
@@ -319,14 +407,24 @@ export function useUpdateReception(productId: string, organizationId: string, es
       factor: number;
       newOrderQty: number;
       newUnitPrice: number;
+      stockOwner: "pos" | "saas";
+      supplierReferenceId?: string | null;
     }) => {
+      const f = factor > 0 ? factor : 1;
+      const supabase = createClient();
+
+      // Mode 'pos' : une réception VALIDÉE est possédée par le POS → correction sur la caisse
+      // (l'UI met ces réceptions en lecture seule ; garde défensive, le SaaS n'émet plus d'ajustement).
+      if (stockOwner === "pos") {
+        throw new Error("Réception validée : la correction se fait sur la caisse.");
+      }
+
+      // Mode 'saas' : édition directe du mouvement (lot intact requis).
       if (!isLotIntact(oldQuantity, remainingQuantity)) {
         throw new Error("Réception déjà entamée par des ventes — corrigez via un ajustement de stock.");
       }
-      const f = factor > 0 ? factor : 1;
       const newQty = Math.round(newOrderQty * f * 1000) / 1000;
       const newUnitCost = Math.round((newUnitPrice / f) * 100000) / 100000;
-      const supabase = createClient();
 
       const { data: stock, error: readErr } = await supabase
         .from("product_stocks")
