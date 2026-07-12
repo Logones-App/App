@@ -90,8 +90,10 @@ export async function getMenuSchedules(menuIds: string[]): Promise<MenuSchedule[
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 
 /**
- * Carte active selon l'heure locale (le client QR est sur place) : on cherche un menu dont une
- * plage `menu_schedules` couvre maintenant (jour + heure + fenêtre de validité). Repli sur la 1ʳᵉ carte.
+ * Carte active selon l'heure locale (le client QR est sur place). Règle :
+ * - une carte **sans plage** (`menu_schedules`) est affichée **en permanence** ;
+ * - une carte **avec plage(s)** n'est active que si une plage couvre maintenant (jour + heure + validité).
+ * Priorité : carte planifiée active > carte sans plage (permanente) > 1ʳᵉ carte (repli).
  */
 export function pickCurrentCardId(cards: PublicMenuCard[], schedules: MenuSchedule[], now: Date): string | null {
   if (cards.length === 0) return null;
@@ -100,20 +102,26 @@ export function pickCurrentCardId(cards: PublicMenuCard[], schedules: MenuSchedu
   const hm = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
   const dateStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 
-  const activeMenuIds = new Set(
-    schedules
-      .filter((s) => {
-        if (s.day_of_week != null && s.day_of_week !== schedDay) return false;
-        if (s.start_time && hm < s.start_time) return false;
-        if (s.end_time && hm > s.end_time) return false;
-        if (s.valid_from && dateStr < s.valid_from) return false;
-        if (s.valid_until && dateStr > s.valid_until) return false;
-        return true;
-      })
-      .map((s) => s.menu_id),
-  );
+  const covers = (s: MenuSchedule): boolean => {
+    if (s.day_of_week != null && s.day_of_week !== schedDay) return false;
+    if (s.start_time && hm < s.start_time) return false;
+    if (s.end_time && hm > s.end_time) return false;
+    if (s.valid_from && dateStr < s.valid_from) return false;
+    if (s.valid_until && dateStr > s.valid_until) return false;
+    return true;
+  };
 
-  return cards.find((c) => activeMenuIds.has(c.id))?.id ?? cards[0].id;
+  const scheduledMenuIds = new Set(schedules.map((s) => s.menu_id)); // cartes AYANT ≥1 plage
+  const activeMenuIds = new Set(schedules.filter(covers).map((s) => s.menu_id)); // plage couvrant maintenant
+
+  // 1. Carte planifiée ET active maintenant (priorité).
+  const scheduledActive = cards.find((c) => activeMenuIds.has(c.id));
+  if (scheduledActive) return scheduledActive.id;
+  // 2. Sinon, carte SANS plage = affichée en permanence.
+  const permanent = cards.find((c) => !scheduledMenuIds.has(c.id));
+  if (permanent) return permanent.id;
+  // 3. Repli : 1ʳᵉ carte.
+  return cards[0].id;
 }
 
 /** Aplatit tous les produits d'un arbre de sections (tous niveaux). */

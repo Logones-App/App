@@ -131,6 +131,7 @@ function useToggleAffectsStock(establishmentId: string, organizationId: string, 
         .eq("main_product_id", componentProductId)
         .eq("component_product_id", componentProductId)
         .eq("deleted", false)
+        .limit(1)
         .maybeSingle();
 
       let selfCompId = selfComp?.id;
@@ -159,6 +160,7 @@ function useToggleAffectsStock(establishmentId: string, organizationId: string, 
         .select("id, inventory_tracked")
         .eq("product_composition_id", selfCompId)
         .eq("establishment_id", establishmentId)
+        .limit(1)
         .maybeSingle();
 
       if (!existingStock) {
@@ -179,7 +181,15 @@ function useToggleAffectsStock(establishmentId: string, organizationId: string, 
       toast.success("Ingrédient mis à jour.");
       invalidate();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de la mise à jour."),
+    onError: (e: unknown) => {
+      // Les erreurs Supabase ne sont pas des instances d'Error → remonter message + code réels.
+      const detail =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message?: unknown }).message) +
+            ("code" in e ? ` (${String((e as { code?: unknown }).code)})` : "")
+          : "Erreur lors de la mise à jour.";
+      toast.error(detail);
+    },
   });
 }
 
@@ -231,12 +241,20 @@ function IngredientsSection({
   compositionStockRows,
   establishmentId,
   toggleMutation,
+  context,
 }: {
   compositionStockRows: CompositionStockRow[];
   establishmentId: string;
   toggleMutation: ReturnType<typeof useToggleAffectsStock>;
+  context: "sale" | "production";
 }) {
   const productHref = useProductHref(establishmentId);
+  const isProduction = context === "production";
+  const title = isProduction ? "Ingrédients consommés à la production" : "Ingrédients à décrémenter à la vente";
+  const description = isProduction
+    ? "Cochez les ingrédients consommés quand vous fabriquez ce produit (production)."
+    : "Cochez les ingrédients dont le stock doit baisser à chaque vente de ce produit.";
+  const perLabel = isProduction ? "par unité produite" : "par vente";
   const recipeRows = compositionStockRows.filter(
     (r) => !r.isSelfComposition && isRecipeCompositionKind(r.composition.composition_kind),
   );
@@ -256,10 +274,8 @@ function IngredientsSection({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Ingrédients à décrémenter à la vente</CardTitle>
-        <CardDescription>
-          Cochez les ingrédients dont le stock doit baisser à chaque vente de ce produit.
-        </CardDescription>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-1">
         {recipeRows.map((csr) => {
@@ -282,7 +298,7 @@ function IngredientsSection({
                   </Link>
                 </div>
                 <p className="text-muted-foreground text-xs tabular-nums">
-                  −{qtyPerSale} {unit} par vente
+                  −{qtyPerSale} {unit} {perLabel}
                   {c.affects_stock && stock != null && (
                     <span className="ml-2">
                       · stock actuel : {stock.current_stock} {stock.unit}
@@ -367,13 +383,22 @@ export function ProductStockPanel({
       />
 
       {currentMode === "product" && (
-        <ProductSection
-          selfRow={selfRow}
-          productId={productId}
-          establishmentId={establishmentId}
-          organizationId={organizationId}
-          invalidate={invalidate}
-        />
+        <>
+          {/* Stock produit fini : ingrédients consommés à la production — placés AU-DESSUS des variations de stock. */}
+          <IngredientsSection
+            compositionStockRows={compositionStockRows}
+            establishmentId={establishmentId}
+            toggleMutation={toggleMutation}
+            context="production"
+          />
+          <ProductSection
+            selfRow={selfRow}
+            productId={productId}
+            establishmentId={establishmentId}
+            organizationId={organizationId}
+            invalidate={invalidate}
+          />
+        </>
       )}
 
       {currentMode === "ingredients" && (
@@ -381,6 +406,7 @@ export function ProductStockPanel({
           compositionStockRows={compositionStockRows}
           establishmentId={establishmentId}
           toggleMutation={toggleMutation}
+          context="sale"
         />
       )}
 

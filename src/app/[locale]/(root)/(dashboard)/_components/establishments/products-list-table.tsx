@@ -178,6 +178,7 @@ export function ProductsListTable({ products, archivedProducts, organizationId, 
 
       <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
         <Input
+          autoFocus
           placeholder="Rechercher par nom ou description…"
           value={q}
           onChange={(e) => setQ(e.target.value)}

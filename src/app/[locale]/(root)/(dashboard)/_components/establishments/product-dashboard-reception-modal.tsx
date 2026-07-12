@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -80,6 +80,27 @@ function orderPrice(pu: number | null, basis: string, factor: number, stockUnit:
   return pu != null ? toOrderUnitPrice(pu, basis, factor, stockUnit) : null;
 }
 
+/**
+ * Pré-remplit le champ prix avec le dernier prix d'achat (`unit_price`, par unité de commande) à
+ * chaque changement de référence **sélectionnée**. L'utilisateur peut ensuite l'écraser.
+ */
+function usePrefillLastPrice(
+  selectedRef: { id: string; unit_price: number | null } | null | undefined,
+  setPuStr: (v: string) => void,
+  setRecPriceBasis: (v: string) => void,
+) {
+  const selectedRefId = selectedRef?.id;
+  const lastPrice = selectedRef?.unit_price ?? null;
+  useEffect(() => {
+    if (lastPrice != null) {
+      setPuStr(String(lastPrice));
+      setRecPriceBasis(ORDER_BASIS);
+    }
+    // deps limitées à l'ID : pré-remplissage à la SÉLECTION, pas à un refetch de la liste.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRefId]);
+}
+
 export function ReceptionModal(props: Props) {
   const {
     productId,
@@ -132,6 +153,9 @@ export function ReceptionModal(props: Props) {
   // Prix ramené à l'unité de commande selon la base choisie (€/plaquette ou €/kg) — réf existante.
   const puPerOrder = orderPrice(pu, recPriceBasis, d.factor, effectiveStockUnit);
   const contenance = parsePositive(contenanceStr) ?? 1;
+
+  // Pré-remplit le prix avec le dernier prix d'achat de la référence sélectionnée.
+  usePrefillLastPrice(d.selectedRef, setPuStr, setRecPriceBasis);
   // Traduction de la « phrase » (pour la création de référence et l'aperçu quantité).
   const ru = computeReferenceUnits({
     packaging,

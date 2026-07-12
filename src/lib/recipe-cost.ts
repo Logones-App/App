@@ -38,6 +38,17 @@ export function isRecipeType(p: ProductLike): boolean {
   return typesOf(p).includes("recipe");
 }
 
+/**
+ * Rendement facultatif (Option A) : une recette sans rendement explicite vaut « 1 [unité de portion, sinon pièce] »
+ * → « 1 = une fournée entière » (100 % du BOM). L'affiner ne concerne que les prépa au poids.
+ */
+export const DEFAULT_YIELD_QTY = 1;
+export const DEFAULT_YIELD_UNIT = "piece";
+/** Rendement effectif (>0) d'une recette : explicite s'il est renseigné, sinon défaut « 1 ». */
+export function effectiveYieldQty(y: number | null | undefined): number {
+  return y != null && y > 0 ? y : DEFAULT_YIELD_QTY;
+}
+
 export function buildByMain(lines: CompLine[]): Map<string, CompLine[]> {
   const m = new Map<string, CompLine[]>();
   for (const l of lines) {
@@ -75,10 +86,10 @@ export function componentUnitCost(
   visited: Set<string>,
 ): { cost: number | null; unit: string | null } {
   if (isRecipeNode(id, ctx)) {
-    const unit = ctx.yieldUnit.get(id) ?? ctx.portionUnit.get(id) ?? null;
-    const y = ctx.yieldQty.get(id) ?? null;
+    const unit = ctx.yieldUnit.get(id) ?? ctx.portionUnit.get(id) ?? DEFAULT_YIELD_UNIT;
+    const y = effectiveYieldQty(ctx.yieldQty.get(id));
     const batch = recipeBatchCost(id, ctx, visited);
-    if (batch == null || y == null || y <= 0) return { cost: null, unit };
+    if (batch == null) return { cost: null, unit };
     return { cost: Math.round((batch / y) * 100000) / 100000, unit };
   }
   return { cost: ctx.matiereCost.get(id) ?? null, unit: ctx.portionUnit.get(id) ?? null };
@@ -128,10 +139,10 @@ export function flattenLeaves(
     const comp = line.component_product_id;
     const expand = !hasStock.has(comp) && (ctx.byMain.get(comp)?.length ?? 0) > 0;
     if (expand) {
-      const yU = ctx.yieldUnit.get(comp) ?? ctx.portionUnit.get(comp) ?? null;
+      const yU = ctx.yieldUnit.get(comp) ?? ctx.portionUnit.get(comp) ?? DEFAULT_YIELD_UNIT;
       const q = toComponentQty(line.default_quantity ?? 0, line.quantity_unit, yU, line.conversion_factor);
-      const y = ctx.yieldQty.get(comp) ?? null;
-      if (q == null || y == null || y <= 0) continue;
+      const y = effectiveYieldQty(ctx.yieldQty.get(comp));
+      if (q == null) continue;
       flattenLeaves(comp, ctx, factor * (q / y), hasStock, next, out);
     } else {
       // feuille : matière OU sous-préparation stockée → on consomme son stock (unité = portion_unit)
@@ -190,7 +201,11 @@ export function computeAncestors(targetId: string, lines: CompLine[]): Set<strin
   return anc;
 }
 
-/** Candidats composant : ingrédients + sous-recettes (avec rendement), hors soi-même et hors ancêtres (anti-cycle). */
+/**
+ * Candidats composant : ingrédients + sous-recettes, hors soi-même et hors ancêtres (anti-cycle).
+ * Rendement facultatif (Option A) : une recette sans rendement explicite est traitée comme
+ * « 1 [unité de portion, sinon pièce] » — cf. DEFAULT_YIELD_QTY / componentUnitCost / flattenLeaves.
+ */
 export function buildComponentCandidates(
   products: ProductLike[],
   selfId: string,
@@ -199,25 +214,29 @@ export function buildComponentCandidates(
   return products.filter((p) => {
     if (p.id === selfId || ancestors.has(p.id)) return false;
     if (isIngredientType(p)) return true;
-    return isRecipeType(p) && p.yield_quantity != null && p.yield_quantity > 0;
+    return isRecipeType(p);
   });
 }
 
-/** Unité de référence par candidat : unité de stock (ingrédient) sinon yield_unit (sous-recette). */
+/** Unité de référence par candidat : unité de stock (ingrédient) sinon yield_unit/portion_unit (sous-recette), défaut « pièce ». */
 export function buildCandidateStockUnits(
   candidates: ProductLike[],
   stockUnits: Map<string, string> | undefined,
 ): Map<string, string> {
   const m = new Map<string, string>(stockUnits ?? new Map<string, string>());
   for (const p of candidates) {
-    if (!m.has(p.id) && p.yield_unit) m.set(p.id, p.yield_unit);
+    if (!m.has(p.id)) m.set(p.id, p.yield_unit ?? p.portion_unit ?? DEFAULT_YIELD_UNIT);
   }
   return m;
 }
 
-/** Liste pour le sélecteur : la sous-recette expose son yield_unit comme portion_unit. */
+/** Liste pour le sélecteur : la sous-recette expose son yield_unit (sinon portion_unit, sinon « pièce ») comme portion_unit. */
 export function buildPickerList(
   candidates: ProductLike[],
 ): { id: string; name: string; portion_unit: string | null }[] {
-  return candidates.map((p) => ({ id: p.id, name: p.name, portion_unit: p.portion_unit ?? p.yield_unit }));
+  return candidates.map((p) => ({
+    id: p.id,
+    name: p.name,
+    portion_unit: p.portion_unit ?? p.yield_unit ?? DEFAULT_YIELD_UNIT,
+  }));
 }

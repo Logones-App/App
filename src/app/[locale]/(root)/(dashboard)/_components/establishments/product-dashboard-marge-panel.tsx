@@ -210,6 +210,7 @@ export function ProductMargePanel({
   allMenus,
   organizationId,
   establishmentId,
+  recipeCostHT: recipeCostHTProp,
 }: {
   product: ProductWithCategoryName;
   compositions: ProductCompositionRow[];
@@ -217,6 +218,8 @@ export function ProductMargePanel({
   allMenus: Tables<"menus">[];
   organizationId: string;
   establishmentId: string;
+  /** Coût recette récursif déjà calculé par la fiche technique (gère les sous-recettes). Prioritaire s'il est > 0. */
+  recipeCostHT?: number | null;
 }) {
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -233,7 +236,7 @@ export function ProductMargePanel({
   const vatRate = product.vat_rate;
 
   const hasComponentPrices = technicalLines.some((c) => componentPrices.has(c.component_product_id));
-  const recipeCostHT = hasComponentPrices
+  const fallbackRecipeCostHT = hasComponentPrices
     ? technicalLines
         .filter((c) => c.composition_kind === "recipe")
         .reduce((sum, c) => {
@@ -244,7 +247,9 @@ export function ProductMargePanel({
         }, 0)
     : null;
 
-  const costHT = recipeCostHT ?? selfPurchasePriceHT;
+  // Coût récursif de la fiche technique prioritaire (gère les sous-recettes) ; sinon calcul local, sinon prix d'achat propre.
+  const costHT =
+    recipeCostHTProp != null && recipeCostHTProp > 0 ? recipeCostHTProp : (fallbackRecipeCostHT ?? selfPurchasePriceHT);
 
   const pricingMap = new Map<string, MenuProductPricingJoin>(
     menuProductPricing.filter((mp) => mp.menu && !mp.menu.deleted).map((mp) => [mp.menu!.id, mp]),

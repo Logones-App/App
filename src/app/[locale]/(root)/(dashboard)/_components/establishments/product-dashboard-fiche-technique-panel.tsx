@@ -450,6 +450,7 @@ export function ProductFicheTechniquePanel({
                   allMenus={allMenus}
                   organizationId={organizationId}
                   establishmentId={establishmentId}
+                  recipeCostHT={totalCostHT}
                 />
               </>
             )}
