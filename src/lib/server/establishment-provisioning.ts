@@ -1,5 +1,6 @@
 import { p256 } from "@noble/curves/nist.js";
 
+import { signJet } from "@/lib/nf525/sign-jet";
 import { generateSlug } from "@/lib/slug";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -309,6 +310,19 @@ export async function seedEstablishmentDefaults(svc: Svc, estId: string, orgId: 
   // NB : les taux de TVA ne sont PLUS seedés ici — ils sont au niveau ORG (ensureOrgVatRates à la
   // création d'organisation). Voir PLAN_VAT_ORG_SCOPING.md.
   await insertNf525Key(svc, estId, orgId);
+  // JET 260 « Initialisation des données » — genèse du fil device-NULL, juste après la clé ECDSA
+  // (Piste d'Audit, non purgeable). Best-effort : ne bloque pas la création si la signature échoue.
+  try {
+    const jet260Err = await signJet({
+      establishmentId: estId,
+      organizationId: orgId,
+      code: 260,
+      label: `création établissement ${estId} (signature ECDSA P-256)`,
+    });
+    if (jet260Err) console.error("JET 260 (initialisation données) échoué (non bloquant) :", jet260Err);
+  } catch (e) {
+    console.error("JET 260 (initialisation données) exception (non bloquant) :", e);
+  }
   await insertDefaultPaymentMethods(svc, estId, orgId);
   await insertDefaultMenu(svc, estId, orgId);
   await insertDefaultRoomAndTable(svc, estId, orgId);

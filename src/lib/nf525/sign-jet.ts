@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 
-export type JetCode = 130 | 180 | 290 | 410;
+export type JetCode = 130 | 180 | 260 | 290 | 410;
 
 /**
  * Écrit un JET SaaS (fil device-NULL) via l'Edge Function `nf525-sign` (signature ECDSA P-256 hors
