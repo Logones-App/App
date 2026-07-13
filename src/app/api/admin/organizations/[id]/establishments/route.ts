@@ -7,6 +7,7 @@ import {
 } from "@/lib/server/establishment-provisioning";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isValidNaf } from "@/lib/utils/naf";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,28 @@ function buildEstData(est: EstBody, orgId: string, userId: string, slug: string)
   };
 }
 
+/**
+ * Provisionne les seeds (clé NF525 en 1er, throw si échec) ; si le provisioning échoue, ROLLBACK
+ * la ligne établissement → « établissement existe ⟺ clé NF525 existe » (prérequis obligatoire).
+ */
+async function provisionOrRollback(
+  svc: ReturnType<typeof createServiceClient>,
+  estId: string,
+  orgId: string,
+  vatRates: VatBody[],
+): Promise<void> {
+  try {
+    await seedEstablishmentDefaults(svc, estId, orgId, vatRates);
+  } catch (seedErr) {
+    try {
+      await svc.from("establishments").delete().eq("id", estId);
+    } catch (rollbackErr) {
+      console.error("Rollback établissement (provisioning échoué) impossible:", rollbackErr);
+    }
+    throw seedErr;
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
@@ -72,6 +95,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!body.establishment.no_tva?.trim()) {
       return NextResponse.json({ error: "N° TVA requis (NF525)" }, { status: 400 });
     }
+    if (!body.establishment.code_naf?.trim() || !isValidNaf(body.establishment.code_naf)) {
+      return NextResponse.json({ error: "Code NAF requis et valide (NF525)" }, { status: 400 });
+    }
 
     const svc = createServiceClient();
 
@@ -85,7 +111,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (estError) throw estError;
 
-    await seedEstablishmentDefaults(svc, newEst.id, orgId, body.vat_rates ?? []);
+    await provisionOrRollback(svc, newEst.id, orgId, body.vat_rates ?? []);
 
     let tabletCredentials: { email: string; password: string } | null = null;
     let tabletError: string | null = null;

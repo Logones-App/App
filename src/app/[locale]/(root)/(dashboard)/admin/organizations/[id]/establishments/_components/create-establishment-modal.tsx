@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isValidNaf, nafError } from "@/lib/utils/naf";
 
 import { CompanySearch, type CompanyPrefill } from "./company-search";
 import { CredentialsDisplay } from "./credentials-display";
@@ -107,14 +108,13 @@ function FormEst({
         ? "14 chiffres requis"
         : null
     : null;
-  const inputCls = (k: keyof EstFields) =>
-    k === "siret"
-      ? siretErr
-        ? "border-destructive focus-visible:ring-destructive"
-        : ""
-      : err(k)
-        ? "border-destructive focus-visible:ring-destructive"
-        : "";
+  const nafErr = nafError(form.code_naf, touched.has("code_naf"));
+  const destructiveCls = "border-destructive focus-visible:ring-destructive";
+  const inputCls = (k: keyof EstFields) => {
+    if (k === "siret") return siretErr ? destructiveCls : "";
+    if (k === "code_naf") return nafErr ? destructiveCls : "";
+    return err(k) ? destructiveCls : "";
+  };
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -226,9 +226,17 @@ function FormEst({
       </div>
       <div className="space-y-1.5">
         <Label>
-          Code NAF <span className="text-muted-foreground text-xs">(recommandé)</span>
+          Code NAF <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
         </Label>
-        <Input value={form.code_naf} onChange={(e) => set("code_naf", e.target.value)} placeholder="5610A" />
+        <Input
+          value={form.code_naf}
+          onChange={(e) => set("code_naf", e.target.value)}
+          onBlur={() => touch("code_naf")}
+          placeholder="56.10A"
+          className={inputCls("code_naf")}
+        />
+        {nafErr && <p className="text-destructive mt-0.5 text-xs">{nafErr}</p>}
       </div>
     </div>
   );
@@ -240,16 +248,24 @@ function FormVat({
   update,
   add,
   remove,
+  mandatoryMissing,
 }: {
   rates: VatRow[];
   toggle: (i: number) => void;
   update: (i: number, field: "name" | "value", val: string) => void;
   add: () => void;
   remove: (i: number) => void;
+  mandatoryMissing: boolean;
 }) {
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-xs">Taux appliqués aux produits de cet établissement.</p>
+      <p className="text-muted-foreground text-xs">
+        Taux appliqués aux produits de cet établissement. TVA <strong>10 %</strong> et <strong>20 %</strong>{" "}
+        obligatoires (NF525) ; 5,5 % facultatif.
+      </p>
+      {mandatoryMissing && (
+        <p className="text-destructive text-xs">Les taux 10 % et 20 % doivent être présents et cochés.</p>
+      )}
       <div className="space-y-2">
         {rates.map((r, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -332,7 +348,9 @@ interface Props {
   onSuccess: () => void;
 }
 
-const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva"];
+const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva", "code_naf"];
+/** Taux TVA obligatoires (NF525) — présents ET cochés pour valider l'étape. 5.5% reste facultatif. */
+const MANDATORY_VAT = [10, 20];
 
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
   const [step, setStep] = useState(0);
@@ -343,7 +361,12 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const siretDigits = form.siret.replace(/\s/g, "");
-  const isStep0Valid = STEP0_REQUIRED.every((k) => form[k].trim() !== "") && /^\d{14}$/.test(siretDigits);
+  const isStep0Valid =
+    STEP0_REQUIRED.every((k) => form[k].trim() !== "") && /^\d{14}$/.test(siretDigits) && isValidNaf(form.code_naf);
+
+  // TVA 10% et 20% obligatoires (NF525) ; 5.5% facultatif.
+  const activeVatValues = vatRates.filter((r) => r.checked && r.value.trim() !== "").map((r) => parseFloat(r.value));
+  const isStep1Valid = MANDATORY_VAT.every((v) => activeVatValues.includes(v));
 
   function handleClose() {
     if (isSubmitting) return;
@@ -453,7 +476,14 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
               {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} prefill={prefill} />}
               {step === 1 && (
-                <FormVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
+                <FormVat
+                  rates={vatRates}
+                  toggle={toggleVat}
+                  update={updateVat}
+                  add={addVat}
+                  remove={removeVat}
+                  mandatoryMissing={!isStep1Valid}
+                />
               )}
               {step === 2 && <FormRecap form={form} rates={vatRates} />}
             </div>
@@ -468,7 +498,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
                   </Button>
                 )}
                 {!isLastStep && (
-                  <Button onClick={next} disabled={step === 0 && !isStep0Valid}>
+                  <Button onClick={next} disabled={(step === 0 && !isStep0Valid) || (step === 1 && !isStep1Valid)}>
                     Suivant
                   </Button>
                 )}

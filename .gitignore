@@ -29,6 +29,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# MCP config (contient un token Supabase — ne jamais committer)
+.mcp.json
+
 # vercel
 .vercel
 
@@ -44,3 +47,6 @@ Documentation/*
 
 # Benchmark interne (ne pas versionner)
 KPI_BENCHMARK.md
+
+# Référentiel officiel NF525 (licencié INFOCERT/AFNOR — ne pas reproduire/versionner)
+_DOC/

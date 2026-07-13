@@ -37,11 +37,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
     }
 
-    // Envoi email via l'API HTTP Brevo (méthode utilisée par les invitations) + pièce jointe CSV.
     const brevoApiKey = process.env.BREVO_API_KEY;
     if (!brevoApiKey) {
       return NextResponse.json({ error: "BREVO_API_KEY manquant" }, { status: 500 });
     }
+
+    // JET 290 AVANT l'envoi : traçabilité NF525 obligatoire. Sans clé de signature active, la RPC
+    // lève → on BLOQUE (aucun export transmis non journalisé), on n'envoie pas l'email.
+    const { error: jetErr } = await (supabase.rpc as unknown as UntypedRpc)("nf525_jet_290_saas", {
+      p_establishment_id: establishmentId,
+      p_organization_id: body.organizationId,
+      p_label: `Export ${body.fromDate}→${body.toDate} envoyé à ${body.recipientEmail}`,
+    });
+    if (jetErr) {
+      return NextResponse.json(
+        { error: `Envoi bloqué : journalisation NF525 (JET 290) impossible — ${jetErr.message}` },
+        { status: 400 },
+      );
+    }
+
+    // Envoi email via l'API HTTP Brevo (méthode utilisée par les invitations) + pièce jointe CSV.
     const emailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: { "Content-Type": "application/json", "api-key": brevoApiKey },
@@ -56,16 +71,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!emailRes.ok) {
       const detail = await emailRes.text();
       return NextResponse.json({ error: `Échec envoi email : ${detail}` }, { status: 502 });
-    }
-
-    // JET 290 — envoi de l'export à l'expert-comptable (traçabilité).
-    const { error: jetErr } = await (supabase.rpc as unknown as UntypedRpc)("nf525_jet_290_saas", {
-      p_establishment_id: establishmentId,
-      p_organization_id: body.organizationId,
-      p_label: `Export ${body.fromDate}→${body.toDate} envoyé à ${body.recipientEmail}`,
-    });
-    if (jetErr) {
-      return NextResponse.json({ error: `Email envoyé mais JET 290 non créé : ${jetErr.message}` }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });

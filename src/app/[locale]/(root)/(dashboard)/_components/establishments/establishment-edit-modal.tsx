@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Tables } from "@/lib/supabase/database.types";
+import { isValidNaf, nafError } from "@/lib/utils/naf";
 
 type Est = Tables<"establishments">;
 
@@ -52,6 +53,7 @@ function Field({
   type = "text",
   required,
   tag,
+  error,
 }: {
   label: string;
   value: string;
@@ -59,6 +61,7 @@ function Field({
   type?: string;
   required?: boolean;
   tag?: string;
+  error?: string | null;
 }) {
   return (
     <div className="space-y-1.5">
@@ -67,7 +70,13 @@ function Field({
         {required && <span className="text-destructive ml-0.5">*</span>}
         {tag && <span className="text-muted-foreground ml-1 text-xs">({tag})</span>}
       </Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={error ? "border-destructive focus-visible:ring-destructive" : ""}
+      />
+      {error && <p className="text-destructive mt-0.5 text-xs">{error}</p>}
     </div>
   );
 }
@@ -145,7 +154,14 @@ export function EstablishmentEditModal({
           <Field label="Site web" value={form.website} onChange={set("website")} type="url" />
           <Field label="SIRET" value={form.siret} onChange={set("siret")} required tag="NF525" />
           <Field label="N° TVA intracomm." value={form.no_tva} onChange={set("no_tva")} required tag="NF525" />
-          <Field label="Code NAF" value={form.code_naf} onChange={set("code_naf")} tag="recommandé" />
+          <Field
+            label="Code NAF"
+            value={form.code_naf}
+            onChange={set("code_naf")}
+            required
+            tag="NF525"
+            error={nafError(form.code_naf, true)}
+          />
           <div className="sm:col-span-2">
             <Field label="Description" value={form.description} onChange={set("description")} />
           </div>
@@ -157,7 +173,13 @@ export function EstablishmentEditModal({
           </Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !form.name.trim() || !form.siret.trim() || !form.no_tva.trim()}
+            disabled={
+              mutation.isPending ||
+              !form.name.trim() ||
+              !form.siret.trim() ||
+              !form.no_tva.trim() ||
+              !isValidNaf(form.code_naf)
+            }
           >
             {mutation.isPending ? "Enregistrement…" : "Enregistrer"}
           </Button>

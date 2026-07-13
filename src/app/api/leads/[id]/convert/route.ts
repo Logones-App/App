@@ -149,7 +149,17 @@ async function resolveOrg(
   let tabletError: string | null = null;
   if (body.establishment?.name) {
     const { id: estId, slug } = await createEstablishment(svc, body.establishment, orgId, userId);
-    await seedEstablishmentDefaults(svc, estId, orgId, body.vat_rates ?? []);
+    // Clé NF525 = prérequis obligatoire : rollback de l'établissement si le provisioning échoue.
+    try {
+      await seedEstablishmentDefaults(svc, estId, orgId, body.vat_rates ?? []);
+    } catch (seedErr) {
+      try {
+        await svc.from("establishments").delete().eq("id", estId);
+      } catch (rollbackErr) {
+        console.error("Rollback établissement (provisioning échoué) impossible:", rollbackErr);
+      }
+      throw seedErr;
+    }
     try {
       tabletCredentials = await createOrgaUser(svc, estId, orgId, slug);
     } catch (err) {

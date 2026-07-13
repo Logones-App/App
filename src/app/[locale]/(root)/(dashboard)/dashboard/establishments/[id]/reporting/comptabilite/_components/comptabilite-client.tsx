@@ -76,15 +76,20 @@ export function ComptabiliteClient() {
 
   const handleGenerate = async () => {
     if (orders.length === 0) return;
-    const csv = buildAccountingCsv(computeVatByDay(orders));
-    downloadCsv(csv, filename);
+    // Traçabilité NF525 AVANT production du fichier : aucun export fiscal non journalisé.
+    // Sans clé de signature active, la RPC lève → export bloqué (pas de fallback silencieux).
     const jetError = await writeJet180(createClient(), {
       establishmentId,
       organizationId,
       label: `Export comptable ${fromDate}→${toDate}`,
     });
-    if (jetError) toast.error(`Export généré mais journalisation NF525 (JET 180) échouée : ${jetError}`);
-    else toast.success("Export généré");
+    if (jetError) {
+      toast.error(`Export bloqué : journalisation NF525 (JET 180) impossible — ${jetError}`);
+      return;
+    }
+    const csv = buildAccountingCsv(computeVatByDay(orders));
+    downloadCsv(csv, filename);
+    toast.success("Export généré");
   };
 
   const handleSend = async () => {
