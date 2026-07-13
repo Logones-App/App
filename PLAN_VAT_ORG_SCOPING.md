@@ -13,8 +13,13 @@ scoppé org, dédupliqué, RLS org-scope._
   `establishment_id` nullable dans les types, seed TVA **déplacé à la création d'ORGA** (`ensureOrgVatRates`
   + `DEFAULT_ORG_VAT_RATES` dans `establishment-provisioning.ts`, appelé dans `api/admin/organizations`
   + `createOrg` de la conversion lead), étape « Taux TVA » **retirée** des 2 wizards de création établissement.
-- **RESTE** : (1) commit + déploiement du bundle code SaaS ; (2) **resync `vat_rate` sur les devices POS**
-  (table lazy — un device déjà synchro garde l'ancien cache). Le SQL exécuté est archivé ci-dessous.
+- **`establishment_id` détaché** : les 7 taux canoniques passés à `establishment_id = NULL` (org-level pur,
+  cohérent avec `ensureOrgVatRates`). Contrôle final : `actives=7 / org_level=7 / encore_lies=0 / orphelins=0`.
+- **POS a rejoué les 4 preuves et validé** (RLS org active, produits sur canoniques 0fb9095f vivants 10/20,
+  0 orphelin) ; leur lecture `vat_rate` est passée en scope `organization_id`. Voie 1 (revert) écartée.
+- **RESTE (côté POS uniquement)** : déploiement de leur build org + **resync du device d'audit** (cache
+  offline-first pré-migration), puis validation en direct signature 1000/2000 + ventilation TVA du Z.
+- **RESTE (côté SaaS)** : commit + déploiement du bundle code (tsc+lint clean). Le SQL exécuté est archivé ci-dessous.
 
 ## Ordre d'exécution (strict)
 1. **POS — feu vert** (message ci-dessous) : ils lisent `vat_rate` et dépendent des policies RLS
