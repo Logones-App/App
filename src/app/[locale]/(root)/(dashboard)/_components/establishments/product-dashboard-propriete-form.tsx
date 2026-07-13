@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type AllergenKey, type LabelKey } from "@/lib/constants/product-attributes";
 import type { LocalizedContent } from "@/lib/i18n/localized";
-import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useEstablishmentPrinters, useOrganizationVatRates } from "@/lib/queries/establishments";
 import { useRestoreProduct } from "@/lib/queries/product-archive";
 import {
   PRODUCT_DASHBOARD_QUERY_KEY,
@@ -52,7 +52,7 @@ export function ProductProprieteForm({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
   const { data: orgLocales = ["fr"] } = useOrgCardLocales(organizationId);
 

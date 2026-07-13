@@ -9,7 +9,7 @@ export {
   useEstablishmentOpeningHours,
   useEstablishmentBookingSlots,
   useEstablishmentPrinters,
-  useEstablishmentVatRates,
+  useOrganizationVatRates,
   useOrganizationArchivedProducts,
   useOrganizationProducts,
   useEstablishmentStocks,

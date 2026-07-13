@@ -27,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useOrganizationVatRates } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -67,7 +67,7 @@ export function CategoryUpsertDialog({
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
-  const { data: vatRates = [], isLoading: vatLoading } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [], isLoading: vatLoading } = useOrganizationVatRates(organizationId);
 
   const [name, setName] = useState("");
   const [vatRateId, setVatRateId] = useState<string>(NONE);

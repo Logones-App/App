@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS, type PortionUnit } from "@/lib/constants/product-attributes";
-import { useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useOrganizationVatRates } from "@/lib/queries/establishments";
 import { ensureProductType } from "@/lib/queries/product-type-sync";
 import { ensureSelfStock } from "@/lib/queries/reception-queries";
 import { useActiveSuppliers, useCreateSupplier } from "@/lib/queries/supplier-queries";
@@ -116,7 +116,7 @@ export function CompositionAddModal({ productId, establishmentId, organizationId
   const queryClient = useQueryClient();
   const t = useTranslations("units");
   const { data: orgSuppliers = [] } = useActiveSuppliers(organizationId);
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
   const defaultVatRateId = vatRates[0]?.id ?? null;
 
   const [newName, setNewName] = useState("");

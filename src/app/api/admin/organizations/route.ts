@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { DEFAULT_ORG_VAT_RATES, ensureOrgVatRates } from "@/lib/server/establishment-provisioning";
 import { INVITATION_REDIRECT_URL, sendInvitationEmail } from "@/lib/services/invitation-email";
 import { generateSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
@@ -73,6 +74,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // Taux de TVA standard seedés au niveau ORG (idempotent, non bloquant).
+    try {
+      await ensureOrgVatRates(svc, data.id, DEFAULT_ORG_VAT_RATES);
+    } catch (vatErr) {
+      console.error("Seed TVA org échoué (non bloquant):", vatErr);
+    }
 
     let orgAdminError: string | null = null;
     if (body.org_admin_email?.trim()) {

@@ -7988,7 +7988,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deleted: boolean | null
-          establishment_id: string
+          establishment_id: string | null
           id: string
           name: string | null
           organization_id: string | null
@@ -8000,7 +8000,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
-          establishment_id: string
+          establishment_id?: string | null
           id?: string
           name?: string | null
           organization_id?: string | null
@@ -8012,7 +8012,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deleted?: boolean | null
-          establishment_id?: string
+          establishment_id?: string | null
           id?: string
           name?: string | null
           organization_id?: string | null

@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 
-import { AlertTriangle, Check, CheckCircle2, Copy, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Copy } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { type EstForm, type OrgForm, type VatRow } from "./convert-lead-types";
+import { type EstForm, type OrgForm } from "./convert-lead-types";
 
 export const PLANS = [
   { value: "free", label: "Free" },
@@ -123,77 +122,15 @@ export function StepEst({ form, setEst }: { form: EstForm; setEst: (f: keyof Est
   );
 }
 
-export function StepVat({
-  rates,
-  toggle,
-  update,
-  add,
-  remove,
-}: {
-  rates: VatRow[];
-  toggle: (i: number) => void;
-  update: (i: number, field: "name" | "value", val: string) => void;
-  add: () => void;
-  remove: (i: number) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <p className="text-muted-foreground text-xs">
-        Taux appliqués aux produits de cet établissement. Taux standards français pré-sélectionnés.
-      </p>
-      <div className="space-y-2">
-        {rates.map((r, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Checkbox checked={r.checked} onCheckedChange={() => toggle(i)} />
-            <Input
-              value={r.name}
-              onChange={(e) => update(i, "name", e.target.value)}
-              placeholder="Libellé"
-              className="h-8 flex-1 text-sm"
-              disabled={!r.checked}
-            />
-            <Input
-              value={r.value}
-              onChange={(e) => update(i, "value", e.target.value)}
-              placeholder="0"
-              className="h-8 w-16 text-sm"
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              disabled={!r.checked}
-            />
-            <span className="text-muted-foreground text-sm">%</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-destructive hover:text-destructive h-8 w-8 shrink-0"
-              onClick={() => remove(i)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={add}>
-        <Plus className="mr-1 h-3.5 w-3.5" />
-        Ajouter un taux
-      </Button>
-    </div>
-  );
-}
-
 export function StepRecap({
   orgForm,
   estForm,
-  activeVat,
   activePlan,
   contactEmail,
   contactName,
 }: {
   orgForm: OrgForm;
   estForm: EstForm;
-  activeVat: VatRow[];
   activePlan: string;
   contactEmail?: string | null;
   contactName?: string | null;
@@ -217,20 +154,6 @@ export function StepRecap({
         {estForm.email && <p className="text-muted-foreground text-xs">{estForm.email}</p>}
         {estForm.siret && <p className="text-muted-foreground text-xs">SIRET : {estForm.siret}</p>}
         {estForm.no_tva && <p className="text-muted-foreground text-xs">TVA : {estForm.no_tva}</p>}
-      </div>
-      <div className="space-y-1.5 rounded-lg border p-3">
-        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Taux TVA</p>
-        {activeVat.length === 0 ? (
-          <p className="text-muted-foreground text-xs">Aucun taux sélectionné</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {activeVat.map((r, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">
-                {r.name || `Taux ${r.value}%`} — {r.value}%
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
       {contactEmail && (
         <div className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">

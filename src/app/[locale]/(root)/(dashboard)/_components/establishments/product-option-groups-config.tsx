@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useOrganizationVatRates } from "@/lib/queries/establishments";
 import {
   OPTION_GROUPS_QUERY_KEY,
   useEstablishmentOptionGroups,
@@ -37,7 +37,7 @@ export function ProductOptionGroupsConfig({
 }) {
   const queryClient = useQueryClient();
   const { data: groups = [], isLoading } = useEstablishmentOptionGroups(establishmentId, organizationId);
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);

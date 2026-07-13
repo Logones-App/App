@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  DEFAULT_ORG_VAT_RATES,
   createOrgaUser,
+  ensureOrgVatRates,
   generateEstablishmentSlug,
   seedEstablishmentDefaults,
 } from "@/lib/server/establishment-provisioning";
@@ -32,11 +34,6 @@ interface EstPayload {
   siret?: string | null;
   no_tva?: string | null;
 }
-interface VatPayload {
-  name: string;
-  value: number;
-}
-
 async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
   const { data, error } = await svc
     .from("organizations")
@@ -49,6 +46,12 @@ async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
     .select("id")
     .single();
   if (error) throw error;
+  // Taux de TVA standard seedés au niveau ORG (idempotent, non bloquant).
+  try {
+    await ensureOrgVatRates(svc, data.id, DEFAULT_ORG_VAT_RATES);
+  } catch (vatErr) {
+    console.error("Seed TVA org échoué (non bloquant):", vatErr);
+  }
   return data.id;
 }
 
@@ -127,7 +130,6 @@ interface ConvertBody {
   org_id?: string;
   org?: OrgPayload;
   establishment?: EstPayload;
-  vat_rates?: VatPayload[];
 }
 
 async function resolveOrg(
@@ -151,7 +153,7 @@ async function resolveOrg(
     const { id: estId, slug } = await createEstablishment(svc, body.establishment, orgId, userId);
     // Clé NF525 = prérequis obligatoire : rollback de l'établissement si le provisioning échoue.
     try {
-      await seedEstablishmentDefaults(svc, estId, orgId, body.vat_rates ?? []);
+      await seedEstablishmentDefaults(svc, estId, orgId);
     } catch (seedErr) {
       try {
         await svc.from("establishments").delete().eq("id", estId);

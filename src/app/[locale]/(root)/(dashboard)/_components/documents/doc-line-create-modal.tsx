@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PORTION_UNITS } from "@/lib/constants/product-attributes";
 import { type DocImportLineRow } from "@/lib/queries/doc-import-lines-queries";
-import { useEstablishmentVatRates } from "@/lib/queries/establishments-related-queries";
+import { useOrganizationVatRates } from "@/lib/queries/establishments-related-queries";
 import { useCreateSupplier } from "@/lib/queries/supplier-queries";
 import { createClient } from "@/lib/supabase/client";
 import { suggestConversionFactor } from "@/lib/utils/unit-conversion";
@@ -152,7 +152,7 @@ export function DocLineCreateModal({ line, organizationId, establishmentId, supp
   const derivedFactor =
     orderUnitTrim !== "" && resolvedStockUnit !== "" ? suggestConversionFactor(orderUnitTrim, resolvedStockUnit) : null;
 
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
   const createSupplierMutation = useCreateSupplier(organizationId);
 
   const handleSubmit = async () => {

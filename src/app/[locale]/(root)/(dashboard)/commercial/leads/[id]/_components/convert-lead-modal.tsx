@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
-import { PLANS, StepEst, StepOrg, StepRecap, StepTabletCredentials, StepVat } from "./convert-lead-steps";
-import { type EstForm, type LeadInfo, type OrgForm, type VatRow } from "./convert-lead-types";
+import { PLANS, StepEst, StepOrg, StepRecap, StepTabletCredentials } from "./convert-lead-steps";
+import { type EstForm, type LeadInfo, type OrgForm } from "./convert-lead-types";
 
 export type { LeadInfo };
 
@@ -33,13 +33,8 @@ interface Props {
   onSuccess: (orgId: string) => void;
 }
 
-const DEFAULT_VAT: VatRow[] = [
-  { name: "Taux réduit", value: "5.5", checked: true },
-  { name: "Taux intermédiaire", value: "10", checked: true },
-  { name: "Taux normal", value: "20", checked: true },
-];
-
-const STEPS = ["Organisation", "Restaurant", "Taux TVA", "Récapitulatif"];
+// Les taux de TVA sont seedés au niveau ORGANISATION (voir PLAN_VAT_ORG_SCOPING.md) — plus d'étape ici.
+const STEPS = ["Organisation", "Restaurant", "Récapitulatif"];
 
 function emptyToNull(s: string): string | null {
   return s.trim() || null;
@@ -90,7 +85,6 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
     siret: "",
     no_tva: "",
   });
-  const [vatRates, setVatRates] = useState<VatRow[]>(DEFAULT_VAT);
 
   useEffect(() => {
     if (!open) return;
@@ -99,7 +93,6 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
     setExistingOrgId("");
     setPosCredentials(null);
     setPendingOrgId(null);
-    setVatRates(DEFAULT_VAT);
     setOrgForm({ name: lead.company_name, description: "", subscription_plan: "starter" });
     setEstForm({
       name: lead.company_name,
@@ -131,19 +124,6 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
 
   const setOrg = (f: keyof OrgForm, v: string) => setOrgForm((p) => ({ ...p, [f]: v }));
   const setEst = (f: keyof EstForm, v: string) => setEstForm((p) => ({ ...p, [f]: v }));
-
-  function toggleVat(i: number) {
-    setVatRates((prev) => prev.map((r, idx) => (idx === i ? { ...r, checked: !r.checked } : r)));
-  }
-  function updateVat(i: number, field: "name" | "value", val: string) {
-    setVatRates((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: val } : r)));
-  }
-  function addVat() {
-    setVatRates((prev) => [...prev, { name: "", value: "", checked: true }]);
-  }
-  function removeVat(i: number) {
-    setVatRates((prev) => prev.filter((_, idx) => idx !== i));
-  }
 
   function validateStep(): boolean {
     if (step === 0 && !orgForm.name.trim()) {
@@ -188,9 +168,6 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
             siret: emptyToNull(estForm.siret),
             no_tva: emptyToNull(estForm.no_tva),
           },
-          vat_rates: vatRates
-            .filter((r) => r.checked && r.value)
-            .map((r) => ({ name: r.name || `${r.value}%`, value: parseFloat(r.value) })),
         }),
       });
       const data = (await res.json()) as {
@@ -241,7 +218,6 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
 
   const isLastStep = step === STEPS.length - 1;
   const activePlan = PLANS.find((p) => p.value === orgForm.subscription_plan)?.label ?? orgForm.subscription_plan;
-  const activeVat = vatRates.filter((r) => r.checked && r.value);
   const spinner = isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null;
 
   return (
@@ -326,13 +302,9 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
                   {step === 0 && <StepOrg form={orgForm} setOrg={setOrg} />}
                   {step === 1 && <StepEst form={estForm} setEst={setEst} />}
                   {step === 2 && (
-                    <StepVat rates={vatRates} toggle={toggleVat} update={updateVat} add={addVat} remove={removeVat} />
-                  )}
-                  {step === 3 && (
                     <StepRecap
                       orgForm={orgForm}
                       estForm={estForm}
-                      activeVat={activeVat}
                       activePlan={activePlan}
                       contactEmail={lead.contact_email}
                       contactName={lead.contact_name}

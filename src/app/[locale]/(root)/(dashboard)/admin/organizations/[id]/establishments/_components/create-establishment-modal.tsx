@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,12 +28,6 @@ interface EstFields {
   code_naf: string;
 }
 
-interface VatRow {
-  name: string;
-  value: string;
-  checked: boolean;
-}
-
 const EMPTY_FORM: EstFields = {
   name: "",
   address: "",
@@ -50,13 +42,9 @@ const EMPTY_FORM: EstFields = {
   code_naf: "",
 };
 
-const DEFAULT_VAT: VatRow[] = [
-  { name: "TVA 5.5%", value: "5.5", checked: true },
-  { name: "TVA 10%", value: "10", checked: true },
-  { name: "TVA 20%", value: "20", checked: true },
-];
-
-const STEPS = ["Établissement", "Taux TVA", "Récapitulatif"];
+// Les taux de TVA ne sont plus saisis ici : ils sont seedés au niveau ORGANISATION à sa création
+// (voir PLAN_VAT_ORG_SCOPING.md). Le wizard se limite à l'établissement puis au récapitulatif.
+const STEPS = ["Établissement", "Récapitulatif"];
 
 function emptyToNull(s: string): string | null {
   return s.trim() || null;
@@ -242,75 +230,8 @@ function FormEst({
   );
 }
 
-function FormVat({
-  rates,
-  toggle,
-  update,
-  add,
-  remove,
-  mandatoryMissing,
-}: {
-  rates: VatRow[];
-  toggle: (i: number) => void;
-  update: (i: number, field: "name" | "value", val: string) => void;
-  add: () => void;
-  remove: (i: number) => void;
-  mandatoryMissing: boolean;
-}) {
-  return (
-    <div className="space-y-3">
-      <p className="text-muted-foreground text-xs">
-        Taux appliqués aux produits de cet établissement. TVA <strong>10 %</strong> et <strong>20 %</strong>{" "}
-        obligatoires (NF525) ; 5,5 % facultatif.
-      </p>
-      {mandatoryMissing && (
-        <p className="text-destructive text-xs">Les taux 10 % et 20 % doivent être présents et cochés.</p>
-      )}
-      <div className="space-y-2">
-        {rates.map((r, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Checkbox checked={r.checked} onCheckedChange={() => toggle(i)} />
-            <Input
-              value={r.name}
-              onChange={(e) => update(i, "name", e.target.value)}
-              placeholder="Libellé"
-              className="h-8 flex-1 text-sm"
-              disabled={!r.checked}
-            />
-            <Input
-              value={r.value}
-              onChange={(e) => update(i, "value", e.target.value)}
-              placeholder="0"
-              className="h-8 w-16 text-sm"
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              disabled={!r.checked}
-            />
-            <span className="text-muted-foreground text-sm">%</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-destructive hover:text-destructive h-8 w-8 shrink-0"
-              onClick={() => remove(i)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={add}>
-        <Plus className="mr-1 h-3.5 w-3.5" />
-        Ajouter un taux
-      </Button>
-    </div>
-  );
-}
-
-function FormRecap({ form, rates }: { form: EstFields; rates: VatRow[] }) {
+function FormRecap({ form }: { form: EstFields }) {
   const address = [form.address, form.postal_code, form.city, form.country].filter(Boolean).join(", ");
-  const activeVat = rates.filter((r) => r.checked && r.value);
   return (
     <div className="space-y-3 text-sm">
       <div className="space-y-1 rounded-lg border p-3">
@@ -323,20 +244,9 @@ function FormRecap({ form, rates }: { form: EstFields; rates: VatRow[] }) {
         {form.no_tva && <p className="text-muted-foreground text-xs">TVA : {form.no_tva}</p>}
         {form.code_naf && <p className="text-muted-foreground text-xs">NAF : {form.code_naf}</p>}
       </div>
-      <div className="space-y-1.5 rounded-lg border p-3">
-        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">Taux TVA</p>
-        {activeVat.length === 0 ? (
-          <p className="text-muted-foreground text-xs">Aucun taux sélectionné</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {activeVat.map((r, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">
-                {r.name || `Taux ${r.value}%`} — {r.value}%
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
+      <p className="text-muted-foreground text-xs">
+        Les taux de TVA appliqués aux produits sont ceux de l&apos;organisation.
+      </p>
     </div>
   );
 }
@@ -349,13 +259,10 @@ interface Props {
 }
 
 const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva", "code_naf"];
-/** Taux TVA obligatoires (NF525) — présents ET cochés pour valider l'étape. 5.5% reste facultatif. */
-const MANDATORY_VAT = [10, 20];
 
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<EstFields>(EMPTY_FORM);
-  const [vatRates, setVatRates] = useState<VatRow[]>(DEFAULT_VAT);
   const [touched, setTouched] = useState<Set<keyof EstFields>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
@@ -364,15 +271,10 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
   const isStep0Valid =
     STEP0_REQUIRED.every((k) => form[k].trim() !== "") && /^\d{14}$/.test(siretDigits) && isValidNaf(form.code_naf);
 
-  // TVA 10% et 20% obligatoires (NF525) ; 5.5% facultatif.
-  const activeVatValues = vatRates.filter((r) => r.checked && r.value.trim() !== "").map((r) => parseFloat(r.value));
-  const isStep1Valid = MANDATORY_VAT.every((v) => activeVatValues.includes(v));
-
   function handleClose() {
     if (isSubmitting) return;
     setStep(0);
     setForm(EMPTY_FORM);
-    setVatRates(DEFAULT_VAT);
     setTouched(new Set());
     setCredentials(null);
     onClose();
@@ -381,12 +283,6 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
   const set = (k: keyof EstFields, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const touch = (k: keyof EstFields) => setTouched((prev) => new Set([...prev, k]));
   const prefill = (fields: CompanyPrefill) => setForm((p) => ({ ...p, ...fields }));
-  const toggleVat = (i: number) =>
-    setVatRates((p) => p.map((r, idx) => (idx === i ? { ...r, checked: !r.checked } : r)));
-  const updateVat = (i: number, field: "name" | "value", val: string) =>
-    setVatRates((p) => p.map((r, idx) => (idx === i ? { ...r, [field]: val } : r)));
-  const addVat = () => setVatRates((p) => [...p, { name: "", value: "", checked: true }]);
-  const removeVat = (i: number) => setVatRates((p) => p.filter((_, idx) => idx !== i));
 
   function next() {
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -412,9 +308,6 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
             no_tva: emptyToNull(form.no_tva),
             code_naf: emptyToNull(form.code_naf),
           },
-          vat_rates: vatRates
-            .filter((r) => r.checked && r.value)
-            .map((r) => ({ name: r.name || `${r.value}%`, value: parseFloat(r.value) })),
         }),
       });
       const data = (await res.json()) as {
@@ -475,17 +368,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
             <WizardStepper step={step} />
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
               {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} prefill={prefill} />}
-              {step === 1 && (
-                <FormVat
-                  rates={vatRates}
-                  toggle={toggleVat}
-                  update={updateVat}
-                  add={addVat}
-                  remove={removeVat}
-                  mandatoryMissing={!isStep1Valid}
-                />
-              )}
-              {step === 2 && <FormRecap form={form} rates={vatRates} />}
+              {step === 1 && <FormRecap form={form} />}
             </div>
             <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
               <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
@@ -498,7 +381,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
                   </Button>
                 )}
                 {!isLastStep && (
-                  <Button onClick={next} disabled={(step === 0 && !isStep0Valid) || (step === 1 && !isStep1Valid)}>
+                  <Button onClick={next} disabled={step === 0 && !isStep0Valid}>
                     Suivant
                   </Button>
                 )}

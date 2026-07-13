@@ -183,23 +183,23 @@ export const useEstablishmentBookingSlots = (establishmentId?: string) => {
   });
 };
 
-// Query pour récupérer les produits d'une organisation
-export const useEstablishmentVatRates = (establishmentId?: string) => {
+// Taux de TVA d'une ORGANISATION (scope org : cf. PLAN_VAT_ORG_SCOPING.md ; un seul jeu par org).
+export const useOrganizationVatRates = (organizationId?: string) => {
   return useQuery({
-    queryKey: ["establishment-vat-rates", establishmentId],
+    queryKey: ["organization-vat-rates", organizationId],
     queryFn: async () => {
-      if (!establishmentId) return [];
+      if (!organizationId) return [];
       const supabase = createClient();
       const { data, error } = await supabase
         .from("vat_rate")
         .select("id, name, value")
-        .eq("establishment_id", establishmentId)
+        .eq("organization_id", organizationId)
         .eq("deleted", false)
         .order("name", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!establishmentId,
+    enabled: !!organizationId,
   });
 };
 

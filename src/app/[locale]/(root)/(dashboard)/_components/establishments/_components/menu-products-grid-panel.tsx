@@ -18,7 +18,7 @@ import type { Swiper as SwiperType } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 
 import { Button } from "@/components/ui/button";
-import { useEstablishmentVatRates, useMenuCategoryGridItems } from "@/lib/queries/establishments";
+import { useMenuCategoryGridItems, useOrganizationVatRates } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +72,7 @@ export function MenuProductsGridPanel({
   } = useMenuCategoryGridItems(menuId, establishmentId, organizationId, parentItemId);
 
   const panelMaps = useMemo(() => buildPanelMaps(items), [items]);
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
   const vatOptions = useMemo(() => vatRates.map((v) => ({ id: v.id, label: v.name ?? `${v.value}%` })), [vatRates]);
   const insertMutation = useInsertMenuGridItemMutation();
   const moveMutation = useMoveMenuGridItemMutation();

@@ -25,11 +25,6 @@ interface EstBody {
   code_naf?: string | null;
 }
 
-interface VatBody {
-  name: string;
-  value: number;
-}
-
 function buildEstData(est: EstBody, orgId: string, userId: string, slug: string) {
   const rawPostal = est.postal_code ? parseInt(est.postal_code, 10) : null;
   return {
@@ -58,10 +53,9 @@ async function provisionOrRollback(
   svc: ReturnType<typeof createServiceClient>,
   estId: string,
   orgId: string,
-  vatRates: VatBody[],
 ): Promise<void> {
   try {
-    await seedEstablishmentDefaults(svc, estId, orgId, vatRates);
+    await seedEstablishmentDefaults(svc, estId, orgId);
   } catch (seedErr) {
     try {
       await svc.from("establishments").delete().eq("id", estId);
@@ -84,7 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (role !== "system_admin") return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id: orgId } = await params;
-    const body = (await req.json()) as { establishment?: EstBody; vat_rates?: VatBody[] };
+    const body = (await req.json()) as { establishment?: EstBody };
 
     if (!body.establishment?.name.trim()) {
       return NextResponse.json({ error: "Nom de l'établissement requis" }, { status: 400 });
@@ -111,7 +105,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (estError) throw estError;
 
-    await provisionOrRollback(svc, newEst.id, orgId, body.vat_rates ?? []);
+    await provisionOrRollback(svc, newEst.id, orgId);
 
     let tabletCredentials: { email: string; password: string } | null = null;
     let tabletError: string | null = null;

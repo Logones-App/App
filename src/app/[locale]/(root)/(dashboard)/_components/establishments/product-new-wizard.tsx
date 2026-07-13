@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type AllergenKey, type LabelKey, type ProductTypeKey } from "@/lib/constants/product-attributes";
 import type { LocalizedContent } from "@/lib/i18n/localized";
-import { useEstablishmentPrinters, useEstablishmentVatRates } from "@/lib/queries/establishments";
+import { useEstablishmentPrinters, useOrganizationVatRates } from "@/lib/queries/establishments";
 import { useOrgCardLocales } from "@/lib/queries/public-menu-queries";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,7 +74,7 @@ export function ProductNewWizard({
   const normalizedBase = backHref.replace(/\/$/, "");
   const namePlaceholder = intent === "ingredient" ? "Nom de l'ingrédient" : "Nom du produit";
 
-  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const { data: vatRates = [] } = useOrganizationVatRates(organizationId);
   const { data: printers = [] } = useEstablishmentPrinters(establishmentId, organizationId);
   const { data: orgLocales = ["fr"] } = useOrgCardLocales(organizationId);
 

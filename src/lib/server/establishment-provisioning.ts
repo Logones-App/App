@@ -15,6 +15,13 @@ type Svc = ReturnType<typeof createServiceClient>;
 
 export type VatRateSeed = { name: string; value: number };
 
+/** Taux de TVA standard FR, seedés au niveau ORG à la création d'une organisation (5,5 / 10 / 20). */
+export const DEFAULT_ORG_VAT_RATES: VatRateSeed[] = [
+  { name: "TVA 5.5%", value: 5.5 },
+  { name: "TVA 10%", value: 10 },
+  { name: "TVA 20%", value: 20 },
+];
+
 /**
  * Paire de signature NF525 ECDSA P-256 (§6.11.3) : privée = scalaire brut 32 o base64,
  * publique = point compressé 33 o base64. Encodage identique au POS (interop KAT verrouillée).
@@ -145,15 +152,22 @@ async function insertDefaultModules(svc: Svc, estId: string, orgId: string): Pro
   if (error) throw error;
 }
 
-async function insertVatRates(svc: Svc, rates: VatRateSeed[], estId: string, orgId: string): Promise<void> {
+/**
+ * Taux de TVA au niveau ORGANISATION (scope org). Idempotent : ne seede que si l'org n'a pas encore de
+ * taux — le 1er établissement d'une org pose le jeu, les suivants n'y touchent pas. Voir
+ * PLAN_VAT_ORG_SCOPING.md.
+ */
+export async function ensureOrgVatRates(svc: Svc, orgId: string, rates: VatRateSeed[]): Promise<void> {
+  const { data: existing } = await svc
+    .from("vat_rate")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("deleted", false)
+    .limit(1);
+  if (existing && existing.length > 0) return; // l'org a déjà ses taux
   const filtered = rates.filter((r) => r.value > 0);
   if (filtered.length === 0) return;
-  const rows = filtered.map((r) => ({
-    establishment_id: estId,
-    organization_id: orgId,
-    name: r.name,
-    value: r.value,
-  }));
+  const rows = filtered.map((r) => ({ organization_id: orgId, name: r.name, value: r.value }));
   const { error } = await svc.from("vat_rate").insert(rows);
   if (error) throw error;
 }
@@ -291,18 +305,14 @@ async function insertHaccpDefaults(svc: Svc, estId: string, orgId: string): Prom
  * Seeds par défaut d'un établissement fraîchement créé : clé NF525, moyens de paiement,
  * menu principal, salle + table de 4 couverts, taux de TVA, et config HACCP.
  */
-export async function seedEstablishmentDefaults(
-  svc: Svc,
-  estId: string,
-  orgId: string,
-  vatRates: VatRateSeed[],
-): Promise<void> {
+export async function seedEstablishmentDefaults(svc: Svc, estId: string, orgId: string): Promise<void> {
+  // NB : les taux de TVA ne sont PLUS seedés ici — ils sont au niveau ORG (ensureOrgVatRates à la
+  // création d'organisation). Voir PLAN_VAT_ORG_SCOPING.md.
   await insertNf525Key(svc, estId, orgId);
   await insertDefaultPaymentMethods(svc, estId, orgId);
   await insertDefaultMenu(svc, estId, orgId);
   await insertDefaultRoomAndTable(svc, estId, orgId);
   await insertDefaultModules(svc, estId, orgId);
-  await insertVatRates(svc, vatRates, estId, orgId);
   // Best-effort : ne bloque pas la création si le seed HACCP échoue.
   try {
     await insertHaccpDefaults(svc, estId, orgId);
