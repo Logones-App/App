@@ -8145,6 +8145,11 @@ export type Database = {
         Args: { p_est_id: string; p_org_id: string }
         Returns: boolean
       }
+      auth_can_access_organization: {
+        Args: { p_org_id: string }
+        Returns: boolean
+      }
+      auth_is_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       cleanup_expired_device_sessions: { Args: never; Returns: undefined }
       cleanup_old_email_logs: {
         Args: { days_to_keep?: number }
@@ -8180,37 +8185,13 @@ export type Database = {
         Args: { p_limit?: number; p_month: string; p_organization_id: string }
         Returns: boolean
       }
-      nf525_jet_130_saas: {
-        Args: {
-          p_establishment_id: string
-          p_label: string
-          p_organization_id: string
-        }
-        Returns: undefined
-      }
-      nf525_jet_180_saas: {
-        Args: {
-          p_establishment_id: string
-          p_label: string
-          p_organization_id: string
-        }
-        Returns: undefined
-      }
-      nf525_jet_290_saas: {
-        Args: {
-          p_establishment_id: string
-          p_label: string
-          p_organization_id: string
-        }
-        Returns: undefined
-      }
-      nf525_jet_410_saas: {
-        Args: {
-          p_changed_fields: string
-          p_establishment_id: string
-          p_organization_id: string
-        }
-        Returns: undefined
+      nf525_get_signing_material: {
+        Args: { p_establishment_id: string }
+        Returns: {
+          algo: string
+          private_key_base64: string
+          public_key_base64: string
+        }[]
       }
       register_device: {
         Args: {
@@ -8223,6 +8204,14 @@ export type Database = {
           p_serial_number: string
         }
         Returns: Json
+      }
+      stock_by_reference: {
+        Args: { p_product_stock_id: string }
+        Returns: {
+          label: string
+          remaining: number
+          supplier_reference_id: string
+        }[]
       }
       transfer_device: {
         Args: {
