@@ -4,8 +4,10 @@ import type { Tables } from "@/lib/supabase/database.types";
 import { GRID_SIZE, PANEL_COUNT } from "./menu-products-grid-constants";
 
 export type GridItem = Tables<"category_grid_items"> & {
-  product?: { is_available: boolean | null } | null;
+  product?: { is_available: boolean | null; vat_rate?: { value: number | null } | null } | null;
   menuProductPrice?: number | null;
+  /** Taux de TVA du produit (%) — affiché à côté du prix sur la tuile. */
+  productVatRate?: number | null;
 };
 export type NavCrumb = { id: string; label: string | null };
 

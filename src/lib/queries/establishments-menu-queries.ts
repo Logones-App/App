@@ -257,7 +257,7 @@ export const useMenuCategoryGridItems = (
       const supabase = createClient();
       let q = supabase
         .from("category_grid_items")
-        .select("*, product:product_id(is_available)")
+        .select("*, product:product_id(is_available, vat_rate:vat_rate_id(value))")
         .eq("menu_id", menuId)
         .eq("establishment_id", establishmentId)
         .eq("organization_id", organizationId)
@@ -281,6 +281,8 @@ export const useMenuCategoryGridItems = (
       return (data ?? []).map((item) => ({
         ...item,
         menuProductPrice: item.product_id ? (menuPriceByProductId.get(item.product_id) ?? null) : null,
+        productVatRate:
+          (item.product as { vat_rate?: { value: number | null } | null } | null)?.vat_rate?.value ?? null,
       }));
     },
     enabled: !!menuId && !!establishmentId && !!organizationId,

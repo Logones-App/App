@@ -18,7 +18,7 @@ import type { Swiper as SwiperType } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 
 import { Button } from "@/components/ui/button";
-import { useMenuCategoryGridItems } from "@/lib/queries/establishments";
+import { useEstablishmentVatRates, useMenuCategoryGridItems } from "@/lib/queries/establishments";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,8 @@ export function MenuProductsGridPanel({
   const [pendingDrop, setPendingDrop] = useState<{
     payload: Omit<InsertMenuGridItemPayload, "priceOverride">;
     productName: string;
+    needsPrice: boolean;
+    needsVat: boolean;
   } | null>(null);
 
   const parentItemId = navStack.length === 0 ? null : navStack.at(-1)!.id;
@@ -70,6 +72,8 @@ export function MenuProductsGridPanel({
   } = useMenuCategoryGridItems(menuId, establishmentId, organizationId, parentItemId);
 
   const panelMaps = useMemo(() => buildPanelMaps(items), [items]);
+  const { data: vatRates = [] } = useEstablishmentVatRates(establishmentId);
+  const vatOptions = useMemo(() => vatRates.map((v) => ({ id: v.id, label: v.name ?? `${v.value}%` })), [vatRates]);
   const insertMutation = useInsertMenuGridItemMutation();
   const moveMutation = useMoveMenuGridItemMutation();
   const deleteMutation = useSoftDeleteMenuGridItemMutation();
@@ -113,22 +117,26 @@ export function MenuProductsGridPanel({
     async (payload: Omit<InsertMenuGridItemPayload, "priceOverride">, productName: string) => {
       if (!payload.productId) return;
       const supabase = createClient();
-      const { data: mp } = await supabase
-        .from("menus_products")
-        .select("id, deleted")
-        .eq("menus_id", menuId)
-        .eq("products_id", payload.productId)
-        .eq("establishment_id", establishmentId)
-        .maybeSingle();
-      const hasPrice = mp && !mp.deleted;
-      if (hasPrice) {
+      const [{ data: mp }, { data: product }] = await Promise.all([
+        supabase
+          .from("menus_products")
+          .select("id, deleted")
+          .eq("menus_id", menuId)
+          .eq("products_id", payload.productId)
+          .eq("establishment_id", establishmentId)
+          .maybeSingle(),
+        supabase.from("products").select("vat_rate_id").eq("id", payload.productId).maybeSingle(),
+      ]);
+      const needsPrice = !(mp && !mp.deleted);
+      const needsVat = !product?.vat_rate_id;
+      if (!needsPrice && !needsVat) {
         insertMutation.mutate(payload, {
           onSuccess: () => toast.success(t("products_grid_drop_success")),
           onError: (err) =>
             toast.error(t("products_grid_drop_error"), { description: err instanceof Error ? err.message : undefined }),
         });
       } else {
-        setPendingDrop({ payload, productName });
+        setPendingDrop({ payload, productName, needsPrice, needsVat });
       }
     },
     [menuId, establishmentId, insertMutation, t],
@@ -317,10 +325,13 @@ export function MenuProductsGridPanel({
       <MenuGridPriceModal
         open={pendingDrop !== null}
         productName={pendingDrop?.productName ?? ""}
-        onConfirm={(price) => {
+        needsPrice={pendingDrop?.needsPrice ?? false}
+        needsVat={pendingDrop?.needsVat ?? false}
+        vatOptions={vatOptions}
+        onConfirm={({ price, vatRateId }) => {
           if (!pendingDrop) return;
           insertMutation.mutate(
-            { ...pendingDrop.payload, priceOverride: price },
+            { ...pendingDrop.payload, priceOverride: price, vatRateId },
             {
               onSuccess: () => toast.success(t("products_grid_drop_success")),
               onError: (err) =>

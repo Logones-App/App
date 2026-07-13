@@ -26,6 +26,17 @@ function tilePriceLabel(item: GridItem): string | null {
   return priceFormatter.format(item.menuProductPrice);
 }
 
+function tileVatLabel(item: GridItem): string | null {
+  if (item.item_type !== "product" || item.productVatRate == null) return null;
+  return `${String(item.productVatRate).replace(".", ",")} %`;
+}
+
+/** Prix et/ou TVA combinés pour la tuile : "12,00 € · 20 %". */
+function tilePriceVatLabel(item: GridItem): string | null {
+  const parts = [tilePriceLabel(item), tileVatLabel(item)].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function gridItemSurfaceStyle(item: GridItem): CSSProperties {
   const s: CSSProperties = {};
   if (item.background_color) {
@@ -138,7 +149,7 @@ function FilledGridTile({
 
   const navigable = isCategoryNavigable(item) && Boolean(onCategoryEnter);
   const isUnavailable = item.item_type === "product" && item.product?.is_available === false;
-  const price = tilePriceLabel(item);
+  const priceVat = tilePriceVatLabel(item);
 
   const enter = () => {
     if (navigable) onCategoryEnter?.(item);
@@ -188,7 +199,7 @@ function FilledGridTile({
         }}
       >
         <span className="line-clamp-2 w-full text-[10px] leading-tight font-medium">{item.label ?? "—"}</span>
-        {price && <span className="mt-0.5 text-[9px] font-semibold tabular-nums opacity-90">{price}</span>}
+        {priceVat && <span className="mt-0.5 text-[9px] font-semibold tabular-nums opacity-90">{priceVat}</span>}
         {isUnavailable && (
           <span className="bg-muted-foreground/20 rounded px-1 text-[7px] tracking-wide uppercase">indispo</span>
         )}

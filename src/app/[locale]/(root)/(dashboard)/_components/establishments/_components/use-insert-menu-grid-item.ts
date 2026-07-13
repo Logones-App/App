@@ -24,6 +24,8 @@ export type InsertMenuGridItemPayload = {
   productId: string | null;
   /** Prix à utiliser pour menus_products — si fourni, court-circuite la lecture de products.price */
   priceOverride?: number;
+  /** TVA à poser sur le PRODUIT (products.vat_rate_id) si le produit n'en a pas — saisie dans la modale. */
+  vatRateId?: string;
   /** Si `itemType === "action"`, obligatoire (comportement de la tuile). Sinon défaut `none`. */
   gridAction?: CategoryGridAction;
 };
@@ -34,6 +36,15 @@ export function useInsertMenuGridItemMutation() {
   return useMutation({
     mutationFn: async (p: InsertMenuGridItemPayload) => {
       const supabase = createClient();
+
+      // TVA saisie dans la modale (produit sans vat_rate_id) → posée sur le PRODUIT (global).
+      if (p.itemType === "product" && p.productId && p.vatRateId) {
+        const { error: vatErr } = await supabase
+          .from("products")
+          .update({ vat_rate_id: p.vatRateId })
+          .eq("id", p.productId);
+        if (vatErr) throw vatErr;
+      }
 
       if (p.itemType === "product" && p.productId) {
         const { data: mp, error: mpSelErr } = await supabase
