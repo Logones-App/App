@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { signJet } from "@/lib/nf525/sign-jet";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,6 @@ interface SendBody {
   filename: string;
   csv: string;
 }
-
-type UntypedRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,16 +41,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "BREVO_API_KEY manquant" }, { status: 500 });
     }
 
-    // JET 290 AVANT l'envoi : traçabilité NF525 obligatoire. Sans clé de signature active, la RPC
-    // lève → on BLOQUE (aucun export transmis non journalisé), on n'envoie pas l'email.
-    const { error: jetErr } = await (supabase.rpc as unknown as UntypedRpc)("nf525_jet_290_saas", {
-      p_establishment_id: establishmentId,
-      p_organization_id: body.organizationId,
-      p_label: `Export ${body.fromDate}→${body.toDate} envoyé à ${body.recipientEmail}`,
+    // JET 290 AVANT l'envoi : traçabilité NF525 obligatoire. signJet route selon l'algo de
+    // l'établissement (ECDSA → Edge, HMAC → RPC). Sans clé active → erreur → on BLOQUE (pas d'email).
+    const jetErr = await signJet({
+      establishmentId,
+      organizationId: body.organizationId,
+      code: 290,
+      label: `Export ${body.fromDate}→${body.toDate} envoyé à ${body.recipientEmail}`,
     });
     if (jetErr) {
       return NextResponse.json(
-        { error: `Envoi bloqué : journalisation NF525 (JET 290) impossible — ${jetErr.message}` },
+        { error: `Envoi bloqué : journalisation NF525 (JET 290) impossible — ${jetErr}` },
         { status: 400 },
       );
     }

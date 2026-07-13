@@ -17,11 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id";
-import { writeJet180 } from "@/lib/permissions/nf525-jet";
 import { buildAccountingCsv, computeVatBreakdown, computeVatByDay } from "@/lib/queries/accounting-export-queries";
 import { useEstablishmentOrders } from "@/lib/queries/orders-queries";
 import { computeRevenueByPaymentMethod } from "@/lib/queries/sales-reporting-queries";
-import { createClient } from "@/lib/supabase/client";
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -76,15 +74,16 @@ export function ComptabiliteClient() {
 
   const handleGenerate = async () => {
     if (orders.length === 0) return;
-    // Traçabilité NF525 AVANT production du fichier : aucun export fiscal non journalisé.
-    // Sans clé de signature active, la RPC lève → export bloqué (pas de fallback silencieux).
-    const jetError = await writeJet180(createClient(), {
-      establishmentId,
-      organizationId,
-      label: `Export comptable ${fromDate}→${toDate}`,
+    // Traçabilité NF525 (JET 180) AVANT le fichier — signée CÔTÉ SERVEUR (ECDSA = service_role/Edge,
+    // impossible depuis le navigateur). Sans clé active → route bloque → pas d'export non journalisé.
+    const res = await fetch(`/api/establishments/${establishmentId}/accounting-export/log-generation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId, fromDate, toDate }),
     });
-    if (jetError) {
-      toast.error(`Export bloqué : journalisation NF525 (JET 180) impossible — ${jetError}`);
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      toast.error(`Export bloqué : ${data.error ?? "journalisation NF525 échouée"}`);
       return;
     }
     const csv = buildAccountingCsv(computeVatByDay(orders));

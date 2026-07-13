@@ -1,3 +1,5 @@
+import { p256 } from "@noble/curves/nist.js";
+
 import { generateSlug } from "@/lib/slug";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -13,10 +15,17 @@ type Svc = ReturnType<typeof createServiceClient>;
 
 export type VatRateSeed = { name: string; value: number };
 
-function generateSigningKey(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Buffer.from(bytes).toString("base64");
+/**
+ * Paire de signature NF525 ECDSA P-256 (§6.11.3) : privée = scalaire brut 32 o base64,
+ * publique = point compressé 33 o base64. Encodage identique au POS (interop KAT verrouillée).
+ */
+function generateNf525KeyPair(): { privateKeyBase64: string; publicKeyBase64: string } {
+  const priv = p256.utils.randomSecretKey();
+  const pub = p256.getPublicKey(priv, true); // compressé 33 o
+  return {
+    privateKeyBase64: Buffer.from(priv).toString("base64"),
+    publicKeyBase64: Buffer.from(pub).toString("base64"),
+  };
 }
 
 /**
@@ -40,10 +49,15 @@ export async function generateEstablishmentSlug(svc: Svc, name: string): Promise
 }
 
 async function insertNf525Key(svc: Svc, estId: string, orgId: string): Promise<void> {
+  // NF525 §6.11.3 : tout nouvel établissement est signé en ECDSA P-256 (asymétrique).
+  // signing_key_base64 laissé NULL (HMAC obsolète, colonne nullable + contrainte material_chk).
+  const { privateKeyBase64, publicKeyBase64 } = generateNf525KeyPair();
   const { error } = await svc.from("nf525_signing_keys").insert({
     establishment_id: estId,
     organization_id: orgId,
-    signing_key_base64: generateSigningKey(),
+    algo: "ecdsa-p256",
+    private_key_base64: privateKeyBase64,
+    public_key_base64: publicKeyBase64,
   });
   if (error) throw error;
 }

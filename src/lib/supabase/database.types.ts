@@ -5388,31 +5388,40 @@ export type Database = {
       }
       nf525_signing_keys: {
         Row: {
+          algo: string
           created_at: string
           establishment_id: string
           id: string
           organization_id: string
-          signing_key_base64: string
+          private_key_base64: string | null
+          public_key_base64: string | null
+          signing_key_base64: string | null
           updated_at: string
           valid_from: string
           valid_to: string | null
         }
         Insert: {
+          algo?: string
           created_at?: string
           establishment_id: string
           id?: string
           organization_id: string
-          signing_key_base64: string
+          private_key_base64?: string | null
+          public_key_base64?: string | null
+          signing_key_base64?: string | null
           updated_at?: string
           valid_from?: string
           valid_to?: string | null
         }
         Update: {
+          algo?: string
           created_at?: string
           establishment_id?: string
           id?: string
           organization_id?: string
-          signing_key_base64?: string
+          private_key_base64?: string | null
+          public_key_base64?: string | null
+          signing_key_base64?: string | null
           updated_at?: string
           valid_from?: string
           valid_to?: string | null

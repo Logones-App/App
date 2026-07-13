@@ -570,6 +570,20 @@ $$;
 ALTER FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."nf525_get_signing_material"("p_establishment_id" "uuid") RETURNS TABLE("algo" "text", "private_key_base64" "text", "public_key_base64" "text")
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  select algo, private_key_base64, public_key_base64
+  from public.nf525_signing_keys
+  where establishment_id = p_establishment_id and valid_to is null
+  limit 1;
+$$;
+
+
+ALTER FUNCTION "public"."nf525_get_signing_material"("p_establishment_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."nf525_jet_130_saas"("p_establishment_id" "uuid", "p_organization_id" "uuid", "p_label" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
@@ -3081,11 +3095,15 @@ CREATE TABLE IF NOT EXISTS "public"."nf525_signing_keys" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "organization_id" "uuid" NOT NULL,
     "establishment_id" "uuid" NOT NULL,
-    "signing_key_base64" "text" NOT NULL,
+    "signing_key_base64" "text",
     "valid_from" timestamp with time zone DEFAULT "now"() NOT NULL,
     "valid_to" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "algo" "text" DEFAULT 'hmac-sha256'::"text" NOT NULL,
+    "public_key_base64" "text",
+    "private_key_base64" "text",
+    CONSTRAINT "nf525_signing_keys_material_chk" CHECK (((("algo" = 'hmac-sha256'::"text") AND ("signing_key_base64" IS NOT NULL)) OR (("algo" = 'ecdsa-p256'::"text") AND ("private_key_base64" IS NOT NULL) AND ("public_key_base64" IS NOT NULL))))
 );
 
 
@@ -3097,6 +3115,18 @@ COMMENT ON TABLE "public"."nf525_signing_keys" IS 'NF525: clés de signature par
 
 
 COMMENT ON COLUMN "public"."nf525_signing_keys"."signing_key_base64" IS 'Clé secrète de signature NF525 au format Base64, propre à un établissement';
+
+
+
+COMMENT ON COLUMN "public"."nf525_signing_keys"."algo" IS 'Algorithme de signature NF525 : hmac-sha256 (défaut) | ecdsa-p256';
+
+
+
+COMMENT ON COLUMN "public"."nf525_signing_keys"."public_key_base64" IS 'ECDSA P-256 clé publique compressée (base64, 33 o) — restitution §6.15.1';
+
+
+
+COMMENT ON COLUMN "public"."nf525_signing_keys"."private_key_base64" IS 'ECDSA P-256 clé privée (base64, 32 o) — signature offline sur device (secret, RLS obligatoire)';
 
 
 
@@ -6250,6 +6280,10 @@ CREATE UNIQUE INDEX "menus_products_menus_id_products_id_active_idx" ON "public"
 
 
 CREATE INDEX "mobile_users_pin_code_idx" ON "public"."employees" USING "btree" ("pin_code");
+
+
+
+CREATE UNIQUE INDEX "nf525_jet_devicenull_event_uq" ON "public"."nf525_jet" USING "btree" ("establishment_id", "event_id") WHERE ("device_id" IS NULL);
 
 
 
@@ -11250,6 +11284,11 @@ GRANT ALL ON FUNCTION "public"."match_knowledge_base"("query_embedding" "public"
 GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."n8n_increment_doc_usage"("p_organization_id" "uuid", "p_month" "text", "p_limit" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."nf525_get_signing_material"("p_establishment_id" "uuid") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."nf525_get_signing_material"("p_establishment_id" "uuid") TO "service_role";
 
 
 

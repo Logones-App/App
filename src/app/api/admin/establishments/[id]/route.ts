@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { signJet } from "@/lib/nf525/sign-jet";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,17 @@ function buildPatch(body: PatchBody) {
   };
 }
 
+// Champs "assujetti" NF525 : tout changement déclenche un JET 410. Modifiables uniquement via cette
+// route (service_role) — un REVOKE UPDATE au niveau colonne interdit aux rôles client de les toucher.
+const SENSITIVE = ["name", "address", "city", "postal_code", "country", "siret", "no_tva", "code_naf"] as const;
+
+function changedSensitive(
+  current: Record<(typeof SENSITIVE)[number], string | number | null>,
+  patch: ReturnType<typeof buildPatch>,
+): string[] {
+  return SENSITIVE.filter((f) => String(current[f] ?? "") !== String(patch[f] ?? ""));
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
@@ -52,19 +65,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const { id } = await params;
     const body = (await req.json()) as PatchBody;
+    if (!body.name.trim()) return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
 
-    if (!body.name.trim()) {
-      return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
-    }
+    // Écriture des champs assujetti via service_role (les rôles client sont REVOKE sur ces colonnes).
+    const svc = createServiceClient();
+    const { data: current } = await svc
+      .from("establishments")
+      .select("organization_id, name, address, city, postal_code, country, siret, no_tva, code_naf")
+      .eq("id", id)
+      .maybeSingle();
+    if (!current) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 });
 
     const patch = buildPatch(body);
+    const changed = changedSensitive(current, patch);
 
-    // Le JET 410 « changement données assujetti » est écrit par le trigger DB
-    // `trg_nf525_jet_410_establishment` (source unique, inviolable). Si un champ fiscal change sans
-    // clé de signature active, la RPC 410 lève et fait échouer cet UPDATE → remonté ici en erreur.
-    const { data, error } = await supabase.from("establishments").update(patch).eq("id", id).select("id").maybeSingle();
+    const { error } = await svc.from("establishments").update(patch).eq("id", id);
     if (error) throw error;
-    if (!data) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 });
+
+    // JET 410 « changement données assujetti » signé côté app/Edge (le trigger DB a été retiré :
+    // il signait en HMAC, incompatible ECDSA). Route selon l'algo de l'établissement.
+    if (changed.length > 0 && current.organization_id) {
+      const jetErr = await signJet({
+        establishmentId: id,
+        organizationId: current.organization_id,
+        code: 410,
+        label: changed.join(", "),
+      });
+      if (jetErr) {
+        return NextResponse.json({ error: `Mise à jour effectuée mais JET 410 non créé : ${jetErr}` }, { status: 500 });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
