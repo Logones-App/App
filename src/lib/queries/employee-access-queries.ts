@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { isCertifyingPermission } from "@/lib/permissions/employee-permissions";
-import { writeJet130 } from "@/lib/permissions/nf525-jet";
+import { writeJet130Server } from "@/lib/permissions/nf525-jet";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -128,7 +128,7 @@ export function useTogglePermission(establishmentId: string, organizationId: str
       if (!isCertifyingPermission(permission)) return { jetError: null };
       const sign = grant ? "+" : "-";
       const label = `${employeeLabel ?? employeeId} : ${sign}${permission} (par ${actor.label})`;
-      const jetError = await writeJet130(supabase, { establishmentId, organizationId, label });
+      const jetError = await writeJet130Server({ establishmentId, organizationId, label });
       return { jetError };
     },
     onSuccess: ({ jetError }, { employeeId }) => {
@@ -196,7 +196,7 @@ export function useSetEmployeePermissions(establishmentId: string, organizationI
       ];
       if (changes.length === 0) return { jetError: null };
       const label = `${employeeLabel ?? employeeId} : preset [${changes.join(", ")}] (par ${actor.label})`;
-      const jetError = await writeJet130(supabase, { establishmentId, organizationId, label });
+      const jetError = await writeJet130Server({ establishmentId, organizationId, label });
       return { jetError };
     },
     onSuccess: ({ jetError }, { employeeId }) => {

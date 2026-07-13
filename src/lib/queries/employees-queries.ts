@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { isCertifyingPermission, presetForRole } from "@/lib/permissions/employee-permissions";
-import { writeJet130 } from "@/lib/permissions/nf525-jet";
+import { writeJet130Server } from "@/lib/permissions/nf525-jet";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -89,7 +89,7 @@ async function seedRolePermissions(supabase: ReturnType<typeof createClient>, em
   const label = `${employee.lastname} ${employee.firstname} : droits initiaux preset ${employee.role} [${certifying
     .map((k) => `+${k}`)
     .join(", ")}] (par ${actor})`;
-  await writeJet130(supabase, {
+  await writeJet130Server({
     establishmentId: employee.establishment_id,
     organizationId: employee.organization_id,
     label,

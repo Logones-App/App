@@ -21,8 +21,26 @@ async function writeJetSaas(supabase: SupabaseBrowserClient, code: number, args:
 }
 
 // JET 130 — modification d'un droit employé certifiant.
+// ⚠️ LEGACY (RPC HMAC direct) : ne fonctionne QUE pour un établissement hmac-sha256 (clé HMAC).
+// Pour l'ECDSA, utiliser writeJet130Server (signe côté serveur via l'Edge). Voir writeJet130Server.
 export function writeJet130(supabase: SupabaseBrowserClient, args: JetArgs): Promise<string | null> {
   return writeJetSaas(supabase, 130, args);
+}
+
+/**
+ * JET 130 via la route serveur — route selon l'algo de l'établissement (ECDSA → Edge, HMAC → RPC).
+ * À utiliser depuis le client (la signature ECDSA exige le service_role/Edge, impossible côté navigateur).
+ * Retourne un message d'erreur, ou null si OK.
+ */
+export async function writeJet130Server(args: JetArgs): Promise<string | null> {
+  const res = await fetch(`/api/establishments/${args.establishmentId}/jet-130`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label: args.label }),
+  });
+  if (res.ok) return null;
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  return data.error ?? "journalisation NF525 (JET 130) échouée";
 }
 
 // JET 180 — génération du fichier d'export des écritures comptables (FEC).
