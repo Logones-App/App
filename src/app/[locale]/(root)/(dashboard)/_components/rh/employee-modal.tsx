@@ -34,6 +34,12 @@ type SetFn = (k: keyof EmployeeInsert, v: unknown) => void;
 
 export type EstablishmentOption = { id: string; name: string };
 
+// Validation du formulaire employé. Accès caisse (PIN) coché ⇒ code PIN obligatoire (4 à 6 chiffres).
+function isEmployeeFormValid(form: Partial<EmployeeInsert>, estRequired: boolean): boolean {
+  const pinValid = !form.has_mobile_access || /^\d{4,6}$/.test(form.pin_code ?? "");
+  return !!form.firstname?.trim() && !!form.lastname?.trim() && (!estRequired || !!form.establishment_id) && pinValid;
+}
+
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div className="space-y-1.5">
@@ -221,6 +227,12 @@ function TabAccess({
 }) {
   const [isWorking, setIsWorking] = useState(false);
 
+  const pinRaw = form.pin_code ?? "";
+  const pinError =
+    form.has_mobile_access && pinRaw.length > 0 && !/^\d{4,6}$/.test(pinRaw)
+      ? "Le code PIN doit contenir 4 à 6 chiffres"
+      : null;
+
   async function handleInvite() {
     if (!employeeId) return;
     setIsWorking(true);
@@ -279,7 +291,7 @@ function TabAccess({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Code PIN (4 à 6 chiffres)">
+          <Field label="Code PIN (4 à 6 chiffres)" required>
             <Input
               type="password"
               value={form.pin_code ?? ""}
@@ -287,7 +299,9 @@ function TabAccess({
               placeholder="••••"
               maxLength={6}
               inputMode="numeric"
+              className={pinError ? "border-destructive focus-visible:ring-destructive" : undefined}
             />
+            {pinError && <p className="text-destructive mt-1 text-xs">{pinError}</p>}
           </Field>
         </>
       )}
@@ -429,7 +443,7 @@ export function EmployeeModal({
   const set: SetFn = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const estRequired = !establishmentId && !!establishments?.length;
-  const canSave = !!form.firstname?.trim() && !!form.lastname?.trim() && (!estRequired || !!form.establishment_id);
+  const canSave = isEmployeeFormValid(form, estRequired);
 
   const handleSave = () => {
     if (!canSave) return;
