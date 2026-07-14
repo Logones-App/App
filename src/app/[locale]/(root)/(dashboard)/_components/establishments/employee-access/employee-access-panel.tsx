@@ -39,7 +39,17 @@ function PermissionGroupCard({
               onCheckedChange={(v) => onToggle(perm.key, Boolean(v))}
               disabled={disabled}
             />
-            <span className="text-sm">{perm.label}</span>
+            <span className="text-sm">
+              {perm.label}
+              {perm.certifying && (
+                <span
+                  className="text-amber-600 dark:text-amber-500"
+                  title="Droit certifiant — toute modification est journalisée (NF525, JET 130)"
+                >
+                  {" *"}
+                </span>
+              )}
+            </span>
           </label>
         ))}
       </div>
@@ -131,6 +141,10 @@ export function EmployeeAccessPanel({ employee, establishmentId, organizationId 
             disabled={disabled}
           />
         ))}
+        <p className="text-muted-foreground text-xs">
+          <span className="text-amber-600 dark:text-amber-500">*</span> Droit certifiant — toute modification est
+          journalisée (NF525, JET 130).
+        </p>
       </CardContent>
     </Card>
   );

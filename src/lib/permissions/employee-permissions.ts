@@ -50,7 +50,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "can_abort_validated_note", label: "Abandonner une note validée", jet: "324", certifying: true },
       { key: "can_reprint_receipt", label: "Réimprimer un duplicata", jet: "156", certifying: true },
       { key: "can_cancel_before_fire", label: "Annuler une ligne avant envoi cuisine", jet: "323", certifying: true },
-      { key: "can_override_price", label: "Saisir / modifier un prix libre", jet: "270", certifying: true },
+      { key: "can_override_price", label: "Saisir / modifier un prix libre", jet: "323", certifying: true },
     ],
   },
   {
@@ -59,7 +59,9 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: "can_close_day", label: "Clôture journalière (Z)", jet: "50/901", certifying: true },
       { key: "can_close_period", label: "Clôture mensuelle / annuelle", jet: "50/60", certifying: true },
-      { key: "can_access_training_mode", label: "Accès mode formation", jet: "100/105", certifying: true },
+      // Mode formation non offert (position POS) → non certifiant. Si un jour il est offert : re-flaguer
+      // certifiant (JET 100/105 = début/fin de fonction spéciale).
+      { key: "can_access_training_mode", label: "Accès mode formation" },
       {
         key: "can_change_compliance_settings",
         label: "Modifier un paramètre de conformité",
