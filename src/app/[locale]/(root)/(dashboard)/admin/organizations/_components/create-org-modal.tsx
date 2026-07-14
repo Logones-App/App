@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const PLANS = [
@@ -17,6 +18,22 @@ const PLANS = [
   { value: "starter", label: "Starter" },
   { value: "growth", label: "Growth" },
   { value: "enterprise", label: "Enterprise" },
+];
+
+interface ModuleState {
+  id: string;
+  label: string;
+  enabled: boolean;
+  seats: number;
+}
+
+// Pool de modules seedé au niveau ORG à la création. POS activé par défaut ; le reste à la demande.
+const buildModules = (): ModuleState[] => [
+  { id: "pos", label: "Caisse (POS)", enabled: true, seats: 2 },
+  { id: "kds", label: "Écran cuisine (KDS)", enabled: false, seats: 1 },
+  { id: "haccp", label: "HACCP", enabled: false, seats: 1 },
+  { id: "hr", label: "RH & Planning", enabled: false, seats: 1 },
+  { id: "booking", label: "Réservations", enabled: false, seats: 1 },
 ];
 
 interface Props {
@@ -31,7 +48,11 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
   const [plan, setPlan] = useState("starter");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminName, setAdminName] = useState("");
+  const [modules, setModules] = useState<ModuleState[]>(buildModules);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const setMod = (id: string, patch: Partial<ModuleState>) =>
+    setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
   function handleClose() {
     if (isSubmitting) return;
@@ -40,6 +61,7 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
     setPlan("starter");
     setAdminEmail("");
     setAdminName("");
+    setModules(buildModules());
     onClose();
   }
 
@@ -59,6 +81,7 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
           subscription_plan: plan,
           org_admin_email: adminEmail.trim() || null,
           org_admin_name: adminName.trim() || null,
+          modules: modules.filter((m) => m.enabled).map((m) => ({ module: m.id, seats: m.seats })),
         }),
       });
       const data = (await res.json()) as { orgId?: string; error?: string; orgAdminError?: string | null };
@@ -129,6 +152,30 @@ export function CreateOrgModal({ open, onClose, onSuccess }: Props) {
               rows={2}
               placeholder="Description courte (optionnel)"
             />
+          </div>
+
+          <div className="space-y-2 rounded-lg border p-3">
+            <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Modules &amp; sièges
+            </p>
+            {modules.map((m) => (
+              <div key={m.id} className="flex items-center gap-3">
+                <Switch checked={m.enabled} onCheckedChange={(v) => setMod(m.id, { enabled: v })} />
+                <span className="flex-1 text-sm">{m.label}</span>
+                {m.enabled && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs">Sièges</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={m.seats}
+                      onChange={(e) => setMod(m.id, { seats: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                      className="h-7 w-16 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           <div className="space-y-3 rounded-lg border p-3">

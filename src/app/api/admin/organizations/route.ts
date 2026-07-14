@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       subscription_plan?: string | null;
       org_admin_email?: string | null;
       org_admin_name?: string | null;
+      modules?: { module: string; seats: number }[];
     };
     if (!body.name?.trim()) return NextResponse.json({ error: "Nom requis" }, { status: 400 });
 
@@ -80,6 +81,15 @@ export async function POST(req: NextRequest) {
       await ensureOrgVatRates(svc, data.id, DEFAULT_ORG_VAT_RATES);
     } catch (vatErr) {
       console.error("Seed TVA org échoué (non bloquant):", vatErr);
+    }
+
+    // Pool de modules choisi au wizard → organization_modules (best-effort, non bloquant).
+    const moduleRows = (body.modules ?? [])
+      .filter((m) => typeof m.module === "string" && Number(m.seats) > 0)
+      .map((m) => ({ organization_id: data.id, module: m.module, enabled: true, seats: Math.floor(Number(m.seats)) }));
+    if (moduleRows.length > 0) {
+      const { error: modErr } = await svc.from("organization_modules").insert(moduleRows);
+      if (modErr) console.error("Seed modules org échoué (non bloquant):", modErr);
     }
 
     let orgAdminError: string | null = null;

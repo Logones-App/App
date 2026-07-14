@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useParams } from "next/navigation";
+
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -230,7 +232,7 @@ function FormEst({
   );
 }
 
-function FormRecap({ form }: { form: EstFields }) {
+function FormRecap({ form, modulesHref }: { form: EstFields; modulesHref: string }) {
   const address = [form.address, form.postal_code, form.city, form.country].filter(Boolean).join(", ");
   return (
     <div className="space-y-3 text-sm">
@@ -243,6 +245,17 @@ function FormRecap({ form }: { form: EstFields }) {
         {form.siret && <p className="text-muted-foreground text-xs">SIRET : {form.siret}</p>}
         {form.no_tva && <p className="text-muted-foreground text-xs">TVA : {form.no_tva}</p>}
         {form.code_naf && <p className="text-muted-foreground text-xs">NAF : {form.code_naf}</p>}
+      </div>
+      <div className="rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-950/20">
+        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Aucun module attribué</p>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          Cet établissement n&apos;aura aucun module actif. Pour qu&apos;une caisse puisse s&apos;appairer, activez le
+          module POS et allouez un siège dans la{" "}
+          <a href={modulesHref} className="font-medium underline">
+            gestion des modules de l&apos;organisation
+          </a>
+          .
+        </p>
       </div>
       <p className="text-muted-foreground text-xs">
         Les taux de TVA appliqués aux produits sont ceux de l&apos;organisation.
@@ -261,6 +274,9 @@ interface Props {
 const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva", "code_naf"];
 
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
+  const params = useParams();
+  const locale = typeof params.locale === "string" ? params.locale : "fr";
+  const modulesHref = `/${locale}/admin/organizations/${organizationId}/modules`;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<EstFields>(EMPTY_FORM);
   const [touched, setTouched] = useState<Set<keyof EstFields>>(new Set());
@@ -368,7 +384,7 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
             <WizardStepper step={step} />
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
               {step === 0 && <FormEst form={form} set={set} touch={touch} touched={touched} prefill={prefill} />}
-              {step === 1 && <FormRecap form={form} />}
+              {step === 1 && <FormRecap form={form} modulesHref={modulesHref} />}
             </div>
             <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
               <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>

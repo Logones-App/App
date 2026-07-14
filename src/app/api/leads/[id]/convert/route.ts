@@ -52,6 +52,12 @@ async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
   } catch (vatErr) {
     console.error("Seed TVA org échoué (non bloquant):", vatErr);
   }
+  // Pool de modules par défaut (POS) pour que l'établissement puisse appairer une caisse.
+  // Le reste des modules s'active ensuite dans la page d'attribution. Best-effort.
+  const { error: modErr } = await svc
+    .from("organization_modules")
+    .insert({ organization_id: data.id, module: "pos", enabled: true, seats: 2 });
+  if (modErr) console.error("Seed module POS org (conversion lead) échoué (non bloquant):", modErr);
   return data.id;
 }
 

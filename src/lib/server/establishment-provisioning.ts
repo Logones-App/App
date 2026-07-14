@@ -131,29 +131,6 @@ async function insertDefaultRoomAndTable(svc: Svc, estId: string, orgId: string)
 }
 
 /**
- * Seed du module POS activé avec des postes par défaut. Requis car l'appairage d'un device
- * (`register_device` pose `mods=["pos"]`) sera refusé par l'enforcement DB si POS n'est pas
- * activé pour l'établissement. `DEFAULT_POS_SEATS` = valeur de départ ajustable (page modules),
- * ce n'est PAS la source de vérité de facturation (celle-ci vit au niveau organisation_modules).
- */
-const DEFAULT_POS_SEATS = 2;
-
-async function insertDefaultModules(svc: Svc, estId: string, orgId: string): Promise<void> {
-  const { error } = await svc.from("establishment_modules").upsert(
-    {
-      establishment_id: estId,
-      organization_id: orgId,
-      module: "pos",
-      enabled: true,
-      seats: DEFAULT_POS_SEATS,
-      deleted: false,
-    },
-    { onConflict: "establishment_id,module" },
-  );
-  if (error) throw error;
-}
-
-/**
  * Taux de TVA au niveau ORGANISATION (scope org). Idempotent : ne seede que si l'org n'a pas encore de
  * taux — le 1er établissement d'une org pose le jeu, les suivants n'y touchent pas. Voir
  * PLAN_VAT_ORG_SCOPING.md.
@@ -326,7 +303,9 @@ export async function seedEstablishmentDefaults(svc: Svc, estId: string, orgId: 
   await insertDefaultPaymentMethods(svc, estId, orgId);
   await insertDefaultMenu(svc, estId, orgId);
   await insertDefaultRoomAndTable(svc, estId, orgId);
-  await insertDefaultModules(svc, estId, orgId);
+  // NB : AUCUN module n'est activé automatiquement (ni POS). Les modules + sièges se définissent au
+  // niveau ORG (wizard création d'org) puis s'attribuent par établissement dans la page « Attribution
+  // des modules ». Un device POS ne peut s'appairer qu'une fois POS activé + un siège libre alloué.
   // Best-effort : ne bloque pas la création si le seed HACCP échoue.
   try {
     await insertHaccpDefaults(svc, estId, orgId);
