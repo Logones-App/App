@@ -41,8 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "BREVO_API_KEY manquant" }, { status: 500 });
     }
 
-    // JET 290 AVANT l'envoi : traçabilité NF525 obligatoire. signJet route selon l'algo de
-    // l'établissement (ECDSA → Edge, HMAC → RPC). Sans clé active → erreur → on BLOQUE (pas d'email).
+    // JET 290 AVANT l'envoi : traçabilité NF525 obligatoire. signJet signe en ECDSA P-256 via l'Edge
+    // Function `nf525-sign`. Sans clé de signature active → erreur → on BLOQUE (aucun email).
     const jetErr = await signJet({
       establishmentId,
       organizationId: body.organizationId,

@@ -26,6 +26,7 @@ import {
   ListChecks,
   Tag,
   GraduationCap,
+  Archive,
 } from "lucide-react";
 
 import { type NavGroup } from "./sidebar-items";
@@ -239,6 +240,7 @@ export const getOrgAdminSidebarItems = (
         { title: "Réservations & fréquentation", url: u("reporting/reservations"), icon: BarChart3 },
         { title: "FIFO & Food cost", url: u("reporting"), icon: BarChart3 },
         { title: "Export comptable", url: u("reporting/comptabilite"), icon: BarChart3 },
+        { title: "Archives fiscales", url: u("reporting/archives"), icon: Archive },
       ],
     },
 
