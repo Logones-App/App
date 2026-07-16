@@ -15,6 +15,9 @@ import type { ArchivesResponse } from "./archives-types";
  * Les 3 contrôles sont indissociables (cf. archive-verify.ts) : on affiche donc le détail de chacun,
  * jamais un « OK » global qui masquerait un contrôle non effectué. Les exclusions (archive non signée,
  * clôture introuvable) sont affichées explicitement — une archive écartée en silence serait un faux « tout va bien ».
+ *
+ * ⚠️ Aucun verdict de chaînage n'est rendu : il n'est pas vérifiable depuis le WORM (cf. archive-chain.ts).
+ * La limite est affichée, pas tue.
  */
 
 function Check({ ok, label }: { ok: boolean | null; label: string }) {
@@ -53,15 +56,14 @@ function VerdictCell({ row }: { row: ArchivesResponse["archives"][number] }) {
 function Summary({ data }: { data: ArchivesResponse }) {
   const verifiable = data.archives.filter((a) => a.verdict.verifiable);
   const invalid = verifiable.filter((a) => a.verdict.verifiable && !a.verdict.valid);
-  const defects = data.chain.defects.length;
 
-  if (invalid.length === 0 && defects === 0) {
+  if (invalid.length === 0) {
     return (
       <Alert>
         <CheckCircle2 className="h-4 w-4" />
         <AlertTitle>Aucune anomalie détectée</AlertTitle>
         <AlertDescription>
-          {verifiable.length} archive(s) vérifiée(s) sur la période — condensats, condensat intégral et chaînage
+          {verifiable.length} archive(s) vérifiée(s) sur la période — condensats des fichiers et condensat intégral
           conformes.
           {!data.signatureCheckable && " ⚠️ Signature non vérifiée : aucune clé publique pour cet établissement."}
         </AlertDescription>
@@ -73,8 +75,8 @@ function Summary({ data }: { data: ArchivesResponse }) {
       <XCircle className="h-4 w-4" />
       <AlertTitle>Défaut d&apos;intégrité</AlertTitle>
       <AlertDescription>
-        {invalid.length} archive(s) en écart, {defects} rupture(s) de chaînage. À transmettre au POS avant toute
-        conclusion : un défaut confirmé relève du JET 90 (non purgeable).
+        {invalid.length} archive(s) en écart. À transmettre à l&apos;éditeur POS avant toute conclusion : un défaut
+        confirmé relève du JET 90 (non purgeable).
       </AlertDescription>
     </Alert>
   );
@@ -107,22 +109,27 @@ function Exclusions({ data }: { data: ArchivesResponse }) {
   );
 }
 
-function ChainCard({ data }: { data: ArchivesResponse }) {
+/**
+ * Inventaire par caisse — PAS un contrôle de chaînage : celui-ci n'est pas vérifiable depuis le WORM
+ * (cf. src/lib/nf525/archive-chain.ts). On l'affiche comme une limite connue plutôt que de taire le sujet.
+ */
+function InventoryCard({ data }: { data: ArchivesResponse }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Chaînage par caisse</CardTitle>
+        <CardTitle className="text-sm font-medium">Dépôts par caisse (inventaire)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {data.chain.devices.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Aucune archive chaînable sur la période.</p>
+          <p className="text-muted-foreground text-sm">Aucune archive vérifiable sur la période.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Caisse</TableHead>
                 <TableHead className="text-right">Archives</TableHead>
-                <TableHead>Genèse (1ʳᵉ de la période)</TableHead>
+                <TableHead>Premier dépôt</TableHead>
+                <TableHead>Dernier dépôt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,8 +137,11 @@ function ChainCard({ data }: { data: ArchivesResponse }) {
                 <TableRow key={d.deviceId}>
                   <TableCell className="font-mono text-xs">{d.deviceId}</TableCell>
                   <TableCell className="text-right">{d.count}</TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
-                    {d.genesisKey.split("/").pop()}
+                  <TableCell className="text-muted-foreground text-xs">
+                    {d.firstCreatedAt ? new Date(d.firstCreatedAt).toLocaleString("fr-FR") : "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {d.lastCreatedAt ? new Date(d.lastCreatedAt).toLocaleString("fr-FR") : "—"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -139,25 +149,11 @@ function ChainCard({ data }: { data: ArchivesResponse }) {
           </Table>
         )}
 
-        {data.chain.defects.map((d) => (
-          <Alert variant="destructive" key={d.defectKey}>
-            <XCircle className="h-4 w-4" />
-            <AlertTitle>
-              {d.type === "chain_break" ? "Rupture de chaînage" : "Genèse inattendue"} — caisse {d.deviceId}
-            </AlertTitle>
-            <AlertDescription className="font-mono text-xs break-all">
-              {d.key}
-              {d.type === "chain_break" && (
-                <>
-                  <br />
-                  attendu : {d.expected}
-                  <br />
-                  trouvé : {d.found ?? "(aucun)"}
-                </>
-              )}
-            </AlertDescription>
-          </Alert>
-        ))}
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Chaînage des archives : non vérifiable ici</AlertTitle>
+          <AlertDescription className="text-xs">{data.chain.reason}</AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );
@@ -203,7 +199,7 @@ export function ArchivesReport({ data }: { data: ArchivesResponse }) {
         </CardContent>
       </Card>
 
-      <ChainCard data={data} />
+      <InventoryCard data={data} />
     </div>
   );
 }

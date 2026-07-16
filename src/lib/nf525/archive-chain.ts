@@ -1,21 +1,28 @@
 import { isVerifiable, type ZArchive } from "./archive-verify";
 
 /**
- * Contrôle de chaînage des archives fiscales Z. Server-only.
+ * Inventaire des archives fiscales Z par caisse. Server-only.
  *
- * Règles (spec POS, voir PLAN_NF525_ARCHIVES_WORM.md §3) :
- * - Une chaîne par **(établissement, device)**, JAMAIS entrelacée. Raison : offline — une caisse qui clôture
- *   sans réseau ne peut pas connaître la signature d'un autre device. Un établissement n'ayant qu'une caisse
- *   ouverte à la fois, les chaînes se succèdent en blocs contigus.
- * - On chaîne sur l'**ORDRE des archives**, JAMAIS le calendrier : un jour de fermeture ne produit pas
- *   d'archive → celle du mardi se chaîne à celle du dimanche. Un contrôle calendaire crierait à tort.
+ * 🔴 LE CHAÎNAGE DES ARCHIVES N'EST PAS VÉRIFIABLE DEPUIS LE WORM — CONSTAT MESURÉ LE 2026-07-16.
  *
- * ⚠️ DEUX EXCLUSIONS OBLIGATOIRES, sans lesquelles les faux positifs sont garantis (et un JET 90 est
- * NON PURGEABLE — un signal émis à tort ne se rattrape pas) :
- *   1. Les archives **sans signature** ne font pas avancer le fil (la suivante se chaîne à N-1) → hors chaîne.
- *   2. `report_previous_signature === false` **n'est PAS** un marqueur fiable de genèse : l'ancre vit dans le
- *      stockage local du device, donc une réinstallation ou une purge locale fabrique une fausse genèse en
- *      pleine vie. La règle fiable : **genèse ⇔ 1ʳᵉ archive de ce `device_id` (tri `created_at`)**.
+ * La spec POS annonçait `archive(n).previous_archive_signature == archive(n-1).signature_base64url`.
+ * C'est FAUX en production. Sur les 15 archives signées du WORM, les 15 `previous_archive_signature` sont
+ * ORPHELINES : aucune ne correspond à une autre archive (0 même-device, 0 cross-device, y compris sur les
+ * établissements multi-devices), ni à un `nf525_jet.signature_base64url`, ni à un `nf525_pieces.signature_base64url`
+ * — les seules tables de la base portant une `signature_base64url`.
+ *
+ * La valeur ancre n'existe donc NULLE PART chez nous : elle ne vit que dans le stockage local de la caisse.
+ * Hypothèse : la caisse chaîne sur le fil LOCAL de ses clôtures Z, alors que `signature_base64url` signe
+ * l'ARCHIVE S3 — deux objets distincts, jamais égaux.
+ *
+ * ⚠️ Appliquer la règle annoncée produirait un `chain_break` sur 100 % des archives. Un défaut d'intégrité crié à
+ * tort détruit la valeur du signal (et un JET 90 est NON PURGEABLE). Tant que le POS n'a pas répondu à la question
+ * « sur quoi porte réellement `previous_archive_signature`, et est-ce vérifiable depuis le WORM ? », ce module
+ * n'émet AUCUN verdict de chaînage : il se contente d'inventorier, et le dit explicitement.
+ *
+ * ⚠️ Ne pas non plus regrouper par device pour en tirer une conclusion : `daily_found` n'a PAS de `device_id`,
+ * la session de caisse est portée par l'ÉTABLISSEMENT. Le `device_id` de l'archive n'est que la caisse qui a
+ * clôturé. L'inventaire ci-dessous est indicatif, pas un axe de contrôle.
  */
 
 export interface ArchiveWithKey {
@@ -23,110 +30,56 @@ export interface ArchiveWithKey {
   archive: ZArchive;
 }
 
-export type ChainDefect =
-  | {
-      type: "chain_break";
-      /** Clé d'anti-répétition (spec POS : la paire de signatures). */
-      defectKey: string;
-      deviceId: string;
-      key: string;
-      previousKey: string;
-      expected: string;
-      found: string | null;
-    }
-  | {
-      type: "unexpected_genesis";
-      /** Clé d'anti-répétition : l'archive fautive. */
-      defectKey: string;
-      deviceId: string;
-      key: string;
-    };
-
-export interface DeviceChain {
+export interface DeviceInventory {
   deviceId: string;
   count: number;
-  genesisKey: string;
-  lastSignature: string;
+  firstCreatedAt: string | null;
+  lastCreatedAt: string | null;
 }
 
 export interface ChainReport {
-  devices: DeviceChain[];
-  /** Archives écartées de la chaîne (hors périmètre), à signaler mais jamais en silence. */
+  /** Toujours false : cf. l'en-tête de ce fichier. Le rapport n'affirme rien sur le chaînage. */
+  verifiable: false;
+  reason: string;
+  /** Inventaire indicatif par caisse ayant déposé des archives. */
+  devices: DeviceInventory[];
+  /** Archives hors périmètre de vérification (non signées / ancien format), à signaler jamais en silence. */
   excluded: { key: string; reason: "unsigned_or_legacy" }[];
-  defects: ChainDefect[];
 }
 
-/** Groupe par device et trie chaque fil par `created_at` croissant. */
-function groupByDevice(items: ArchiveWithKey[]): Map<string, ArchiveWithKey[]> {
-  const map = new Map<string, ArchiveWithKey[]>();
-  for (const it of items) {
-    const device = it.archive.device_id ?? "(inconnu)";
-    const list = map.get(device);
-    if (list) list.push(it);
-    else map.set(device, [it]);
-  }
-  for (const list of map.values()) {
-    list.sort((a, b) => (a.archive.created_at ?? "").localeCompare(b.archive.created_at ?? ""));
-  }
-  return map;
-}
+const REASON =
+  "Le chaînage des archives Z n'est pas vérifiable depuis le WORM : l'ancre de chaînage " +
+  "(previous_archive_signature) ne correspond à aucune archive déposée ni à aucune signature en base — elle réside " +
+  "dans le stockage local de la caisse. Constat mesuré le 16/07/2026 sur les 15 archives signées, en attente de " +
+  "confirmation de l'éditeur POS. L'intégrité de chaque archive reste, elle, contrôlée par les 3 contrôles.";
 
-/** Vérifie un fil (un device) déjà trié. La 1ʳᵉ archive est la genèse légitime, par définition. */
-function checkOneChain(deviceId: string, list: ArchiveWithKey[], defects: ChainDefect[]): DeviceChain {
-  for (let i = 1; i < list.length; i++) {
-    const cur = list[i];
-    const prev = list[i - 1];
-    const prevSig = prev.archive.signature_base64url!;
-
-    // Une archive qui se déclare genèse alors que le device en a déjà = ancre locale perdue → anomalie.
-    if (cur.archive.report_previous_signature === false) {
-      defects.push({
-        type: "unexpected_genesis",
-        defectKey: `genesis:${cur.key}`,
-        deviceId,
-        key: cur.key,
-      });
-      continue;
-    }
-
-    const found = cur.archive.previous_archive_signature ?? null;
-    if (found !== prevSig) {
-      defects.push({
-        type: "chain_break",
-        defectKey: `chain:${prevSig}:${cur.archive.signature_base64url!}`,
-        deviceId,
-        key: cur.key,
-        previousKey: prev.key,
-        expected: prevSig,
-        found,
-      });
-    }
-  }
-  return {
-    deviceId,
-    count: list.length,
-    genesisKey: list[0].key,
-    lastSignature: list[list.length - 1].archive.signature_base64url!,
-  };
-}
-
-/**
- * Contrôle le chaînage d'un lot d'archives (typiquement toutes celles d'un établissement).
- * Les archives non signées / ancien format sont écartées AVANT tout contrôle.
- */
+/** Inventorie les archives par caisse. N'émet aucun verdict de chaînage — voir l'en-tête. */
 export function checkChains(items: ArchiveWithKey[]): ChainReport {
   const excluded: ChainReport["excluded"] = [];
-  const kept: ArchiveWithKey[] = [];
+  const byDevice = new Map<string, ArchiveWithKey[]>();
+
   for (const it of items) {
-    if (isVerifiable(it.archive)) kept.push(it);
-    else excluded.push({ key: it.key, reason: "unsigned_or_legacy" });
+    if (!isVerifiable(it.archive)) {
+      excluded.push({ key: it.key, reason: "unsigned_or_legacy" });
+      continue;
+    }
+    const device = it.archive.device_id ?? "(inconnu)";
+    const list = byDevice.get(device);
+    if (list) list.push(it);
+    else byDevice.set(device, [it]);
   }
 
-  const defects: ChainDefect[] = [];
-  const devices: DeviceChain[] = [];
-  for (const [deviceId, list] of groupByDevice(kept)) {
-    devices.push(checkOneChain(deviceId, list, defects));
+  const devices: DeviceInventory[] = [];
+  for (const [deviceId, list] of byDevice) {
+    const dates = list.map((it) => it.archive.created_at ?? "").sort((a, b) => a.localeCompare(b));
+    devices.push({
+      deviceId,
+      count: list.length,
+      firstCreatedAt: dates[0] || null,
+      lastCreatedAt: dates[dates.length - 1] || null,
+    });
   }
   devices.sort((a, b) => a.deviceId.localeCompare(b.deviceId));
-  return { devices, excluded, defects };
+
+  return { verifiable: false, reason: REASON, devices, excluded };
 }

@@ -44,7 +44,30 @@ Une archive non signée du 20/06 porte **`version: 1`**, comme le format actuel 
 **Archive vérifiable ⇔ elle porte `hash_chain_input` ET `signature_base64url`.** Sinon → *hors périmètre*
 (ancien format), exclue **explicitement** et signalée dans le rapport, jamais en silence.
 
-## 3. Règles de chaînage (spec POS « solide », à implémenter telle quelle)
+## 3. Règles de chaînage
+
+> ## 🔴🔴 INVALIDÉ PAR LES FAITS (test du 2026-07-16) — NE PAS IMPLÉMENTER LA SPEC CI-DESSOUS
+>
+> **La règle `archive(n).previous_archive_signature == archive(n-1).signature_base64url` est FAUSSE en production.**
+> Test : pour **les 15 archives signées du WORM**, on a cherché à quoi correspond leur `previous_archive_signature`.
+> **Résultat : 15/15 orphelines.** Aucune ne pointe vers :
+> - une autre archive du WORM (`prev→même device: 0`, `prev→AUTRE device: 0`, sur **tous** les établissements,
+>   y compris les 2 multi-devices `1000004d` et `0fb9095f`) ;
+> - un `nf525_jet.signature_base64url` (recherche en base : aucun résultat) ;
+> - un `nf525_pieces.signature_base64url` (aucun résultat).
+>
+> Or `nf525_jet` et `nf525_pieces` sont **les seules** tables portant une `signature_base64url` (vérifié dans
+> `information_schema`). **La valeur ancre n'existe donc NULLE PART** — ni sur le WORM, ni en base. Elle ne vit que
+> dans le stockage local du device. Hypothèse la plus probable : le device chaîne sur le fil **local** de ses clôtures Z,
+> alors que `signature_base64url` de l'archive signe **l'archive S3** (deux objets distincts → jamais égaux).
+>
+> **Conséquence** : `archive-chain.ts` tel qu'écrit crierait **chain_break sur 100 % des archives**. Faux positif total.
+> Le module ne doit **pas** être exposé tant que le POS n'a pas répondu. **Le chaînage des archives Z n'est PAS
+> vérifiable depuis le WORM + la base** — c'est une question à leur poser, pas un défaut à signaler.
+>
+> ⚠️ Le scan du 15/07 n'avait rien vu car il ne jouait que les 3 contrôles ①②③, **jamais le chaînage**.
+
+### Ce que dit la spec POS (conservé pour mémoire — à confronter avec eux)
 
 - Chaîne par **(établissement, device)**, **jamais entrelacée** (raison : offline — une caisse qui clôture sans
   réseau ne peut pas connaître la signature d'un autre device). Un établissement n'a **qu'une caisse ouverte à
@@ -59,6 +82,21 @@ Une archive non signée du 20/06 porte **`version: 1`**, comme le format actuel 
 - **Device remplacé/ré-appairé** → `device_id` change → **nouvelle chaîne légitime**, aucun chaînage vers l'ancien.
 - ⚠️ **Exclure les archives sans `signature_base64url`** : elles ne font pas avancer le fil (la suivante se chaîne
   à N-1) → sans cette exclusion, **faux positif garanti**.
+
+### 📐 Les axes, mesurés (2026-07-16) — et non plus supposés
+
+| Objet | Axe réel | Preuve |
+|---|---|---|
+| **Numérotation `piece_number`** | **par device** | Redémarre à `1` sur chaque device (2 devices de `0fb9095f` ont tous deux la pièce « 1 »). `eb64c088` : **218 numéros distincts pour 489 pièces** → réemploi massif entre devices. |
+| **Chaînage des pièces** | **par device** | `eb64c088` : 20 devices, 489 pièces signées, **0 pièce chaînée à une pièce d'un autre device**, 18 genèses ≈ 1 par device. Solide. |
+| **Chaînage des JET** | **par fil (établissement, device)** + fil **device-NULL** séparé | `event_id` redémarre à 1 par fil : `24691661` device = 1→28, device-NULL = 1→3. Idem `b3d0b79d` (1→81 / 1→7). |
+| **Session de caisse (`daily_found`)** | **par ÉTABLISSEMENT** | 🔴 **`daily_found` n'a PAS de colonne `device_id`** (vérifié). Le `device_id` de l'archive n'est que **le device qui a clôturé**, pas le propriétaire de la session. |
+| **Chaînage des archives Z** | **indéterminable** | 15/15 `prev` orphelines (cf. encadré ci-dessus). |
+
+**Ce que ça implique** : grouper les archives **par device** (ce que fait `archive-chain.ts`) n'a pas de fondement —
+la session Z est portée par l'**établissement**. Si deux devices d'un même établissement clôturent à tour de rôle,
+le groupement par device fabrique deux chaînes là où il n'y a qu'une suite de sessions d'établissement.
+Constat rassurant au passage : **aucun `daily_found` n'est archivé par plus d'un device** (vérifié sur les 49 archives).
 
 ## 4. Architecture
 
