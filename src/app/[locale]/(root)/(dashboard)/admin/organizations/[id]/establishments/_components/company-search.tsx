@@ -33,6 +33,7 @@ export interface CompanyPrefill {
   address: string;
   postal_code: string;
   city: string;
+  country: string;
   code_naf: string;
 }
 
@@ -81,6 +82,9 @@ export function CompanySearch({ onSelect }: { onSelect: (fields: CompanyPrefill)
       address: r.siege.adresse,
       postal_code: r.siege.code_postal,
       city: r.siege.libelle_commune || r.siege.commune,
+      // L'API interrogée est le registre des entreprises FRANÇAISES : le pays est toujours FR.
+      // Il n'est donc pas renvoyé par l'API — on le pose ici plutôt que de laisser le champ vide.
+      country: "FR",
       code_naf: r.siege.activite_principale,
     });
     setQuery("");

@@ -126,3 +126,10 @@ export async function getArchive(key: string): Promise<unknown> {
   if (status !== 200) throw new Error(`S3 get ${status} : ${body.slice(0, 200)}`);
   return JSON.parse(body) as unknown;
 }
+
+/** Récupère une archive SANS la parser — octets exacts du WORM, pour un téléchargement vérifiable. */
+export async function getArchiveRaw(key: string): Promise<string> {
+  const { status, body } = await s3Get(key);
+  if (status !== 200) throw new Error(`S3 get ${status} : ${body.slice(0, 200)}`);
+  return body;
+}

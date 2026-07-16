@@ -49,34 +49,67 @@ function VerdictCell({ row }: { row: ArchivesResponse["archives"][number] }) {
       <Check ok={v.filesOk} label="Fichiers" />
       <Check ok={v.condensateOk} label="Condensat" />
       <Check ok={v.signatureOk} label="Signature" />
+      {v.unknownRootKeys.map((k) => (
+        <Badge variant="outline" className="gap-1" key={`root-${k}`}>
+          <AlertTriangle className="h-3 w-3" /> champ racine inconnu : {k}
+        </Badge>
+      ))}
+      {v.unmappedHashes.map((h) => (
+        <Badge variant="outline" className="gap-1" key={`hash-${h}`}>
+          <AlertTriangle className="h-3 w-3" /> condensat sans contenu : {h}
+        </Badge>
+      ))}
+      {v.undeclaredData.map((d) => (
+        <Badge variant="outline" className="gap-1" key={`data-${d}`}>
+          <AlertTriangle className="h-3 w-3" /> contenu sans condensat : {d}
+        </Badge>
+      ))}
     </div>
   );
 }
 
+/**
+ * Trois états, jamais deux. Une archive dont le format a évolué n'est PAS une archive falsifiée :
+ * la confondre avec un défaut produirait une fausse accusation (et le JET 90 est non purgeable).
+ */
 function Summary({ data }: { data: ArchivesResponse }) {
   const verifiable = data.archives.filter((a) => a.verdict.verifiable);
-  const invalid = verifiable.filter((a) => a.verdict.verifiable && !a.verdict.valid);
+  const defects = verifiable.filter((a) => a.verdict.verifiable && !a.verdict.valid && !a.verdict.inconclusive);
+  const unknown = verifiable.filter((a) => a.verdict.verifiable && a.verdict.inconclusive);
 
-  if (invalid.length === 0) {
+  if (defects.length > 0) {
+    return (
+      <Alert variant="destructive">
+        <XCircle className="h-4 w-4" />
+        <AlertTitle>Défaut d&apos;intégrité</AlertTitle>
+        <AlertDescription>
+          {defects.length} archive(s) en écart. À transmettre à l&apos;éditeur POS avant toute conclusion : un défaut
+          confirmé relève du JET 90 (non purgeable).
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (unknown.length > 0) {
     return (
       <Alert>
-        <CheckCircle2 className="h-4 w-4" />
-        <AlertTitle>Aucune anomalie détectée</AlertTitle>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Vérification non concluante — le format a évolué</AlertTitle>
         <AlertDescription>
-          {verifiable.length} archive(s) vérifiée(s) sur la période — condensats des fichiers et condensat intégral
-          conformes.
-          {!data.signatureCheckable && " ⚠️ Signature non vérifiée : aucune clé publique pour cet établissement."}
+          {unknown.length} archive(s) contiennent des éléments que ce vérificateur ne connaît pas encore. Ce n&apos;est{" "}
+          <strong>pas</strong> un défaut d&apos;intégrité : tant que le format n&apos;est pas appris, aucun verdict ne
+          peut être rendu. Mettre à jour <code>src/lib/nf525/archive-format.ts</code>.
         </AlertDescription>
       </Alert>
     );
   }
   return (
-    <Alert variant="destructive">
-      <XCircle className="h-4 w-4" />
-      <AlertTitle>Défaut d&apos;intégrité</AlertTitle>
+    <Alert>
+      <CheckCircle2 className="h-4 w-4" />
+      <AlertTitle>Aucune anomalie détectée</AlertTitle>
       <AlertDescription>
-        {invalid.length} archive(s) en écart. À transmettre à l&apos;éditeur POS avant toute conclusion : un défaut
-        confirmé relève du JET 90 (non purgeable).
+        {verifiable.length} archive(s) vérifiée(s) sur la période — condensats des fichiers et condensat intégral
+        conformes.
+        {!data.signatureCheckable && " ⚠️ Signature non vérifiée : aucune clé publique pour cet établissement."}
       </AlertDescription>
     </Alert>
   );

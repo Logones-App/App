@@ -59,19 +59,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: "can_close_day", label: "Clôture journalière (Z)", jet: "50/901", certifying: true },
       { key: "can_close_period", label: "Clôture mensuelle / annuelle", jet: "50/60", certifying: true },
-      // Mode formation non offert (position POS) → non certifiant. Si un jour il est offert : re-flaguer
-      // certifiant (JET 100/105 = début/fin de fonction spéciale).
-      { key: "can_access_training_mode", label: "Accès mode formation" },
       {
         key: "can_change_compliance_settings",
         label: "Modifier un paramètre de conformité",
         jet: "270",
         certifying: true,
       },
-      { key: "can_purge_archive", label: "Purger / archiver", jet: "200/205", certifying: true },
-      { key: "can_export_accounting", label: "Export comptable / FEC", jet: "110/180/290", certifying: true },
       { key: "can_edit_establishment", label: "Modifier données établissement", jet: "410", certifying: true },
-      { key: "can_change_signing_key", label: "Changer la clé de signature", jet: "450", certifying: true },
       { key: "can_manage_permissions", label: "Gérer les droits des employés", jet: "130", certifying: true },
       { key: "can_manage_employees", label: "Créer / modifier des employés" },
       { key: "can_manage_stock", label: "Gérer le stock (réceptions, inventaire)" },
@@ -124,7 +118,6 @@ export const ROLE_PRESETS: Record<EmployeeRole, string[]> = {
     "can_override_price",
     "can_close_day",
     "can_close_period",
-    "can_access_training_mode",
     "can_manage_employees",
     "can_manage_stock",
     "can_view_costs",

@@ -52,6 +52,22 @@ function emptyToNull(s: string): string | null {
   return s.trim() || null;
 }
 
+/**
+ * Un code postal N'EST PAS un nombre : `01000` (Bourg-en-Bresse) perdrait son zéro initial.
+ * Les départements 01 à 09 sont concernés. Le code postal est restitué sur la pièce (R12, SOC-CCP)
+ * et figure dans l'archive fiscale → un zéro perdu est une non-conformité NF525, pas un détail d'affichage.
+ * D'où : saisie en TEXTE, jamais `type="number"`, jamais `parseInt`.
+ */
+function postalError(value: string, isTouched: boolean, country: string): string | null {
+  if (!isTouched) return null;
+  if (!value.trim()) return "Champ requis";
+  if (country.trim().toUpperCase() === "FR" && !/^\d{5}$/.test(value.trim())) return "5 chiffres requis";
+  return null;
+}
+
+const isPostalValid = (value: string, country: string): boolean =>
+  value.trim() !== "" && (country.trim().toUpperCase() !== "FR" || /^\d{5}$/.test(value.trim()));
+
 function WizardStepper({ step }: { step: number }) {
   return (
     <div className="flex items-start">
@@ -99,10 +115,12 @@ function FormEst({
         : null
     : null;
   const nafErr = nafError(form.code_naf, touched.has("code_naf"));
+  const postalErr = postalError(form.postal_code, touched.has("postal_code"), form.country);
   const destructiveCls = "border-destructive focus-visible:ring-destructive";
   const inputCls = (k: keyof EstFields) => {
     if (k === "siret") return siretErr ? destructiveCls : "";
     if (k === "code_naf") return nafErr ? destructiveCls : "";
+    if (k === "postal_code") return postalErr ? destructiveCls : "";
     return err(k) ? destructiveCls : "";
   };
 
@@ -140,17 +158,19 @@ function FormEst({
       </div>
       <div className="space-y-1.5">
         <Label>
-          Code postal <span className="text-destructive">*</span>
+          Code postal <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
         </Label>
         <Input
-          type="number"
+          inputMode="numeric"
+          maxLength={5}
           value={form.postal_code}
           onChange={(e) => set("postal_code", e.target.value)}
           onBlur={() => touch("postal_code")}
           placeholder="69000"
           className={inputCls("postal_code")}
         />
-        {err("postal_code") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
+        {postalErr && <p className="text-destructive mt-0.5 text-xs">{postalErr}</p>}
       </div>
       <div className="space-y-1.5">
         <Label>
@@ -166,8 +186,18 @@ function FormEst({
         {err("city") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>Pays</Label>
-        <Input value={form.country} onChange={(e) => set("country", e.target.value)} placeholder="FR" />
+        <Label>
+          Pays <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
+        </Label>
+        <Input
+          value={form.country}
+          onChange={(e) => set("country", e.target.value)}
+          onBlur={() => touch("country")}
+          placeholder="FR"
+          className={inputCls("country")}
+        />
+        {err("country") && <p className="text-destructive mt-0.5 text-xs">Champ requis</p>}
       </div>
       <div className="space-y-1.5">
         <Label>Téléphone</Label>
@@ -271,7 +301,18 @@ interface Props {
   onSuccess: () => void;
 }
 
-const STEP0_REQUIRED: (keyof EstFields)[] = ["name", "address", "postal_code", "city", "siret", "no_tva", "code_naf"];
+// `country` est requis au même titre que le code postal et la ville : R12 les veut en rubriques SÉPARÉES
+// (SOC-CCP / SOC-VIL / SOC-PAYS), et l'archive fiscale doit être exploitable sans le logiciel (§6.9.4).
+const STEP0_REQUIRED: (keyof EstFields)[] = [
+  "name",
+  "address",
+  "postal_code",
+  "city",
+  "country",
+  "siret",
+  "no_tva",
+  "code_naf",
+];
 
 export function CreateEstablishmentModal({ open, organizationId, onClose, onSuccess }: Props) {
   const params = useParams();
@@ -285,7 +326,10 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
 
   const siretDigits = form.siret.replace(/\s/g, "");
   const isStep0Valid =
-    STEP0_REQUIRED.every((k) => form[k].trim() !== "") && /^\d{14}$/.test(siretDigits) && isValidNaf(form.code_naf);
+    STEP0_REQUIRED.every((k) => form[k].trim() !== "") &&
+    /^\d{14}$/.test(siretDigits) &&
+    isValidNaf(form.code_naf) &&
+    isPostalValid(form.postal_code, form.country);
 
   function handleClose() {
     if (isSubmitting) return;

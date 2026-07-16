@@ -21,12 +21,20 @@ interface PatchBody {
   description: string | null;
 }
 
+/** Chaîne vide → null. `??` ne conviendrait pas : `""` n'est pas nullish et serait conservé tel quel. */
+function trimOrNull(s: string | null | undefined): string | null {
+  const t = s?.trim();
+  return t === undefined || t === "" ? null : t;
+}
+
 function buildPatch(body: PatchBody) {
-  const rawPostal = body.postal_code ? parseInt(body.postal_code, 10) : null;
   return {
     name: body.name.trim(),
     address: body.address ?? null,
-    postal_code: rawPostal !== null && !isNaN(rawPostal) ? rawPostal : null,
+    // ⚠️ JAMAIS de parseInt : un code postal est une CHAÎNE. « 01000 » (Bourg-en-Bresse) deviendrait 1000
+    // — départements 01 à 09. Restitué sur la pièce (R12, SOC-CCP) et présent dans l'archive fiscale, donc
+    // un zéro perdu est une non-conformité NF525. Colonne passée en `text` le 16/07/2026.
+    postal_code: trimOrNull(body.postal_code),
     city: body.city ?? null,
     country: body.country ?? null,
     phone: body.phone ?? null,

@@ -44,6 +44,73 @@ Une archive non signée du 20/06 porte **`version: 1`**, comme le format actuel 
 **Archive vérifiable ⇔ elle porte `hash_chain_input` ET `signature_base64url`.** Sinon → *hors périmètre*
 (ancien format), exclue **explicitement** et signalée dans le rapport, jamais en silence.
 
+## 2 bis. CE QUE DIT VRAIMENT LA NORME (lecture intégrale R12 + R13 + R19 + Référentiel Exigences, 2026-07-16)
+
+Les 4 documents de `_DOC/NF525_Officiel/` ont été lus intégralement. Conclusions **textuelles** (pas des interprétations) :
+
+### ✅ Ce qui est EXIGÉ pour l'archive, et que nous vérifions déjà à 100 %
+> « La sécurisation de l'archive fiscale produite par le logiciel doit intégrer **l'intégralité des données de
+> l'archive** tel que requis dans [R12] et [R13]. » — **Référentiel Exigences §6.11.3**
+
+Repris à l'identique par **R13 §7 note #[8]** (« …plus acceptée » à compter du 31/12/2022 pour la signature *minimale*)
+et **R12 §7.4 note #[6]** (mise à jour en V4.2 : position #1 = « **Toutes des données de l'archive** », `TAG-ARC`).
+→ **C'est exactement le contrôle ② (condensat intégral).** Il passe sur 100 % des archives ECDSA. La conformité se joue
+**là**, et elle est acquise et prouvée.
+
+### 🔴 Le chaînage n'est EXIGÉ NULLE PART
+Le mot **« chaînage » n'apparaît pas une seule fois** dans le Référentiel Exigences (le document prescriptif).
+Il n'exige qu'une **signature asymétrique** (§6.11.3) et **renvoie la composition aux dictionnaires** R12/R13/R19 —
+lesquels **renvoient en retour au référentiel** (« sans toutefois se substituer à ces derniers »). **Le renvoi est
+circulaire : aucun des 4 documents ne fixe d'axe de chaînage.**
+
+- **R12 §7.4 pos. 7** et **R13 §7 pos. 7** définissent bien un champ « **Signature Electronique de l'archive
+  précédente** » (`TAG-ARC-SIG`) + son drapeau de report (`TAG-ARC-OEN`) — **non périmés** (R12 §7.4 est *mis à jour*
+  en V4.2, aucune note de péremption). Mais **« l'archive précédente » n'est définie nulle part** : ni périmètre,
+  ni ordre.
+- Quand les dictionnaires VEULENT partitionner une chaîne, **ils le disent** : duplicatas → « pour le **même type de
+  pièce** » (R13 §7, R12 §7.2) ; Grands Totaux → « pour la **même périodicité** » (mars chaîne février, R13 note [6]).
+  **Jamais « par caisse », jamais « par établissement ».**
+
+### 🔴 La norme ne connaît PAS la notion d'« établissement »
+Dans le Référentiel Exigences, « établissement » n'existe **que** comme substantif verbal (« établissement d'une
+facture »). L'entité de rattachement est l'**assujetti**, identifié par son **SIREN** (§6.5.6/§6.5.7) — pas le SIRET.
+« Caisse » et « poste » ne sont **pas définis** non plus. R12 ne mentionne **jamais** de caisse (0 occurrence).
+→ **Notre axe « établissement » est un choix d'éditeur, pas une notion normative.** Ce n'est pas un problème :
+
+> « L'architecture de l'archive : • découpage temporel ; • **découpage organisationnel** ; • découpage structurel » —
+> **§6.9.3, Documentation des archives fiscales**
+
+**La norme n'impose pas un axe : elle impose de DOCUMENTER le sien.** Idem §6.1.4 (« La gestion de la numérotation de
+la séquence continue (**par période, par série**) doit respecter les exigences réglementaires » + « La documentation
+doit comporter une description du mode de gestion ») et §6.11.2 (« doit pouvoir **documenter et justifier** la liste
+des données incluses dans la sécurisation »). **Le levier d'audit n'est pas « quel axe est conforme » mais « votre axe
+est-il documenté et justifié ».**
+
+### 📌 Les axes réellement implémentés (mesurés, cf. §3) — à documenter au titre du §6.9.3
+Pièces : chaîne + numérotation **par device**. JET : chaîne **par fil (établissement, device)** + fil device-NULL.
+Session `daily_found` : **par établissement**. Archives : **indéterminable**.
+
+### ⚠️ DEUX EXIGENCES CHIFFRÉES À VÉRIFIER (hors périmètre archives, mais réelles)
+1. **§6.4.1** : « **La période quotidienne de clôture ne peut excéder 24h** sauf dans le cas où la clôture quotidienne
+   est exécutée avant le démarrage de la période quotidienne suivante. » + « **En cas d'impossibilité de respecter la
+   durée maximale de période de 24h, le logiciel doit pouvoir l'enregistrer dans le JET** tel que défini dans [R19]. »
+   → **Mesuré en base (2026-07-16)** : `b3d0b79d` (l'étab d'audit) = **1 session sur 3 dépasse 24h** (1 j 04:03) ;
+   `1000004d` 4/7 ; `0fb9095f` 4/7 ; `eb64c088` 42/122 (max **8 j 21 h**). `bc066cb5` et `24691661` = 0.
+   **Question POS : émettez-vous le JET prévu au §6.4.1 quand les 24 h sont dépassées ?** (Aucun code JET dédié
+   n'a été identifié dans notre base.) Ce n'est PAS une question de doctrine : le §6.4.1 est prescriptif et chiffré.
+2. **§6.4.1** : l'état de clôture doit contenir « **Identification de la caisse faisant l'objet de la clôture (si
+   plusieurs caisses)** ». Or `daily_found` **n'a pas de `device_id`** → à confronter au POS si un établissement peut
+   avoir plusieurs caisses.
+3. **§6.8.1** (centralisation, applicable à notre archi SaaS↔POS offline) : « Le logiciel doit s'assurer qu'il **ne
+   pourra pas continuer de fonctionner au-delà d'un mois (ou 31 jours) sans connexion** avec le système
+   centralisateur. » → à confirmer côté POS.
+
+### 🧭 Position d'audit défendable sur les archives
+Le contrôle que la norme exige (signature sur l'intégralité des données) **est implémenté, vérifié, et passe à 100 %**.
+Le chaînage inter-archives **n'est pas exigé** ; notre page ne le contrôle donc pas et **le dit explicitement** plutôt
+que de crier un faux défaut. Cf. §1 du Référentiel : « Toute solution alternative au présent référentiel n'altérant pas
+la conformité du logiciel doit être **dûment documentée et archivée**. »
+
 ## 3. Règles de chaînage
 
 > ## 🔴🔴 INVALIDÉ PAR LES FAITS (test du 2026-07-16) — NE PAS IMPLÉMENTER LA SPEC CI-DESSOUS
@@ -193,7 +260,7 @@ AVANT** cette insertion.
 | Lot | Contenu | État |
 |---|---|---|
 | **L1** | `s3-read.ts` (SigV4) + creds Coolify + route liste | ✅ fait |
-| **L2** | `archive-verify.ts` : 3 contrôles + discrimination de structure | ✅ fait |
+| **L2** | `archive-verify.ts` : 3 contrôles + discrimination de structure | ⚠️ **À MOITIÉ FAIT** — le code est écrit et prouvé à l'octet sur une archive réelle, mais le **vecteur golden n'est PAS figé en test dans le repo** (il n'existe que dans un scratchpad temporaire). Le lot exigeait « + vecteur golden figé en test » : cette moitié est **sautée**. Le repo n'a **aucun runner de test** (ni vitest, ni jest). |
 | **L3** | `archive-chain.ts` : chaînage par device, genèse, 2 exclusions | ✅ fait |
 | **L4** | Table `nf525_integrity_defects` + émission 90 anti-répétition | ⏸️ reporté — « on branchera les JET si besoin ». Rien ne le bloque : `defectKey` est déjà produit par `checkChains()` pour l'anti-répétition. |
 | **L5** | Page `reporting/archives` + boutons + rapport | ✅ fait — sidenav org-admin, groupe Reporting |

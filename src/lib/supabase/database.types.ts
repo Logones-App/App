@@ -2629,7 +2629,7 @@ export type Database = {
           no_tva: string | null
           organization_id: string
           phone: string | null
-          postal_code: number | null
+          postal_code: string | null
           public_menu_locales: string[]
           seo_description: string | null
           seo_title: string | null
@@ -2657,7 +2657,7 @@ export type Database = {
           no_tva?: string | null
           organization_id: string
           phone?: string | null
-          postal_code?: number | null
+          postal_code?: string | null
           public_menu_locales?: string[]
           seo_description?: string | null
           seo_title?: string | null
@@ -2685,7 +2685,7 @@ export type Database = {
           no_tva?: string | null
           organization_id?: string
           phone?: string | null
-          postal_code?: number | null
+          postal_code?: string | null
           public_menu_locales?: string[]
           seo_description?: string | null
           seo_title?: string | null
@@ -4900,6 +4900,74 @@ export type Database = {
           },
         ]
       }
+      nf525_archive_index: {
+        Row: {
+          centralized_at: string | null
+          created_at: string
+          daily_found_id: string
+          device_id: string | null
+          establishment_id: string
+          id: string
+          organization_id: string | null
+          s3_key: string | null
+          signature_base64url: string
+          updated_at: string
+        }
+        Insert: {
+          centralized_at?: string | null
+          created_at: string
+          daily_found_id: string
+          device_id?: string | null
+          establishment_id: string
+          id?: string
+          organization_id?: string | null
+          s3_key?: string | null
+          signature_base64url: string
+          updated_at: string
+        }
+        Update: {
+          centralized_at?: string | null
+          created_at?: string
+          daily_found_id?: string
+          device_id?: string | null
+          establishment_id?: string
+          id?: string
+          organization_id?: string | null
+          s3_key?: string | null
+          signature_base64url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_archive_index_daily_found_id_fkey"
+            columns: ["daily_found_id"]
+            isOneToOne: false
+            referencedRelation: "daily_found"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_archive_index_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_archive_index_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_archive_index_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nf525_config: {
         Row: {
           created_at: string | null
@@ -4923,6 +4991,104 @@ export type Database = {
           value?: string | null
         }
         Relationships: []
+      }
+      nf525_grands_totaux: {
+        Row: {
+          centralized_at: string | null
+          created_at: string
+          daily_found_id: string | null
+          device_id: string
+          establishment_id: string
+          gtpca: number
+          hash_chain_input: string | null
+          id: string
+          organization_id: string | null
+          period_end: string
+          period_id: string
+          period_start: string
+          periodicity: string
+          previous_signature_base64url: string | null
+          recorded_at: string
+          signature_base64url: string
+          total_ht: number
+          total_ttc: number
+          updated_at: string
+          vat_details: Json
+        }
+        Insert: {
+          centralized_at?: string | null
+          created_at: string
+          daily_found_id?: string | null
+          device_id: string
+          establishment_id: string
+          gtpca: number
+          hash_chain_input?: string | null
+          id?: string
+          organization_id?: string | null
+          period_end: string
+          period_id: string
+          period_start: string
+          periodicity: string
+          previous_signature_base64url?: string | null
+          recorded_at: string
+          signature_base64url: string
+          total_ht: number
+          total_ttc: number
+          updated_at: string
+          vat_details: Json
+        }
+        Update: {
+          centralized_at?: string | null
+          created_at?: string
+          daily_found_id?: string | null
+          device_id?: string
+          establishment_id?: string
+          gtpca?: number
+          hash_chain_input?: string | null
+          id?: string
+          organization_id?: string | null
+          period_end?: string
+          period_id?: string
+          period_start?: string
+          periodicity?: string
+          previous_signature_base64url?: string | null
+          recorded_at?: string
+          signature_base64url?: string
+          total_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          vat_details?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_grands_totaux_daily_found_id_fkey"
+            columns: ["daily_found_id"]
+            isOneToOne: false
+            referencedRelation: "daily_found"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_grands_totaux_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_grands_totaux_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_grands_totaux_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nf525_jet: {
         Row: {
@@ -5229,15 +5395,23 @@ export type Database = {
           device_id: string
           doc_type: string
           duplicate_of_id: string | null
+          employee_id: string | null
           establishment_id: string
+          hash_chain_input: string | null
           id: string
           is_refund_valid: boolean
+          motif: string | null
           nf525_piece_id: string | null
           order_id: string | null
           organization_id: string | null
+          origin_piece_number: string | null
+          origin_type: string | null
           payment_id: string | null
+          previous_signature_base64url: string | null
           print_index: number
           printed_at: string
+          signature_base64url: string | null
+          software_version: string | null
           updated_at: string
           vat_details: Json | null
         }
@@ -5248,15 +5422,23 @@ export type Database = {
           device_id: string
           doc_type: string
           duplicate_of_id?: string | null
+          employee_id?: string | null
           establishment_id: string
+          hash_chain_input?: string | null
           id?: string
           is_refund_valid?: boolean
+          motif?: string | null
           nf525_piece_id?: string | null
           order_id?: string | null
           organization_id?: string | null
+          origin_piece_number?: string | null
+          origin_type?: string | null
           payment_id?: string | null
-          print_index?: number
-          printed_at?: string
+          previous_signature_base64url?: string | null
+          print_index: number
+          printed_at: string
+          signature_base64url?: string | null
+          software_version?: string | null
           updated_at?: string
           vat_details?: Json | null
         }
@@ -5267,15 +5449,23 @@ export type Database = {
           device_id?: string
           doc_type?: string
           duplicate_of_id?: string | null
+          employee_id?: string | null
           establishment_id?: string
+          hash_chain_input?: string | null
           id?: string
           is_refund_valid?: boolean
+          motif?: string | null
           nf525_piece_id?: string | null
           order_id?: string | null
           organization_id?: string | null
+          origin_piece_number?: string | null
+          origin_type?: string | null
           payment_id?: string | null
+          previous_signature_base64url?: string | null
           print_index?: number
           printed_at?: string
+          signature_base64url?: string | null
+          software_version?: string | null
           updated_at?: string
           vat_details?: Json | null
         }
@@ -5292,6 +5482,13 @@ export type Database = {
             columns: ["duplicate_of_id"]
             isOneToOne: false
             referencedRelation: "nf525_restitutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_restitutions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -8150,6 +8347,14 @@ export type Database = {
         Returns: boolean
       }
       auth_is_org_admin: { Args: { p_org_id: string }; Returns: boolean }
+      claim_device_modules: {
+        Args: {
+          p_establishment_id: string
+          p_organization_id: string
+          p_serial_number: string
+        }
+        Returns: Json
+      }
       cleanup_expired_device_sessions: { Args: never; Returns: undefined }
       cleanup_old_email_logs: {
         Args: { days_to_keep?: number }

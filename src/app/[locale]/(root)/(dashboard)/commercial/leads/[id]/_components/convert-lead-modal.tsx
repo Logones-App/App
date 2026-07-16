@@ -160,7 +160,9 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
           establishment: {
             name: estForm.name.trim(),
             address: emptyToNull(estForm.address),
-            postal_code: estForm.postal_code ? parseInt(estForm.postal_code, 10) : null,
+            // ⚠️ JAMAIS de parseInt : « 01000 » deviendrait 1000 (départements 01 à 09). Le code postal
+            // est restitué sur la pièce (R12, SOC-CCP) et figure dans l'archive fiscale.
+            postal_code: emptyToNull(estForm.postal_code),
             city: emptyToNull(estForm.city),
             phone: emptyToNull(estForm.phone),
             email: emptyToNull(estForm.email),

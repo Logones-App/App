@@ -17,6 +17,7 @@ import { useOrgaUserOrganizationId } from "@/hooks/use-orga-user-organization-id
 
 import { ArchivesReport } from "./archives-report";
 import type { ArchivesResponse } from "./archives-types";
+import { ArchivesVerifyFile } from "./archives-verify-file";
 
 /**
  * Archives fiscales Z (WORM S3) — CONSULTATION ET CONTRÔLE À LA DEMANDE.
@@ -40,10 +41,22 @@ function downloadJson(content: unknown, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function ArchivesTable({ data }: { data: ArchivesResponse }) {
+function ArchivesTable({
+  data,
+  establishmentId,
+  organizationId,
+}: {
+  data: ArchivesResponse;
+  establishmentId: string;
+  organizationId: string;
+}) {
   if (data.archives.length === 0) {
     return <p className="text-muted-foreground p-4 text-sm">Aucune archive sur la période.</p>;
   }
+  const downloadHref = (key: string) =>
+    `/api/establishments/${establishmentId}/archives/download?organizationId=${encodeURIComponent(
+      organizationId,
+    )}&key=${encodeURIComponent(key)}`;
   return (
     <Table>
       <TableHeader>
@@ -52,6 +65,7 @@ function ArchivesTable({ data }: { data: ArchivesResponse }) {
           <TableHead>Caisse</TableHead>
           <TableHead>Déposée le</TableHead>
           <TableHead>Fichier</TableHead>
+          <TableHead className="text-right">Télécharger</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -63,6 +77,15 @@ function ArchivesTable({ data }: { data: ArchivesResponse }) {
               {a.createdAt ? new Date(a.createdAt).toLocaleString("fr-FR") : "—"}
             </TableCell>
             <TableCell className="text-muted-foreground font-mono text-xs">{a.key.split("/").pop()}</TableCell>
+            <TableCell className="text-right">
+              <a
+                href={downloadHref(a.key)}
+                download
+                className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+              >
+                <Download className="h-3 w-3" /> JSON
+              </a>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -171,12 +194,14 @@ export function ArchivesClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ArchivesTable data={data} />
+            <ArchivesTable data={data} establishmentId={establishmentId} organizationId={organizationId} />
           </CardContent>
         </Card>
       )}
 
       {view === "verify" && data && <ArchivesReport data={data} />}
+
+      <ArchivesVerifyFile />
     </div>
   );
 }

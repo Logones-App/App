@@ -82,8 +82,10 @@ export function StepEst({ form, setEst }: { form: EstForm; setEst: (f: keyof Est
       </div>
       <div className="space-y-1.5">
         <Label>Code postal</Label>
+        {/* Texte, jamais `type="number"` : « 01000 » perdrait son zéro initial (départements 01 à 09). */}
         <Input
-          type="number"
+          inputMode="numeric"
+          maxLength={5}
           value={form.postal_code}
           onChange={(e) => setEst("postal_code", e.target.value)}
           placeholder="69000"

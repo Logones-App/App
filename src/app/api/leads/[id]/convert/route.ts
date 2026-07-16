@@ -26,7 +26,8 @@ interface OrgPayload {
 interface EstPayload {
   name: string;
   address?: string | null;
-  postal_code?: number | null;
+  /** CHAÎNE, jamais un nombre : « 01000 » perdrait son zéro initial (départements 01 à 09). */
+  postal_code?: string | null;
   city?: string | null;
   phone?: string | null;
   email?: string | null;

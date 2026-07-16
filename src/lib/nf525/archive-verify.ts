@@ -1,5 +1,13 @@
 import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto";
 
+import {
+  CONDENSATE_KEY_ORDER,
+  dataKeyFromHashName,
+  KNOWN_ROOT_KEYS,
+  MANIFEST_HASH_NAME,
+  MANIFEST_KEYS,
+} from "./archive-format";
+
 /**
  * Vérification d'intégrité d'une archive fiscale Z (WORM). Server-only.
  *
@@ -7,20 +15,16 @@ import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto
  * signature VALIDE : seul le recalcul du condensat intégral (②) le détecte. Vérifier la signature seule
  * donnerait un faux « OK » sur une archive falsifiée.
  *
- * Format reverse-validé à l'octet sur des archives réelles (voir PLAN_NF525_ARCHIVES_WORM.md §2).
+ * ② est le contrôle que la norme EXIGE : « La sécurisation de l'archive fiscale produite par le logiciel
+ * doit intégrer l'intégralité des données de l'archive » (Référentiel NF525 §6.11.3, X en catégorie B).
+ *
+ * ⚠️ AUCUN NOMBRE DE FICHIERS N'EST ÉCRIT ICI. ① itère sur les condensats que l'archive DÉCLARE
+ * (`archive.hashes`), pas sur une liste figée : le format grandit (Grands Totaux, JET, restitutions…)
+ * et doit pouvoir grandir sans redéploiement. Les rares règles non déductibles vivent dans
+ * `archive-format.ts` — un seul fichier à toucher.
  */
 
 const sha256hex = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
-
-/** Les 7 fichiers logiques : 6 issus de `data` + le manifest synthétisé. */
-const DATA_FILES = [
-  ["nf525_pieces.json", "nf525_pieces"],
-  ["nf525_piece_recap_tva.json", "nf525_piece_recap_tva"],
-  ["order_products.json", "order_products"],
-  ["order_payments.json", "order_payments"],
-  ["order_payment_settlements.json", "order_payment_settlements"],
-  ["payment_methods.json", "payment_methods"],
-] as const;
 
 export interface ZArchive {
   version?: number;
@@ -38,6 +42,7 @@ export interface ZArchive {
   report_previous_signature?: boolean;
   previous_archive_signature?: string | null;
   signature_base64url?: string;
+  [key: string]: unknown;
 }
 
 export type ArchiveVerdict =
@@ -47,6 +52,15 @@ export type ArchiveVerdict =
       filesOk: boolean;
       condensateOk: boolean;
       signatureOk: boolean | null; // null = pas de clé publique (établissement HMAC legacy)
+      /** Condensats déclarés dont le contenu est introuvable → on ne peut PAS conclure. */
+      unmappedHashes: string[];
+      /** Contenus de `data` sans condensat déclaré → ① ne les couvre pas. */
+      undeclaredData: string[];
+      /** Clés racine inconnues de notre profil → le format a évolué, notre ② est peut-être périmé. */
+      unknownRootKeys: string[];
+      /** Rien de faux, mais quelque chose n'a pas pu être vérifié → ni vert, ni défaut. */
+      inconclusive: boolean;
+      /** Tous les contrôles verts ET rien d'inconnu. */
       valid: boolean;
       failedFiles: string[];
     };
@@ -54,53 +68,61 @@ export type ArchiveVerdict =
 /**
  * Une archive est VÉRIFIABLE ssi elle porte `hash_chain_input` ET `signature_base64url`.
  * ⚠️ NE PAS se fier au champ `version` : des archives d'un ancien format (4 fichiers, sans signature)
- * portent elles aussi `version: 1`. La structure fait foi, pas le numéro.
+ * portent elles aussi `version: 1`. La structure fait foi, pas le numéro. (Constat : 34 archives à
+ * 5 condensats et 15 à 7 condensats coexistent sous `version: 1`.)
  */
 export function isVerifiable(a: ZArchive): boolean {
   return typeof a.hash_chain_input === "string" && typeof a.signature_base64url === "string";
 }
 
-/** ① Condensats des 7 fichiers logiques. Retourne la liste des fichiers en écart. */
-function checkFiles(a: ZArchive): string[] {
-  const failed: string[] = [];
-  const manifest = {
-    version: a.version,
-    created_at: a.created_at,
-    organization_id: a.organization_id,
-    establishment_id: a.establishment_id,
-    device_id: a.device_id,
-    daily_found_id: a.daily_found_id,
-    scope: a.scope,
-  };
-  for (const [name, dataKey] of DATA_FILES) {
-    if (sha256hex(JSON.stringify(a.data?.[dataKey])) !== a.hashes?.[name]) failed.push(name);
-  }
-  if (sha256hex(JSON.stringify(manifest)) !== a.hashes?.["manifest.json"]) failed.push("manifest.json");
-  return failed;
+const buildFromKeys = (a: ZArchive, keys: readonly string[]): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const k of keys) out[k] = a[k];
+  return out;
+};
+
+interface FilesResult {
+  failedFiles: string[];
+  unmappedHashes: string[];
+  undeclaredData: string[];
 }
 
 /**
- * ② Condensat intégral. ⚠️ L'ORDRE DES CLÉS EST SIGNIFIANT et DIFFÈRE de l'ordre des clés de l'archive
- * (elle-même sérialisée `… scope, data, hashes, totals, operation_type …`) → on construit un objet dédié.
- * Il doit égaler le DERNIER champ de `hash_chain_input`.
+ * ① Condensats des fichiers logiques — GÉNÉRIQUE : on itère sur `a.hashes`, donc sur ce que
+ * l'archive déclare. Un fichier ajouté au format est vérifié automatiquement.
+ */
+function checkFiles(a: ZArchive): FilesResult {
+  const res: FilesResult = { failedFiles: [], unmappedHashes: [], undeclaredData: [] };
+  const hashes = a.hashes ?? {};
+
+  for (const [hashName, expected] of Object.entries(hashes)) {
+    if (hashName === MANIFEST_HASH_NAME) {
+      if (sha256hex(JSON.stringify(buildFromKeys(a, MANIFEST_KEYS))) !== expected) res.failedFiles.push(hashName);
+      continue;
+    }
+    const dataKey = dataKeyFromHashName(hashName);
+    if (!a.data || !(dataKey in a.data)) {
+      // Condensat annoncé sans contenu : on ne peut ni valider ni accuser → on le DIT.
+      res.unmappedHashes.push(hashName);
+      continue;
+    }
+    if (sha256hex(JSON.stringify(a.data[dataKey])) !== expected) res.failedFiles.push(hashName);
+  }
+
+  for (const dataKey of Object.keys(a.data ?? {})) {
+    if (!(`${dataKey}.json` in hashes)) res.undeclaredData.push(dataKey);
+  }
+  return res;
+}
+
+/**
+ * ② Condensat intégral. ⚠️ L'ORDRE DES CLÉS EST SIGNIFIANT et diffère de l'ordre des clés de l'archive
+ * → objet reconstruit depuis `CONDENSATE_KEY_ORDER`. Il doit égaler le DERNIER champ de `hash_chain_input`.
  */
 function checkCondensate(a: ZArchive): boolean {
-  const full = {
-    version: a.version,
-    created_at: a.created_at,
-    organization_id: a.organization_id,
-    establishment_id: a.establishment_id,
-    device_id: a.device_id,
-    daily_found_id: a.daily_found_id,
-    operation_type: a.operation_type,
-    scope: a.scope,
-    data: a.data,
-    totals: a.totals,
-    hashes: a.hashes,
-  };
   const chain = a.hash_chain_input ?? "";
   // Le condensat est TOUJOURS le dernier champ → insensible aux virgules de la ventilation TVA.
-  return sha256hex(JSON.stringify(full)) === chain.slice(chain.lastIndexOf(",") + 1);
+  return sha256hex(JSON.stringify(buildFromKeys(a, CONDENSATE_KEY_ORDER))) === chain.slice(chain.lastIndexOf(",") + 1);
 }
 
 /** Point compressé (33 o) → clé publique SPKI utilisable par node:crypto. */
@@ -139,16 +161,27 @@ export function verifyArchive(a: ZArchive, publicKeyBase64: string | null): Arch
       detail: "Archive sans hash_chain_input/signature (ancien format) — hors périmètre de vérification.",
     };
   }
-  const failedFiles = checkFiles(a);
+  const { failedFiles, unmappedHashes, undeclaredData } = checkFiles(a);
+  const unknownRootKeys = Object.keys(a).filter((k) => !KNOWN_ROOT_KEYS.includes(k));
+
   const filesOk = failedFiles.length === 0;
   const condensateOk = checkCondensate(a);
   const signatureOk = publicKeyBase64 ? checkSignature(a, publicKeyBase64) : null;
+
+  // Une clé racine inconnue = le format a évolué : notre ordre de condensat est peut-être périmé,
+  // donc un ② rouge ne prouve RIEN. On ne conclut pas plutôt que d'accuser à tort.
+  const inconclusive = unknownRootKeys.length > 0 || unmappedHashes.length > 0 || undeclaredData.length > 0;
+
   return {
     verifiable: true,
     filesOk,
     condensateOk,
     signatureOk,
-    valid: filesOk && condensateOk && signatureOk !== false,
+    unmappedHashes,
+    undeclaredData,
+    unknownRootKeys,
+    inconclusive,
+    valid: filesOk && condensateOk && signatureOk !== false && !inconclusive,
     failedFiles,
   };
 }

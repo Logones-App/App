@@ -25,15 +25,23 @@ interface EstBody {
   code_naf?: string | null;
 }
 
+/** Chaîne vide → null. `??` ne conviendrait pas : `""` n'est pas nullish et serait conservé tel quel. */
+function trimOrNull(s: string | null | undefined): string | null {
+  const t = s?.trim();
+  return t === undefined || t === "" ? null : t;
+}
+
 function buildEstData(est: EstBody, orgId: string, userId: string, slug: string) {
-  const rawPostal = est.postal_code ? parseInt(est.postal_code, 10) : null;
   return {
     name: est.name.trim(),
     organization_id: orgId,
     created_by: userId,
     slug,
     address: est.address ?? null,
-    postal_code: rawPostal !== null && !isNaN(rawPostal) ? rawPostal : null,
+    // ⚠️ JAMAIS de parseInt ici : un code postal est une CHAÎNE. « 01000 » (Bourg-en-Bresse) deviendrait
+    // 1000 — départements 01 à 09. Il est restitué sur la pièce (R12, SOC-CCP) et figure dans l'archive
+    // fiscale, donc un zéro perdu est une non-conformité NF525. La colonne est en `text` depuis le 16/07/2026.
+    postal_code: trimOrNull(est.postal_code),
     city: est.city ?? null,
     country: est.country ?? "FR",
     phone: est.phone ?? null,
