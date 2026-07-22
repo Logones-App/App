@@ -206,7 +206,14 @@ function IndicatorCard({
 
 function isOverdue(dueDate: string | null) {
   if (!dueDate) return false;
-  return dueDate < format(new Date(), "yyyy-MM-dd");
+  // `due_date` est un timestamptz (ISO complet) : comparer la partie date, sans concaténer d'heure.
+  return dueDate.slice(0, 10) < format(new Date(), "yyyy-MM-dd");
+}
+
+/** `due_date` peut être un timestamptz complet OU une date : `new Date()` gère les deux. Garde-fou anti-crash. */
+function fmtDueDate(dueDate: string): string {
+  const d = new Date(dueDate);
+  return Number.isNaN(d.getTime()) ? "" : format(d, "d MMM", { locale: fr });
 }
 
 function fmtEur(n: number) {
@@ -301,7 +308,7 @@ export function CommercialDashboard() {
                           className={`shrink-0 text-xs font-medium ${overdue ? "text-red-600" : "text-muted-foreground"}`}
                         >
                           {overdue ? "Retard · " : ""}
-                          {format(new Date(`${task.due_date}T00:00:00`), "d MMM", { locale: fr })}
+                          {fmtDueDate(task.due_date)}
                         </span>
                       )}
                     </li>
