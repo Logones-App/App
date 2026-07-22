@@ -40,6 +40,8 @@ export type TableViewResponse = {
   pending: PendingRequest[];
   grand_total: number;
   orders_id: string;
+  /** true si la commande n'est plus ouverte (table clôturée) — remplace l'ex-abonnement Realtime `orders`. */
+  table_closed: boolean;
 };
 
 type PendingItemRaw = { name: string; quantity: number };
@@ -115,12 +117,16 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
 
-  const [paymentsRes, pendingRes] = await Promise.all([
+  const [paymentsRes, pendingRes, orderRes] = await Promise.all([
     service.from("order_payments").select("id, name").eq("orders_id", ordersId).neq("deleted", true),
     service.from("table_order_requests").select("guest_name, items").eq("order_id", ordersId).eq("status", "pending"),
+    service.from("orders").select("opened").eq("id", ordersId).maybeSingle(),
   ]);
 
   if (paymentsRes.error) return NextResponse.json({ error: paymentsRes.error.message }, { status: 500 });
+
+  // La commande est « fermée » si elle n'existe plus comme ouverte (table clôturée par le staff).
+  const table_closed = orderRes.data?.opened === false;
 
   const pending: PendingRequest[] = (pendingRes.data ?? []).map((req) => ({
     guest_name: req.guest_name,
@@ -130,7 +136,13 @@ export async function GET(request: NextRequest) {
   const payments = paymentsRes.data;
 
   if (!payments.length) {
-    return NextResponse.json({ guests: [], pending, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
+    return NextResponse.json({
+      guests: [],
+      pending,
+      grand_total: 0,
+      orders_id: ordersId,
+      table_closed,
+    } satisfies TableViewResponse);
   }
 
   const paymentIds = payments.map((p) => p.id);
@@ -147,7 +159,13 @@ export async function GET(request: NextRequest) {
 
   if (!activeProductIds.length) {
     const guests = payments.map((p) => ({ name: p.name, items: [] as TableViewItem[], subtotal: 0 }));
-    return NextResponse.json({ guests, pending, grand_total: 0, orders_id: ordersId } satisfies TableViewResponse);
+    return NextResponse.json({
+      guests,
+      pending,
+      grand_total: 0,
+      orders_id: ordersId,
+      table_closed,
+    } satisfies TableViewResponse);
   }
 
   const { data: productRows, error: productsErr } = await service
@@ -180,5 +198,11 @@ export async function GET(request: NextRequest) {
 
   const grand_total = guests.reduce((s, g) => s + g.subtotal, 0);
 
-  return NextResponse.json({ guests, pending, grand_total, orders_id: ordersId } satisfies TableViewResponse);
+  return NextResponse.json({
+    guests,
+    pending,
+    grand_total,
+    orders_id: ordersId,
+    table_closed,
+  } satisfies TableViewResponse);
 }

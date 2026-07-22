@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, Clock, Loader2, User } from "lucide-react";
 
 import type {
@@ -15,7 +14,9 @@ import { Button } from "@/components/ui/button";
 
 import { formatPrice } from "../../menu/_components/menu-utils";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+// POLLING (plus d'abonnement Realtime anon) : on re-fetch la vue via la route service_role à intervalle
+// régulier. Toutes les données (dont les demandes en attente) viennent déjà de cette route.
+const TABLE_VIEW_POLL_MS = 3000;
 
 interface Props {
   ordersId: string;
@@ -107,89 +108,21 @@ export function TableView({
   const [data, setData] = useState<TableViewResponse | null>(null);
   const [tableClosed, setTableClosed] = useState(false);
 
+  // Chargement initial + rafraîchissement par polling. `table_closed` (renvoyé par la route) remplace
+  // l'ancien abonnement Realtime `orders`.
   useEffect(() => {
-    void fetchTableView(ordersId, establishmentId).then((d) => {
-      if (d) setData(d);
-    });
-  }, [ordersId, establishmentId]);
-
-  useEffect(() => {
-    const refresh = () => {
-      setTimeout(() => {
-        void fetchTableView(ordersId, establishmentId).then((d) => {
-          if (d) setData(d);
-        });
-      }, 300);
-    };
-
-    const pendingChannel = supabase
-      .channel(`pending-requests-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "table_order_requests", filter: `order_id=eq.${ordersId}` },
-        refresh,
-      )
-      .subscribe();
-
-    const productsChannel = supabase
-      .channel(`order-products-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_products", filter: `order_id=eq.${ordersId}` },
-        refresh,
-      )
-      .subscribe();
-
-    const paymentsChannel = supabase
-      .channel(`order-payments-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_payments", filter: `orders_id=eq.${ordersId}` },
-        refresh,
-      )
-      .subscribe();
-
-    const rowsChannel = supabase
-      .channel(`order-payments-rows-${establishmentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "order_payments_rows",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        refresh,
-      )
-      .subscribe();
-
-    const formulasChannel = supabase
-      .channel(`order-formulas-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_formulas", filter: `order_id=eq.${ordersId}` },
-        refresh,
-      )
-      .subscribe();
-
-    const ordersChannel = supabase
-      .channel(`table-orders-${ordersId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${ordersId}` },
-        (payload) => {
-          if ((payload.new as { opened: boolean }).opened === false) setTableClosed(true);
-        },
-      )
-      .subscribe();
-
+    let stopped = false;
+    const load = () =>
+      fetchTableView(ordersId, establishmentId).then((d) => {
+        if (stopped || !d) return;
+        setData(d);
+        if (d.table_closed) setTableClosed(true);
+      });
+    void load();
+    const interval = setInterval(() => void load(), TABLE_VIEW_POLL_MS);
     return () => {
-      void supabase.removeChannel(pendingChannel);
-      void supabase.removeChannel(productsChannel);
-      void supabase.removeChannel(paymentsChannel);
-      void supabase.removeChannel(rowsChannel);
-      void supabase.removeChannel(formulasChannel);
-      void supabase.removeChannel(ordersChannel);
+      stopped = true;
+      clearInterval(interval);
     };
   }, [ordersId, establishmentId]);
 

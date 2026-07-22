@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { createClient } from "@supabase/supabase-js";
 import { Loader2, XCircle } from "lucide-react";
 
 import type { Formula, FormulaProduct } from "@/app/api/table-order/formulas/route";
+import type { RequestStatus } from "@/app/api/table-order/request-status/route";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -31,7 +31,9 @@ import { OrderBrowseHeader } from "./order-browse-header";
 import { TableView } from "./table-view";
 import { WaitingScreen } from "./waiting-screen";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+// Écran d'attente : POLLING d'une route service_role (plus d'abonnement Realtime anon, qui diffusait la
+// ligne entière avec les PII). Intervalle volontairement court pour rester proche de l'instantané.
+const REQUEST_POLL_MS = 3000;
 
 type OpenOrderResult = { ordersId: string; savedNameMatch: boolean; names: string[] } | { ordersId: null };
 
@@ -162,56 +164,51 @@ export function OrderPage({ establishment, tableId, tableName, establishmentId }
     void Promise.all([statusPromise, openPromise]).finally(() => setIsLoading(false));
   }, [tableId, establishmentId]);
 
+  // Demande principale : on interroge le statut jusqu'à acceptée/refusée (ou timeout 5 min).
   useEffect(() => {
     if (!orderId) return;
-    const timeout = setTimeout(() => setTimedOut(true), 5 * 60 * 1000);
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `id=eq.${orderId}` },
-        (payload) => {
-          const row = payload.new as { status: string; order_id?: string | null; rejection_reason?: string | null };
-          if (row.status === "accepted") {
-            clearTimeout(timeout);
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - startedAt > 5 * 60 * 1000) {
+        clearInterval(interval);
+        setTimedOut(true);
+        return;
+      }
+      void fetch(`/api/table-order/request-status?id=${orderId}`)
+        .then((r) => r.json() as Promise<RequestStatus>)
+        .then((row) => {
+          setRealtimeStatus("connected");
+          if (row?.status === "accepted") {
+            clearInterval(interval);
             setOrdersId(row.order_id ?? null);
             setStep("table-view");
-          }
-          if (row.status === "rejected") {
-            clearTimeout(timeout);
+          } else if (row?.status === "rejected") {
+            clearInterval(interval);
             setError(row.rejection_reason ?? "Commande refusée.");
             setStep("checkout");
           }
-        },
-      )
-      .subscribe((s) => {
-        if (s === "SUBSCRIBED") setRealtimeStatus("connected");
-        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(s)) setRealtimeStatus("lost");
-      });
-    return () => {
-      clearTimeout(timeout);
-      void supabase.removeChannel(channel);
-    };
+        })
+        .catch(() => setRealtimeStatus("lost"));
+    }, REQUEST_POLL_MS);
+    return () => clearInterval(interval);
   }, [orderId]);
 
+  // Demande d'un tour supplémentaire : même polling, on nettoie dès que ce n'est plus « pending ».
   useEffect(() => {
     if (!roundRequestId) return;
-    const channel = supabase
-      .channel(`round-${roundRequestId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "table_order_requests", filter: `id=eq.${roundRequestId}` },
-        (payload) => {
-          const row = payload.new as { status: string; rejection_reason?: string | null };
+    const interval = setInterval(() => {
+      void fetch(`/api/table-order/request-status?id=${roundRequestId}`)
+        .then((r) => r.json() as Promise<RequestStatus>)
+        .then((row) => {
+          if (!row || row.status === "pending") return;
+          clearInterval(interval);
           if (row.status === "rejected") setRoundError(row.rejection_reason ?? "Articles refusés.");
           setRoundRequestId(null);
           setPendingGuestName(null);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+        })
+        .catch(() => {});
+    }, REQUEST_POLL_MS);
+    return () => clearInterval(interval);
   }, [roundRequestId]);
 
   function handleAddProduct(item: PublicProduct) {
