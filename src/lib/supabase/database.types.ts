@@ -4909,6 +4909,7 @@ export type Database = {
           establishment_id: string
           id: string
           organization_id: string | null
+          previous_signature_base64url: string | null
           s3_key: string | null
           signature_base64url: string
           updated_at: string
@@ -4921,6 +4922,7 @@ export type Database = {
           establishment_id: string
           id?: string
           organization_id?: string | null
+          previous_signature_base64url?: string | null
           s3_key?: string | null
           signature_base64url: string
           updated_at: string
@@ -4933,6 +4935,7 @@ export type Database = {
           establishment_id?: string
           id?: string
           organization_id?: string | null
+          previous_signature_base64url?: string | null
           s3_key?: string | null
           signature_base64url?: string
           updated_at?: string
@@ -5000,6 +5003,7 @@ export type Database = {
           device_id: string
           establishment_id: string
           gtpca: number
+          gtpva: number | null
           hash_chain_input: string | null
           id: string
           organization_id: string | null
@@ -5022,6 +5026,7 @@ export type Database = {
           device_id: string
           establishment_id: string
           gtpca: number
+          gtpva?: number | null
           hash_chain_input?: string | null
           id?: string
           organization_id?: string | null
@@ -5044,6 +5049,7 @@ export type Database = {
           device_id?: string
           establishment_id?: string
           gtpca?: number
+          gtpva?: number | null
           hash_chain_input?: string | null
           id?: string
           organization_id?: string | null
@@ -5253,6 +5259,184 @@ export type Database = {
           },
         ]
       }
+      nf525_piece_client: {
+        Row: {
+          centralized_at: string | null
+          client_ref: string | null
+          created_at: string
+          device_id: string | null
+          establishment_id: string
+          id: string
+          nf525_piece_id: string
+          organization_id: string | null
+          points_fidelite: number | null
+          solde_client: number | null
+          updated_at: string
+        }
+        Insert: {
+          centralized_at?: string | null
+          client_ref?: string | null
+          created_at?: string
+          device_id?: string | null
+          establishment_id: string
+          id?: string
+          nf525_piece_id: string
+          organization_id?: string | null
+          points_fidelite?: number | null
+          solde_client?: number | null
+          updated_at?: string
+        }
+        Update: {
+          centralized_at?: string | null
+          client_ref?: string | null
+          created_at?: string
+          device_id?: string | null
+          establishment_id?: string
+          id?: string
+          nf525_piece_id?: string
+          organization_id?: string | null
+          points_fidelite?: number | null
+          solde_client?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_piece_client_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_client_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_client_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_client_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf525_piece_lines: {
+        Row: {
+          centralized_at: string | null
+          created_at: string
+          device_id: string | null
+          discount_amount: number | null
+          discount_rate: number | null
+          establishment_id: string
+          grouping: string | null
+          id: string
+          line_number: number
+          nf525_piece_id: string
+          operation_type: string | null
+          organization_id: string | null
+          product_code: string | null
+          product_label: string
+          quantity: number | null
+          recorded_at: string | null
+          total_ht: number | null
+          total_ttc: number
+          unit: string | null
+          unit_price_ttc: number | null
+          updated_at: string
+          vat_code: string | null
+          vat_rate: number | null
+        }
+        Insert: {
+          centralized_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          discount_amount?: number | null
+          discount_rate?: number | null
+          establishment_id: string
+          grouping?: string | null
+          id?: string
+          line_number: number
+          nf525_piece_id: string
+          operation_type?: string | null
+          organization_id?: string | null
+          product_code?: string | null
+          product_label: string
+          quantity?: number | null
+          recorded_at?: string | null
+          total_ht?: number | null
+          total_ttc: number
+          unit?: string | null
+          unit_price_ttc?: number | null
+          updated_at?: string
+          vat_code?: string | null
+          vat_rate?: number | null
+        }
+        Update: {
+          centralized_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          discount_amount?: number | null
+          discount_rate?: number | null
+          establishment_id?: string
+          grouping?: string | null
+          id?: string
+          line_number?: number
+          nf525_piece_id?: string
+          operation_type?: string | null
+          organization_id?: string | null
+          product_code?: string | null
+          product_label?: string
+          quantity?: number | null
+          recorded_at?: string | null
+          total_ht?: number | null
+          total_ttc?: number
+          unit?: string | null
+          unit_price_ttc?: number | null
+          updated_at?: string
+          vat_code?: string | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_piece_lines_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_lines_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_lines_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_lines_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nf525_piece_recap_tva: {
         Row: {
           amount_vat: number
@@ -5260,6 +5444,7 @@ export type Database = {
           id: string
           nf525_piece_id: string
           total_ht: number
+          vat_code: string | null
           vat_rate: number
         }
         Insert: {
@@ -5268,6 +5453,7 @@ export type Database = {
           id?: string
           nf525_piece_id: string
           total_ht: number
+          vat_code?: string | null
           vat_rate: number
         }
         Update: {
@@ -5276,6 +5462,7 @@ export type Database = {
           id?: string
           nf525_piece_id?: string
           total_ht?: number
+          vat_code?: string | null
           vat_rate?: number
         }
         Relationships: [
@@ -5288,10 +5475,92 @@ export type Database = {
           },
         ]
       }
+      nf525_piece_reglements: {
+        Row: {
+          amount: number
+          centralized_at: string | null
+          created_at: string
+          device_id: string | null
+          establishment_id: string
+          id: string
+          mode_code: string | null
+          mode_label: string
+          nf525_piece_id: string
+          operator_id: string | null
+          organization_id: string | null
+          quantity: number | null
+          reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          centralized_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          establishment_id: string
+          id?: string
+          mode_code?: string | null
+          mode_label: string
+          nf525_piece_id: string
+          operator_id?: string | null
+          organization_id?: string | null
+          quantity?: number | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          centralized_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          establishment_id?: string
+          id?: string
+          mode_code?: string | null
+          mode_label?: string
+          nf525_piece_id?: string
+          operator_id?: string | null
+          organization_id?: string | null
+          quantity?: number | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf525_piece_reglements_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_reglements_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_reglements_nf525_piece_id_fkey"
+            columns: ["nf525_piece_id"]
+            isOneToOne: false
+            referencedRelation: "nf525_pieces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf525_piece_reglements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nf525_pieces: {
         Row: {
+          caisse_code: string | null
           created_at: string | null
           device_id: string
+          doc_type: string | null
           emitter_snapshot: Json | null
           employee_id: string
           establishment_id: string
@@ -5299,19 +5568,28 @@ export type Database = {
           id: string
           line_count: number
           operation_type: string
+          operator_name: string | null
           order_id: string
           organization_id: string | null
+          origin_ref_piece_number: string | null
+          payment_id: string | null
           piece_number: string
           piece_type: string
           previous_signature_base64url: string | null
           print_count: number
           recorded_at: string
+          remise_totale: number | null
           signature_base64url: string | null
+          software_version: string | null
+          total_ht: number | null
+          total_ttc: number | null
           updated_at: string | null
         }
         Insert: {
+          caisse_code?: string | null
           created_at?: string | null
           device_id: string
+          doc_type?: string | null
           emitter_snapshot?: Json | null
           employee_id: string
           establishment_id: string
@@ -5319,19 +5597,28 @@ export type Database = {
           id?: string
           line_count?: number
           operation_type?: string
+          operator_name?: string | null
           order_id: string
           organization_id?: string | null
+          origin_ref_piece_number?: string | null
+          payment_id?: string | null
           piece_number: string
           piece_type: string
           previous_signature_base64url?: string | null
           print_count?: number
           recorded_at: string
+          remise_totale?: number | null
           signature_base64url?: string | null
+          software_version?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
           updated_at?: string | null
         }
         Update: {
+          caisse_code?: string | null
           created_at?: string | null
           device_id?: string
+          doc_type?: string | null
           emitter_snapshot?: Json | null
           employee_id?: string
           establishment_id?: string
@@ -5339,14 +5626,21 @@ export type Database = {
           id?: string
           line_count?: number
           operation_type?: string
+          operator_name?: string | null
           order_id?: string
           organization_id?: string | null
+          origin_ref_piece_number?: string | null
+          payment_id?: string | null
           piece_number?: string
           piece_type?: string
           previous_signature_base64url?: string | null
           print_count?: number
           recorded_at?: string
+          remise_totale?: number | null
           signature_base64url?: string | null
+          software_version?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -5400,6 +5694,7 @@ export type Database = {
           hash_chain_input: string | null
           id: string
           is_refund_valid: boolean
+          key_id: string | null
           motif: string | null
           nf525_piece_id: string | null
           order_id: string | null
@@ -5427,6 +5722,7 @@ export type Database = {
           hash_chain_input?: string | null
           id?: string
           is_refund_valid?: boolean
+          key_id?: string | null
           motif?: string | null
           nf525_piece_id?: string | null
           order_id?: string | null
@@ -5454,6 +5750,7 @@ export type Database = {
           hash_chain_input?: string | null
           id?: string
           is_refund_valid?: boolean
+          key_id?: string | null
           motif?: string | null
           nf525_piece_id?: string | null
           order_id?: string | null

@@ -18,6 +18,8 @@ export interface ArchivesResponse {
   chain: ChainReport;
   /** Archives dont le `daily_found.closed_at` est introuvable → exclues, jamais en silence. */
   missingClosedAt: string[];
+  /** Clôtures (daily_found) de la période SANS archive sur le WORM = trou de dépôt (§6.8.1). */
+  missingArchives: { dailyFoundId: string; closedAt: string; businessDay: string }[];
   /** false = aucune clé publique ECDSA pour l'établissement → contrôle ③ impossible. */
   signatureCheckable: boolean;
   contents?: Record<string, unknown>;

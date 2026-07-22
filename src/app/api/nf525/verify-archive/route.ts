@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { verifyArchiveDeep, type DeepReport } from "@/lib/nf525/archive-deep-verify";
 import { verifyArchive, type ArchiveVerdict, type ZArchive } from "@/lib/nf525/archive-verify";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -48,8 +49,10 @@ export async function POST(req: NextRequest) {
     }
 
     const verdict: ArchiveVerdict = verifyArchive(archive, publicKey);
+    const deep: DeepReport = verifyArchiveDeep(archive, publicKey);
     return NextResponse.json({
       verdict,
+      deep,
       establishmentId: archive.establishment_id ?? null,
       signatureCheckable: publicKey !== null,
     });

@@ -133,20 +133,33 @@ function publicKeyFromCompressed(pubBase64: string) {
   return createPublicKey({ key: Buffer.concat([SPKI_PREFIX, point]), format: "der", type: "spki" });
 }
 
-/** ③ Signature ECDSA P-256 (r‖s base64url) sur SHA-256 de `hash_chain_input`. */
-function checkSignature(a: ZArchive, publicKeyBase64: string): boolean {
+/**
+ * Signature ECDSA P-256 (r‖s base64url, 64 o) sur SHA-256 de `hashChainInput`, avec une clé publique
+ * en point compressé base64. Primitive partagée : le contrôle ③ de l'archive ET la vérification profonde
+ * des objets internes (pièces, JET, Grands Totaux) s'en servent — tous signés avec la MÊME clé.
+ */
+export function verifyEcdsaSignature(
+  hashChainInput: string,
+  signatureB64url: string,
+  publicKeyBase64: string,
+): boolean {
   try {
-    const sig = Buffer.from(a.signature_base64url!.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+    const sig = Buffer.from(signatureB64url.replace(/-/g, "+").replace(/_/g, "/"), "base64");
     if (sig.length !== 64) return false;
     return cryptoVerify(
       "sha256",
-      Buffer.from(a.hash_chain_input!, "utf8"),
+      Buffer.from(hashChainInput, "utf8"),
       { key: publicKeyFromCompressed(publicKeyBase64), dsaEncoding: "ieee-p1363" },
       sig,
     );
   } catch {
     return false;
   }
+}
+
+/** ③ Signature ECDSA P-256 de l'ARCHIVE. */
+function checkSignature(a: ZArchive, publicKeyBase64: string): boolean {
+  return verifyEcdsaSignature(a.hash_chain_input!, a.signature_base64url!, publicKeyBase64);
 }
 
 /**

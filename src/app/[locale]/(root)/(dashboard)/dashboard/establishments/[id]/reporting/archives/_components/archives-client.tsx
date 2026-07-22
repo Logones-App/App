@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useParams } from "next/navigation";
 
-import { Download, Loader2, ScrollText, ShieldCheck } from "lucide-react";
+import { Download, FileArchive, Loader2, ScrollText, ShieldCheck } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
@@ -104,6 +104,10 @@ export function ArchivesClient() {
   const [data, setData] = useState<ArchivesResponse | null>(null);
   const [view, setView] = useState<"list" | "verify" | null>(null);
 
+  const zipHref = `/api/establishments/${establishmentId}/archives/zip?organizationId=${encodeURIComponent(
+    organizationId,
+  )}&from=${fromDate}&to=${toDate}`;
+
   const fetchPeriod = async (withContent: boolean): Promise<ArchivesResponse> => {
     const qs = new URLSearchParams({ organizationId, from: fromDate, to: toDate });
     if (withContent) qs.set("content", "1");
@@ -173,6 +177,14 @@ export function ArchivesClient() {
           )}
           Récupérer les archives (JSON)
         </Button>
+        {organizationId && (
+          <Button variant="outline" asChild>
+            <a href={zipHref} download>
+              <FileArchive className="mr-2 h-4 w-4" />
+              Télécharger le ZIP
+            </a>
+          </Button>
+        )}
       </div>
 
       {view === null && (

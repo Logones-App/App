@@ -85,6 +85,33 @@ async function collectPeriod(
   return out;
 }
 
+/** Une clôture (daily_found) présente en base mais dont l'archive n'est PAS sur le WORM = trou de dépôt (§6.8.1). */
+interface MissingArchive {
+  dailyFoundId: string;
+  closedAt: string;
+  businessDay: string;
+}
+
+/**
+ * Contrôle d'EXHAUSTIVITÉ : chaque clôture du period doit avoir déposé son archive sur le WORM.
+ * Le nom de fichier S3 EST le `daily_found_id` → on compare les clôtures aux archives présentes.
+ */
+function findMissingArchives(
+  closedAt: Map<string, string | null>,
+  wormDailyFoundIds: Set<string>,
+  from: string,
+  to: string,
+): MissingArchive[] {
+  const missing: MissingArchive[] = [];
+  for (const [dailyFoundId, closed] of closedAt) {
+    if (!closed) continue;
+    const businessDay = businessDayFromClosedAt(closed);
+    if (businessDay < from || businessDay > to) continue;
+    if (!wormDailyFoundIds.has(dailyFoundId)) missing.push({ dailyFoundId, closedAt: closed, businessDay });
+  }
+  return missing.sort((a, b) => a.businessDay.localeCompare(b.businessDay));
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: establishmentId } = await params;
@@ -117,10 +144,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // 1) Lister large (le chemin ne fait pas foi), 2) pré-filtrer sur la fenêtre ±1 j pour ne
     //    télécharger que le plausible, 3) filtrer exactement sur le jour d'exploitation (règle ①).
+    const allRefs = await listArchives(establishmentPrefix(organizationId, establishmentId));
+    // Le nom de fichier S3 EST le daily_found_id → base du contrôle d'exhaustivité (indépendant de la fenêtre).
+    const wormDailyFoundIds = new Set(
+      allRefs.map(
+        (r) =>
+          r.key
+            .split("/")
+            .pop()
+            ?.replace(/\.json$/, "") ?? "",
+      ),
+    );
+
     const { fromWide, toWide } = widenWindow(from, to);
-    const keys = (await listArchives(establishmentPrefix(organizationId, establishmentId)))
-      .filter((r) => inPathWindow(r.key, fromWide, toWide))
-      .map((r) => r.key);
+    const keys = allRefs.filter((r) => inPathWindow(r.key, fromWide, toWide)).map((r) => r.key);
 
     const { rows, inPeriod, contents, missingClosedAt } = await collectPeriod(keys, {
       closedAt,
@@ -137,6 +174,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       archives: rows,
       chain: checkChains(inPeriod),
       missingClosedAt,
+      missingArchives: findMissingArchives(closedAt, wormDailyFoundIds, from, to),
       signatureCheckable: publicKey !== null,
       ...(withContent ? { contents } : {}),
     });

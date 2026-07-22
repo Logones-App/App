@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import type { DeepReport } from "@/lib/nf525/archive-deep-verify";
 import type { ArchiveVerdict } from "@/lib/nf525/archive-verify";
 
 /**
@@ -32,6 +33,7 @@ interface Archive {
 
 interface VerifyResponse {
   verdict: ArchiveVerdict;
+  deep: DeepReport;
   establishmentId: string | null;
   signatureCheckable: boolean;
 }
@@ -45,7 +47,7 @@ type ChainLink =
   | { type: "genesis" }
   | { type: "chained" }
   | { type: "start_of_selection" }
-  | { type: "unexpected_genesis" }
+  | { type: "restart" }
   | { type: "broken"; expected: string; found: string | null };
 
 const looksLikeArchive = (o: unknown): boolean =>
@@ -68,7 +70,7 @@ function chainLinkFor(cur: Archive, prev: Archive | null): ChainLink {
     if (!cur.previous_archive_signature) return { type: "genesis" };
     return { type: "start_of_selection" };
   }
-  if (!cur.previous_archive_signature) return { type: "unexpected_genesis" };
+  if (!cur.previous_archive_signature) return { type: "restart" };
   if (cur.previous_archive_signature === prev.signature_base64url) return { type: "chained" };
   return { type: "broken", expected: prev.signature_base64url ?? "", found: cur.previous_archive_signature };
 }
@@ -109,6 +111,29 @@ function IntegrityCell({ res }: { res: VerifyResponse }) {
   );
 }
 
+/** Signatures internes (pièces, JET, Grands Totaux) — vérification profonde. */
+function DeepCell({ deep }: { deep: DeepReport }) {
+  if (!deep.verifiable) {
+    return <span className="text-muted-foreground text-xs">n/a (pas de clé ECDSA)</span>;
+  }
+  if (deep.collections.length === 0) {
+    return <span className="text-muted-foreground text-xs">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {deep.collections.map((c) => {
+        const short = c.name.replace(/^nf525_/, "");
+        const bad = c.failed.length > 0;
+        return (
+          <Badge variant={bad ? "destructive" : "default"} className="gap-1" key={c.name} title={c.failed.join(", ")}>
+            {bad ? <XCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />} {short} {c.ok}/{c.signed}
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
+
 function ChainCell({ link }: { link: ChainLink }) {
   switch (link.type) {
     case "genesis":
@@ -121,10 +146,10 @@ function ChainCell({ link }: { link: ChainLink }) {
           <Link2 className="h-3 w-3" /> chaînée
         </Badge>
       );
-    case "unexpected_genesis":
+    case "restart":
       return (
-        <Badge variant="destructive" className="gap-1">
-          <Link2Off className="h-3 w-3" /> genèse inattendue
+        <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
+          <Link2Off className="h-3 w-3" /> redémarrage
         </Badge>
       );
     case "broken":
@@ -141,24 +166,27 @@ function ResultsView({ results }: { results: Result[] }) {
   const links = sorted.map((r, i) => chainLinkFor(r.archive, i === 0 ? null : sorted[i - 1].archive));
 
   const integrityBad = sorted.some((r) => r.res.verdict.verifiable && !r.res.verdict.valid);
-  const chainBad = links.some((l) => l.type === "broken" || l.type === "unexpected_genesis");
+  const chainBad = links.some((l) => l.type === "broken");
+  const deepBad = sorted.some((r) => r.res.deep.verifiable && !r.res.deep.allOk);
 
   return (
     <div className="space-y-3">
-      {integrityBad || chainBad ? (
+      {integrityBad || chainBad || deepBad ? (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertTitle>Anomalie détectée ✅ (le test a fonctionné)</AlertTitle>
           <AlertDescription className="text-xs">
             {integrityBad && "Au moins une archive a échoué un contrôle d'intégrité. "}
-            {chainBad && "Le chaînage est rompu entre deux archives."}
+            {chainBad && "Le chaînage est rompu entre deux archives. "}
+            {deepBad && "Une signature interne (pièce / JET / Grand Total) est invalide."}
           </AlertDescription>
         </Alert>
       ) : (
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
           <AlertTitle>
-            {sorted.length} archive(s) — intègres et {sorted.length > 1 ? "correctement chaînées" : "vérifiées"}
+            {sorted.length} archive(s) — intègres, {sorted.length > 1 ? "chaînées" : "vérifiées"} et signatures internes
+            conformes
           </AlertTitle>
         </Alert>
       )}
@@ -169,6 +197,7 @@ function ResultsView({ results }: { results: Result[] }) {
             <TableHead>Créée le</TableHead>
             <TableHead>Intégrité (3 contrôles)</TableHead>
             <TableHead>Chaînage</TableHead>
+            <TableHead>Contenu interne (signatures)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -182,6 +211,9 @@ function ResultsView({ results }: { results: Result[] }) {
               </TableCell>
               <TableCell>
                 <ChainCell link={links[i]} />
+              </TableCell>
+              <TableCell>
+                <DeepCell deep={r.res.deep} />
               </TableCell>
             </TableRow>
           ))}
@@ -222,7 +254,14 @@ function HowItWorks() {
           <strong>Chaînage entre archives</strong> — triées par <code>created_at</code>, chaque archive doit reporter
           dans <code>previous_archive_signature</code> le <code>signature_base64url</code> de la précédente. La 1ʳᵉ de
           la sélection est un « début de sélection » (la chaîne peut continuer avant) ; une archive sans report est une
-          genèse. Toute autre valeur est une rupture.
+          genèse. Une valeur qui ne correspond pas est une <strong>rupture</strong> ; une ancre absente en plein fil est
+          un <strong>redémarrage</strong> (migration de format, réinstallation…) — signalé, pas accusé.
+        </p>
+        <p>
+          <strong>Contenu interne (vérification profonde)</strong> — chaque pièce, événement JET et Grand Total porte sa
+          PROPRE signature ECDSA (R13 §7), signée avec la même clé. On les vérifie toutes : ça prouve que chaque objet a
+          été scellé individuellement par l&apos;assujetti, pas seulement l&apos;enveloppe. Bricoler la signature ou le{" "}
+          <code>hash_chain_input</code> d&apos;une pièce fait échouer sa collection.
         </p>
         <p>
           Déposez plusieurs archives (ou le fichier de « Récupérer les archives ») pour tester le chaînage. Modifiez le

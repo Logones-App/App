@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Link2, Link2Off, XCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +16,8 @@ import type { ArchivesResponse } from "./archives-types";
  * jamais un « OK » global qui masquerait un contrôle non effectué. Les exclusions (archive non signée,
  * clôture introuvable) sont affichées explicitement — une archive écartée en silence serait un faux « tout va bien ».
  *
- * ⚠️ Aucun verdict de chaînage n'est rendu : il n'est pas vérifiable depuis le WORM (cf. archive-chain.ts).
- * La limite est affichée, pas tue.
+ * Le chaînage est vérifié PAR ÉTABLISSEMENT (cf. archive-chain.ts, réactivé le 22/07 après confirmation sur
+ * données réelles) : la carte dédiée affiche le fil et signale les ruptures.
  */
 
 function Check({ ok, label }: { ok: boolean | null; label: string }) {
@@ -76,15 +76,19 @@ function Summary({ data }: { data: ArchivesResponse }) {
   const verifiable = data.archives.filter((a) => a.verdict.verifiable);
   const defects = verifiable.filter((a) => a.verdict.verifiable && !a.verdict.valid && !a.verdict.inconclusive);
   const unknown = verifiable.filter((a) => a.verdict.verifiable && a.verdict.inconclusive);
+  const chainDefects = data.chain.defectCount;
+  const missing = data.missingArchives.length;
 
-  if (defects.length > 0) {
+  if (defects.length > 0 || chainDefects > 0 || missing > 0) {
     return (
       <Alert variant="destructive">
         <XCircle className="h-4 w-4" />
-        <AlertTitle>Défaut d&apos;intégrité</AlertTitle>
+        <AlertTitle>Anomalie détectée</AlertTitle>
         <AlertDescription>
-          {defects.length} archive(s) en écart. À transmettre à l&apos;éditeur POS avant toute conclusion : un défaut
-          confirmé relève du JET 90 (non purgeable).
+          {defects.length > 0 && `${defects.length} archive(s) en écart d'intégrité. `}
+          {chainDefects > 0 && `${chainDefects} rupture(s) de chaînage. `}
+          {missing > 0 && `${missing} clôture(s) sans archive déposée. `}À transmettre à l&apos;éditeur POS avant toute
+          conclusion : un défaut confirmé relève du JET 90 (non purgeable).
         </AlertDescription>
       </Alert>
     );
@@ -107,8 +111,8 @@ function Summary({ data }: { data: ArchivesResponse }) {
       <CheckCircle2 className="h-4 w-4" />
       <AlertTitle>Aucune anomalie détectée</AlertTitle>
       <AlertDescription>
-        {verifiable.length} archive(s) vérifiée(s) sur la période — condensats des fichiers et condensat intégral
-        conformes.
+        {verifiable.length} archive(s) vérifiée(s) sur la période — intégrité (condensats + condensat intégral) et
+        chaînage conformes.
         {!data.signatureCheckable && " ⚠️ Signature non vérifiée : aucune clé publique pour cet établissement."}
       </AlertDescription>
     </Alert>
@@ -142,39 +146,65 @@ function Exclusions({ data }: { data: ArchivesResponse }) {
   );
 }
 
+function ChainBadge({ link }: { link: ArchivesResponse["chain"]["nodes"][number]["link"] }) {
+  switch (link) {
+    case "genesis":
+      return <Badge variant="secondary">genèse</Badge>;
+    case "start_of_selection":
+      return <Badge variant="outline">début de sélection</Badge>;
+    case "chained":
+      return (
+        <Badge className="gap-1">
+          <Link2 className="h-3 w-3" /> chaînée
+        </Badge>
+      );
+    case "restart":
+      return (
+        <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
+          <Link2Off className="h-3 w-3" /> redémarrage
+        </Badge>
+      );
+    case "broken":
+      return (
+        <Badge variant="destructive" className="gap-1">
+          <Link2Off className="h-3 w-3" /> rupture
+        </Badge>
+      );
+  }
+}
+
 /**
- * Inventaire par caisse — PAS un contrôle de chaînage : celui-ci n'est pas vérifiable depuis le WORM
- * (cf. src/lib/nf525/archive-chain.ts). On l'affiche comme une limite connue plutôt que de taire le sujet.
+ * Contrôle de chaînage par ÉTABLISSEMENT (cf. src/lib/nf525/archive-chain.ts). La 1ʳᵉ archive de la fenêtre
+ * est un « début de sélection » légitime — la chaîne peut continuer avant la période consultée.
  */
-function InventoryCard({ data }: { data: ArchivesResponse }) {
+function ChainCard({ data }: { data: ArchivesResponse }) {
+  const { nodes, excluded } = data.chain;
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Dépôts par caisse (inventaire)</CardTitle>
+        <CardTitle className="text-sm font-medium">Chaînage des archives (par établissement)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {data.chain.devices.length === 0 ? (
+        {nodes.length === 0 ? (
           <p className="text-muted-foreground text-sm">Aucune archive vérifiable sur la période.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Créée le</TableHead>
                 <TableHead>Caisse</TableHead>
-                <TableHead className="text-right">Archives</TableHead>
-                <TableHead>Premier dépôt</TableHead>
-                <TableHead>Dernier dépôt</TableHead>
+                <TableHead>Maillon</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.chain.devices.map((d) => (
-                <TableRow key={d.deviceId}>
-                  <TableCell className="font-mono text-xs">{d.deviceId}</TableCell>
-                  <TableCell className="text-right">{d.count}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {d.firstCreatedAt ? new Date(d.firstCreatedAt).toLocaleString("fr-FR") : "—"}
+              {nodes.map((n) => (
+                <TableRow key={n.key}>
+                  <TableCell className="text-xs">
+                    {n.createdAt ? new Date(n.createdAt).toLocaleString("fr-FR") : "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {d.lastCreatedAt ? new Date(d.lastCreatedAt).toLocaleString("fr-FR") : "—"}
+                  <TableCell className="font-mono text-xs">{n.deviceId ?? "—"}</TableCell>
+                  <TableCell>
+                    <ChainBadge link={n.link} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -182,13 +212,64 @@ function InventoryCard({ data }: { data: ArchivesResponse }) {
           </Table>
         )}
 
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Chaînage des archives : non vérifiable ici</AlertTitle>
-          <AlertDescription className="text-xs">{data.chain.reason}</AlertDescription>
-        </Alert>
+        {nodes
+          .filter((n) => n.link === "broken")
+          .map((n) => (
+            <Alert variant="destructive" key={`brk-${n.key}`}>
+              <Link2Off className="h-4 w-4" />
+              <AlertTitle>Rupture de chaînage — {n.key.split("/").pop()}</AlertTitle>
+              <AlertDescription className="font-mono text-xs break-all">
+                attendu : {n.expected ?? "(signature précédente absente)"}
+                <br />
+                trouvé : {n.found ?? "(aucun)"}
+              </AlertDescription>
+            </Alert>
+          ))}
+
+        {data.chain.restartCount > 0 && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{data.chain.restartCount} redémarrage(s) de fil</AlertTitle>
+            <AlertDescription className="text-xs">
+              Une archive démarre un nouveau fil (pas de signature précédente) alors qu&apos;une archive la précède.
+              Légitime lors d&apos;une migration de format, d&apos;une réinstallation de caisse ou d&apos;une rotation
+              de trousseau — ce n&apos;est <strong>pas</strong> une falsification, mais à confirmer avec l&apos;éditeur
+              POS si la cause n&apos;est pas connue.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {excluded.length > 0 && (
+          <p className="text-muted-foreground text-xs">
+            {excluded.length} archive(s) écartée(s) du chaînage (non signées / ancien format).
+          </p>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Trou de dépôt : une caisse a clôturé mais son archive n'est pas sur le WORM (§6.8.1, exhaustivité). */
+function MissingArchivesCard({ data }: { data: ArchivesResponse }) {
+  if (data.missingArchives.length === 0) return null;
+  return (
+    <Alert variant="destructive">
+      <XCircle className="h-4 w-4" />
+      <AlertTitle>{data.missingArchives.length} clôture(s) sans archive sur le WORM</AlertTitle>
+      <AlertDescription>
+        <p className="mb-1 text-xs">
+          Ces caisses ont été clôturées en base mais aucune archive n&apos;a été déposée — trou d&apos;exhaustivité
+          (§6.8.1). À remonter à l&apos;éditeur POS.
+        </p>
+        <ul className="list-disc space-y-0.5 pl-4 text-xs">
+          {data.missingArchives.map((m) => (
+            <li key={m.dailyFoundId} className="font-mono">
+              {m.businessDay} — clôture {m.dailyFoundId} ({new Date(m.closedAt).toLocaleString("fr-FR")})
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -196,6 +277,7 @@ export function ArchivesReport({ data }: { data: ArchivesResponse }) {
   return (
     <div className="space-y-4">
       <Summary data={data} />
+      <MissingArchivesCard data={data} />
       <Exclusions data={data} />
 
       <Card>
@@ -232,7 +314,7 @@ export function ArchivesReport({ data }: { data: ArchivesResponse }) {
         </CardContent>
       </Card>
 
-      <InventoryCard data={data} />
+      <ChainCard data={data} />
     </div>
   );
 }
