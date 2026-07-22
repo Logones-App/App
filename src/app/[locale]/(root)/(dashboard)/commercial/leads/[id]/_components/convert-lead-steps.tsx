@@ -120,6 +120,38 @@ export function StepEst({ form, setEst }: { form: EstForm; setEst: (f: keyof Est
         <Label>N° TVA intracomm.</Label>
         <Input value={form.no_tva} onChange={(e) => setEst("no_tva", e.target.value)} placeholder="FR12345678901" />
       </div>
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label>
+          Début d&apos;exercice comptable <span className="text-muted-foreground text-xs">(NF525)</span>
+        </Label>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-20">
+            <Label className="text-muted-foreground text-xs">Jour</Label>
+            <Input
+              type="number"
+              min={1}
+              max={31}
+              value={form.fiscal_year_start_day}
+              onChange={(e) => setEst("fiscal_year_start_day", e.target.value)}
+            />
+          </div>
+          <div className="w-20">
+            <Label className="text-muted-foreground text-xs">Mois</Label>
+            <Input
+              type="number"
+              min={1}
+              max={12}
+              value={form.fiscal_year_start_month}
+              onChange={(e) => setEst("fiscal_year_start_month", e.target.value)}
+            />
+          </div>
+          <p className="text-muted-foreground pb-2 text-xs">
+            {Number(form.fiscal_year_start_month) === 1 && Number(form.fiscal_year_start_day) === 1
+              ? "= Année civile"
+              : "= Exercice décalé"}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

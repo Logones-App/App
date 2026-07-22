@@ -19,6 +19,16 @@ interface PatchBody {
   no_tva: string | null;
   code_naf: string | null;
   description: string | null;
+  /** Début d'exercice comptable (1/1 = année civile). Entiers réels, pas des codes → Number OK. */
+  fiscal_year_start_month?: number | null;
+  fiscal_year_start_day?: number | null;
+}
+
+/** Entier borné avec repli — protège le CHECK DB (1-12 / 1-31) d'une valeur hors plage. */
+function clampInt(v: number | null | undefined, min: number, max: number, fallback: number): number {
+  const n = Math.trunc(Number(v));
+  if (!Number.isFinite(n) || n < min || n > max) return fallback;
+  return n;
 }
 
 /** Chaîne vide → null. `??` ne conviendrait pas : `""` n'est pas nullish et serait conservé tel quel. */
@@ -44,6 +54,9 @@ function buildPatch(body: PatchBody) {
     no_tva: body.no_tva ?? null,
     code_naf: body.code_naf ?? null,
     description: body.description ?? null,
+    // Exercice comptable — pas un champ assujetti (pas de JET 410). 1/1 = année civile par défaut.
+    fiscal_year_start_month: clampInt(body.fiscal_year_start_month, 1, 12, 1),
+    fiscal_year_start_day: clampInt(body.fiscal_year_start_day, 1, 31, 1),
   };
 }
 
@@ -79,13 +92,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const svc = createServiceClient();
     const { data: current } = await svc
       .from("establishments")
-      .select("organization_id, name, address, city, postal_code, country, siret, no_tva, code_naf")
+      .select(
+        "organization_id, name, address, city, postal_code, country, siret, no_tva, code_naf, fiscal_year_start_month, fiscal_year_start_day",
+      )
       .eq("id", id)
       .maybeSingle();
     if (!current) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 });
 
     const patch = buildPatch(body);
     const changed = changedSensitive(current, patch);
+
+    // Début d'exercice : changer les bornes recalculerait les périodes passées. Interdit dès qu'un Grand
+    // Total existe (l'assemblage/scellement est déjà en cours). Autorisé seulement avant toute clôture.
+    const fiscalChanged =
+      current.fiscal_year_start_month !== patch.fiscal_year_start_month ||
+      current.fiscal_year_start_day !== patch.fiscal_year_start_day;
+    if (fiscalChanged) {
+      const { count } = await svc
+        .from("nf525_grands_totaux")
+        .select("id", { count: "exact", head: true })
+        .eq("establishment_id", id);
+      if ((count ?? 0) > 0) {
+        return NextResponse.json(
+          { error: "Début d'exercice non modifiable : des Grands Totaux existent déjà pour cet établissement." },
+          { status: 409 },
+        );
+      }
+    }
 
     const { error } = await svc.from("establishments").update(patch).eq("id", id);
     if (error) throw error;
@@ -101,6 +134,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
       if (jetErr) {
         return NextResponse.json({ error: `Mise à jour effectuée mais JET 410 non créé : ${jetErr}` }, { status: 500 });
+      }
+    }
+
+    // JET 270 « paramètre de conformité » sur changement de début d'exercice (traçabilité, non purgeable).
+    if (fiscalChanged && current.organization_id) {
+      const jetErr = await signJet({
+        establishmentId: id,
+        organizationId: current.organization_id,
+        code: 270,
+        label: `debut exercice ${patch.fiscal_year_start_day}/${patch.fiscal_year_start_month}`,
+      });
+      if (jetErr) {
+        return NextResponse.json({ error: `Mise à jour effectuée mais JET 270 non créé : ${jetErr}` }, { status: 500 });
       }
     }
 

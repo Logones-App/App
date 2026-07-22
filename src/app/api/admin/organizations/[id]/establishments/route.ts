@@ -23,12 +23,21 @@ interface EstBody {
   siret?: string | null;
   no_tva?: string | null;
   code_naf?: string | null;
+  fiscal_year_start_month?: number | null;
+  fiscal_year_start_day?: number | null;
 }
 
 /** Chaîne vide → null. `??` ne conviendrait pas : `""` n'est pas nullish et serait conservé tel quel. */
 function trimOrNull(s: string | null | undefined): string | null {
   const t = s?.trim();
   return t === undefined || t === "" ? null : t;
+}
+
+/** Entier borné avec repli — protège le CHECK DB (1-12 / 1-31). */
+function clampInt(v: number | null | undefined, min: number, max: number, fallback: number): number {
+  const n = Math.trunc(Number(v));
+  if (!Number.isFinite(n) || n < min || n > max) return fallback;
+  return n;
 }
 
 function buildEstData(est: EstBody, orgId: string, userId: string, slug: string) {
@@ -50,6 +59,8 @@ function buildEstData(est: EstBody, orgId: string, userId: string, slug: string)
     siret: est.siret ?? null,
     no_tva: est.no_tva ?? null,
     code_naf: est.code_naf ?? null,
+    fiscal_year_start_month: clampInt(est.fiscal_year_start_month, 1, 12, 1),
+    fiscal_year_start_day: clampInt(est.fiscal_year_start_day, 1, 31, 1),
   };
 }
 

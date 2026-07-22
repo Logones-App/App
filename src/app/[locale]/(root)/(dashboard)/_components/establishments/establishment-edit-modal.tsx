@@ -27,6 +27,8 @@ interface FormState {
   no_tva: string;
   code_naf: string;
   description: string;
+  fiscal_year_start_month: string;
+  fiscal_year_start_day: string;
 }
 
 function toForm(est: Est): FormState {
@@ -43,6 +45,8 @@ function toForm(est: Est): FormState {
     no_tva: est.no_tva ?? "",
     code_naf: est.code_naf ?? "",
     description: est.description ?? "",
+    fiscal_year_start_month: String(est.fiscal_year_start_month ?? 1),
+    fiscal_year_start_day: String(est.fiscal_year_start_day ?? 1),
   };
 }
 
@@ -99,6 +103,13 @@ export function EstablishmentEditModal({
 
   const set = (k: keyof FormState) => (v: string) => setForm((p) => ({ ...p, [k]: v }));
 
+  const fym = Number(form.fiscal_year_start_month);
+  const fyd = Number(form.fiscal_year_start_day);
+  const fiscalHint =
+    fym === 1 && fyd === 1
+      ? "= Année civile (clôture annuelle, période « AAAA »)"
+      : "= Exercice décalé (clôture d'exercice, période « AAAA-AAAA »)";
+
   const mutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/admin/establishments/${establishment.id}`, {
@@ -117,6 +128,8 @@ export function EstablishmentEditModal({
           no_tva: form.no_tva || null,
           code_naf: form.code_naf || null,
           description: form.description || null,
+          fiscal_year_start_month: Number(form.fiscal_year_start_month) || 1,
+          fiscal_year_start_day: Number(form.fiscal_year_start_day) || 1,
         }),
       });
       if (!res.ok) {
@@ -164,6 +177,35 @@ export function EstablishmentEditModal({
           />
           <div className="sm:col-span-2">
             <Field label="Description" value={form.description} onChange={set("description")} />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>
+              Début d&apos;exercice comptable <span className="text-muted-foreground ml-1 text-xs">(NF525)</span>
+            </Label>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="w-20">
+                <Label className="text-muted-foreground text-xs">Jour</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={form.fiscal_year_start_day}
+                  onChange={(e) => set("fiscal_year_start_day")(e.target.value)}
+                />
+              </div>
+              <div className="w-20">
+                <Label className="text-muted-foreground text-xs">Mois</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={form.fiscal_year_start_month}
+                  onChange={(e) => set("fiscal_year_start_month")(e.target.value)}
+                />
+              </div>
+              <p className="text-muted-foreground pb-2 text-xs">{fiscalHint}</p>
+            </div>
           </div>
         </div>
 

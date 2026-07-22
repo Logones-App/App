@@ -14,6 +14,8 @@ export interface EstForm {
   website: string;
   siret: string;
   no_tva: string;
+  fiscal_year_start_month: string;
+  fiscal_year_start_day: string;
 }
 
 export interface VatRow {

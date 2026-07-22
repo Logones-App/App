@@ -84,6 +84,8 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
     website: "",
     siret: "",
     no_tva: "",
+    fiscal_year_start_month: "1",
+    fiscal_year_start_day: "1",
   });
 
   useEffect(() => {
@@ -104,6 +106,8 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
       website: lead.website ?? "",
       siret: "",
       no_tva: "",
+      fiscal_year_start_month: "1",
+      fiscal_year_start_day: "1",
     });
   }, [open, lead.company_name, lead.city, lead.contact_phone, lead.contact_email, lead.website]);
 
@@ -169,6 +173,8 @@ export function ConvertLeadWizard({ open, leadId, lead, onClose, onSuccess }: Pr
             website: emptyToNull(estForm.website),
             siret: emptyToNull(estForm.siret),
             no_tva: emptyToNull(estForm.no_tva),
+            fiscal_year_start_month: Number(estForm.fiscal_year_start_month) || 1,
+            fiscal_year_start_day: Number(estForm.fiscal_year_start_day) || 1,
           },
         }),
       });

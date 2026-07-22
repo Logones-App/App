@@ -28,6 +28,8 @@ interface EstFields {
   siret: string;
   no_tva: string;
   code_naf: string;
+  fiscal_year_start_month: string;
+  fiscal_year_start_day: string;
 }
 
 const EMPTY_FORM: EstFields = {
@@ -42,6 +44,8 @@ const EMPTY_FORM: EstFields = {
   siret: "",
   no_tva: "",
   code_naf: "",
+  fiscal_year_start_month: "1",
+  fiscal_year_start_day: "1",
 };
 
 // Les taux de TVA ne sont plus saisis ici : ils sont seedés au niveau ORGANISATION à sa création
@@ -258,6 +262,40 @@ function FormEst({
         />
         {nafErr && <p className="text-destructive mt-0.5 text-xs">{nafErr}</p>}
       </div>
+
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label>
+          Début d&apos;exercice comptable <span className="text-destructive">*</span>{" "}
+          <span className="text-muted-foreground text-xs">(NF525)</span>
+        </Label>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-20">
+            <Label className="text-muted-foreground text-xs">Jour</Label>
+            <Input
+              type="number"
+              min={1}
+              max={31}
+              value={form.fiscal_year_start_day}
+              onChange={(e) => set("fiscal_year_start_day", e.target.value)}
+            />
+          </div>
+          <div className="w-20">
+            <Label className="text-muted-foreground text-xs">Mois</Label>
+            <Input
+              type="number"
+              min={1}
+              max={12}
+              value={form.fiscal_year_start_month}
+              onChange={(e) => set("fiscal_year_start_month", e.target.value)}
+            />
+          </div>
+          <p className="text-muted-foreground pb-2 text-xs">
+            {Number(form.fiscal_year_start_month) === 1 && Number(form.fiscal_year_start_day) === 1
+              ? "= Année civile"
+              : "= Exercice décalé"}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -325,11 +363,15 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const siretDigits = form.siret.replace(/\s/g, "");
+  const fym = Number(form.fiscal_year_start_month);
+  const fyd = Number(form.fiscal_year_start_day);
+  const fiscalValid = Number.isInteger(fym) && fym >= 1 && fym <= 12 && Number.isInteger(fyd) && fyd >= 1 && fyd <= 31;
   const isStep0Valid =
     STEP0_REQUIRED.every((k) => form[k].trim() !== "") &&
     /^\d{14}$/.test(siretDigits) &&
     isValidNaf(form.code_naf) &&
-    isPostalValid(form.postal_code, form.country);
+    isPostalValid(form.postal_code, form.country) &&
+    fiscalValid;
 
   function handleClose() {
     if (isSubmitting) return;
@@ -367,6 +409,8 @@ export function CreateEstablishmentModal({ open, organizationId, onClose, onSucc
             siret: emptyToNull(form.siret),
             no_tva: emptyToNull(form.no_tva),
             code_naf: emptyToNull(form.code_naf),
+            fiscal_year_start_month: Number(form.fiscal_year_start_month) || 1,
+            fiscal_year_start_day: Number(form.fiscal_year_start_day) || 1,
           },
         }),
       });

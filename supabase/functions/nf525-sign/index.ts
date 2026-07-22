@@ -1,4 +1,4 @@
-// Edge Function nf525-sign — signe un événement JET (130/180/260/290/410) en ECDSA P-256 et l'insère,
+// Edge Function nf525-sign — signe un événement JET (130/180/260/270/290/410) en ECDSA P-256 et l'insère,
 // ATOMIQUEMENT (advisory lock par établissement → prev_sig/event_id cohérents sur le fil device-NULL).
 // Remplace la signature HMAC des anciennes RPC (pgcrypto ne fait pas d'ECDSA). Appelé server-to-server
 // par les routes SaaS avec la clé service_role. Interop POS verrouillée par KAT (RFC6979 + lowS, @noble).
@@ -47,12 +47,13 @@ const LABEL_PREFIX: Record<number, string> = {
   130: "Modification droits employé : ",
   180: "Génération export écritures comptables : ",
   260: "Initialisation des données : ",
+  270: "Modification paramètre de conformité : ",
   290: "Échange expert-comptable (export/Z) : ",
   410: "Changement données assujetti : ",
 };
-// 260 = initialisation des données + 410 = données assujetti → Piste d'Audit (non purgeables).
+// 260 = initialisation + 270 = paramètre de conformité + 410 = données assujetti → Piste d'Audit (non purgeables).
 // 130/180/290 = Journal Technique (purgeables).
-const NON_PURGEABLE = new Set([260, 410]);
+const NON_PURGEABLE = new Set([260, 270, 410]);
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

@@ -34,7 +34,17 @@ interface EstPayload {
   website?: string | null;
   siret?: string | null;
   no_tva?: string | null;
+  fiscal_year_start_month?: number | null;
+  fiscal_year_start_day?: number | null;
 }
+
+/** Entier borné avec repli — protège le CHECK DB (1-12 / 1-31). */
+function clampInt(v: number | null | undefined, min: number, max: number, fallback: number): number {
+  const n = Math.trunc(Number(v));
+  if (!Number.isFinite(n) || n < min || n > max) return fallback;
+  return n;
+}
+
 async function createOrg(svc: Svc, org: OrgPayload): Promise<string> {
   const { data, error } = await svc
     .from("organizations")
@@ -84,6 +94,8 @@ async function createEstablishment(
       website: est.website ?? null,
       siret: est.siret ?? null,
       no_tva: est.no_tva ?? null,
+      fiscal_year_start_month: clampInt(est.fiscal_year_start_month, 1, 12, 1),
+      fiscal_year_start_day: clampInt(est.fiscal_year_start_day, 1, 31, 1),
     })
     .select("id")
     .single();
