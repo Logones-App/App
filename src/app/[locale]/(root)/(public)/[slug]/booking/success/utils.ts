@@ -1,3 +1,4 @@
+import { PUBLIC_ESTABLISHMENT_COLUMNS } from "@/lib/queries/public-establishment-columns";
 import { Tables } from "@/lib/supabase/database.types";
 
 type Establishment = Tables<"establishments">;
@@ -10,9 +11,10 @@ export const getEstablishmentSlug = (resolvedParams: any): string | null => {
 // Fonction pour récupérer l'établissement depuis Supabase
 export const fetchEstablishment = async (establishmentSlug: string): Promise<Establishment | null> => {
   const supabase = (await import("@/lib/supabase/client")).createClient();
+  // ⚠️ Pas de select("*") : anon n'a de privilège que sur les colonnes publiques (cf. public-establishment-columns).
   const { data: establishmentData, error: establishmentError } = await supabase
     .from("establishments")
-    .select("*")
+    .select(PUBLIC_ESTABLISHMENT_COLUMNS)
     .eq("slug", establishmentSlug)
     .eq("deleted", false)
     .single();
@@ -22,7 +24,8 @@ export const fetchEstablishment = async (establishmentSlug: string): Promise<Est
     return null;
   }
 
-  return establishmentData;
+  // Colonnes fiscales (siret/no_tva…) absentes du périmètre public et non utilisées ici.
+  return establishmentData as unknown as Establishment;
 };
 
 // Fonction pour créer les données de réservation depuis le store

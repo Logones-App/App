@@ -13,9 +13,11 @@ export default async function MenuPage({ params }: MenuPageProps) {
 
   // Récupérer le restaurant par slug côté serveur
   const supabase = await createClient();
+  // Garde d'existence uniquement (le contenu est chargé côté client) → un id suffit.
+  // ⚠️ Pas de select("*") : anon n'a plus le privilège sur toutes les colonnes (cf. public-establishment-columns).
   const { data: establishment, error } = await supabase
     .from("establishments")
-    .select("*")
+    .select("id")
     .eq("slug", slug)
     .eq("deleted", false)
     .single();

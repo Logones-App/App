@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { PUBLIC_ESTABLISHMENT_COLUMNS } from "@/lib/queries/public-establishment-columns";
+import type { Tables } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 import { RestaurantPublicClient } from "./restaurant-public-client";
@@ -15,7 +17,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   const supabase = await createClient();
   const { data: establishment, error } = await supabase
     .from("establishments")
-    .select("*")
+    .select(PUBLIC_ESTABLISHMENT_COLUMNS)
     .eq("slug", slug)
     .eq("deleted", false)
     .single();
@@ -32,5 +34,12 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
     .eq("deleted", false)
     .order("day_of_week");
 
-  return <RestaurantPublicClient establishment={establishment} locale={locale} openingHours={openingHours ?? []} />;
+  // Colonnes fiscales (siret/no_tva…) hors périmètre public et non utilisées par le client d'affichage.
+  return (
+    <RestaurantPublicClient
+      establishment={establishment as unknown as Tables<"establishments">}
+      locale={locale}
+      openingHours={openingHours ?? []}
+    />
+  );
 }

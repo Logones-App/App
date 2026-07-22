@@ -2622,6 +2622,8 @@ export type Database = {
           deleted: boolean | null
           description: string | null
           email: string | null
+          fiscal_year_start_day: number
+          fiscal_year_start_month: number
           id: string
           is_public: boolean | null
           logo_url: string | null
@@ -2650,6 +2652,8 @@ export type Database = {
           deleted?: boolean | null
           description?: string | null
           email?: string | null
+          fiscal_year_start_day?: number
+          fiscal_year_start_month?: number
           id?: string
           is_public?: boolean | null
           logo_url?: string | null
@@ -2678,6 +2682,8 @@ export type Database = {
           deleted?: boolean | null
           description?: string | null
           email?: string | null
+          fiscal_year_start_day?: number
+          fiscal_year_start_month?: number
           id?: string
           is_public?: boolean | null
           logo_url?: string | null
